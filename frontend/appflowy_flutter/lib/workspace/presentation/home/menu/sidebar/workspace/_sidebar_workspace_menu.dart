@@ -5,6 +5,7 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/_sidebar_create_workspace.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_actions.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
@@ -284,16 +285,26 @@ class _WorkspaceInfo extends StatelessWidget {
             withTooltip: true,
           ),
           // workspace members count
-          FlowyText.regular(
-            memberCount == 0
-                ? ''
-                : LocaleKeys.settings_appearance_members_membersCount.plural(
-                    memberCount,
-                  ),
-            fontSize: 10.0,
-            figmaLineHeight: 12.0,
-            color: Theme.of(context).hintColor,
-          ),
+          if (workspace.workspaceType == WorkspaceTypePB.ServerW) ...[
+            FlowyText.regular(
+              memberCount == 0
+                  ? ''
+                  : LocaleKeys.settings_appearance_members_membersCount.plural(
+                      memberCount,
+                    ),
+              fontSize: 10.0,
+              figmaLineHeight: 12.0,
+              color: Theme.of(context).hintColor,
+            ),
+          ],
+
+          if (workspace.workspaceType == WorkspaceTypePB.LocalW) ...[
+            FlowyText.regular(
+              LocaleKeys.workspace_vaultIndicator.tr(),
+              fontSize: 10.0,
+              figmaLineHeight: 12.0,
+            ),
+          ],
         ],
       ),
     );
@@ -381,19 +392,23 @@ class _CreateWorkspaceButton extends StatelessWidget {
     );
   }
 
-  Future<void> _showCreateWorkspaceDialog(BuildContext context) async {
+  void _showCreateWorkspaceDialog(BuildContext context) {
+    final workspaceBloc = context.read<UserWorkspaceBloc>();
     if (context.mounted) {
-      final workspaceBloc = context.read<UserWorkspaceBloc>();
-      await CreateWorkspaceDialog(
-        onConfirm: (name) {
-          workspaceBloc.add(
-            UserWorkspaceEvent.createWorkspace(
-              name,
-              WorkspaceTypePB.ServerW,
+      showDialog(
+        context: context,
+        builder: (_) {
+          return Dialog(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12.0),
+            ),
+            child: BlocProvider.value(
+              value: workspaceBloc,
+              child: const CreateWorkspacePopup(),
             ),
           );
         },
-      ).show(context);
+      );
     }
   }
 }
