@@ -123,7 +123,7 @@ pub trait ChatCloudService: Send + Sync + 'static {
     chat_id: &Uuid,
     question_id: i64,
     format: ResponseFormat,
-    ai_model: Option<AIModel>,
+    ai_model: AIModel,
   ) -> Result<StreamAnswer, FlowyError>;
 
   async fn get_answer(
@@ -153,14 +153,14 @@ pub trait ChatCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     chat_id: &Uuid,
     message_id: i64,
-    ai_model: Option<AIModel>,
+    ai_model: AIModel,
   ) -> Result<RepeatedRelatedQuestion, FlowyError>;
 
   async fn stream_complete(
     &self,
     workspace_id: &Uuid,
     params: CompleteTextParams,
-    ai_model: Option<AIModel>,
+    ai_model: AIModel,
   ) -> Result<StreamComplete, FlowyError>;
 
   async fn embed_file(

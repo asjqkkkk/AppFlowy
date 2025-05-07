@@ -82,7 +82,8 @@ uuid = { version = "1.5.0", features = ["serde", "v4", "v5"] }
 serde_repr = "0.1"
 futures = "0.3.31"
 tokio = "1.38.0"
-tokio-stream = "0.1.14"
+tokio-stream = "0.1.17"
+ollama-rs = { version = "0.3.0" }
 async-trait = "0.1.81"
 chrono = { version = "0.4.31", default-features = false, features = ["clock"] }
 collab = { version = "0.2" }
@@ -99,7 +100,7 @@ tokio-util = "0.7.11"
 zip = "2.2.0"
 dashmap = "6.0.1"
 derive_builder = "0.20.2"
-tantivy = { version = "0.24.0" }
+tantivy = { version = "0.24.1" }
 af-plugin = { version = "0.1" }
 af-local-ai = { version = "0.1" }
 num_enum = "0.7.3"
@@ -110,9 +111,9 @@ flowy-sqlite-vec = { path = "flowy-sqlite-vec" }
 # Run the script.add_workspace_members:
 # scripts/tool/update_client_api_rev.sh  new_rev_id
 # ⚠️⚠️⚠️️
-client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "bfe9da67254f4e17a9cb05ffb88bd4a586a71179" }
-client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "bfe9da67254f4e17a9cb05ffb88bd4a586a71179" }
-workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "bfe9da67254f4e17a9cb05ffb88bd4a586a71179" }
+client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "9e16ff714903823ed68a001e78607da5c7f5c93a" }
+client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "9e16ff714903823ed68a001e78607da5c7f5c93a" }
+workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "9e16ff714903823ed68a001e78607da5c7f5c93a" }
 
 [profile.dev]
 opt-level = 0
@@ -163,3 +164,5 @@ collab-importer = { version = "0.1", git = "https://github.com/AppFlowy-IO/AppFl
 af-local-ai = { version = "0.1", git = "https://github.com/AppFlowy-IO/AppFlowy-LocalAI", rev = "093d3f4916a7b924ac66b4f0a9d81cc5fcc72eaa" }
 af-plugin = { version = "0.1", git = "https://github.com/AppFlowy-IO/AppFlowy-LocalAI", rev = "093d3f4916a7b924ac66b4f0a9d81cc5fcc72eaa" }
 af-mcp = { version = "0.1", git = "https://github.com/AppFlowy-IO/AppFlowy-LocalAI", rev = "093d3f4916a7b924ac66b4f0a9d81cc5fcc72eaa" }
+
+langchain-rust = { version = "4.6.0", git = "https://github.com/appflowy/langchain-rust", branch = "af" }

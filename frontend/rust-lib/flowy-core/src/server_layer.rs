@@ -1,21 +1,26 @@
 use crate::AppFlowyCoreConfig;
-use af_plugin::manager::PluginManager;
 use arc_swap::{ArcSwap, ArcSwapOption};
+use collab::entity::EncodedCollab;
+use collab_entity::CollabType;
+use collab_integrate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use dashmap::mapref::one::Ref;
 use dashmap::DashMap;
 use flowy_ai::local_ai::controller::LocalAIController;
+use flowy_ai_pub::entities::UnindexedCollab;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_server::af_cloud::define::AIUserServiceImpl;
 use flowy_server::af_cloud::{define::LoggedUser, AppFlowyCloudServer};
 use flowy_server::local_server::LocalServer;
-use flowy_server::{AppFlowyEncryption, AppFlowyServer, EncryptionImpl};
+use flowy_server::{AppFlowyEncryption, AppFlowyServer, EmbeddingWriter, EncryptionImpl};
 use flowy_server_pub::AuthenticatorType;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::*;
+use lib_infra::async_trait::async_trait;
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 use tracing::info;
+use uuid::Uuid;
 
 pub struct ServerProvider {
   config: AppFlowyCoreConfig,
@@ -26,6 +31,7 @@ pub struct ServerProvider {
   pub uid: Arc<ArcSwapOption<i64>>,
   pub user_enable_sync: Arc<AtomicBool>,
   pub encryption: Arc<dyn AppFlowyEncryption>,
+  pub indexed_data_writer: Option<Weak<InstantIndexedDataWriter>>,
 }
 
 // Our little guard wrapper:
@@ -54,18 +60,14 @@ impl ServerProvider {
     config: AppFlowyCoreConfig,
     store_preferences: Weak<KVStorePreferences>,
     user_service: impl LoggedUser + 'static,
+    indexed_data_writer: Option<Weak<InstantIndexedDataWriter>>,
   ) -> Self {
     let initial_auth = current_server_type();
     let logged_user = Arc::new(user_service) as Arc<dyn LoggedUser>;
     let auth_type = ArcSwap::from(Arc::new(initial_auth));
     let encryption = Arc::new(EncryptionImpl::new(None)) as Arc<dyn AppFlowyEncryption>;
     let ai_user = Arc::new(AIUserServiceImpl(Arc::downgrade(&logged_user)));
-    let plugins = Arc::new(PluginManager::new());
-    let local_ai = Arc::new(LocalAIController::new(
-      plugins,
-      store_preferences,
-      ai_user.clone(),
-    ));
+    let local_ai = Arc::new(LocalAIController::new(store_preferences, ai_user.clone()));
 
     ServerProvider {
       config,
@@ -76,6 +78,7 @@ impl ServerProvider {
       logged_user,
       uid: Default::default(),
       local_ai,
+      indexed_data_writer,
     }
   }
 
@@ -113,10 +116,18 @@ impl ServerProvider {
     }
 
     let server: Arc<dyn AppFlowyServer> = match auth_type {
-      AuthType::Local => Arc::new(LocalServer::new(
-        self.logged_user.clone(),
-        self.local_ai.clone(),
-      )),
+      AuthType::Local => {
+        let embedding_writer = self.indexed_data_writer.clone().map(|w| {
+          Arc::new(EmbeddingWriterImpl {
+            indexed_data_writer: w,
+          }) as Arc<dyn EmbeddingWriter>
+        });
+        Arc::new(LocalServer::new(
+          self.logged_user.clone(),
+          self.local_ai.clone(),
+          embedding_writer,
+        ))
+      },
       AuthType::AppFlowyCloud => {
         let cfg = self
           .config
@@ -138,5 +149,36 @@ impl ServerProvider {
     self.providers.insert(auth_type, server);
     let guard = self.providers.get(&auth_type).unwrap();
     Ok(ServerHandle(guard))
+  }
+}
+
+struct EmbeddingWriterImpl {
+  indexed_data_writer: Weak<InstantIndexedDataWriter>,
+}
+
+#[async_trait]
+impl EmbeddingWriter for EmbeddingWriterImpl {
+  async fn index_encoded_collab(
+    &self,
+    workspace_id: Uuid,
+    object_id: Uuid,
+    data: EncodedCollab,
+    collab_type: CollabType,
+  ) -> FlowyResult<()> {
+    let indexed_data_writer = self.indexed_data_writer.upgrade().ok_or_else(|| {
+      FlowyError::internal().with_context("Failed to upgrade InstantIndexedDataWriter")
+    })?;
+    indexed_data_writer
+      .index_encoded_collab(workspace_id, object_id, data, collab_type)
+      .await?;
+    Ok(())
+  }
+
+  async fn index_unindexed_collab(&self, data: UnindexedCollab) -> FlowyResult<()> {
+    let indexed_data_writer = self.indexed_data_writer.upgrade().ok_or_else(|| {
+      FlowyError::internal().with_context("Failed to upgrade InstantIndexedDataWriter")
+    })?;
+    indexed_data_writer.index_unindexed_collab(data).await?;
+    Ok(())
   }
 }

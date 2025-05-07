@@ -1,6 +1,6 @@
 use crate::embeddings::embedder::Embedder;
 use crate::embeddings::indexer::{EmbeddingModel, Indexer};
-use flowy_ai_pub::entities::EmbeddedChunk;
+use flowy_ai_pub::entities::{EmbeddedChunk, SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
@@ -102,16 +102,18 @@ pub fn split_text_into_chunks(
   }
   let split_contents = group_paragraphs_by_max_content_len(paragraphs, chunk_size, overlap);
   let metadata = json!({
-      "id": object_id,
-      "source": "appflowy",
-      "name": "document",
+      SOURCE_ID: object_id,
+      SOURCE: "appflowy",
+      SOURCE_NAME: "document",
   });
 
   let mut seen = std::collections::HashSet::new();
   let mut chunks = Vec::new();
 
   for (index, content) in split_contents.into_iter().enumerate() {
-    let consistent_hash = Hasher::oneshot(0, content.as_bytes());
+    let metadata_string = metadata.to_string();
+    let combined_data = format!("{}{}", content, metadata_string);
+    let consistent_hash = Hasher::oneshot(0, combined_data.as_bytes());
     let fragment_id = format!("{:x}", consistent_hash);
     if seen.insert(fragment_id.clone()) {
       chunks.push(EmbeddedChunk {
@@ -120,7 +122,7 @@ pub fn split_text_into_chunks(
         content_type: 0,
         content: Some(content),
         embeddings: None,
-        metadata: Some(metadata.to_string()),
+        metadata: Some(metadata_string),
         fragment_index: index as i32,
         embedder_type: 0,
       });

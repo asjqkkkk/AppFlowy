@@ -688,7 +688,7 @@ impl ChatCloudService for ServerProvider {
     chat_id: &Uuid,
     question_id: i64,
     format: ResponseFormat,
-    ai_model: Option<AIModel>,
+    ai_model: AIModel,
   ) -> Result<StreamAnswer, FlowyError> {
     let server = self.get_server()?;
     server
@@ -729,7 +729,7 @@ impl ChatCloudService for ServerProvider {
     workspace_id: &Uuid,
     chat_id: &Uuid,
     message_id: i64,
-    ai_model: Option<AIModel>,
+    ai_model: AIModel,
   ) -> Result<RepeatedRelatedQuestion, FlowyError> {
     self
       .get_server()?
@@ -755,7 +755,7 @@ impl ChatCloudService for ServerProvider {
     &self,
     workspace_id: &Uuid,
     params: CompleteTextParams,
-    ai_model: Option<AIModel>,
+    ai_model: AIModel,
   ) -> Result<StreamComplete, FlowyError> {
     let server = self.get_server()?;
     server

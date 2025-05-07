@@ -193,7 +193,7 @@ pub(crate) async fn start_complete_text_handler(
   let data = data.into_inner();
   let ai_manager = upgrade_ai_manager(ai_manager)?;
   let ai_model = ai_manager.get_active_model(&data.object_id).await;
-  let task = tools.create_complete_task(data, Some(ai_model)).await?;
+  let task = tools.create_complete_task(data, ai_model).await?;
   data_result_ok(task)
 }
 
@@ -313,7 +313,9 @@ pub(crate) async fn get_chat_settings_handler(
   let chat_id = data.try_into_inner()?.value;
   let chat_id = Uuid::from_str(&chat_id)?;
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let rag_ids = ai_manager.get_rag_ids(&chat_id).await?;
+  let uid = ai_manager.user_service.user_id()?;
+  let mut conn = ai_manager.user_service.sqlite_connection(uid)?;
+  let rag_ids = ai_manager.get_rag_ids(&chat_id, &mut conn).await?;
   let pb = ChatSettingsPB { rag_ids };
   data_result_ok(pb)
 }
@@ -346,7 +348,7 @@ pub(crate) async fn get_local_ai_models_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
 ) -> DataResult<ModelSelectionPB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let data = ai_manager.get_local_available_models().await?;
+  let data = ai_manager.get_local_available_models(None).await?;
   data_result_ok(data)
 }
 
