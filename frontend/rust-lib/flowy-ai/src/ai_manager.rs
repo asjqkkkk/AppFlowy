@@ -152,16 +152,20 @@ impl AIManager {
     }
   }
 
-  async fn prepare_local_ai(&self, workspace_id: &Uuid) {
+  async fn prepare_local_ai(&self, workspace_id: &Uuid, is_enabled: bool) {
     self
       .local_ai
       .reload_ollama_client(&workspace_id.to_string())
       .await;
-    self
-      .model_control
-      .lock()
-      .await
-      .add_source(Box::new(LocalAiSource::new(self.local_ai.clone())));
+    if is_enabled {
+      self
+        .model_control
+        .lock()
+        .await
+        .add_source(Box::new(LocalAiSource::new(self.local_ai.clone())));
+    } else {
+      self.model_control.lock().await.remove_local_source();
+    }
   }
 
   #[instrument(skip_all, err)]
@@ -170,13 +174,8 @@ impl AIManager {
       .local_ai
       .is_enabled_on_workspace(&workspace_id.to_string());
 
-    info!("local is enabled: {}", is_enabled);
-    if is_enabled {
-      self.prepare_local_ai(workspace_id).await;
-    } else {
-      self.model_control.lock().await.remove_local_source();
-    }
-
+    info!("{} local ai is enabled: {}", workspace_id, is_enabled);
+    self.prepare_local_ai(workspace_id, is_enabled).await;
     self.reload_with_workspace_id(workspace_id).await;
     Ok(())
   }
@@ -241,7 +240,7 @@ impl AIManager {
       .await
       {
         Ok(settings) => {
-          local_ai.set_rag_ids(&chat_id, &settings.rag_ids).await;
+          local_ai.set_rag_ids(&chat_id, &settings.rag_ids);
           let rag_ids = settings
             .rag_ids
             .into_iter()
@@ -434,7 +433,7 @@ impl AIManager {
     let enabled = self.local_ai.toggle_local_ai().await?;
     let workspace_id = self.user_service.workspace_id()?;
     if enabled {
-      self.prepare_local_ai(&workspace_id).await;
+      self.prepare_local_ai(&workspace_id, enabled).await;
 
       if let Some(name) = self.local_ai.get_local_chat_model() {
         let model = AIModel::local(name, "".to_string());
@@ -713,13 +712,35 @@ impl AIManager {
 
     let user_service = self.user_service.clone();
     let external_service = self.external_service.clone();
-    self.local_ai.set_rag_ids(chat_id, &rag_ids).await;
+    self.local_ai.set_rag_ids(chat_id, &rag_ids);
 
     let rag_ids = rag_ids
       .into_iter()
       .flat_map(|r| Uuid::from_str(&r).ok())
       .collect();
     sync_chat_documents(user_service, external_service, rag_ids).await?;
+    Ok(())
+  }
+
+  pub async fn get_custom_prompt_database_view_id(&self) -> FlowyResult<Option<String>> {
+    let view_id = self
+      .store_preferences
+      .get_object::<String>(CUSTOM_PROMPT_DATABASE_VIEW_ID_KEY);
+
+    Ok(view_id)
+  }
+
+  pub async fn set_custom_prompt_database_view_id(&self, view_id: String) -> FlowyResult<()> {
+    if let Err(err) = self
+      .store_preferences
+      .set_object(CUSTOM_PROMPT_DATABASE_VIEW_ID_KEY, &view_id)
+    {
+      error!(
+        "failed to set custom prompt database view id settings: {}",
+        err
+      );
+    }
+
     Ok(())
   }
 }
@@ -784,3 +805,5 @@ async fn refresh_chat_setting(
 fn setting_store_key(chat_id: &Uuid) -> String {
   format!("chat_settings_{}", chat_id)
 }
+
+const CUSTOM_PROMPT_DATABASE_VIEW_ID_KEY: &str = "custom_prompt_database_view_id";

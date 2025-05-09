@@ -24,6 +24,11 @@ import 'chat_message_stream.dart';
 
 part 'chat_bloc.freezed.dart';
 
+/// Returns current Unix timestamp (seconds since epoch)
+int timestamp() {
+  return DateTime.now().millisecondsSinceEpoch ~/ 1000;
+}
+
 class ChatBloc extends Bloc<ChatEvent, ChatState> {
   ChatBloc({
     required this.chatId,
@@ -82,7 +87,12 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         await event.when(
           // Loading messages
           didLoadLatestMessages: (List<Message> messages) async {
+            Log.debug(
+              "[ChatBloc] did load latest messages: ${messages.length}",
+            );
+
             for (final message in messages) {
+              Log.debug("[ChatBloc] insert message: ${message.toJson()}");
               await chatController.insert(message, index: 0);
             }
 
@@ -160,6 +170,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
             chatController.insert(message);
           },
           receiveMessage: (Message message) {
+            Log.debug("[ChatBloc] receive message: ${message.toJson()}");
             final oldMessage = chatController.messages
                 .firstWhereOrNull((m) => m.id == message.id);
             if (oldMessage == null) {
@@ -270,6 +281,10 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
           },
           deleteMessage: (mesesage) async {
             await chatController.remove(mesesage);
+          },
+          onAIFollowUp: (followUpData) {
+            shouldFetchRelatedQuestions =
+                followUpData.shouldGenerateRelatedQuestion;
           },
         );
       },
@@ -554,8 +569,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     Map<String, dynamic>? sentMetadata,
   ) {
     final now = DateTime.now();
-
-    questionStreamMessageId = (now.millisecondsSinceEpoch ~/ 1000).toString();
+    questionStreamMessageId = timestamp().toString();
 
     return TextMessage(
       author: User(id: userId),
@@ -668,6 +682,9 @@ class ChatEvent with _$ChatEvent {
   ) = _DidReceiveRelatedQueston;
 
   const factory ChatEvent.deleteMessage(Message message) = _DeleteMessage;
+
+  const factory ChatEvent.onAIFollowUp(AIFollowUpData followUpData) =
+      _OnAIFollowUp;
 }
 
 @freezed

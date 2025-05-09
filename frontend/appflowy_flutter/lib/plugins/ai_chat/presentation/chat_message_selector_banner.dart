@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:appflowy/ai/ai.dart';
-import 'package:appflowy/ai/widgets/view_selector.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_edit_document_service.dart';
@@ -186,9 +185,11 @@ class _SaveToPageButtonState extends State<SaveToPageButton> {
                       await updateSelection(documentId);
                     } else {
                       if (spaceView != null) {
-                        context
-                            .read<ViewSelectorCubit>()
-                            .refreshSources([spaceView], spaceView);
+                        unawaited(
+                          context
+                              .read<ViewSelectorCubit>()
+                              .refreshSources([spaceView], spaceView),
+                        );
                       }
                       popoverController.show();
                     }
