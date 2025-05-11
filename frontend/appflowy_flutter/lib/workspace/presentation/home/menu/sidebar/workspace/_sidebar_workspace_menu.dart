@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -392,23 +394,42 @@ class _CreateWorkspaceButton extends StatelessWidget {
     );
   }
 
-  void _showCreateWorkspaceDialog(BuildContext context) {
+  Future<void> _showCreateWorkspaceDialog(BuildContext context) async {
     final workspaceBloc = context.read<UserWorkspaceBloc>();
+    final subscriptionInfo = workspaceBloc.state.workspaceSubscriptionInfo;
     if (context.mounted) {
-      showDialog(
-        context: context,
-        builder: (_) {
-          return Dialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12.0),
-            ),
-            child: BlocProvider.value(
-              value: workspaceBloc,
-              child: const CreateWorkspacePopup(),
-            ),
-          );
-        },
-      );
+      if (subscriptionInfo != null &&
+          subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value) {
+        // User can create vault workspace when user plan above or equal to Pro plan
+        unawaited(
+          showDialog(
+            context: context,
+            builder: (_) {
+              return Dialog(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12.0),
+                ),
+                child: BlocProvider.value(
+                  value: workspaceBloc,
+                  child: const CreateWorkspacePopup(),
+                ),
+              );
+            },
+          ),
+        );
+      } else {
+        final workspaceBloc = context.read<UserWorkspaceBloc>();
+        await CreateWorkspaceDialog(
+          onConfirm: (name) {
+            workspaceBloc.add(
+              UserWorkspaceEvent.createWorkspace(
+                name,
+                WorkspaceTypePB.ServerW,
+              ),
+            );
+          },
+        ).show(context);
+      }
     }
   }
 }
