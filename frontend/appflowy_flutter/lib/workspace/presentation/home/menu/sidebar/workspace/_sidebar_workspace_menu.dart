@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
@@ -398,8 +399,9 @@ class _CreateWorkspaceButton extends StatelessWidget {
     final workspaceBloc = context.read<UserWorkspaceBloc>();
     final subscriptionInfo = workspaceBloc.state.workspaceSubscriptionInfo;
     if (context.mounted) {
-      if (subscriptionInfo != null &&
-          subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value) {
+      final isProPlan = subscriptionInfo != null &&
+          subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value;
+      if (isProPlan || FeatureFlag.createVaultWorkspace.isOn) {
         // User can create vault workspace when user plan above or equal to Pro plan
         unawaited(
           showDialog(
