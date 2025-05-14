@@ -1,10 +1,10 @@
+use crate::SqliteVectorStore;
 use crate::local_ai::chat::chains::context_question_chain::{
-  embedded_documents_to_context_str, ContextRelatedQuestionChain,
+  ContextRelatedQuestionChain, embedded_documents_to_context_str,
 };
 use crate::local_ai::chat::chains::related_question_chain::RelatedQuestionChain;
 use crate::local_ai::chat::llm::LLMOllama;
 use crate::local_ai::chat::retriever::AFRetriever;
-use crate::SqliteVectorStore;
 use arc_swap::ArcSwap;
 use async_stream::stream;
 use async_trait::async_trait;
@@ -13,7 +13,7 @@ use flowy_ai_pub::entities::SOURCE_ID;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite_vec::entities::EmbeddedContent;
 use futures::Stream;
-use futures_util::{pin_mut, StreamExt};
+use futures_util::{StreamExt, pin_mut};
 use langchain_rust::chain::{
   Chain, ChainError, CondenseQuestionGeneratorChain, CondenseQuestionPromptBuilder,
   StuffDocumentBuilder, StuffQAPromptBuilder,
@@ -23,14 +23,14 @@ use langchain_rust::memory::SimpleMemory;
 use langchain_rust::prompt::{FormatPrompter, PromptArgs};
 use langchain_rust::schemas::{BaseMemory, Document, Message, StreamData};
 use serde::{Deserialize, Serialize};
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::{collections::HashMap, pin::Pin, sync::Arc};
 use tokio::sync::Mutex;
 use tokio_util::either::Either;
 use tracing::{error, trace};
 use uuid::Uuid;
 
-pub const CAN_NOT_ANSWER_WITH_CONTEXT: &str = "I couldn't find any relevant information in the sources you selected. Please try asking a different question";
+pub const CAN_NOT_ANSWER_WITH_CONTEXT: &str = "I couldn't find any relevant information in the sources you selected. Please try asking a different question or remove selected sources";
 pub const ANSWER_WITH_SUGGESTED_QUESTION: &str = "I couldn't find any relevant information in the sources you selected. Please try ask following questions";
 pub(crate) const DEFAULT_OUTPUT_KEY: &str = "output";
 pub(crate) const DEFAULT_RESULT_KEY: &str = "generate_result";
