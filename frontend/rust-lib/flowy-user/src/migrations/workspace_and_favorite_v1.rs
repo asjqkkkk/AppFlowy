@@ -6,10 +6,10 @@ use diesel::SqliteConnection;
 use semver::Version;
 use tracing::instrument;
 
-use collab_integrate::{CollabKVAction, CollabKVDB};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::AuthType;
+use flowy_user_pub::workspace_collab::{CollabKVAction, CollabKVDB};
 
 use crate::migrations::migration::UserDataMigration;
 use crate::migrations::util::load_collab;

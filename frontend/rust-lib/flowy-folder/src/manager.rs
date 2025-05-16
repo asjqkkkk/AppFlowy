@@ -28,10 +28,8 @@ use collab_folder::{
   Folder, FolderData, FolderNotify, Section, SectionItem, TrashInfo, View, ViewLayout, ViewUpdate,
   Workspace,
 };
-use collab_integrate::CollabKVDB;
-use collab_integrate::collab_builder::{
-  AppFlowyCollabBuilder, CollabBuilderConfig, CollabPersistenceImpl,
-};
+use flowy_user_pub::workspace_collab::CollabKVDB;
+
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_folder_pub::cloud::{FolderCloudService, FolderCollabParams, gen_view_id};
 use flowy_folder_pub::entities::{
@@ -39,6 +37,7 @@ use flowy_folder_pub::entities::{
   PublishViewInfo, PublishViewMeta, PublishViewMetaData,
 };
 use flowy_sqlite::kv::KVStorePreferences;
+use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
 use futures::future;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
@@ -58,7 +57,7 @@ pub trait FolderUser: Send + Sync {
 
 pub struct FolderManager {
   pub(crate) mutex_folder: ArcSwapOption<RwLock<Folder>>,
-  pub(crate) collab_builder: Arc<AppFlowyCollabBuilder>,
+  pub(crate) collab_builder: Weak<WorkspaceCollabAdaptor>,
   pub(crate) user: Arc<dyn FolderUser>,
   pub(crate) operation_handlers: FolderOperationHandlers,
   pub cloud_service: Weak<dyn FolderCloudService>,
@@ -75,7 +74,7 @@ impl Drop for FolderManager {
 impl FolderManager {
   pub fn new(
     user: Arc<dyn FolderUser>,
-    collab_builder: Arc<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Weak<dyn FolderCloudService>,
     store_preferences: Arc<KVStorePreferences>,
   ) -> FlowyResult<Self> {
@@ -199,9 +198,11 @@ impl FolderManager {
     data_source: Option<DataSource>,
     folder_notifier: T,
   ) -> Result<Arc<RwLock<Folder>>, FlowyError> {
+    let collab_builder = self.collab_builder.upgrade().ok_or_else(|| {
+      FlowyError::internal().with_context("The folder builder is not initialized")
+    })?;
     let folder_notifier = folder_notifier.into();
     // only need the check the workspace id when the doc state is not from the disk.
-    let config = CollabBuilderConfig::default().sync_enable(true);
 
     let data_source = data_source.unwrap_or_else(|| {
       CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source()
@@ -209,19 +210,9 @@ impl FolderManager {
 
     let object_id = workspace_id;
     let collab_object =
-      self
-        .collab_builder
-        .collab_object(workspace_id, uid, object_id, CollabType::Folder)?;
-    let result = self
-      .collab_builder
-      .create_folder(
-        collab_object,
-        data_source,
-        collab_db,
-        config,
-        folder_notifier,
-        None,
-      )
+      collab_builder.collab_object(workspace_id, uid, object_id, CollabType::Folder)?;
+    let result = collab_builder
+      .create_folder(collab_object, data_source, folder_notifier, None)
       .await;
 
     // If opening the folder fails due to missing required data (indicated by a `FolderError::NoRequiredData`),
@@ -253,24 +244,17 @@ impl FolderManager {
     notifier: Option<FolderNotify>,
     folder_data: Option<FolderData>,
   ) -> Result<Arc<RwLock<Folder>>, FlowyError> {
+    let collab_builder = self.collab_builder.upgrade().ok_or_else(|| {
+      FlowyError::internal().with_context("The folder builder is not initialized")
+    })?;
     let object_id = workspace_id;
     let collab_object =
-      self
-        .collab_builder
-        .collab_object(workspace_id, uid, object_id, CollabType::Folder)?;
+      collab_builder.collab_object(workspace_id, uid, object_id, CollabType::Folder)?;
 
     let doc_state =
       CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
-    let folder = self
-      .collab_builder
-      .create_folder(
-        collab_object,
-        doc_state,
-        collab_db,
-        CollabBuilderConfig::default().sync_enable(true),
-        notifier,
-        folder_data,
-      )
+    let folder = collab_builder
+      .create_folder(collab_object, doc_state, notifier, folder_data)
       .await?;
     Ok(folder)
   }

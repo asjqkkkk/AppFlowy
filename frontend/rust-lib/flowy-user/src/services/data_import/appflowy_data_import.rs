@@ -20,8 +20,7 @@ use collab_document::document_data::default_document_collab_data;
 use collab_entity::CollabType;
 use collab_folder::hierarchy_builder::{NestedChildViewBuilder, NestedViews, ParentChildViews};
 use collab_folder::{Folder, UserId, View, ViewIdentifier, ViewLayout};
-use collab_integrate::{CollabKVAction, CollabKVDB, PersistenceError};
-use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_folder_pub::cloud::gen_view_id;
 use flowy_folder_pub::entities::{
@@ -36,6 +35,8 @@ use std::collections::{HashMap, HashSet};
 
 use collab_document::blocks::TextDelta;
 use collab_document::document::Document;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::CollabKVDB;
 use flowy_user_pub::sql::{select_user_auth_type, select_user_profile, select_user_workspace};
 use semver::Version;
 use serde_json::json;

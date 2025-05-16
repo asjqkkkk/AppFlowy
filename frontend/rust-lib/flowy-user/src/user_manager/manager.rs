@@ -1,28 +1,7 @@
 use client_api::entity::GotrueTokenResponse;
-use collab_integrate::collab_builder::AppFlowyCollabBuilder;
-use collab_integrate::CollabKVDB;
 use flowy_error::FlowyResult;
+use std::rc::Rc;
 use std::str::FromStr;
-
-use collab::lock::RwLock;
-use collab_user::core::UserAwareness;
-use dashmap::DashMap;
-use flowy_sqlite::kv::KVStorePreferences;
-use flowy_sqlite::schema::user_table;
-use flowy_sqlite::ConnectionPool;
-use flowy_sqlite::{query_dsl::*, DBConnection, ExpressionMethods};
-use flowy_user_pub::cloud::{UserCloudServiceProvider, UserUpdate};
-use flowy_user_pub::entities::*;
-use flowy_user_pub::workspace_service::UserWorkspaceService;
-use lib_infra::box_any::BoxAny;
-use semver::Version;
-use serde_json::Value;
-use std::string::ToString;
-use std::sync::atomic::{AtomicI64, Ordering};
-use std::sync::{Arc, Weak};
-use tokio_stream::StreamExt;
-use tracing::{debug, error, event, info, instrument, warn};
-use uuid::Uuid;
 
 use crate::entities::{AuthStateChangedPB, AuthStatePB, UserProfilePB, UserSettingPB};
 use crate::event_map::{AppLifeCycle, DefaultUserStatusCallback};
@@ -32,27 +11,50 @@ use crate::migrations::migration::{
 };
 use crate::migrations::workspace_and_favorite_v1::FavoriteV1AndWorkspaceArrayMigration;
 use crate::migrations::workspace_trash_v1::WorkspaceTrashMapToSectionMigration;
+use crate::services::action_interceptor::ActionInterceptors;
 use crate::services::authenticate_user::AuthenticateUser;
 use crate::services::cloud_config::get_cloud_config;
-use crate::services::collab_interact::{DefaultCollabInteract, UserReminder};
+use arc_swap::ArcSwapOption;
+use collab::lock::RwLock;
+use collab_plugins::CollabKVDB;
+use collab_user::core::UserAwareness;
+use dashmap::DashMap;
+use flowy_sqlite::kv::KVStorePreferences;
+use flowy_sqlite::schema::user_table;
+use flowy_sqlite::ConnectionPool;
+use flowy_sqlite::{query_dsl::*, DBConnection, ExpressionMethods};
+use flowy_user_pub::cloud::UserCloudServiceProvider;
+use flowy_user_pub::entities::*;
+use flowy_user_pub::workspace_service::WorkspaceDataImporter;
+use lib_infra::box_any::BoxAny;
+use semver::Version;
+use serde_json::Value;
+use std::string::ToString;
+use std::sync::{Arc, Weak};
+use tokio_stream::wrappers::WatchStream;
+use tokio_stream::StreamExt;
+use tracing::{debug, error, event, info, instrument, warn};
+use uuid::Uuid;
 
 use crate::migrations::anon_user_workspace::AnonUserWorkspaceTableMigration;
 use crate::migrations::doc_key_with_workspace::CollabDocKeyWithWorkspaceIdMigration;
+use crate::user_manager::manager_user_awareness::UserAwarenessLifeCycle;
+use crate::user_manager::manager_workspace_control::WorkspaceControllerLifeCycle;
 use crate::{errors::FlowyError, notification::*};
 use flowy_user_pub::session::Session;
 use flowy_user_pub::sql::*;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 
 pub struct UserManager {
   pub(crate) cloud_service: Weak<dyn UserCloudServiceProvider>,
   pub(crate) store_preferences: Arc<KVStorePreferences>,
-  pub(crate) user_awareness_by_workspace: DashMap<Uuid, Arc<RwLock<UserAwareness>>>,
   pub app_life_cycle: RwLock<Arc<dyn AppLifeCycle>>,
-  pub(crate) collab_builder: Weak<AppFlowyCollabBuilder>,
-  pub(crate) collab_interact: RwLock<Arc<dyn UserReminder>>,
-  pub(crate) user_workspace_service: Arc<dyn UserWorkspaceService>,
+  pub(crate) workspace_collab_adaptor: Weak<WorkspaceCollabAdaptor>,
+  pub(crate) action_interceptors: Arc<ArcSwapOption<ActionInterceptors>>,
+  pub(crate) data_importer: Arc<dyn WorkspaceDataImporter>,
   pub(crate) authenticate_user: Arc<AuthenticateUser>,
-  refresh_user_profile_since: AtomicI64,
-  pub(crate) is_loading_awareness: Arc<DashMap<Uuid, bool>>,
+  pub(crate) user_awareness_by_wid: DashMap<Uuid, UserAwarenessLifeCycle>,
+  pub(crate) controller_by_wid: Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
 }
 
 impl Drop for UserManager {
@@ -65,47 +67,26 @@ impl UserManager {
   pub fn new(
     cloud_services: Weak<dyn UserCloudServiceProvider>,
     store_preferences: Arc<KVStorePreferences>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    workspace_collab_adaptor: Weak<WorkspaceCollabAdaptor>,
     authenticate_user: Arc<AuthenticateUser>,
-    user_workspace_service: Arc<dyn UserWorkspaceService>,
+    data_importer: Arc<dyn WorkspaceDataImporter>,
   ) -> Arc<Self> {
     let user_status_callback: RwLock<Arc<dyn AppLifeCycle>> =
       RwLock::new(Arc::new(DefaultUserStatusCallback));
 
-    let refresh_user_profile_since = AtomicI64::new(0);
     let user_manager = Arc::new(Self {
       cloud_service: cloud_services,
       store_preferences,
-      user_awareness_by_workspace: Default::default(),
       app_life_cycle: user_status_callback,
-      collab_builder,
-      collab_interact: RwLock::new(Arc::new(DefaultCollabInteract)),
+      workspace_collab_adaptor,
+      action_interceptors: Default::default(),
       authenticate_user,
-      refresh_user_profile_since,
-      user_workspace_service,
-      is_loading_awareness: Arc::new(Default::default()),
+      data_importer,
+      controller_by_wid: Default::default(),
+      user_awareness_by_wid: Default::default(),
     });
 
-    let weak_user_manager = Arc::downgrade(&user_manager);
-    if let Ok(user_service) = user_manager
-      .cloud_service
-      .upgrade()
-      .ok_or_else(FlowyError::ref_drop)
-      .and_then(|v| v.get_user_service())
-    {
-      if let Some(mut rx) = user_service.subscribe_user_update() {
-        tokio::spawn(async move {
-          while let Some(update) = rx.recv().await {
-            if let Some(user_manager) = weak_user_manager.upgrade() {
-              if let Err(err) = user_manager.handler_user_update(update).await {
-                error!("handler_user_update failed: {:?}", err);
-              }
-            }
-          }
-        });
-      }
-    }
-
+    user_manager.spawn_periodically_check_workspace_control();
     user_manager
   }
 
@@ -134,14 +115,14 @@ impl UserManager {
   /// the function will set up the collaboration configuration and initialize the user's awareness. Upon successful
   /// completion, a user status callback is invoked to signify that the initialization process is complete.
   #[instrument(level = "debug", skip_all, err)]
-  pub async fn init_with_callback<C: AppLifeCycle + 'static, I: UserReminder>(
+  pub async fn init_with_callback<C: AppLifeCycle + 'static>(
     &self,
-    user_status_callback: C,
-    collab_interact: I,
+    app_life_cycle: C,
+    interceptor: ActionInterceptors,
   ) -> Result<(), FlowyError> {
-    let app_life_cycle = Arc::new(user_status_callback);
+    let app_life_cycle = Arc::new(app_life_cycle);
     *self.app_life_cycle.write().await = app_life_cycle.clone();
-    *self.collab_interact.write().await = Arc::new(collab_interact);
+    self.action_interceptors.store(Some(Arc::new(interceptor)));
     let cloud_service = self.cloud_service()?;
 
     if let Ok(session) = self.get_session() {
@@ -153,11 +134,11 @@ impl UserManager {
       let mut conn = self.db_connection(session.user_id)?;
       let workspace_type =
         select_user_workspace_type(&session.workspace_id, &mut conn).or_else(|err| {
-          // Anonymous workspaces aren’t yet recorded in user_workspace_table,
+          // Anonymous workspaces aren't yet recorded in user_workspace_table,
           // so calling select_user_workspace_type(...) will Err for anon users.
           // As a temporary workaround, if we detect the current user is anonymous,
           // we force the workspace type to WorkspaceType::Local.
-          // In the upcoming run_data_migration, we’ll insert proper anon‐user records
+          // In the upcoming run_data_migration, we'll insert proper anon‐user records
           // and can remove this special case.
           if self
             .get_anon_user_id()
@@ -172,7 +153,7 @@ impl UserManager {
         })?;
 
       let uid = session.user_id;
-      let auth_type = AuthType::from(workspace_type);
+      let auth_type = select_user_auth_type(uid, &mut conn)?;
       let token = self.token_from_auth_type(&auth_type)?;
       cloud_service.set_server_auth_type(&auth_type, token.clone())?;
 
@@ -185,83 +166,7 @@ impl UserManager {
 
       self.prepare_user(&session).await;
       self.prepare_backup(&session).await;
-
-      // Set the token if the current cloud service using token to authenticate
-      // Currently, only the AppFlowy cloud using token to init the client api.
-      // TODO(nathan): using trait to separate the init process for different cloud service
-      if auth_type.is_appflowy_cloud() {
-        let local_token = token.unwrap_or_default();
-        // Subscribe the token state
-        let weak_cloud_services = self.cloud_service.clone();
-        let weak_authenticate_user = Arc::downgrade(&self.authenticate_user);
-        let weak_pool = Arc::downgrade(&self.db_pool(uid)?);
-        let workspace_id = session.workspace_id.clone();
-        let cloned_session = session.clone();
-        if let Some(mut token_state_rx) = cloud_service.subscribe_token_state() {
-          event!(tracing::Level::DEBUG, "Listen token state change");
-          let user_uid = uid;
-          tokio::spawn(async move {
-            while let Some(token_state) = token_state_rx.next().await {
-              debug!("Token state changed: {:?}", token_state);
-              match token_state {
-                UserTokenState::Refresh { token: new_token } => {
-                  // Only save the token if the token is different from the current token
-                  if new_token != local_token {
-                    if let Some(conn) = weak_pool.upgrade().and_then(|pool| pool.get().ok()) {
-                      // Save the new token
-                      if let Err(err) = save_user_token(user_uid, &workspace_id, conn, new_token) {
-                        error!("Save user token failed: {}", err);
-                      }
-                    }
-                  }
-                },
-                UserTokenState::Invalid => {
-                  // Attempt to upgrade the weak reference for cloud_services
-                  let cloud_services = match weak_cloud_services.upgrade() {
-                    Some(cloud_services) => cloud_services,
-                    None => {
-                      error!("Failed to upgrade weak reference for cloud_services");
-                      return; // Exit early if the upgrade fails
-                    },
-                  };
-
-                  // Attempt to upgrade the weak reference for authenticate_user
-                  let authenticate_user = match weak_authenticate_user.upgrade() {
-                    Some(authenticate_user) => authenticate_user,
-                    None => {
-                      warn!("Failed to upgrade weak reference for authenticate_user");
-                      return; // Exit early if the upgrade fails
-                    },
-                  };
-
-                  // Attempt to upgrade the weak reference for pool and then get a connection
-                  let conn = match weak_pool.upgrade() {
-                    Some(pool) => match pool.get() {
-                      Ok(conn) => conn,
-                      Err(_) => {
-                        warn!("Failed to get connection from pool");
-                        return; // Exit early if getting connection fails
-                      },
-                    },
-                    None => {
-                      warn!("Failed to upgrade weak reference for pool");
-                      return; // Exit early if the upgrade fails
-                    },
-                  };
-
-                  // If all upgrades succeed, proceed with the sign_out operation
-                  if let Err(err) =
-                    sign_out(&cloud_services, &cloned_session, &authenticate_user, conn).await
-                  {
-                    error!("Sign out when token invalid failed: {:?}", err);
-                  }
-                },
-                UserTokenState::Init => {},
-              }
-            }
-          });
-        }
-      }
+      self.spawn_observe_token_changed(&auth_type, token).await;
 
       // Do the user data migration if needed.
       event!(tracing::Level::INFO, "Prepare user data migration");
@@ -271,7 +176,7 @@ impl UserManager {
         self
           .authenticate_user
           .database
-          .get_collab_db(session.user_id),
+          .get_weak_collab_db(session.user_id),
         self.authenticate_user.database.get_pool(session.user_id),
       ) {
         (Ok(collab_db), Ok(sqlite_pool)) => {
@@ -290,6 +195,7 @@ impl UserManager {
       // migrations should run before set the first time installed version
       self.set_first_time_installed_version();
       let cloud_config = get_cloud_config(session.user_id, &self.store_preferences);
+      let controller = self.init_workspace_controller_if_need(&workspace_uuid, &cloud_service)?;
       // Init the user awareness. here we ignore the error
       let _ = self
         .initial_user_awareness(
@@ -308,6 +214,7 @@ impl UserManager {
           &self.authenticate_user.user_config,
           &self.authenticate_user.user_paths,
           &workspace_type,
+          controller,
         )
         .await?;
     } else {
@@ -348,7 +255,7 @@ impl UserManager {
   }
 
   pub fn get_collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError> {
-    self.authenticate_user.database.get_collab_db(uid)
+    self.authenticate_user.database.get_weak_collab_db(uid)
   }
 
   #[cfg(debug_assertions)]
@@ -378,12 +285,18 @@ impl UserManager {
       .sign_in(BoxAny::new(params))
       .await?;
     let session = Session::from(&response);
+    let user_profile = UserProfile::from((&response, &auth_type));
+
     self.prepare_user(&session).await;
+    self
+      .spawn_observe_token_changed(&auth_type, Some(user_profile.token.clone()))
+      .await;
 
     let latest_workspace = response.latest_workspace.clone();
     let workspace_id = Uuid::parse_str(&latest_workspace.id)?;
-    let user_profile = UserProfile::from((&response, &auth_type));
     self.save_auth_data(&response, auth_type, &session).await?;
+
+    let controller = self.init_workspace_controller_if_need(&workspace_id, &cloud_service)?;
 
     let _ = self
       .initial_user_awareness(
@@ -403,6 +316,7 @@ impl UserManager {
         &self.authenticate_user.user_config,
         &self.authenticate_user.user_paths,
         &user_profile.workspace_type,
+        controller,
       )
       .await?;
     send_auth_state_notification(AuthStateChangedPB {
@@ -450,6 +364,10 @@ impl UserManager {
       .save_auth_data(&response, *auth_type, &new_session)
       .await?;
     self.prepare_user(&new_session).await;
+    self
+      .spawn_observe_token_changed(auth_type, Some(new_user_profile.token.clone()))
+      .await;
+
     let _ = self
       .initial_user_awareness(
         new_session.user_id,
@@ -459,6 +377,8 @@ impl UserManager {
       )
       .await;
     let workspace_id = Uuid::parse_str(&new_session.workspace_id)?;
+    let cloud_service = self.cloud_service()?;
+    let controller = self.init_workspace_controller_if_need(&workspace_id, &cloud_service)?;
     self
       .app_life_cycle
       .read()
@@ -470,6 +390,7 @@ impl UserManager {
         &self.authenticate_user.user_config,
         &self.authenticate_user.user_paths,
         &new_user_profile.workspace_type,
+        controller,
       )
       .await?;
 
@@ -586,12 +507,9 @@ impl UserManager {
       return Ok(());
     }
 
-    let now = chrono::Utc::now().timestamp();
-    // Add debounce to avoid too many requests
-    if now - self.refresh_user_profile_since.load(Ordering::SeqCst) < 5 {
+    if !self.authenticate_user.should_load_user_profile() {
       return Ok(());
     }
-    self.refresh_user_profile_since.store(now, Ordering::SeqCst);
 
     let uid = old_user_profile.uid;
     let result: Result<UserProfile, FlowyError> = self
@@ -795,20 +713,35 @@ impl UserManager {
     Ok(())
   }
 
-  async fn handler_user_update(&self, user_update: UserUpdate) -> FlowyResult<()> {
-    let session = self.get_session()?;
-    if session.user_id == user_update.uid {
-      debug!("Receive user update: {:?}", user_update);
-      // Save the user profile change
-      upsert_user_profile_change(
-        user_update.uid,
-        &session.workspace_id,
-        self.db_connection(user_update.uid)?,
-        UserTableChangeset::from(user_update),
-      )?;
+  #[instrument(level = "info", skip_all)]
+  async fn spawn_observe_token_changed(&self, auth_type: &AuthType, current_token: Option<String>) {
+    // Set the token if the current cloud service using token to authenticate
+    // Currently, only the AppFlowy cloud using token to init the client api.
+    if auth_type.is_appflowy_cloud() {
+      match self.cloud_service() {
+        Ok(cloud_service) => {
+          let weak_cloud_service = self.cloud_service.clone();
+          let weak_authenticate_user = Arc::downgrade(&self.authenticate_user);
+          let controller_by_wid = self.controller_by_wid.clone();
+          if let Some(token_state_rx) = cloud_service.subscribe_token_state() {
+            info!("Subscribe token state change");
+            tokio::spawn(async move {
+              observe_token_change(
+                current_token,
+                weak_cloud_service,
+                weak_authenticate_user,
+                token_state_rx,
+                controller_by_wid,
+              )
+              .await;
+            });
+          }
+        },
+        Err(err) => {
+          error!("Failed to observe token state change, error: {:?}", err);
+        },
+      }
     }
-
-    Ok(())
   }
 }
 
@@ -920,5 +853,103 @@ pub async fn sign_out(
     event!(tracing::Level::ERROR, "{:?}", err);
   }
 
+  Ok(())
+}
+async fn observe_token_change(
+  mut current_token: Option<String>,
+  weak_cloud_services: Weak<dyn UserCloudServiceProvider>,
+  weak_authenticate_user: Weak<AuthenticateUser>,
+  mut token_state_rx: WatchStream<UserTokenState>,
+  controller_by_wid: Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
+) {
+  while let Some(token_state) = token_state_rx.next().await {
+    debug!("Token state changed: {:?}", token_state);
+    let auth_user = match weak_authenticate_user.upgrade() {
+      None => {
+        info!("AuthenticateUser dropped, stopping token observation.");
+        break;
+      },
+      Some(auth_user) => auth_user,
+    };
+
+    match token_state {
+      UserTokenState::Refresh { token: new_token } => {
+        if Some(&new_token) == current_token.as_ref() {
+          debug!("Refresh: token unchanged, skipping.");
+          continue;
+        }
+
+        if let Err(err) = handle_refresh(&auth_user, &controller_by_wid, &new_token).await {
+          warn!("Refresh failed: {}", err);
+        }
+
+        current_token = Some(new_token);
+      },
+      UserTokenState::Invalid => {
+        let service = match weak_cloud_services.upgrade() {
+          None => {
+            info!("Cloud service dropped, stopping token observation.");
+            break;
+          },
+          Some(cloud_service) => cloud_service,
+        };
+        if let Err(err) = handle_invalid(&service, &auth_user).await {
+          error!("Invalid-token sign-out failed: {}", err);
+        }
+        current_token = None;
+      },
+      UserTokenState::Init => {
+        debug!("Token state is Init. No action taken.");
+      },
+    }
+  }
+
+  debug!("Token observation loop finished: stream ended.");
+}
+
+async fn handle_refresh(
+  auth_user: &Arc<AuthenticateUser>,
+  controllers: &Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
+  new_token: &str,
+) -> FlowyResult<()> {
+  // 1) Upgrade and get session
+  let session = auth_user.get_session()?;
+  let uid = session.user_id;
+  let workspace_uuid: Uuid = session.workspace_id.parse()?;
+
+  // 2) Reconnect controller if present
+  if let Some(ctr) = controllers.get_mut(&workspace_uuid) {
+    if ctr.is_connected() {
+      if let Err(e) = ctr.disconnect().await {
+        error!("Disconnect error for {}: {:?}", workspace_uuid, e);
+      }
+    }
+    if let Err(e) = ctr.connect(new_token.to_owned()).await {
+      error!("Connect error for {}: {:?}", workspace_uuid, e);
+    }
+  } else {
+    debug!("No controller for workspace {}", workspace_uuid);
+  }
+
+  // 3) Persist the new token
+  let conn = auth_user.get_sqlite_connection(uid)?;
+  save_user_token(uid, &session.workspace_id, conn, new_token.to_string())
+    .map_err(|e| format!("DB save error: {}", e))?;
+
+  debug!("Token updated and saved for user {}", uid);
+  Ok(())
+}
+
+async fn handle_invalid(
+  service: &Arc<dyn UserCloudServiceProvider>,
+  auth_user: &Arc<AuthenticateUser>,
+) -> FlowyResult<()> {
+  let session = auth_user.get_session()?;
+  let conn = auth_user.get_sqlite_connection(session.user_id)?;
+
+  sign_out(service, &session, auth_user, conn)
+    .await
+    .map_err(|e| format!("Sign-out error: {:?}", e))?;
+  info!("Successfully signed out user {}", session.user_id);
   Ok(())
 }

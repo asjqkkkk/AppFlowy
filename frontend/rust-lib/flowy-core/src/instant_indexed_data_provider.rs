@@ -2,14 +2,16 @@ use collab::core::collab::DataSource;
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::lock::RwLock;
-use collab::preclude::{Collab, Transact};
-use collab_document::document::DocumentBody;
+use collab::preclude::Collab;
 use collab_entity::{CollabObject, CollabType};
-use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata, UnindexedData};
+use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata};
 use flowy_error::{FlowyError, FlowyResult};
+use flowy_user_pub::workspace_collab::adaptor::{
+  unindexed_data_form_collab, CollabIndexedData, InstantIndexedDataConsumer,
+  WorkspaceCollabEmbedding,
+};
 use lib_infra::async_trait::async_trait;
 use lib_infra::util::get_operating_system;
-use std::borrow::BorrowMut;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -229,12 +231,11 @@ impl InstantIndexedDataWriter {
     }
     Ok(())
   }
+}
 
-  pub async fn queue_collab_embed(
-    &self,
-    collab_object: CollabObject,
-    collab: Weak<dyn CollabIndexedData>,
-  ) {
+#[async_trait]
+impl WorkspaceCollabEmbedding for InstantIndexedDataWriter {
+  async fn embed_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>) {
     if !get_operating_system().is_desktop() {
       return;
     }
@@ -251,21 +252,6 @@ impl InstantIndexedDataWriter {
         collab,
       },
     );
-  }
-}
-
-pub fn unindexed_data_form_collab(
-  collab: &Collab,
-  collab_type: &CollabType,
-) -> Option<UnindexedData> {
-  match collab_type {
-    CollabType::Document => {
-      let txn = collab.doc().try_transact().ok()?;
-      let doc = DocumentBody::from_collab(collab)?;
-      let paras = doc.paragraphs(txn);
-      Some(UnindexedData::Paragraphs(paras))
-    },
-    _ => None,
   }
 }
 
@@ -296,40 +282,4 @@ pub fn unindexed_collab_from_encoded_collab(
     },
     _ => None,
   }
-}
-
-#[async_trait]
-pub trait CollabIndexedData: Send + Sync + 'static {
-  async fn get_unindexed_data(&self, collab_type: &CollabType) -> Option<UnindexedData>;
-}
-
-#[async_trait]
-impl<T> CollabIndexedData for RwLock<T>
-where
-  T: BorrowMut<Collab> + Send + Sync + 'static,
-{
-  async fn get_unindexed_data(&self, collab_type: &CollabType) -> Option<UnindexedData> {
-    let collab = self.try_read().ok()?;
-    unindexed_data_form_collab(collab.borrow(), collab_type)
-  }
-}
-
-/// writer interface
-#[async_trait]
-pub trait InstantIndexedDataConsumer: Send + Sync + 'static {
-  fn consumer_id(&self) -> String;
-
-  async fn consume_collab(
-    &self,
-    workspace_id: &Uuid,
-    data: UnindexedData,
-    object_id: &Uuid,
-    collab_type: CollabType,
-  ) -> Result<bool, FlowyError>;
-
-  async fn did_delete_collab(
-    &self,
-    workspace_id: &Uuid,
-    object_id: &Uuid,
-  ) -> Result<(), FlowyError>;
 }

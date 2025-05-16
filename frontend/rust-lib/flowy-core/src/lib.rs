@@ -1,7 +1,5 @@
 #![allow(unused_doc_comments)]
 
-use collab_integrate::collab_builder::AppFlowyCollabBuilder;
-use collab_integrate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::DatabaseManager;
@@ -34,12 +32,14 @@ use crate::config::AppFlowyCoreConfig;
 use crate::deps_resolve::file_storage_deps::FileStorageResolver;
 use crate::deps_resolve::*;
 use crate::full_indexed_data_provider::FullIndexedDataWriter;
+use crate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use crate::log_filter::init_log;
 use crate::server_layer::ServerProvider;
 use app_life_cycle::AppLifeCycleImpl;
-use deps_resolve::reminder_deps::CollabInteractImpl;
 use flowy_sqlite::DBConnection;
+use flowy_user::services::action_interceptor::ActionInterceptors;
 use flowy_user_pub::entities::WorkspaceType;
+use flowy_user_pub::workspace_collab::adaptor::{WorkspaceCollabAdaptor, WorkspaceCollabEmbedding};
 use lib_infra::async_trait::async_trait;
 
 pub(crate) mod app_life_cycle;
@@ -49,6 +49,7 @@ mod folder_view_observer;
 mod full_indexed_data_provider;
 mod indexed_data_consumer;
 mod indexing_data_runner;
+mod instant_indexed_data_provider;
 mod log_filter;
 pub mod module;
 pub(crate) mod server_layer;
@@ -72,7 +73,7 @@ pub struct AppFlowyCore {
   pub search_manager: Arc<SearchManager>,
   pub ai_manager: Arc<AIManager>,
   pub storage_manager: Arc<StorageManager>,
-  pub collab_builder: Arc<AppFlowyCollabBuilder>,
+  pub workspace_collab_adaptor: Arc<WorkspaceCollabAdaptor>,
   pub full_indexed_data_writer: Arc<RwLock<Option<FullIndexedDataWriter>>>,
 }
 
@@ -170,7 +171,7 @@ impl AppFlowyCore {
       server_provider,
       database_manager,
       document_manager,
-      collab_builder,
+      workspace_collab_adaptor,
       search_manager,
       ai_manager,
       storage_manager,
@@ -184,18 +185,16 @@ impl AppFlowyCore {
 
       /// The shared collab builder is used to build the [Collab] instance. The plugins will be loaded
       /// on demand based on the [CollabPluginConfig].
-      let collab_builder = Arc::new(AppFlowyCollabBuilder::new(
-        server_provider.clone(),
+      let workspace_collab_adaptor = Arc::new(WorkspaceCollabAdaptor::new(
         WorkspaceCollabIntegrateImpl(Arc::downgrade(&authenticate_user)),
-        instant_indexed_data_writer.as_ref().map(Arc::downgrade),
+        instant_indexed_data_writer
+          .as_ref()
+          .map(|v| Arc::downgrade(v) as Weak<dyn WorkspaceCollabEmbedding>),
       ));
-
-      collab_builder
-        .set_snapshot_persistence(Arc::new(SnapshotDBImpl(Arc::downgrade(&authenticate_user))));
 
       let folder_manager = FolderDepsResolver::resolve(
         Arc::downgrade(&authenticate_user),
-        collab_builder.clone(),
+        Arc::downgrade(&workspace_collab_adaptor),
         Arc::downgrade(&server_provider),
         store_preference.clone(),
       )
@@ -219,7 +218,7 @@ impl AppFlowyCore {
       let database_manager = DatabaseDepsResolver::resolve(
         Arc::downgrade(&authenticate_user),
         task_dispatcher.clone(),
-        Arc::downgrade(&collab_builder),
+        Arc::downgrade(&workspace_collab_adaptor),
         server_provider.clone(),
         server_provider.clone(),
         ai_manager.clone(),
@@ -228,14 +227,14 @@ impl AppFlowyCore {
 
       let document_manager = DocumentDepsResolver::resolve(
         Arc::downgrade(&authenticate_user),
-        Arc::downgrade(&collab_builder),
+        Arc::downgrade(&workspace_collab_adaptor),
         server_provider.clone(),
         Arc::downgrade(&storage_manager.storage_service),
       );
 
       let user_manager = UserDepsResolver::resolve(
         authenticate_user.clone(),
-        Arc::downgrade(&collab_builder),
+        Arc::downgrade(&workspace_collab_adaptor),
         Arc::downgrade(&server_provider),
         store_preference.clone(),
         Arc::downgrade(&database_manager),
@@ -260,7 +259,7 @@ impl AppFlowyCore {
         server_provider,
         database_manager,
         document_manager,
-        collab_builder,
+        workspace_collab_adaptor,
         search_manager,
         ai_manager,
         storage_manager,
@@ -273,7 +272,7 @@ impl AppFlowyCore {
     let (full_indexed_finish_sender, _) = tokio::sync::watch::channel(false);
     let app_life_cycle = AppLifeCycleImpl {
       user_manager: Arc::downgrade(&user_manager),
-      collab_builder: Arc::downgrade(&collab_builder),
+      workspace_collab_manager: Arc::downgrade(&workspace_collab_adaptor),
       folder_manager: Arc::downgrade(&folder_manager),
       database_manager: Arc::downgrade(&database_manager),
       document_manager: Arc::downgrade(&document_manager),
@@ -288,12 +287,14 @@ impl AppFlowyCore {
       full_indexed_finish_sender,
     };
 
-    let collab_interact_impl = CollabInteractImpl {
-      database_manager: Arc::downgrade(&database_manager),
-      document_manager: Arc::downgrade(&document_manager),
+    let interceptor = ActionInterceptors {
+      reminder: Box::new(ReminderActionInterceptorImpl {
+        document_manager: Arc::downgrade(&document_manager),
+      }),
+      notification: Box::new(NotificationInterceptorImpl),
     };
     if let Err(err) = user_manager
-      .init_with_callback(app_life_cycle, collab_interact_impl)
+      .init_with_callback(app_life_cycle, interceptor)
       .await
     {
       error!("Init user failed: {}", err)
@@ -326,7 +327,7 @@ impl AppFlowyCore {
       search_manager,
       ai_manager,
       storage_manager,
-      collab_builder,
+      workspace_collab_adaptor,
       full_indexed_data_writer,
     }
   }

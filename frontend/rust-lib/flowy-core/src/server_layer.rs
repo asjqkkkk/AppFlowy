@@ -1,16 +1,17 @@
+use crate::app_life_cycle::LoggedWorkspaceImpl;
 use crate::deps_resolve::MultiSourceVSTanvityImpl;
+use crate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use crate::AppFlowyCoreConfig;
 use arc_swap::{ArcSwap, ArcSwapOption};
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
-use collab_integrate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use dashmap::try_result::TryResult;
 use dashmap::DashMap;
 use flowy_ai::local_ai::controller::LocalAIController;
 use flowy_ai_pub::entities::UnindexedCollab;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
-use flowy_server::af_cloud::define::AIUserServiceImpl;
+use flowy_server::af_cloud::define::{AIUserServiceImpl, LoggedWorkspace};
 use flowy_server::af_cloud::{define::LoggedUser, AppFlowyCloudServer};
 use flowy_server::local_server::LocalServer;
 use flowy_server::{AppFlowyEncryption, AppFlowyServer, EmbeddingWriter, EncryptionImpl};
@@ -29,6 +30,7 @@ pub struct ServerProvider {
   providers: DashMap<AuthType, Arc<dyn AppFlowyServer>>,
   auth_type: ArcSwap<AuthType>,
   logged_user: Arc<dyn LoggedUser>,
+  logged_workspace: ArcSwapOption<LoggedWorkspaceImpl>,
   pub local_ai: Arc<LocalAIController>,
   pub uid: Arc<ArcSwapOption<i64>>,
   pub user_enable_sync: Arc<AtomicBool>,
@@ -50,11 +52,11 @@ impl ServerProvider {
   pub fn new(
     config: AppFlowyCoreConfig,
     store_preferences: Weak<KVStorePreferences>,
-    user_service: impl LoggedUser + 'static,
+    logged_user: impl LoggedUser + 'static,
     indexed_data_writer: Option<Weak<InstantIndexedDataWriter>>,
   ) -> Self {
     let initial_auth = current_server_type();
-    let logged_user = Arc::new(user_service) as Arc<dyn LoggedUser>;
+    let logged_user = Arc::new(logged_user) as Arc<dyn LoggedUser>;
     let auth_type = ArcSwap::from(Arc::new(initial_auth));
     let encryption = Arc::new(EncryptionImpl::new(None)) as Arc<dyn AppFlowyEncryption>;
     let ai_user = Arc::new(AIUserServiceImpl(Arc::downgrade(&logged_user)));
@@ -67,6 +69,7 @@ impl ServerProvider {
       user_enable_sync: Arc::new(AtomicBool::new(true)),
       auth_type,
       logged_user,
+      logged_workspace: Default::default(),
       uid: Default::default(),
       local_ai,
       indexed_data_writer,
@@ -97,6 +100,12 @@ impl ServerProvider {
     tanvity_state: Option<Weak<RwLock<DocumentTantivyState>>>,
   ) {
     self.set_tanvity_state(tanvity_state).await;
+  }
+
+  pub fn set_logged_workspace(&self, logged_workspace: LoggedWorkspaceImpl) {
+    self
+      .logged_workspace
+      .store(Some(Arc::new(logged_workspace)));
   }
 
   pub async fn on_sign_in(&self, tanvity_state: Option<Weak<RwLock<DocumentTantivyState>>>) {
@@ -136,6 +145,12 @@ impl ServerProvider {
       return Ok(r.value().clone());
     }
 
+    let logged_workspace = self
+      .logged_workspace
+      .load_full()
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to load logged workspace"))?
+      as Arc<dyn LoggedWorkspace>;
+
     let server: Arc<dyn AppFlowyServer> = match auth_type {
       AuthType::Local => {
         let embedding_writer = self.indexed_data_writer.clone().map(|w| {
@@ -155,14 +170,13 @@ impl ServerProvider {
           .cloud_config
           .clone()
           .ok_or_else(|| FlowyError::internal().with_context("Missing cloud config"))?;
-        let ai_user_service = Arc::new(AIUserServiceImpl(Arc::downgrade(&self.logged_user)));
         Arc::new(AppFlowyCloudServer::new(
           cfg,
           self.user_enable_sync.load(Ordering::Acquire),
           self.config.device_id.clone(),
           self.config.app_version.clone(),
           Arc::downgrade(&self.logged_user),
-          ai_user_service,
+          Arc::downgrade(&logged_workspace),
         ))
       },
     };

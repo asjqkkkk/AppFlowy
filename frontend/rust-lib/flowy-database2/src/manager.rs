@@ -17,7 +17,9 @@ use collab_database::workspace_database::{
   EncodeCollabByOid, WorkspaceDatabaseManager,
 };
 use collab_entity::{CollabObject, CollabType, EncodedCollab};
+use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use rayon::prelude::*;
 use std::collections::HashMap;
 use std::str::FromStr;
@@ -26,8 +28,6 @@ use std::time::Duration;
 use tokio::sync::Mutex;
 use tracing::{error, info, instrument, trace};
 
-use collab_integrate::collab_builder::{AppFlowyCollabBuilder, CollabBuilderConfig};
-use collab_integrate::{CollabKVAction, CollabKVDB};
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateItem, TranslateRowContent,
 };
@@ -42,6 +42,7 @@ use crate::services::database::DatabaseEditor;
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use tokio::sync::RwLock as TokioRwLock;
 use uuid::Uuid;
 
@@ -59,7 +60,7 @@ pub struct DatabaseManager {
   task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
   pub(crate) editors: Mutex<DatabaseEditorMap>,
   removing_editor: Arc<Mutex<HashMap<String, Arc<DatabaseEditor>>>>,
-  collab_builder: Weak<AppFlowyCollabBuilder>,
+  collab_builder: Weak<WorkspaceCollabAdaptor>,
   cloud_service: Arc<dyn DatabaseCloudService>,
   ai_service: Arc<dyn DatabaseAIService>,
 }
@@ -74,7 +75,7 @@ impl DatabaseManager {
   pub fn new(
     database_user: Arc<dyn DatabaseUser>,
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DatabaseCloudService>,
     ai_service: Arc<dyn DatabaseAIService>,
   ) -> Self {
@@ -90,12 +91,12 @@ impl DatabaseManager {
     }
   }
 
-  fn collab_builder(&self) -> FlowyResult<Arc<AppFlowyCollabBuilder>> {
+  fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
     self.collab_builder.upgrade().ok_or(FlowyError::ref_drop())
   }
 
   /// When initialize with new workspace, all the resources will be cleared.
-  pub async fn initialize(&self, uid: i64, is_local_user: bool) -> FlowyResult<()> {
+  pub async fn initialize(&self, _uid: i64, is_local_user: bool) -> FlowyResult<()> {
     // 1. Clear all existing tasks
     self.task_scheduler.write().await.clear_task();
     // 2. Release all existing editors
@@ -111,7 +112,6 @@ impl DatabaseManager {
       wdb.close();
     }
 
-    let collab_db = self.user.collab_db(uid)?;
     let collab_service = WorkspaceDatabaseCollabServiceImpl::new(
       is_local_user,
       self.user.clone(),
@@ -129,13 +129,10 @@ impl DatabaseManager {
       .await?;
     let collab_object = collab_service
       .build_collab_object(&workspace_database_object_id, CollabType::WorkspaceDatabase)?;
-    let workspace_database = self.collab_builder()?.create_workspace_database_manager(
-      collab_object,
-      workspace_database_collab,
-      collab_db,
-      CollabBuilderConfig::default().sync_enable(true),
-      collab_service,
-    )?;
+    let workspace_database = self
+      .collab_builder()?
+      .create_workspace_database_manager(collab_object, workspace_database_collab, collab_service)
+      .await?;
 
     self
       .workspace_database_manager
@@ -718,7 +715,7 @@ impl DatabaseManager {
 struct WorkspaceDatabaseCollabServiceImpl {
   is_local_user: bool,
   user: Arc<dyn DatabaseUser>,
-  collab_builder: Weak<AppFlowyCollabBuilder>,
+  collab_builder: Weak<WorkspaceCollabAdaptor>,
   persistence: Arc<dyn DatabaseCollabPersistenceService>,
   cloud_service: Arc<dyn DatabaseCloudService>,
 }
@@ -727,7 +724,7 @@ impl WorkspaceDatabaseCollabServiceImpl {
   fn new(
     is_local_user: bool,
     user: Arc<dyn DatabaseUser>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DatabaseCloudService>,
   ) -> Self {
     let persistence = DatabasePersistenceImpl { user: user.clone() };
@@ -740,7 +737,7 @@ impl WorkspaceDatabaseCollabServiceImpl {
     }
   }
 
-  fn collab_builder(&self) -> Result<Arc<AppFlowyCollabBuilder>, DatabaseError> {
+  fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, DatabaseError> {
     self
       .collab_builder
       .upgrade()
@@ -786,17 +783,6 @@ impl WorkspaceDatabaseCollabServiceImpl {
         .map(|(k, v)| (k.to_string(), v))
         .collect(),
     )
-  }
-
-  fn collab_db(&self) -> Result<Weak<CollabKVDB>, DatabaseError> {
-    let uid = self
-      .user
-      .user_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    self
-      .user
-      .collab_db(uid)
-      .map_err(|err| DatabaseError::Internal(err.into()))
   }
 
   fn build_collab_object(
@@ -919,10 +905,9 @@ impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
       }
     };
 
-    let collab_db = self.collab_db()?;
     let collab = self
       .collab_builder()?
-      .build_collab(&object, &collab_db, data_source)
+      .build_collab(&object, data_source)
       .await?;
     Ok(collab)
   }

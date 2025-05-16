@@ -1,5 +1,6 @@
 use collab::preclude::Collab;
-use collab_integrate::{CollabKVAction, PersistenceError};
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::PersistenceError;
 use std::collections::HashMap;
 
 /// This function loads collab objects by their object_ids.

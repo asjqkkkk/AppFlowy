@@ -1,6 +1,6 @@
 use collab::preclude::Collab;
-
-use collab_integrate::{CollabKVAction, PersistenceError};
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::PersistenceError;
 use flowy_error::FlowyResult;
 
 pub(crate) fn load_collab<'a, R>(

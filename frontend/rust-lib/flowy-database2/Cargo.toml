@@ -10,8 +10,8 @@ collab = { workspace = true }
 collab-database = { workspace = true }
 collab-entity = { workspace = true }
 collab-plugins = { workspace = true }
-collab-integrate = { workspace = true }
 flowy-database-pub = { workspace = true }
+flowy-user-pub = { workspace = true }
 
 flowy-derive.workspace = true
 flowy-notification = { workspace = true }

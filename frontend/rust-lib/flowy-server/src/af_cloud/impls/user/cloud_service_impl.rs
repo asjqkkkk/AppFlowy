@@ -3,7 +3,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use anyhow::anyhow;
-use arc_swap::ArcSwapOption;
 use client_api::entity::billing_dto::{
   RecurringInterval, SetSubscriptionRecurringInterval, SubscriptionCancelRequest, SubscriptionPlan,
   SubscriptionPlanDetail, WorkspaceSubscriptionStatus, WorkspaceUsageAndLimit,
@@ -21,7 +20,7 @@ use client_api::{Client, ClientConfiguration};
 use collab_entity::{CollabObject, CollabType};
 use tracing::{instrument, trace};
 
-use crate::af_cloud::define::{LoggedUser, USER_SIGN_IN_URL};
+use crate::af_cloud::define::{LoggedUser, LoggedWorkspace, USER_SIGN_IN_URL};
 use crate::af_cloud::impls::user::dto::{
   af_update_from_update_params, from_af_workspace_member, to_af_role, user_profile_from_af_profile,
 };
@@ -29,7 +28,7 @@ use crate::af_cloud::impls::user::util::encryption_type_from_profile;
 use crate::af_cloud::impls::util::check_request_workspace_id_is_match;
 use crate::af_cloud::{AFCloudClient, AFServer};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
-use flowy_user_pub::cloud::{UserCloudService, UserCollabParams, UserUpdate, UserUpdateReceiver};
+use flowy_user_pub::cloud::{UserCloudService, UserCollabParams};
 use flowy_user_pub::entities::{
   AFCloudOAuthParams, AuthResponse, AuthType, Role, UpdateUserProfileParams, UserProfile,
   UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
@@ -43,20 +42,20 @@ use super::dto::{from_af_workspace_invitation_status, to_workspace_invitation_st
 
 pub(crate) struct AFCloudUserAuthServiceImpl<T> {
   server: T,
-  user_change_recv: ArcSwapOption<tokio::sync::mpsc::Receiver<UserUpdate>>,
   logged_user: Weak<dyn LoggedUser>,
+  logged_workspace: Weak<dyn LoggedWorkspace>,
 }
 
 impl<T> AFCloudUserAuthServiceImpl<T> {
   pub(crate) fn new(
     server: T,
-    user_change_recv: tokio::sync::mpsc::Receiver<UserUpdate>,
+    logged_workspace: Weak<dyn LoggedWorkspace>,
     logged_user: Weak<dyn LoggedUser>,
   ) -> Self {
     Self {
       server,
-      user_change_recv: ArcSwapOption::new(Some(Arc::new(user_change_recv))),
       logged_user,
+      logged_workspace,
     }
   }
 }
@@ -364,11 +363,6 @@ where
     Ok(resp.encode_collab.doc_state.to_vec())
   }
 
-  fn subscribe_user_update(&self) -> Option<UserUpdateReceiver> {
-    let rx = self.user_change_recv.swap(None)?;
-    Arc::into_inner(rx)
-  }
-
   async fn create_collab_object(
     &self,
     collab_object: &CollabObject,
@@ -400,12 +394,11 @@ where
       .into_iter()
       .flat_map(|object| {
         Uuid::from_str(&object.object_id)
-          .map(|object_id| {
-            CollabParams::new(
-              object_id,
-              u8::from(object.collab_type).into(),
-              object.encoded_collab,
-            )
+          .map(|object_id| CollabParams {
+            object_id,
+            collab_type: u8::from(object.collab_type).into(),
+            encoded_collab_v1: object.encoded_collab.into(),
+            updated_at: None,
           })
           .ok()
       })

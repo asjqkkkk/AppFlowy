@@ -1,26 +1,28 @@
-use std::sync::{Arc, Weak};
-
+use crate::entities::ReminderPB;
+use crate::notification::{send_notification, UserNotification};
+use crate::services::action_interceptor::ActionInterceptors;
+use crate::user_manager::UserManager;
 use anyhow::Context;
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::reminder::Reminder;
 use collab_entity::CollabType;
-use collab_integrate::collab_builder::{
-  AppFlowyCollabBuilder, CollabBuilderConfig, CollabPersistenceImpl,
-};
-use collab_integrate::CollabKVDB;
 use collab_user::core::{UserAwareness, UserAwarenessNotifier};
-use dashmap::try_result::TryResult;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_user_pub::entities::{user_awareness_object_id, WorkspaceType};
+use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
+use std::ops::Deref;
+use std::sync::{Arc, Weak};
 use tracing::{error, info, instrument, trace};
 use uuid::Uuid;
 
-use crate::entities::ReminderPB;
-use crate::notification::{send_notification, UserNotification};
-use crate::user_manager::UserManager;
-
 impl UserManager {
+  fn get_interceptors(&self) -> FlowyResult<Arc<ActionInterceptors>> {
+    self
+      .action_interceptors
+      .load_full()
+      .ok_or_else(|| FlowyError::internal().with_context("Action interceptors are not loaded"))
+  }
   /// Adds a new reminder based on the given payload.
   ///
   /// This function creates a new `Reminder` from the provided payload and adds it to the user's reminders.
@@ -41,9 +43,8 @@ impl UserManager {
     awareness.write().await.add_reminder(reminder.clone());
 
     self
-      .collab_interact
-      .read()
-      .await
+      .get_interceptors()?
+      .reminder
       .add_reminder(reminder)
       .await?;
     Ok(())
@@ -61,9 +62,8 @@ impl UserManager {
       .remove_reminder(reminder_id);
 
     self
-      .collab_interact
-      .read()
-      .await
+      .get_interceptors()?
+      .reminder
       .remove_reminder(reminder_id)
       .await?;
     Ok(())
@@ -92,9 +92,8 @@ impl UserManager {
       });
 
     self
-      .collab_interact
-      .read()
-      .await
+      .get_interceptors()?
+      .reminder
       .update_reminder(reminder)
       .await?;
 
@@ -135,76 +134,38 @@ impl UserManager {
   ) -> FlowyResult<()> {
     let object_id = user_awareness_object_id(user_uuid, &workspace_id.to_string());
 
-    // Try to acquire mutable access to `is_loading_awareness`.
-    // Thread-safety is ensured by DashMap
-    let should_init = match self.is_loading_awareness.try_get_mut(&object_id) {
-      TryResult::Present(mut is_loading) => {
-        if *is_loading {
-          false
-        } else {
-          *is_loading = true;
-          true
-        }
-      },
-      TryResult::Absent => true,
-      TryResult::Locked => {
-        return Err(FlowyError::new(
-          ErrorCode::Internal,
-          format!(
-            "Failed to lock is_loading_awareness for object: {}",
-            object_id
-          ),
-        ));
-      },
-    };
-
-    if should_init {
-      let is_exist_on_disk = self
-        .authenticate_user
-        .is_collab_on_disk(uid, &object_id.to_string())?;
-      if workspace_type.is_local() || is_exist_on_disk {
-        trace!(
-          "Initializing new user awareness from disk:{}, {:?}",
-          object_id,
-          workspace_type
-        );
-        let collab_db = self.get_collab_db(uid)?;
-        let doc_state =
-          CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
-        let awareness = Self::collab_for_user_awareness(
-          &self.collab_builder.clone(),
-          workspace_id,
-          uid,
-          &object_id,
-          collab_db,
-          doc_state,
-          None,
-        )
-        .await?;
-        info!("User awareness initialized successfully");
-        self
-          .user_awareness_by_workspace
-          .insert(*workspace_id, awareness);
-        if let Some(mut is_loading) = self.is_loading_awareness.get_mut(&object_id) {
-          *is_loading = false;
-        }
-      } else {
-        info!(
-          "Initializing new user awareness from server:{}, {:?}",
-          object_id, workspace_type
-        );
-        self.load_awareness_from_server(uid, workspace_id, object_id, *workspace_type)?;
-      }
+    let is_exist_on_disk = self
+      .authenticate_user
+      .is_collab_on_disk(uid, &object_id.to_string())?;
+    if workspace_type.is_local() || is_exist_on_disk {
+      trace!(
+        "Initializing new user awareness from disk:{}, {:?}",
+        object_id,
+        workspace_type
+      );
+      let collab_db = self.get_collab_db(uid)?;
+      let doc_state =
+        CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
+      let awareness = Self::collab_for_user_awareness(
+        &self.workspace_collab_adaptor.clone(),
+        workspace_id,
+        uid,
+        &object_id,
+        doc_state,
+        None,
+      )
+      .await?;
+      info!("User awareness initialized successfully");
+      self
+        .user_awareness_by_wid
+        .insert(*workspace_id, UserAwarenessLifeCycle::new(awareness));
     } else {
-      return Err(FlowyError::new(
-        ErrorCode::Internal,
-        format!(
-          "User awareness is already being loaded for object: {}",
-          object_id
-        ),
-      ));
+      info!(
+        "Initializing new user awareness from server:{}, {:?}",
+        object_id, workspace_type
+      );
+      self.load_awareness_from_server(uid, workspace_id, object_id, *workspace_type)?;
     }
-
     Ok(())
   }
 
@@ -220,20 +181,13 @@ impl UserManager {
   ) -> FlowyResult<()> {
     // Clone necessary data
     let collab_db = self.get_collab_db(uid)?;
-    let weak_builder = self.collab_builder.clone();
-    let user_awareness = self.user_awareness_by_workspace.clone();
+    let weak_builder = self.workspace_collab_adaptor.clone();
+    let user_awareness = self.user_awareness_by_wid.clone();
     let cloud_services = self.cloud_service()?;
-    let is_loading_awareness = self.is_loading_awareness.clone();
     let workspace_id = *workspace_id;
 
     // Spawn an async task to fetch or create user awareness
     tokio::spawn(async move {
-      let set_is_loading_false = || {
-        if let Some(mut is_loading) = is_loading_awareness.get_mut(&object_id) {
-          *is_loading = false;
-        }
-      };
-
       let create_awareness = if workspace_type.is_local() {
         let doc_state =
           CollabPersistenceImpl::new(collab_db.clone(), uid, workspace_id).into_data_source();
@@ -242,7 +196,6 @@ impl UserManager {
           &workspace_id,
           uid,
           &object_id,
-          collab_db,
           doc_state,
           None,
         )
@@ -261,7 +214,6 @@ impl UserManager {
               &workspace_id,
               uid,
               &object_id,
-              collab_db,
               DataSource::DocStateV1(data),
               None,
             )
@@ -277,7 +229,6 @@ impl UserManager {
                 &workspace_id,
                 uid,
                 &object_id,
-                collab_db,
                 doc_state,
                 None,
               )
@@ -291,15 +242,16 @@ impl UserManager {
 
       match create_awareness {
         Ok(new_user_awareness) => {
-          user_awareness.insert(workspace_id, new_user_awareness);
+          user_awareness.insert(
+            workspace_id,
+            UserAwarenessLifeCycle::new(new_user_awareness),
+          );
           send_notification(workspace_id, UserNotification::DidLoadUserAwareness);
 
-          set_is_loading_false();
           Ok(())
         },
         Err(err) => {
           error!("Error while creating user awareness: {:?}", err);
-          set_is_loading_false();
           Err(err)
         },
       }
@@ -313,11 +265,10 @@ impl UserManager {
   /// using a collaboration builder. This instance is specifically geared towards handling
   /// user awareness.
   async fn collab_for_user_awareness(
-    collab_builder: &Weak<AppFlowyCollabBuilder>,
+    collab_builder: &Weak<WorkspaceCollabAdaptor>,
     workspace_id: &Uuid,
     uid: i64,
     object_id: &Uuid,
-    collab_db: Weak<CollabKVDB>,
     doc_state: DataSource,
     notifier: Option<UserAwarenessNotifier>,
   ) -> Result<Arc<RwLock<UserAwareness>>, FlowyError> {
@@ -328,13 +279,7 @@ impl UserManager {
     let collab_object =
       collab_builder.collab_object(workspace_id, uid, object_id, CollabType::UserAwareness)?;
     let collab = collab_builder
-      .create_user_awareness(
-        collab_object,
-        doc_state,
-        collab_db,
-        CollabBuilderConfig::default().sync_enable(true),
-        notifier,
-      )
+      .create_user_awareness(collab_object, doc_state, notifier)
       .await
       .context("Build collab for user awareness failed")?;
     Ok(collab)
@@ -342,9 +287,27 @@ impl UserManager {
 
   async fn get_awareness(&self, workspace_id: &Uuid) -> FlowyResult<Arc<RwLock<UserAwareness>>> {
     let awareness = self
-      .user_awareness_by_workspace
+      .user_awareness_by_wid
       .get(workspace_id)
-      .map(|v| v.value().clone());
+      .map(|v| v.value().deref().clone());
     awareness.ok_or_else(|| FlowyError::internal().with_context("User awareness is not loaded"))
+  }
+}
+
+#[derive(Clone)]
+pub struct UserAwarenessLifeCycle {
+  inner: Arc<RwLock<UserAwareness>>,
+}
+
+impl UserAwarenessLifeCycle {
+  pub fn new(awareness: Arc<RwLock<UserAwareness>>) -> Self {
+    Self { inner: awareness }
+  }
+}
+
+impl Deref for UserAwarenessLifeCycle {
+  type Target = Arc<RwLock<UserAwareness>>;
+  fn deref(&self) -> &Self::Target {
+    &self.inner
   }
 }

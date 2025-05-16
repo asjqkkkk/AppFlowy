@@ -5,12 +5,13 @@ use collab::preclude::Collab;
 use collab_document::document::Document;
 use collab_document::document_data::default_document_data;
 use collab_folder::{Folder, View};
-use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
 use semver::Version;
 use tracing::{event, instrument};
 
-use collab_integrate::{CollabKVAction, CollabKVDB, PersistenceError};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::AuthType;

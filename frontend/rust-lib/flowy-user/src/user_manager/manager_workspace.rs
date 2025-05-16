@@ -2,9 +2,6 @@ use chrono::{Duration, NaiveDateTime, Utc};
 use client_api::entity::billing_dto::{RecurringInterval, SubscriptionPlanDetail};
 use client_api::entity::billing_dto::{SubscriptionPlan, WorkspaceUsageAndLimit};
 
-use std::str::FromStr;
-use std::sync::Arc;
-
 use crate::entities::{
   RepeatedUserWorkspacePB, SubscribeWorkspacePB, SuccessWorkspaceSubscriptionPB,
   UpdateUserWorkspaceSettingPB, UserProfilePB, UserWorkspacePB, WorkspaceSettingsPB,
@@ -15,7 +12,6 @@ use crate::services::billing_check::PeriodicallyCheckBillingState;
 use crate::services::data_import::{
   generate_import_data, upload_collab_objects_data, ImportedFolder,
 };
-
 use crate::user_manager::UserManager;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_folder_pub::entities::{ImportFrom, ImportedCollabData, ImportedFolderData};
@@ -27,6 +23,8 @@ use flowy_user_pub::entities::{
 };
 use flowy_user_pub::session::Session;
 use flowy_user_pub::sql::*;
+use std::str::FromStr;
+use std::sync::Arc;
 use tracing::{error, info, instrument, trace};
 use uuid::Uuid;
 
@@ -40,7 +38,7 @@ impl UserManager {
     let user_collab_db = self
       .authenticate_user
       .database
-      .get_collab_db(current_session.user_id)?
+      .get_weak_collab_db(current_session.user_id)?
       .upgrade()
       .ok_or_else(|| FlowyError::internal().with_context("Collab db not found"))?;
 
@@ -86,11 +84,11 @@ impl UserManager {
       database_view_ids_by_database_id,
     } = folder_data;
     self
-      .user_workspace_service
+      .data_importer
       .import_database_views(database_view_ids_by_database_id)
       .await?;
     self
-      .user_workspace_service
+      .data_importer
       .import_views(source, views, orphan_views, parent_view_id)
       .await?;
 
@@ -146,19 +144,17 @@ impl UserManager {
   ) -> FlowyResult<()> {
     let current_workspace_id = self.workspace_id()?;
     if current_workspace_id != *workspace_id {
-      match self
+      trace!("close workspace: {:?}", current_workspace_id);
+      self.inactive_controller(workspace_id);
+
+      if let Err(err) = self
         .app_life_cycle
         .read()
         .await
         .on_workspace_closed(&current_workspace_id)
         .await
       {
-        Ok(_) => {
-          trace!("close workspace: {:?}", current_workspace_id);
-        },
-        Err(err) => {
-          error!("close workspace failed: {:?}", err);
-        },
+        error!("close workspace failed: {:?}", err);
       }
     }
 
@@ -171,6 +167,7 @@ impl UserManager {
     let token = self.token_from_auth_type(&auth_type)?;
     let cloud_service = self.cloud_service()?;
     cloud_service.set_server_auth_type(&auth_type, token)?;
+    let controller = self.init_workspace_controller_if_need(workspace_id, &cloud_service)?;
 
     let uid = self.user_id()?;
     let profile = self
@@ -224,6 +221,7 @@ impl UserManager {
         &workspace_type,
         &self.authenticate_user.user_config,
         &self.authenticate_user.user_paths,
+        controller,
       )
       .await
     {

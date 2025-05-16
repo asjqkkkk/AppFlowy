@@ -10,7 +10,7 @@ async fn af_cloud_edit_document_test() {
   use_localhost_af_cloud().await;
   let test = EventIntegrationTest::new().await;
   test.af_cloud_sign_up().await;
-  test.wait_ws_connected().await;
+  test.wait_ws_connected().await.unwrap();
 
   // create document and then insert content
   let current_workspace = test.get_current_workspace().await;

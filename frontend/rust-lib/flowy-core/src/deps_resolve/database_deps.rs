@@ -1,5 +1,4 @@
-use collab_integrate::collab_builder::AppFlowyCollabBuilder;
-use collab_integrate::CollabKVDB;
+use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::{DatabaseManager, DatabaseUser};
 use flowy_database_pub::cloud::{
@@ -8,6 +7,7 @@ use flowy_database_pub::cloud::{
 };
 use flowy_error::FlowyError;
 use flowy_user::services::authenticate_user::AuthenticateUser;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use lib_infra::async_trait::async_trait;
 use lib_infra::priority_task::TaskDispatcher;
 use std::sync::{Arc, Weak};
@@ -20,7 +20,7 @@ impl DatabaseDepsResolver {
   pub async fn resolve(
     authenticate_user: Weak<AuthenticateUser>,
     task_scheduler: Arc<RwLock<TaskDispatcher>>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DatabaseCloudService>,
     ai_service: Arc<dyn DatabaseAIService>,
     ai_manager: Arc<AIManager>,

@@ -35,9 +35,9 @@ use collab_database::views::{
   DatabaseLayout, FilterMap, LayoutSetting, OrderObjectPosition, RowOrder,
 };
 use collab_entity::CollabType;
-use collab_integrate::collab_builder::{AppFlowyCollabBuilder, CollabBuilderConfig};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_notification::DebounceNotificationSender;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use futures::future::join_all;
 use futures::{StreamExt, pin_mut};
 use lib_infra::box_any::BoxAny;
@@ -65,7 +65,7 @@ pub struct DatabaseEditor {
   pub(crate) database_views: Arc<DatabaseViews>,
   #[allow(dead_code)]
   user: Arc<dyn DatabaseUser>,
-  collab_builder: Weak<AppFlowyCollabBuilder>,
+  collab_builder: Weak<WorkspaceCollabAdaptor>,
   is_loading_rows: ArcSwapOption<broadcast::Sender<()>>,
   opening_ret_txs: Arc<RwLock<Vec<OpenDatabaseResult>>>,
   #[allow(dead_code)]
@@ -79,7 +79,7 @@ impl DatabaseEditor {
     user: Arc<dyn DatabaseUser>,
     database: Arc<RwLock<Database>>,
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
-    collab_builder: Arc<AppFlowyCollabBuilder>,
+    collab_builder: Arc<WorkspaceCollabAdaptor>,
   ) -> FlowyResult<Arc<Self>> {
     let finalized_rows: moka::future::Cache<String, Weak<RwLock<DatabaseRow>>> =
       moka::future::Cache::builder()
@@ -127,11 +127,9 @@ impl DatabaseEditor {
       CollabType::Database,
     )?;
 
-    let database = collab_builder.finalize(
-      collab_object,
-      CollabBuilderConfig::default(),
-      database.clone(),
-    )?;
+    let database = collab_builder
+      .finalize(collab_object, database.clone())
+      .await?;
     let this = Arc::new(Self {
       database_id,
       user,
@@ -150,7 +148,7 @@ impl DatabaseEditor {
     Ok(this)
   }
 
-  pub fn collab_builder(&self) -> FlowyResult<Arc<AppFlowyCollabBuilder>> {
+  pub fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
     self
       .collab_builder
       .upgrade()
@@ -821,11 +819,10 @@ impl DatabaseEditor {
         CollabType::DatabaseRow,
       )?;
 
-      if let Err(err) = collab_builder.finalize(
-        collab_object,
-        CollabBuilderConfig::default(),
-        database_row.clone(),
-      ) {
+      if let Err(err) = collab_builder
+        .finalize(collab_object, database_row.clone())
+        .await
+      {
         error!("Failed to init database row: {}", err);
       }
       self

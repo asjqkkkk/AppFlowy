@@ -5,7 +5,7 @@ use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;
 
 #[async_trait]
-pub trait UserWorkspaceService: Send + Sync {
+pub trait WorkspaceDataImporter: Send + Sync {
   async fn import_views(
     &self,
     source: &ImportFrom,

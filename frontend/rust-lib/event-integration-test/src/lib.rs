@@ -9,7 +9,7 @@ use flowy_core::config::AppFlowyCoreConfig;
 use flowy_core::AppFlowyCore;
 use flowy_notification::register_notification_sender;
 use flowy_user::entities::AuthTypePB;
-use flowy_user::errors::FlowyError;
+use flowy_user::errors::{FlowyError, FlowyResult};
 use lib_dispatch::runtime::AFPluginRuntime;
 use nanoid::nanoid;
 use semver::Version;
@@ -112,16 +112,16 @@ impl EventIntegrationTest {
     self.appflowy_core.config.application_path.clone()
   }
 
-  pub async fn wait_ws_connected(&self) {
+  pub async fn wait_ws_connected(&self) -> FlowyResult<()> {
     if self
       .appflowy_core
       .server_provider
       .get_server()
       .unwrap()
-      .get_ws_state()
+      .get_ws_state()?
       .is_connected()
     {
-      return;
+      return Ok(());
     }
 
     let mut ws_state = self
@@ -145,6 +145,7 @@ impl EventIntegrationTest {
         }
       }
     }
+    Ok(())
   }
 
   pub async fn get_collab_doc_state(

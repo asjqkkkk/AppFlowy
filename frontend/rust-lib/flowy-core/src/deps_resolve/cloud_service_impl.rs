@@ -1,15 +1,9 @@
 use crate::server_layer::ServerProvider;
-use client_api::collab_sync::{SinkConfig, SyncObject, SyncPlugin};
 use client_api::entity::ai_dto::RepeatedRelatedQuestion;
 use client_api::entity::workspace_dto::PublishInfoView;
 use client_api::entity::PublishInfo;
-use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::entity::EncodedCollab;
-use collab::preclude::CollabPlugin;
 use collab_entity::CollabType;
-use collab_integrate::collab_builder::{
-  CollabCloudPluginProvider, CollabPluginProviderContext, CollabPluginProviderType,
-};
 use flowy_ai_pub::cloud::search_dto::{
   SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
 };
@@ -39,13 +33,10 @@ use lib_infra::async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
-use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-use std::time::Duration;
 use tokio_stream::wrappers::WatchStream;
-use tracing::log::error;
-use tracing::{debug, info};
+use tracing::info;
 use uuid::Uuid;
 
 #[async_trait]
@@ -166,6 +157,11 @@ impl UserCloudServiceProvider for ServerProvider {
     Ok(())
   }
 
+  fn get_token(&self) -> Option<String> {
+    let server = self.get_server().ok()?;
+    server.get_token()
+  }
+
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError> {
     info!("Set AI model: {}", ai_model);
     let server = self.get_server()?;
@@ -227,6 +223,15 @@ impl UserCloudServiceProvider for ServerProvider {
       AuthType::Local => "".to_string(),
       AuthType::AppFlowyCloud => AFCloudConfiguration::from_env()
         .map(|config| config.base_url)
+        .unwrap_or_default(),
+    }
+  }
+
+  fn ws_url(&self) -> String {
+    match self.get_auth_type() {
+      AuthType::Local => "".to_string(),
+      AuthType::AppFlowyCloud => AFCloudConfiguration::from_env()
+        .map(|config| config.ws_base_url)
         .unwrap_or_default(),
     }
   }
@@ -545,92 +550,6 @@ impl DocumentCloudService for ServerProvider {
       .document_service()
       .create_document_collab(workspace_id, document_id, encoded_collab)
       .await
-  }
-}
-
-impl CollabCloudPluginProvider for ServerProvider {
-  fn provider_type(&self) -> CollabPluginProviderType {
-    match self.get_auth_type() {
-      AuthType::Local => CollabPluginProviderType::Local,
-      AuthType::AppFlowyCloud => CollabPluginProviderType::AppFlowyCloud,
-    }
-  }
-
-  fn get_plugins(&self, context: CollabPluginProviderContext) -> Vec<Box<dyn CollabPlugin>> {
-    // If the user is local, we don't need to create a sync plugin.
-    if self.get_auth_type().is_local() {
-      debug!(
-        "User authenticator is local, skip create sync plugin for: {}",
-        context
-      );
-      return vec![];
-    }
-
-    match context {
-      CollabPluginProviderContext::Local => vec![],
-      CollabPluginProviderContext::AppFlowyCloud {
-        uid: _,
-        collab_object,
-        local_collab,
-      } => {
-        if let Ok(server) = self.get_server() {
-          // to_fut(async move {
-          let mut plugins: Vec<Box<dyn CollabPlugin>> = vec![];
-          // If the user is local, we don't need to create a sync plugin.
-
-          match server.collab_ws_channel(&collab_object.object_id) {
-            Ok(Some((channel, ws_connect_state, _is_connected))) => {
-              let origin = CollabOrigin::Client(CollabClient::new(
-                collab_object.uid,
-                collab_object.device_id.clone(),
-              ));
-
-              if let (Ok(object_id), Ok(workspace_id)) = (
-                Uuid::from_str(&collab_object.object_id),
-                Uuid::from_str(&collab_object.workspace_id),
-              ) {
-                let sync_object = SyncObject::new(
-                  object_id,
-                  workspace_id,
-                  collab_object.collab_type,
-                  &collab_object.device_id,
-                );
-                let (sink, stream) = (channel.sink(), channel.stream());
-                let sink_config = SinkConfig::new().send_timeout(8);
-                let sync_plugin = SyncPlugin::new(
-                  origin,
-                  sync_object,
-                  local_collab,
-                  sink,
-                  sink_config,
-                  stream,
-                  Some(channel),
-                  ws_connect_state,
-                  Some(Duration::from_secs(60)),
-                );
-                plugins.push(Box::new(sync_plugin));
-              } else {
-                error!(
-                  "Failed to parse collab object id: {}",
-                  collab_object.object_id
-                );
-              }
-            },
-            Ok(None) => {
-              tracing::error!("🔴Failed to get collab ws channel: channel is none");
-            },
-            Err(err) => tracing::error!("🔴Failed to get collab ws channel: {:?}", err),
-          }
-          plugins
-        } else {
-          vec![]
-        }
-      },
-    }
-  }
-
-  fn is_sync_enabled(&self) -> bool {
-    self.user_enable_sync.load(Ordering::Acquire)
   }
 }
 

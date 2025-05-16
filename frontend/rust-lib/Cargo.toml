@@ -19,7 +19,6 @@ members = [
   "flowy-server",
   "flowy-server-pub",
   "flowy-storage",
-  "collab-integrate",
   "flowy-date",
   "flowy-search",
   "lib-infra",
@@ -29,7 +28,8 @@ members = [
   "flowy-search-pub",
   "flowy-ai",
   "flowy-ai-pub",
-  "flowy-storage-pub", "flowy-sqlite-vec",
+  "flowy-storage-pub",
+  "flowy-sqlite-vec",
 ]
 
 resolver = "2"
@@ -60,7 +60,6 @@ flowy-storage = { path = "flowy-storage" }
 flowy-storage-pub = { path = "flowy-storage-pub" }
 flowy-search = { path = "flowy-search" }
 flowy-search-pub = { path = "flowy-search-pub" }
-collab-integrate = { path = "collab-integrate" }
 flowy-date = { path = "flowy-date" }
 flowy-ai = { path = "flowy-ai" }
 flowy-ai-pub = { path = "flowy-ai-pub" }
@@ -109,9 +108,13 @@ flowy-sqlite-vec = { path = "flowy-sqlite-vec" }
 # Run the script.add_workspace_members:
 # scripts/tool/update_client_api_rev.sh  new_rev_id
 # ⚠️⚠️⚠️️
-client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "f840cd362cc6176079303adde973e0bd50cee749" }
-client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "f840cd362cc6176079303adde973e0bd50cee749" }
-workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "f840cd362cc6176079303adde973e0bd50cee749" }
+#client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "5d7d0b1" }
+#client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "5d7d0b1" }
+#workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "5d7d0b1" }
+
+client-api = { path = "/Users/weidongfu/Documents/AppFlowy-Cloud/libs/client-api" }
+client-api-entity = { path = "/Users/weidongfu/Documents/AppFlowy-Cloud/libs/client-api-entity" }
+workspace-template = { path = "/Users/weidongfu/Documents/AppFlowy-Cloud/libs/workspace-template" }
 
 [profile.dev]
 opt-level = 0

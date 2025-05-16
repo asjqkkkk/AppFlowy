@@ -1,3 +1,7 @@
+use crate::entities::{
+  AuthResponse, AuthType, Role, UpdateUserProfileParams, UserProfile, UserTokenState,
+  UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember,
+};
 use client_api::entity::GotrueTokenResponse;
 use client_api::entity::billing_dto::RecurringInterval;
 use client_api::entity::billing_dto::SubscriptionPlan;
@@ -7,6 +11,7 @@ use client_api::entity::billing_dto::WorkspaceSubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
 pub use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use collab_entity::{CollabObject, CollabType};
+use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_error::{ErrorCode, FlowyError, internal_error};
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;
@@ -16,13 +21,9 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::Arc;
+use tokio::sync::broadcast::Receiver;
 use tokio_stream::wrappers::WatchStream;
 use uuid::Uuid;
-
-use crate::entities::{
-  AuthResponse, AuthType, Role, UpdateUserProfileParams, UserProfile, UserTokenState,
-  UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember,
-};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct UserCloudConfig {
@@ -68,6 +69,7 @@ pub trait UserCloudServiceProvider: Send + Sync {
   /// # Returns
   /// A `Result` which is `Ok` if the token is successfully set, or a `FlowyError` otherwise.
   fn set_token(&self, token: &str) -> Result<(), FlowyError>;
+  fn get_token(&self) -> Option<String>;
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError>;
 
   /// Subscribes to the state of the authentication token.
@@ -115,6 +117,8 @@ pub trait UserCloudServiceProvider: Send + Sync {
   /// # Returns
   /// A `String` representing the service URL.
   fn service_url(&self) -> String;
+
+  fn ws_url(&self) -> String;
 }
 
 /// Provide the generic interface for the user cloud service
@@ -246,10 +250,6 @@ pub trait UserCloudService: Send + Sync + 'static {
 
   fn receive_realtime_event(&self, _json: Value) {}
 
-  fn subscribe_user_update(&self) -> Option<UserUpdateReceiver> {
-    None
-  }
-
   async fn create_collab_object(
     &self,
     collab_object: &CollabObject,
@@ -346,8 +346,7 @@ pub trait UserCloudService: Send + Sync + 'static {
   ) -> Result<AFWorkspaceSettings, FlowyError>;
 }
 
-pub type UserUpdateReceiver = tokio::sync::mpsc::Receiver<UserUpdate>;
-pub type UserUpdateSender = tokio::sync::mpsc::Sender<UserUpdate>;
+pub type UserUpdateReceiver = Receiver<WorkspaceNotification>;
 #[derive(Debug, Clone)]
 pub struct UserUpdate {
   pub uid: i64,

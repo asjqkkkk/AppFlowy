@@ -17,24 +17,21 @@ use collab_entity::CollabType;
 use crate::document::{
   subscribe_document_changed, subscribe_document_snapshot_state, subscribe_document_sync_state,
 };
-use collab_integrate::collab_builder::{
-  AppFlowyCollabBuilder, CollabBuilderConfig, CollabPersistenceImpl,
-};
-use collab_plugins::CollabKVDB;
-use dashmap::DashMap;
-use flowy_document_pub::cloud::DocumentCloudService;
-use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
-use flowy_storage_pub::storage::{CreatedUpload, StorageService};
-use lib_infra::util::timestamp;
-use tracing::{event, instrument};
-use tracing::{info, trace};
-use uuid::Uuid;
-
 use crate::entities::UpdateDocumentAwarenessStatePB;
 use crate::entities::{
   DocumentSnapshotData, DocumentSnapshotMeta, DocumentSnapshotMetaPB, DocumentSnapshotPB,
 };
 use crate::reminder::DocumentReminderAction;
+use collab_plugins::CollabKVDB;
+use dashmap::DashMap;
+use flowy_document_pub::cloud::DocumentCloudService;
+use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
+use flowy_storage_pub::storage::{CreatedUpload, StorageService};
+use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
+use lib_infra::util::timestamp;
+use tracing::{event, instrument};
+use tracing::{info, trace};
+use uuid::Uuid;
 
 pub trait DocumentUserService: Send + Sync {
   fn user_id(&self) -> Result<i64, FlowyError>;
@@ -53,7 +50,7 @@ pub trait DocumentSnapshotService: Send + Sync {
 
 pub struct DocumentManager {
   pub user_service: Arc<dyn DocumentUserService>,
-  collab_builder: Weak<AppFlowyCollabBuilder>,
+  collab_builder: Weak<WorkspaceCollabAdaptor>,
   documents: Arc<DashMap<Uuid, Arc<RwLock<Document>>>>,
   removing_documents: Arc<DashMap<Uuid, Arc<RwLock<Document>>>>,
   cloud_service: Arc<dyn DocumentCloudService>,
@@ -70,7 +67,7 @@ impl Drop for DocumentManager {
 impl DocumentManager {
   pub fn new(
     user_service: Arc<dyn DocumentUserService>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DocumentCloudService>,
     storage_service: Weak<dyn StorageService>,
     snapshot_service: Arc<dyn DocumentSnapshotService>,
@@ -86,7 +83,7 @@ impl DocumentManager {
     }
   }
 
-  fn collab_builder(&self) -> FlowyResult<Arc<AppFlowyCollabBuilder>> {
+  fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
     self
       .collab_builder
       .upgrade()
@@ -100,9 +97,7 @@ impl DocumentManager {
     let doc_state =
       CollabPersistenceImpl::new(self.user_service.collab_db(uid)?, uid, workspace_id)
         .into_data_source();
-    let collab = self
-      .collab_for_document(uid, doc_id, doc_state, false)
-      .await?;
+    let collab = self.collab_for_document(uid, doc_id, doc_state).await?;
     let encoded_collab = collab
       .try_read()
       .unwrap()
@@ -197,9 +192,7 @@ impl DocumentManager {
     uid: i64,
     doc_id: &Uuid,
     data_source: DataSource,
-    sync_enable: bool,
   ) -> FlowyResult<Arc<RwLock<Document>>> {
-    let db = self.user_service.collab_db(uid)?;
     let workspace_id = self.user_service.workspace_id()?;
     let collab_object =
       self
@@ -207,13 +200,7 @@ impl DocumentManager {
         .collab_object(&workspace_id, uid, doc_id, CollabType::Document)?;
     let document = self
       .collab_builder()?
-      .create_document(
-        collab_object,
-        data_source,
-        db,
-        CollabBuilderConfig::default().sync_enable(sync_enable),
-        None,
-      )
+      .create_document(collab_object, data_source, None)
       .await?;
     Ok(document)
   }
@@ -271,9 +258,7 @@ impl DocumentManager {
       doc_id,
       self.user_service.workspace_id()
     );
-    let result = self
-      .collab_for_document(uid, doc_id, doc_state, enable_sync)
-      .await;
+    let result = self.collab_for_document(uid, doc_id, doc_state).await;
     match result {
       Ok(document) => {
         // Only push the document to the cache if the sync is enabled.

@@ -1,6 +1,7 @@
 use chrono::{Days, Local};
-use collab_integrate::{CollabKVAction, CollabKVDB, PersistenceError};
-use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
+use collab_plugins::CollabKVDB;
 use dashmap::mapref::entry::Entry;
 use dashmap::DashMap;
 use flowy_error::FlowyError;
@@ -97,9 +98,14 @@ impl UserDB {
     Ok(pool)
   }
 
-  pub(crate) fn get_collab_db(&self, user_id: i64) -> Result<Weak<CollabKVDB>, FlowyError> {
+  pub(crate) fn get_weak_collab_db(&self, user_id: i64) -> Result<Weak<CollabKVDB>, FlowyError> {
     let collab_db = self.open_collab_db(self.paths.collab_db_path(user_id), user_id)?;
     Ok(Arc::downgrade(&collab_db))
+  }
+
+  pub(crate) fn get_collab_db(&self, user_id: i64) -> Result<CollabKVDB, FlowyError> {
+    let collab_db = self.open_collab_db(self.paths.collab_db_path(user_id), user_id)?;
+    Ok(collab_db.as_ref().clone())
   }
 
   pub fn open_sqlite_db(
