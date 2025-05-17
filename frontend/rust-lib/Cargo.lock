@@ -173,6 +173,7 @@ dependencies = [
  "serde_repr",
  "thiserror 1.0.64",
  "tokio",
+ "tokio-tungstenite",
  "tsify",
  "url",
  "uuid",

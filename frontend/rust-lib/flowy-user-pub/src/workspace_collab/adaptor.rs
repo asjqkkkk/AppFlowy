@@ -171,22 +171,7 @@ impl WorkspaceCollabAdaptor {
 
     let document = match data {
       None => Document::open(collab)?,
-      Some(data) => {
-        let document = Document::create_with_data(collab, data)?;
-        if let Err(err) = self.write_collab_to_disk(
-          object.uid,
-          &object.workspace_id,
-          &object.object_id,
-          &object.collab_type,
-          &document,
-        ) {
-          error!(
-            "build_collab: flush document collab to disk failed: {}",
-            err
-          );
-        }
-        document
-      },
+      Some(data) => Document::create_with_data(collab, data)?,
     };
     let document = Arc::new(RwLock::new(document));
     self.finalize(object, document).await
@@ -210,17 +195,7 @@ impl WorkspaceCollabAdaptor {
       },
       Some(data) => {
         let collab = self.build_collab(&object, doc_state).await?;
-        let folder = Folder::create(object.uid, collab, folder_notifier, data);
-        if let Err(err) = self.write_collab_to_disk(
-          object.uid,
-          &object.workspace_id,
-          &object.object_id,
-          &object.collab_type,
-          &folder,
-        ) {
-          error!("build_collab: flush folder collab to disk failed: {}", err);
-        }
-        folder
+        Folder::create(object.uid, collab, folder_notifier, data)
       },
     };
     let folder = Arc::new(RwLock::new(folder));
@@ -311,52 +286,12 @@ impl WorkspaceCollabAdaptor {
 
     let controller = self.get_controller().await?;
     let collab_ref = collab.clone() as Arc<RwLock<dyn BorrowMut<Collab> + Send + Sync + 'static>>;
-    controller
-      .bind_and_init_collab(&collab_ref, object.collab_type, false)
-      .await?;
+    controller.bind(&collab_ref, object.collab_type).await?;
 
     let mut write_collab = collab.try_write()?;
     (*write_collab).borrow_mut().initialize();
     drop(write_collab);
     Ok(collab)
-  }
-
-  /// Remove all updates in disk and write the final state vector to disk.
-  #[instrument(level = "trace", skip_all, err)]
-  pub fn write_collab_to_disk<T>(
-    &self,
-    uid: i64,
-    workspace_id: &str,
-    object_id: &str,
-    collab_type: &CollabType,
-    collab: &T,
-  ) -> Result<(), Error>
-  where
-    T: BorrowMut<Collab> + Send + Sync + 'static,
-  {
-    // TODO(nathan): new syncing
-    // if let Some(collab_db) = collab_db.upgrade() {
-    //   let write_txn = collab_db.write_txn();
-    //   trace!(
-    //     "flush workspace: {} {}:collab:{} to disk",
-    //     workspace_id, collab_type, object_id
-    //   );
-    //   let collab: &Collab = collab.borrow();
-    //   let encode_collab =
-    //     collab.encode_collab_v1(|collab| collab_type.validate_require_data(collab))?;
-    //   write_txn.flush_doc(
-    //     uid,
-    //     workspace_id,
-    //     object_id,
-    //     encode_collab.state_vector.to_vec(),
-    //     encode_collab.doc_state.to_vec(),
-    //   )?;
-    //   write_txn.commit_transaction()?;
-    // } else {
-    //   error!("collab_db is dropped");
-    // }
-
-    Ok(())
   }
 }
 

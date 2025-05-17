@@ -20,7 +20,7 @@ use client_api::{Client, ClientConfiguration};
 use collab_entity::{CollabObject, CollabType};
 use tracing::{instrument, trace};
 
-use crate::af_cloud::define::{LoggedUser, LoggedWorkspace, USER_SIGN_IN_URL};
+use crate::af_cloud::define::{LoggedUser, USER_SIGN_IN_URL};
 use crate::af_cloud::impls::user::dto::{
   af_update_from_update_params, from_af_workspace_member, to_af_role, user_profile_from_af_profile,
 };
@@ -43,19 +43,13 @@ use super::dto::{from_af_workspace_invitation_status, to_workspace_invitation_st
 pub(crate) struct AFCloudUserAuthServiceImpl<T> {
   server: T,
   logged_user: Weak<dyn LoggedUser>,
-  logged_workspace: Weak<dyn LoggedWorkspace>,
 }
 
 impl<T> AFCloudUserAuthServiceImpl<T> {
-  pub(crate) fn new(
-    server: T,
-    logged_workspace: Weak<dyn LoggedWorkspace>,
-    logged_user: Weak<dyn LoggedUser>,
-  ) -> Self {
+  pub(crate) fn new(server: T, logged_user: Weak<dyn LoggedUser>) -> Self {
     Self {
       server,
       logged_user,
-      logged_workspace,
     }
   }
 }

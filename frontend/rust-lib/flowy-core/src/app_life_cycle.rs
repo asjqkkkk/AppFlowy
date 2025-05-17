@@ -339,6 +339,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
     );
     let server_provider = self.server_provider()?;
     server_provider.set_logged_workspace(LoggedWorkspaceImpl(workspace_controller.clone()));
+
     self
       .workspace_collab_manager()?
       .set_controller(workspace_controller)

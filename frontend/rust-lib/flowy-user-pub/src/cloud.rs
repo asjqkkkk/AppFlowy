@@ -69,7 +69,7 @@ pub trait UserCloudServiceProvider: Send + Sync {
   /// # Returns
   /// A `Result` which is `Ok` if the token is successfully set, or a `FlowyError` otherwise.
   fn set_token(&self, token: &str) -> Result<(), FlowyError>;
-  fn get_token(&self) -> Option<String>;
+  fn get_access_token(&self) -> Option<String>;
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError>;
 
   /// Subscribes to the state of the authentication token.

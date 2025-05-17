@@ -103,11 +103,6 @@ impl UserDB {
     Ok(Arc::downgrade(&collab_db))
   }
 
-  pub(crate) fn get_collab_db(&self, user_id: i64) -> Result<CollabKVDB, FlowyError> {
-    let collab_db = self.open_collab_db(self.paths.collab_db_path(user_id), user_id)?;
-    Ok(collab_db.as_ref().clone())
-  }
-
   pub fn open_sqlite_db(
     &self,
     db_path: impl AsRef<Path>,

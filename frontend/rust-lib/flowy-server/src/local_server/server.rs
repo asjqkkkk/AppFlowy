@@ -56,7 +56,7 @@ impl AppFlowyServer for LocalServer {
     Ok(())
   }
 
-  fn get_token(&self) -> Option<String> {
+  fn get_access_token(&self) -> Option<String> {
     None
   }
 

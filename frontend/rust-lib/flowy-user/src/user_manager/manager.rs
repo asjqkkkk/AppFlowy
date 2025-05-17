@@ -1,6 +1,5 @@
 use client_api::entity::GotrueTokenResponse;
 use flowy_error::FlowyResult;
-use std::rc::Rc;
 use std::str::FromStr;
 
 use crate::entities::{AuthStateChangedPB, AuthStatePB, UserProfilePB, UserSettingPB};
@@ -17,7 +16,6 @@ use crate::services::cloud_config::get_cloud_config;
 use arc_swap::ArcSwapOption;
 use collab::lock::RwLock;
 use collab_plugins::CollabKVDB;
-use collab_user::core::UserAwareness;
 use dashmap::DashMap;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::schema::user_table;
@@ -196,16 +194,6 @@ impl UserManager {
       self.set_first_time_installed_version();
       let cloud_config = get_cloud_config(session.user_id, &self.store_preferences);
       let controller = self.init_workspace_controller_if_need(&workspace_uuid, &cloud_service)?;
-      // Init the user awareness. here we ignore the error
-      let _ = self
-        .initial_user_awareness(
-          session.user_id,
-          &session.user_uuid,
-          &workspace_uuid,
-          &workspace_type,
-        )
-        .await;
-
       app_life_cycle
         .on_launch_if_authenticated(
           uid,
@@ -217,6 +205,16 @@ impl UserManager {
           controller,
         )
         .await?;
+
+      // Init the user awareness. here we ignore the error
+      let _ = self
+        .initial_user_awareness(
+          session.user_id,
+          &session.user_uuid,
+          &workspace_uuid,
+          &workspace_type,
+        )
+        .await;
     } else {
       self.set_first_time_installed_version();
     }
@@ -297,15 +295,6 @@ impl UserManager {
     self.save_auth_data(&response, auth_type, &session).await?;
 
     let controller = self.init_workspace_controller_if_need(&workspace_id, &cloud_service)?;
-
-    let _ = self
-      .initial_user_awareness(
-        session.user_id,
-        &session.user_uuid,
-        &workspace_id,
-        &user_profile.workspace_type,
-      )
-      .await;
     self
       .app_life_cycle
       .read()
@@ -319,6 +308,15 @@ impl UserManager {
         controller,
       )
       .await?;
+
+    let _ = self
+      .initial_user_awareness(
+        session.user_id,
+        &session.user_uuid,
+        &workspace_id,
+        &user_profile.workspace_type,
+      )
+      .await;
     send_auth_state_notification(AuthStateChangedPB {
       state: AuthStatePB::AuthStateSignIn,
       message: "Sign in success".to_string(),
@@ -359,7 +357,6 @@ impl UserManager {
     auth_type: &AuthType,
   ) -> FlowyResult<()> {
     let new_session = Session::from(&response);
-    let workspace_id = Uuid::parse_str(&new_session.workspace_id)?;
     self
       .save_auth_data(&response, *auth_type, &new_session)
       .await?;
@@ -367,18 +364,10 @@ impl UserManager {
     self
       .spawn_observe_token_changed(auth_type, Some(new_user_profile.token.clone()))
       .await;
-
-    let _ = self
-      .initial_user_awareness(
-        new_session.user_id,
-        &new_session.user_uuid,
-        &workspace_id,
-        &new_user_profile.workspace_type,
-      )
-      .await;
     let workspace_id = Uuid::parse_str(&new_session.workspace_id)?;
     let cloud_service = self.cloud_service()?;
     let controller = self.init_workspace_controller_if_need(&workspace_id, &cloud_service)?;
+
     self
       .app_life_cycle
       .read()
@@ -393,6 +382,15 @@ impl UserManager {
         controller,
       )
       .await?;
+
+    let _ = self
+      .initial_user_awareness(
+        new_session.user_id,
+        &new_session.user_uuid,
+        &workspace_id,
+        &new_user_profile.workspace_type,
+      )
+      .await;
 
     if response.is_new_user {
       // For new user, we don't need to run the migrations
@@ -893,7 +891,7 @@ async fn observe_token_change(
           },
           Some(cloud_service) => cloud_service,
         };
-        if let Err(err) = handle_invalid(&service, &auth_user).await {
+        if let Err(err) = handle_invalid_token(&service, &auth_user).await {
           error!("Invalid-token sign-out failed: {}", err);
         }
         current_token = None;
@@ -940,7 +938,8 @@ async fn handle_refresh(
   Ok(())
 }
 
-async fn handle_invalid(
+#[instrument(level = "info", skip_all)]
+pub(crate) async fn handle_invalid_token(
   service: &Arc<dyn UserCloudServiceProvider>,
   auth_user: &Arc<AuthenticateUser>,
 ) -> FlowyResult<()> {

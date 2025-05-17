@@ -145,7 +145,7 @@ impl UserManager {
     let current_workspace_id = self.workspace_id()?;
     if current_workspace_id != *workspace_id {
       trace!("close workspace: {:?}", current_workspace_id);
-      self.inactive_controller(workspace_id);
+      self.inactive_controller(&current_workspace_id);
 
       if let Err(err) = self
         .app_life_cycle

@@ -116,8 +116,6 @@ impl EventIntegrationTest {
     if self
       .appflowy_core
       .server_provider
-      .get_server()
-      .unwrap()
       .get_ws_state()?
       .is_connected()
     {
@@ -127,8 +125,6 @@ impl EventIntegrationTest {
     let mut ws_state = self
       .appflowy_core
       .server_provider
-      .get_server()
-      .unwrap()
       .subscribe_ws_state()
       .unwrap();
     loop {

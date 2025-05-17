@@ -1,15 +1,14 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 
-use crate::af_cloud::define::{AIUserServiceImpl, LoggedUser, LoggedWorkspace};
+use crate::af_cloud::define::{AIUserServiceImpl, LoggedUser};
 use anyhow::Error;
 use client_api::notify::TokenState;
-use client_api::v2::ConnectState;
 use client_api::{Client, ClientConfiguration};
 use flowy_ai_pub::cloud::ChatCloudService;
 use flowy_database_pub::cloud::{DatabaseAIService, DatabaseCloudService};
 use flowy_document_pub::cloud::DocumentCloudService;
-use flowy_error::{ErrorCode, FlowyError, FlowyResult};
+use flowy_error::{ErrorCode, FlowyError};
 use flowy_folder_pub::cloud::FolderCloudService;
 use flowy_search_pub::cloud::SearchCloudService;
 use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
@@ -27,7 +26,6 @@ use flowy_ai::offline::offline_message_sync::AutoSyncChatService;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use lib_infra::async_trait::async_trait;
 use semver::Version;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::{RwLock, watch};
 use tokio_stream::wrappers::WatchStream;
 use tracing::{error, info, warn};
@@ -40,9 +38,7 @@ pub struct AppFlowyCloudServer {
   pub(crate) client: Arc<AFCloudClient>,
   enable_sync: Arc<AtomicBool>,
   network_reachable: Arc<AtomicBool>,
-  device_id: String,
   logged_user: Weak<dyn LoggedUser>,
-  logged_workspace: Weak<dyn LoggedWorkspace>,
   tanvity_state: RwLock<Option<Weak<RwLock<DocumentTantivyState>>>>,
 }
 
@@ -53,7 +49,6 @@ impl AppFlowyCloudServer {
     mut device_id: String,
     client_version: Version,
     logged_user: Weak<dyn LoggedUser>,
-    logged_workspace: Weak<dyn LoggedWorkspace>,
   ) -> Self {
     // The device id can't be empty, so we generate a new one if it is.
     if device_id.is_empty() {
@@ -79,19 +74,9 @@ impl AppFlowyCloudServer {
       client: api_client,
       enable_sync,
       network_reachable,
-      device_id,
       logged_user,
-      logged_workspace,
       tanvity_state: Default::default(),
     }
-  }
-
-  fn get_logged_workspace(&self) -> FlowyResult<Arc<dyn LoggedWorkspace>> {
-    let logged_workspace = self
-      .logged_workspace
-      .upgrade()
-      .ok_or_else(|| FlowyError::ref_drop().with_context("Logged workspace is dropped"))?;
-    Ok(logged_workspace)
   }
 
   fn get_server_impl(&self) -> AFServerImpl {
@@ -113,8 +98,8 @@ impl AppFlowyServer for AppFlowyCloudServer {
       .map_err(|err| Error::new(FlowyError::unauthorized().with_context(err)))
   }
 
-  fn get_token(&self) -> Option<String> {
-    self.client.get_token().ok()
+  fn get_access_token(&self) -> Option<String> {
+    self.client.get_access_token().ok()
   }
 
   fn set_ai_model(&self, ai_model: &str) -> Result<(), Error> {
@@ -163,7 +148,6 @@ impl AppFlowyServer for AppFlowyCloudServer {
   fn user_service(&self) -> Arc<dyn UserCloudService> {
     Arc::new(AFCloudUserAuthServiceImpl::new(
       self.get_server_impl(),
-      self.logged_workspace.clone(),
       self.logged_user.clone(),
     ))
   }
@@ -203,14 +187,6 @@ impl AppFlowyServer for AppFlowyCloudServer {
       }),
       Arc::new(AIUserServiceImpl(self.logged_user.clone())),
     ))
-  }
-
-  fn subscribe_ws_state(&self) -> Option<Receiver<ConnectState>> {
-    self.get_logged_workspace().ok()?.subscribe_ws_state().ok()
-  }
-
-  fn get_ws_state(&self) -> FlowyResult<ConnectState> {
-    self.get_logged_workspace()?.ws_state()
   }
 
   fn file_storage(&self) -> Option<Arc<dyn StorageCloudService>> {

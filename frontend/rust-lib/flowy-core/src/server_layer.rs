@@ -3,6 +3,7 @@ use crate::deps_resolve::MultiSourceVSTanvityImpl;
 use crate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use crate::AppFlowyCoreConfig;
 use arc_swap::{ArcSwap, ArcSwapOption};
+use client_api::v2::ConnectState;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use dashmap::try_result::TryResult;
@@ -21,6 +22,7 @@ use flowy_user_pub::entities::*;
 use lib_infra::async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
+use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -119,6 +121,18 @@ impl ServerProvider {
     self.set_tanvity_state(tanvity_state).await;
   }
 
+  pub fn subscribe_ws_state(&self) -> Option<Receiver<ConnectState>> {
+    self.logged_workspace.load_full()?.subscribe_ws_state().ok()
+  }
+
+  pub fn get_ws_state(&self) -> FlowyResult<ConnectState> {
+    self
+      .logged_workspace
+      .load_full()
+      .ok_or_else(|| FlowyError::internal().with_context("logged workspace not initialized"))?
+      .ws_state()
+  }
+
   pub fn set_auth_type(&self, new_auth_type: AuthType) {
     let old_type = self.get_auth_type();
     if old_type != new_auth_type {
@@ -145,12 +159,6 @@ impl ServerProvider {
       return Ok(r.value().clone());
     }
 
-    let logged_workspace = self
-      .logged_workspace
-      .load_full()
-      .ok_or_else(|| FlowyError::internal().with_context("Failed to load logged workspace"))?
-      as Arc<dyn LoggedWorkspace>;
-
     let server: Arc<dyn AppFlowyServer> = match auth_type {
       AuthType::Local => {
         let embedding_writer = self.indexed_data_writer.clone().map(|w| {
@@ -176,7 +184,6 @@ impl ServerProvider {
           self.config.device_id.clone(),
           self.config.app_version.clone(),
           Arc::downgrade(&self.logged_user),
-          Arc::downgrade(&logged_workspace),
         ))
       },
     };

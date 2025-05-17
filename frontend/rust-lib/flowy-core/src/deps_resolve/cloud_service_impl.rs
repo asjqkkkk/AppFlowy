@@ -157,9 +157,9 @@ impl UserCloudServiceProvider for ServerProvider {
     Ok(())
   }
 
-  fn get_token(&self) -> Option<String> {
+  fn get_access_token(&self) -> Option<String> {
     let server = self.get_server().ok()?;
-    server.get_token()
+    server.get_access_token()
   }
 
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError> {
