@@ -183,7 +183,7 @@ where
       .ok_or_else(FlowyError::user_not_login)?;
 
     let profile = client.get_profile().await?;
-    let token = client.get_token()?;
+    let token = client.get_token_str()?;
 
     let mut conn = logged_user.get_sqlite_db(uid)?;
     let workspace_auth_type = select_user_workspace(workspace_id, &mut conn)
@@ -626,7 +626,7 @@ pub async fn user_sign_in_with_url(
     latest_workspace,
     user_workspaces,
     email: user_profile.email,
-    token: Some(client.get_token()?),
+    token: Some(client.get_token_str()?),
     encryption_type,
     is_new_user,
     updated_at: user_profile.updated_at,

@@ -871,13 +871,18 @@ async fn observe_token_change(
     };
 
     match token_state {
-      UserTokenState::Refresh { token: new_token } => {
+      UserTokenState::Refresh {
+        token: new_token,
+        access_token,
+      } => {
         if Some(&new_token) == current_token.as_ref() {
           debug!("Refresh: token unchanged, skipping.");
           continue;
         }
 
-        if let Err(err) = handle_refresh(&auth_user, &controller_by_wid, &new_token).await {
+        if let Err(err) =
+          handle_refresh(&auth_user, &controller_by_wid, &new_token, &access_token).await
+        {
           warn!("Refresh failed: {}", err);
         }
 
@@ -909,6 +914,7 @@ async fn handle_refresh(
   auth_user: &Arc<AuthenticateUser>,
   controllers: &Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
   new_token: &str,
+  access_token: &str,
 ) -> FlowyResult<()> {
   // 1) Upgrade and get session
   let session = auth_user.get_session()?;
@@ -922,7 +928,8 @@ async fn handle_refresh(
         error!("Disconnect error for {}: {:?}", workspace_uuid, e);
       }
     }
-    if let Err(e) = ctr.connect(new_token.to_owned()).await {
+
+    if let Err(e) = ctr.connect(access_token.to_owned()).await {
       error!("Connect error for {}: {:?}", workspace_uuid, e);
     }
   } else {

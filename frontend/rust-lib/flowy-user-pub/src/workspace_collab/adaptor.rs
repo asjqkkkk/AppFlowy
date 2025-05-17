@@ -125,7 +125,7 @@ impl WorkspaceCollabAdaptor {
     *self.controller.write().await = Some(controller);
   }
 
-  pub fn update_network(&self, reachable: bool) {
+  pub fn update_network(&self, _reachable: bool) {
     // TODO(nathan): new syncing protocol
   }
 
