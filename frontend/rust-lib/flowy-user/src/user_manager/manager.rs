@@ -193,7 +193,8 @@ impl UserManager {
       // migrations should run before set the first time installed version
       self.set_first_time_installed_version();
       let cloud_config = get_cloud_config(session.user_id, &self.store_preferences);
-      let controller = self.init_workspace_controller_if_need(&workspace_uuid, &cloud_service)?;
+      let controller =
+        self.init_workspace_controller_if_need(&workspace_uuid, &workspace_type, &cloud_service)?;
       app_life_cycle
         .on_launch_if_authenticated(
           uid,
@@ -294,7 +295,11 @@ impl UserManager {
     let workspace_id = Uuid::parse_str(&latest_workspace.id)?;
     self.save_auth_data(&response, auth_type, &session).await?;
 
-    let controller = self.init_workspace_controller_if_need(&workspace_id, &cloud_service)?;
+    let controller = self.init_workspace_controller_if_need(
+      &workspace_id,
+      &user_profile.workspace_type,
+      &cloud_service,
+    )?;
     self
       .app_life_cycle
       .read()
@@ -366,7 +371,11 @@ impl UserManager {
       .await;
     let workspace_id = Uuid::parse_str(&new_session.workspace_id)?;
     let cloud_service = self.cloud_service()?;
-    let controller = self.init_workspace_controller_if_need(&workspace_id, &cloud_service)?;
+    let controller = self.init_workspace_controller_if_need(
+      &workspace_id,
+      &new_user_profile.workspace_type,
+      &cloud_service,
+    )?;
 
     self
       .app_life_cycle
@@ -929,7 +938,7 @@ async fn handle_refresh(
       }
     }
 
-    if let Err(e) = ctr.connect(access_token.to_owned()).await {
+    if let Err(e) = ctr.connect_with_access_token(access_token.to_owned()).await {
       error!("Connect error for {}: {:?}", workspace_uuid, e);
     }
   } else {

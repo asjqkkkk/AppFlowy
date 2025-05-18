@@ -7,8 +7,9 @@ use client_api::v2::{
   ConnectState, DisconnectedReason, WorkspaceController, WorkspaceControllerOptions,
 };
 use dashmap::Entry;
-use flowy_error::FlowyError;
+use flowy_error::{FlowyError, FlowyResult};
 use flowy_user_pub::cloud::UserCloudServiceProvider;
+use flowy_user_pub::entities::WorkspaceType;
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use tokio_stream::StreamExt;
@@ -16,6 +17,14 @@ use tracing::{error, info, trace};
 use uuid::Uuid;
 
 impl UserManager {
+  #[cfg(debug_assertions)]
+  pub async fn disconnect_workspace_ws_conn(&self, workspace_id: &Uuid) -> FlowyResult<()> {
+    if let Some(c) = self.controller_by_wid.get(workspace_id) {
+      c.disconnect().await?;
+    }
+    Ok(())
+  }
+
   pub(crate) fn spawn_periodically_check_workspace_control(&self) {
     let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(120));
     let weak_controller_by_wid = Arc::downgrade(&self.controller_by_wid);
@@ -50,6 +59,7 @@ impl UserManager {
   pub(crate) fn init_workspace_controller_if_need(
     &self,
     workspace_id: &Uuid,
+    workspace_type: &WorkspaceType,
     cloud_service: &Arc<dyn UserCloudServiceProvider>,
   ) -> Result<Weak<WorkspaceController>, FlowyError> {
     let access_token = cloud_service.get_access_token();
@@ -58,7 +68,7 @@ impl UserManager {
       Entry::Occupied(mut value) => {
         value.get_mut().mark_active();
         let controller = value.get().clone();
-        spawn_connect(controller.deref().clone(), access_token);
+        spawn_connect(controller.clone(), access_token, workspace_type);
         Arc::downgrade(&controller)
       },
       Entry::Vacant(entry) => {
@@ -74,17 +84,21 @@ impl UserManager {
         };
         let workspace_controller =
           Arc::new(WorkspaceController::new_with_rocksdb(options, collab_db)?);
-        entry.insert(WorkspaceControllerLifeCycle::new(
+        let controller = WorkspaceControllerLifeCycle::new(
+          *workspace_type,
           workspace_controller.clone(),
           Arc::downgrade(&self.action_interceptors),
-        ));
+        );
+
+        entry.insert(controller.clone());
         let weak_controller = Arc::downgrade(&workspace_controller);
         spawn_subscribe_connect_state(
           workspace_controller.clone(),
           self.cloud_service.clone(),
           Arc::downgrade(&self.authenticate_user),
+          workspace_type,
         );
-        spawn_connect(workspace_controller, access_token);
+        spawn_connect(controller, access_token, workspace_type);
         weak_controller
       },
     };
@@ -95,7 +109,12 @@ fn spawn_subscribe_connect_state(
   controller: Arc<WorkspaceController>,
   cloud_service: Weak<dyn UserCloudServiceProvider>,
   auth_user: Weak<AuthenticateUser>,
+  workspace_type: &WorkspaceType,
 ) {
+  if matches!(workspace_type, WorkspaceType::Local) {
+    return;
+  }
+
   let mut rx = controller.subscribe_connect_state();
   tokio::spawn(async move {
     // Loop as long as we get a Disconnected { reason: Some(reason) }
@@ -116,14 +135,18 @@ fn spawn_subscribe_connect_state(
   });
 }
 
-fn spawn_connect(controller: Arc<WorkspaceController>, access_token: Option<String>) {
-  if controller.is_connected() {
+fn spawn_connect(
+  controller: WorkspaceControllerLifeCycle,
+  access_token: Option<String>,
+  workspace_type: &WorkspaceType,
+) {
+  if matches!(workspace_type, WorkspaceType::Local) {
     return;
   }
 
   if let Some(token) = access_token {
     tokio::spawn(async move {
-      if let Err(err) = controller.connect(token).await {
+      if let Err(err) = controller.connect_with_access_token(token).await {
         error!("spawn connect failed: {:?}", err);
       }
     });
@@ -132,6 +155,7 @@ fn spawn_connect(controller: Arc<WorkspaceController>, access_token: Option<Stri
 
 #[derive(Clone)]
 pub(crate) struct WorkspaceControllerLifeCycle {
+  workspace_type: WorkspaceType,
   controller: Arc<WorkspaceController>,
   inactive_since: Option<DateTime<Utc>>,
   interceptors: Weak<ArcSwapOption<ActionInterceptors>>,
@@ -147,17 +171,32 @@ impl Deref for WorkspaceControllerLifeCycle {
 
 impl WorkspaceControllerLifeCycle {
   pub(crate) fn new(
+    workspace_type: WorkspaceType,
     controller: Arc<WorkspaceController>,
     interceptors: Weak<ArcSwapOption<ActionInterceptors>>,
   ) -> Self {
     let this = Self {
+      workspace_type,
       controller,
       inactive_since: None,
       interceptors,
     };
-    this.spawn_observe_workspace_notification();
+
+    if !matches!(this.workspace_type, WorkspaceType::Server) {
+      this.spawn_observe_workspace_notification();
+    }
     this
   }
+
+  pub async fn connect_with_access_token(&self, access_token: String) -> FlowyResult<()> {
+    if matches!(self.workspace_type, WorkspaceType::Local) {
+      return Ok(());
+    }
+
+    self.connect(access_token).await?;
+    Ok(())
+  }
+
   fn is_inactive(&self) -> bool {
     match &self.inactive_since {
       None => false,

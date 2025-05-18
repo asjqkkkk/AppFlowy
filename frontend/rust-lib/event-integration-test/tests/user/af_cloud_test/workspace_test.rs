@@ -198,7 +198,29 @@ async fn af_cloud_open_workspace_test() {
 }
 
 #[tokio::test]
-async fn af_cloud_different_open_same_workspace_test() {
+async fn af_cloud_open_same_data_path_test() {
+  use_localhost_af_cloud().await;
+  let mut test = EventIntegrationTest::new().await;
+  test.skip_auto_remove_temp_dir();
+  let _ = test.af_cloud_sign_up().await;
+
+  let config = test.appflowy_core.config.clone();
+  drop(test);
+  for _ in 0..10 {
+    let mut test = EventIntegrationTest::new_with_config(config.clone()).await;
+    test.skip_auto_remove_temp_dir();
+    let views = test.get_all_workspace_views().await;
+    assert_eq!(views.len(), 2);
+    drop(test)
+  }
+
+  let test = EventIntegrationTest::new_with_config(config.clone()).await;
+  let views = test.get_all_workspace_views().await;
+  assert_eq!(views.len(), 2);
+}
+
+#[tokio::test]
+async fn af_cloud_open_different_workspace_test() {
   use_localhost_af_cloud().await;
 
   // Set up the primary client and sign them up to the cloud.

@@ -5,7 +5,7 @@ use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_entity::CollabType;
 
-use flowy_document::entities::{DocumentDataPB, OpenDocumentPayloadPB};
+use flowy_document::entities::{DocumentDataPB, DocumentTextPB, OpenDocumentPayloadPB};
 use flowy_document::event_map::DocumentEvent;
 use flowy_folder::entities::{CreateViewPayloadPB, ViewLayoutPB, ViewPB};
 use flowy_folder::event_map::FolderEvent;
@@ -92,6 +92,17 @@ impl EventIntegrationTest {
       .parse::<DocumentDataPB>();
 
     DocumentData::from(pb)
+  }
+
+  pub async fn get_document_text(&self, view_id: &str) -> DocumentTextPB {
+    EventBuilder::new(self.clone())
+      .event(DocumentEvent::GetDocumentText)
+      .payload(OpenDocumentPayloadPB {
+        document_id: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<DocumentTextPB>()
   }
 
   pub async fn get_document_doc_state(&self, document_id: &str) -> Vec<u8> {

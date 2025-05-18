@@ -167,7 +167,8 @@ impl UserManager {
     let token = self.token_from_auth_type(&auth_type)?;
     let cloud_service = self.cloud_service()?;
     cloud_service.set_server_auth_type(&auth_type, token)?;
-    let controller = self.init_workspace_controller_if_need(workspace_id, &cloud_service)?;
+    let controller =
+      self.init_workspace_controller_if_need(workspace_id, &workspace_type, &cloud_service)?;
 
     let uid = self.user_id()?;
     let profile = self

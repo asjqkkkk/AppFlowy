@@ -177,9 +177,9 @@ impl UserCloudServiceProvider for ServerProvider {
   fn set_enable_sync(&self, uid: i64, enable_sync: bool) {
     if let Ok(server) = self.get_server() {
       server.set_enable_sync(uid, enable_sync);
-      self.user_enable_sync.store(enable_sync, Ordering::Release);
-      self.uid.store(Some(uid.into()));
     }
+    self.user_enable_sync.store(enable_sync, Ordering::Release);
+    self.uid.store(Some(uid.into()));
   }
 
   /// When user login, the provider type is set by the [AuthType] and save to disk for next use.
