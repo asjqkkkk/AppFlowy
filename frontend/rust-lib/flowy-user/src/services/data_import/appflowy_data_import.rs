@@ -5,7 +5,7 @@ use crate::services::db::UserDBPath;
 use crate::services::entities::UserPaths;
 use crate::user_manager::run_data_migration;
 use anyhow::anyhow;
-use collab::core::collab::DataSource;
+use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 
 use collab::preclude::updates::decoder::Decode;
@@ -431,14 +431,10 @@ where
     .doc_state
     .to_vec();
 
-  let collab = Collab::new_with_source(
-    CollabOrigin::Empty,
-    view_id,
-    DataSource::DocStateV1(import_container_doc_state),
-    vec![],
-    false,
-  )
-  .map_err(|err| PersistenceError::InvalidData(err.to_string()))?;
+  let options = CollabOptions::new(view_id.to_string())
+    .with_data_source(DataSource::DocStateV1(import_container_doc_state));
+  let collab = Collab::new_with_options(CollabOrigin::Empty, options)
+    .map_err(|err| PersistenceError::InvalidData(err.to_string()))?;
 
   write_collab_object(
     &collab,
@@ -489,13 +485,9 @@ where
     .doc_state
     .to_vec();
 
-  let collab = Collab::new_with_source(
-    CollabOrigin::Empty,
-    import_container_view_id,
-    DataSource::DocStateV1(import_container_doc_state),
-    vec![],
-    false,
-  )?;
+  let options = CollabOptions::new(import_container_view_id.to_string())
+    .with_data_source(DataSource::DocStateV1(import_container_doc_state));
+  let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
   write_collab_object(
     &collab,
     current_session.user_id,
@@ -537,8 +529,7 @@ where
     imported_session.user_id,
     imported_session_workspace_database_id,
     "import_device",
-    vec![],
-    false,
+    None,
   );
   imported_collab_db_read_txn.load_doc_with_txn(
     imported_session.user_id,
@@ -578,7 +569,9 @@ fn init_workspace_database(object_id: &str, collab: Collab) -> WorkspaceDatabase
         "[AppflowyData]:init workspace database body failed: {:?}, create a new one",
         err
       );
-      let collab = Collab::new_with_origin(CollabOrigin::Empty, object_id, vec![], false);
+      let options = CollabOptions::new(object_id.to_string());
+      let collab = Collab::new_with_options(CollabOrigin::Empty, options)
+        .unwrap_or_else(|_| panic!("Failed to create collab"));
       WorkspaceDatabase::create(collab)
     },
   }
@@ -878,14 +871,9 @@ fn gen_sv_and_doc_state(
 
   let (state_vector, doc_state) = match collab_type {
     CollabType::Document => {
-      let collab = Collab::new_with_source(
-        CollabOrigin::Empty,
-        object_id,
-        encoded_collab.into(),
-        vec![],
-        false,
-      )
-      .ok()?;
+      let options =
+        CollabOptions::new(object_id.to_string()).with_data_source(encoded_collab.into());
+      let collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
       let mut document = Document::open(collab).ok()?;
       if let Err(err) = replace_document_ref_ids(&mut document, ids_map) {
         error!("[AppFlowyData]: replace document ref ids failed: {}", err);
@@ -949,8 +937,7 @@ where
     imported_session.user_id,
     &imported_session.workspace_id,
     "migrate_device",
-    vec![],
-    false,
+    None,
   );
 
   imported_collab_db_read_txn

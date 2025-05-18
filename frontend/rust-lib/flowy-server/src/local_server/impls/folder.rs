@@ -5,6 +5,7 @@ use crate::af_cloud::define::LoggedUser;
 use crate::local_server::util::default_encode_collab_for_collab_type;
 use client_api::entity::PublishInfo;
 use client_api::entity::workspace_dto::PublishInfoView;
+use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::Collab;
 use collab_entity::CollabType;
@@ -49,7 +50,8 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     let is_exist = read_txn.is_exist(uid, &workspace_id.to_string(), &object_id.to_string());
     if is_exist {
       // load doc
-      let collab = Collab::new_with_origin(CollabOrigin::Empty, &object_id, vec![], false);
+      let options = CollabOptions::new(object_id.clone());
+      let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
       read_txn.load_doc(uid, &workspace_id, &object_id, collab.doc())?;
       let data = collab.encode_collab_v1(|c| {
         collab_type

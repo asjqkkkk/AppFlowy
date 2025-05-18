@@ -7,6 +7,7 @@ use crate::local_server::template::create_workspace::{
 use crate::local_server::uid::IDGenerator;
 use anyhow::Context;
 use client_api::entity::GotrueTokenResponse;
+use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::Collab;
 use collab_entity::CollabObject;
@@ -213,12 +214,8 @@ impl UserCloudService for LocalServerUserServiceImpl {
     workspace_id: &Uuid,
     object_id: &Uuid,
   ) -> Result<Vec<u8>, FlowyError> {
-    let collab = Collab::new_with_origin(
-      CollabOrigin::Empty,
-      object_id.to_string().as_str(),
-      vec![],
-      false,
-    );
+    let options = CollabOptions::new(object_id.to_string());
+    let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
     let awareness = UserAwareness::create(collab, None)?;
     let encode_collab = awareness.encode_collab_v1(|_collab| Ok::<_, FlowyError>(()))?;
     Ok(encode_collab.doc_state.to_vec())

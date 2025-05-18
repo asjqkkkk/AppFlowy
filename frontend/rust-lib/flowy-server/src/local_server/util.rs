@@ -1,3 +1,4 @@
+use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::preclude::Collab;
@@ -39,7 +40,8 @@ pub async fn default_encode_collab_for_collab_type(
     },
     CollabType::UserAwareness => Ok(default_user_awareness_data(object_id)),
     CollabType::Unknown => {
-      let collab = Collab::new_with_origin(CollabOrigin::Empty, object_id, vec![], false);
+      let options = CollabOptions::new(object_id.to_string());
+      let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
       let data = collab.encode_collab_v1(|_| Ok::<_, FlowyError>(()))?;
       Ok(data)
     },

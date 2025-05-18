@@ -1,4 +1,4 @@
-use collab::core::collab::DataSource;
+use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::updates::decoder::Decode;
 use collab::preclude::{Collab, StateVector};
@@ -110,13 +110,10 @@ impl AIExternalService for ChatQueryServiceImpl {
       // Check if the state vector exists and detect changes
       if let Some(metadata) = rag_metadata_map.remove(&rag_id) {
         if let Ok(prev_sv) = StateVector::decode_v1(&metadata.prev_sync_state_vector) {
-          if let Ok(collab) = Collab::new_with_source(
-            CollabOrigin::Empty,
-            &rag_id.to_string(),
+          let options = CollabOptions::new(rag_id.to_string()).with_data_source(
             DataSource::DocStateV1(query_collab.encoded_collab.doc_state.to_vec()),
-            vec![],
-            false,
-          ) {
+          );
+          if let Ok(collab) = Collab::new_with_options(CollabOrigin::Empty, options) {
             if !is_change_since_sv(&collab, &prev_sv) {
               info!(
                 "[Embedding] skip full sync rag document {}, no changes",

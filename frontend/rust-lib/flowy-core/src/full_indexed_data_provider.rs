@@ -260,7 +260,7 @@ impl FullIndexedDataWriter {
         match collab_type {
           CollabType::Document => {
             // 1) Load into a Collab
-            let mut collab = Collab::new(uid, &object_str, "indexing_device", vec![], false);
+            let mut collab = Collab::new(uid, &object_str, "indexing_device", None);
             let load_success = {
               let mut txn = collab.transact_mut();
               read_txn

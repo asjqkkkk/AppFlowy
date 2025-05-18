@@ -1,3 +1,4 @@
+use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::updates::decoder::Decode;
 use collab::preclude::{Collab, Update};
@@ -114,7 +115,8 @@ impl EventIntegrationTest {
 }
 
 pub fn assert_document_data_equal(doc_state: &[u8], doc_id: &str, expected: DocumentData) {
-  let mut collab = Collab::new_with_origin(CollabOrigin::Server, doc_id, vec![], false);
+  let options = CollabOptions::new(doc_id.to_string());
+  let mut collab = Collab::new_with_options(CollabOrigin::Server, options).unwrap();
   {
     let update = Update::decode_v1(doc_state).unwrap();
     let mut txn = collab.transact_mut();

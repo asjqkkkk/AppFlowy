@@ -1,7 +1,7 @@
 use anyhow::anyhow;
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
-use collab::core::collab::DataSource;
+use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::lock::RwLock;
 use collab::preclude::Collab;
@@ -1035,7 +1035,8 @@ impl DatabaseCollabPersistenceService for DatabasePersistenceImpl {
       return None;
     }
 
-    let mut collab = Collab::new_with_origin(CollabOrigin::Empty, object_id, vec![], false);
+    let options = CollabOptions::new(object_id.to_string());
+    let mut collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
     let mut txn = collab.transact_mut();
     let _ = read_txn.load_doc_with_txn(uid, workspace_id.as_str(), object_id, &mut txn);
     drop(txn);

@@ -4,11 +4,12 @@ use std::sync::{Arc, Weak};
 
 use anyhow::{Error, anyhow};
 use client_api::v2::WorkspaceController;
-use collab::core::collab::DataSource;
+use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::collab_plugin::CollabPersistence;
+use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::entity::EncodedCollab;
 use collab::error::CollabError;
-use collab::preclude::{Collab, CollabBuilder, Transact};
+use collab::preclude::{Collab, Transact};
 use collab_database::workspace_database::{DatabaseCollabService, WorkspaceDatabaseManager};
 use collab_document::blocks::DocumentData;
 use collab_document::document::{Document, DocumentBody};
@@ -241,9 +242,9 @@ impl WorkspaceCollabAdaptor {
     let object = object.clone();
     let device_id = self.user.device_id()?;
     let collab = tokio::task::spawn_blocking(move || {
-      let collab = CollabBuilder::new(object.uid, &object.object_id, data_source)
-        .with_device_id(device_id)
-        .build()?;
+      let origin = CollabOrigin::Client(CollabClient::new(object.uid, device_id));
+      let options = CollabOptions::new(object.object_id.clone()).with_data_source(data_source);
+      let collab = Collab::new_with_options(origin, options)?;
       Ok::<_, Error>(collab)
     })
     .await??;

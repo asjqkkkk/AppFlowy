@@ -42,7 +42,7 @@ where
   R: CollabKVAction<'a>,
   PersistenceError: From<R::Error>,
 {
-  let mut collab = Collab::new(uid, object_id, "phantom", vec![], false);
+  let mut collab = Collab::new(uid, object_id, "phantom", None);
   collab_read_txn.load_doc_with_txn(uid, workspace_id, object_id, &mut collab.transact_mut())?;
   Ok(collab)
 }

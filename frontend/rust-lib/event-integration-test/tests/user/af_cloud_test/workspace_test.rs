@@ -300,7 +300,6 @@ async fn af_cloud_open_different_workspace_test() {
     CollabOrigin::Empty,
     DocStateV1(doc_state),
     &shared_workspace_id,
-    vec![],
   )
   .unwrap();
 
