@@ -71,7 +71,8 @@ async fn af_cloud_multiple_user_edit_document_test() {
   let _ = receive_with_timeout(rx, Duration::from_secs(30)).await;
 
   tokio::time::sleep(Duration::from_secs(10)).await;
-  let views = test_2.get_all_workspace_views().await;
+  let mut views = test_2.get_all_workspace_views().await;
+  views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
   dbg!(&views.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
   assert_eq!(views.len(), 3);
   assert_eq!(views[2].name, "my shared document");
@@ -124,7 +125,8 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
     });
   let _ = receive_with_timeout(rx, Duration::from_secs(30)).await;
   tokio::time::sleep(Duration::from_secs(10)).await;
-  let views = test_2.get_all_workspace_views().await;
+  let mut views = test_2.get_all_workspace_views().await;
+  views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
   dbg!(&views.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
   assert_eq!(views.len(), 2);
   assert_eq!(views[2].name, "my shared document");

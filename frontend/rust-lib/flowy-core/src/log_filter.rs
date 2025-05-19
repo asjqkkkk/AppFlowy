@@ -50,6 +50,7 @@ pub fn create_log_filter(
   filters.push(format!("collab_integrate={}", level));
   filters.push(format!("collab={}", level));
   filters.push(format!("flowy_user={}", level));
+  filters.push(format!("flowy_user_pub={}", level));
   filters.push(format!("flowy_document={}", level));
   filters.push(format!("flowy_database2={}", level));
   filters.push(format!("flowy_server={}", level));

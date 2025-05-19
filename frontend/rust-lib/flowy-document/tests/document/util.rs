@@ -2,6 +2,7 @@ use std::ops::Deref;
 use std::sync::{Arc, OnceLock};
 
 use collab::entity::EncodedCollab;
+use collab::preclude::block::ClientID;
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_document::document_data::default_document_data;

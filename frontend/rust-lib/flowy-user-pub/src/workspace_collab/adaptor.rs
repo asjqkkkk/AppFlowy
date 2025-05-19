@@ -241,14 +241,18 @@ impl WorkspaceCollabAdaptor {
   ) -> Result<Collab, Error> {
     let object = object.clone();
     let device_id = self.user.device_id()?;
-    let collab = tokio::task::spawn_blocking(move || {
-      let origin = CollabOrigin::Client(CollabClient::new(object.uid, device_id));
-      let options = CollabOptions::new(object.object_id.clone()).with_data_source(data_source);
-      let collab = Collab::new_with_options(origin, options)?;
-      Ok::<_, Error>(collab)
-    })
-    .await??;
+    let controller = self.get_controller().await?;
+    let client_id = controller.client_id();
+    let origin = CollabOrigin::Client(CollabClient::new(object.uid, device_id));
+    let options = CollabOptions::new(object.object_id.clone())
+      .with_data_source(data_source)
+      .with_client_id(Some(client_id));
 
+    trace!(
+      "Build collab:{}:{} with client_id: {:?}",
+      object.object_id, object.collab_type, options.client_id
+    );
+    let collab = Collab::new_with_options(origin, options)?;
     Ok(collab)
   }
 
