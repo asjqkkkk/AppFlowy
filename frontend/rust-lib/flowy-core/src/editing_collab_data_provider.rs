@@ -7,8 +7,7 @@ use collab_entity::{CollabObject, CollabType};
 use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_user_pub::workspace_collab::adaptor::{
-  unindexed_data_form_collab, CollabIndexedData, InstantIndexedDataConsumer,
-  WorkspaceCollabEmbedding,
+  unindexed_data_form_collab, CollabIndexedData, EditingCollabDataConsumer, WorkspaceCollabIndexer,
 };
 use lib_infra::async_trait::async_trait;
 use lib_infra::util::get_operating_system;
@@ -16,7 +15,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use tokio::runtime::Runtime;
-use tokio::time::interval;
+use tokio::time::{interval, MissedTickBehavior};
 use tracing::{error, info, trace};
 use uuid::Uuid;
 
@@ -25,25 +24,23 @@ pub struct WriteObject {
   pub collab: Weak<dyn CollabIndexedData>,
 }
 
-pub struct InstantIndexedDataWriter {
+pub struct InstantCollabDataProvider {
   collab_by_object: Arc<RwLock<HashMap<String, WriteObject>>>,
-  consumers: Arc<RwLock<Vec<Box<dyn InstantIndexedDataConsumer>>>>,
+  consumers: Arc<RwLock<Vec<Box<dyn EditingCollabDataConsumer>>>>,
 }
 
-impl Default for InstantIndexedDataWriter {
+impl Default for InstantCollabDataProvider {
   fn default() -> Self {
     Self::new()
   }
 }
 
-impl InstantIndexedDataWriter {
-  pub fn new() -> InstantIndexedDataWriter {
+impl InstantCollabDataProvider {
+  pub fn new() -> InstantCollabDataProvider {
     let collab_by_object = Arc::new(RwLock::new(HashMap::<String, WriteObject>::new()));
-    let consumers = Arc::new(RwLock::new(
-      Vec::<Box<dyn InstantIndexedDataConsumer>>::new(),
-    ));
+    let consumers = Arc::new(RwLock::new(Vec::<Box<dyn EditingCollabDataConsumer>>::new()));
 
-    InstantIndexedDataWriter {
+    InstantCollabDataProvider {
       collab_by_object,
       consumers,
     }
@@ -60,7 +57,7 @@ impl InstantIndexedDataWriter {
     info!("[Indexing] Cleared all instant index consumers");
   }
 
-  pub async fn register_consumer(&self, consumer: Box<dyn InstantIndexedDataConsumer>) {
+  pub async fn register_consumer(&self, consumer: Box<dyn EditingCollabDataConsumer>) {
     info!(
       "[Indexing] Registering instant index consumer: {}",
       consumer.consumer_id()
@@ -70,16 +67,13 @@ impl InstantIndexedDataWriter {
   }
 
   pub async fn spawn_instant_indexed_provider(&self, runtime: &Runtime) -> FlowyResult<()> {
-    if !get_operating_system().is_desktop() {
-      return Ok(());
-    }
-
     let weak_collab_by_object = Arc::downgrade(&self.collab_by_object);
     let consumers_weak = Arc::downgrade(&self.consumers);
     let interval_dur = Duration::from_secs(30);
 
     runtime.spawn(async move {
       let mut ticker = interval(interval_dur);
+      ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
       ticker.tick().await;
 
       loop {
@@ -234,8 +228,8 @@ impl InstantIndexedDataWriter {
 }
 
 #[async_trait]
-impl WorkspaceCollabEmbedding for InstantIndexedDataWriter {
-  async fn embed_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>) {
+impl WorkspaceCollabIndexer for InstantCollabDataProvider {
+  async fn index_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>) {
     if !get_operating_system().is_desktop() {
       return;
     }

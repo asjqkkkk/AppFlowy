@@ -1,8 +1,9 @@
 use crate::app_life_cycle::AppLifeCycleImpl;
-use crate::full_indexed_data_provider::FullIndexedDataWriter;
-use crate::indexed_data_consumer::{
-  EmbeddingsInstantConsumerImpl, SearchFullIndexConsumer, SearchInstantIndexImpl,
+use crate::editing_collab_data_consumer::{
+  EditingCollabDataEmbeddingConsumer, EditingCollabDataSearchConsumer,
 };
+use crate::startup_full_data_consumer::SearchFullIndexConsumer;
+use crate::startup_full_data_provider::FullIndexedDataWriter;
 use flowy_folder::manager::FolderManager;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use flowy_search_pub::tantivy_state_init::get_or_init_document_tantivy_state;
@@ -50,7 +51,7 @@ impl AppLifeCycleImpl {
   }
 
   #[instrument(skip_all)]
-  pub(crate) async fn start_instant_indexed_data_provider(
+  pub(crate) async fn start_instant_collab_data_provider(
     &self,
     user_id: i64,
     workspace_id: &Uuid,
@@ -84,12 +85,12 @@ impl AppLifeCycleImpl {
         {
           if workspace_type_cloned.is_local() {
             instant_indexed_data_provider
-              .register_consumer(Box::new(EmbeddingsInstantConsumerImpl::new()))
+              .register_consumer(Box::new(EditingCollabDataEmbeddingConsumer::new()))
               .await;
           }
         }
 
-        match SearchInstantIndexImpl::new(
+        match EditingCollabDataSearchConsumer::new(
           &workspace_id_cloned,
           user_paths.tanvity_index_path(user_id),
           folder_manager,
@@ -180,7 +181,7 @@ impl AppLifeCycleImpl {
         if workspace_type_cloned.is_local() {
           new_full_indexed_data_writer
             .register_full_indexed_consumer(Box::new(
-              crate::indexed_data_consumer::EmbeddingFullIndexConsumer,
+              crate::startup_full_data_consumer::EmbeddingFullIndexConsumer,
             ))
             .await;
         }

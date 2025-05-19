@@ -1,4 +1,4 @@
-use crate::indexed_data_consumer::index_views_from_folder;
+use crate::editing_collab_data_consumer::index_views_from_folder;
 use client_api::entity::workspace_dto::ViewIcon;
 use collab::preclude::Collab;
 use collab_entity::CollabType;

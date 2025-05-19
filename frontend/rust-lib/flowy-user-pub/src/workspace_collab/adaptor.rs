@@ -80,13 +80,13 @@ where
 }
 
 #[async_trait]
-pub trait WorkspaceCollabEmbedding: Send + Sync {
-  async fn embed_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>);
+pub trait WorkspaceCollabIndexer: Send + Sync {
+  async fn index_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>);
 }
 
 /// writer interface
 #[async_trait]
-pub trait InstantIndexedDataConsumer: Send + Sync + 'static {
+pub trait EditingCollabDataConsumer: Send + Sync + 'static {
   fn consumer_id(&self) -> String;
 
   async fn consume_collab(
@@ -107,17 +107,17 @@ pub trait InstantIndexedDataConsumer: Send + Sync + 'static {
 pub struct WorkspaceCollabAdaptor {
   controller: RwLock<Option<Weak<WorkspaceController>>>,
   user: Arc<dyn WorkspaceCollabUser>,
-  embeddings_writer: Option<Weak<dyn WorkspaceCollabEmbedding>>,
+  collab_indexer: Option<Weak<dyn WorkspaceCollabIndexer>>,
 }
 
 impl WorkspaceCollabAdaptor {
   pub fn new(
     user: impl WorkspaceCollabUser + 'static,
-    embeddings_writer: Option<Weak<dyn WorkspaceCollabEmbedding>>,
+    collab_indexer: Option<Weak<dyn WorkspaceCollabIndexer>>,
   ) -> Self {
     Self {
       controller: Default::default(),
-      embeddings_writer,
+      collab_indexer,
       user: Arc::new(user),
     }
   }
@@ -279,12 +279,10 @@ impl WorkspaceCollabAdaptor {
     if get_operating_system().is_desktop() {
       let cloned_object = object.clone();
       let weak_collab = Arc::downgrade(&collab);
-      let weak_embedding_writer = self.embeddings_writer.clone();
+      let weak_collab_indexer = self.collab_indexer.clone();
       tokio::spawn(async move {
-        if let Some(embedding_writer) = weak_embedding_writer.and_then(|w| w.upgrade()) {
-          embedding_writer
-            .embed_collab(cloned_object, weak_collab)
-            .await;
+        if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
+          indexer.index_collab(cloned_object, weak_collab).await;
         }
       });
     }

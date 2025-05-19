@@ -31,28 +31,29 @@ use module::make_plugins;
 use crate::config::AppFlowyCoreConfig;
 use crate::deps_resolve::file_storage_deps::FileStorageResolver;
 use crate::deps_resolve::*;
-use crate::full_indexed_data_provider::FullIndexedDataWriter;
-use crate::instant_indexed_data_provider::InstantIndexedDataWriter;
+use crate::editing_collab_data_provider::InstantCollabDataProvider;
 use crate::log_filter::init_log;
 use crate::server_layer::ServerProvider;
+use crate::startup_full_data_provider::FullIndexedDataWriter;
 use app_life_cycle::AppLifeCycleImpl;
 use flowy_sqlite::DBConnection;
 use flowy_user::services::action_interceptor::ActionInterceptors;
 use flowy_user_pub::entities::WorkspaceType;
-use flowy_user_pub::workspace_collab::adaptor::{WorkspaceCollabAdaptor, WorkspaceCollabEmbedding};
+use flowy_user_pub::workspace_collab::adaptor::{WorkspaceCollabAdaptor, WorkspaceCollabIndexer};
 use lib_infra::async_trait::async_trait;
 
 pub(crate) mod app_life_cycle;
 pub mod config;
+mod consumer_runner;
 mod deps_resolve;
+mod editing_collab_data_consumer;
+mod editing_collab_data_provider;
 mod folder_view_observer;
-mod full_indexed_data_provider;
-mod indexed_data_consumer;
-mod indexing_data_runner;
-mod instant_indexed_data_provider;
 mod log_filter;
 pub mod module;
 pub(crate) mod server_layer;
+mod startup_full_data_consumer;
+mod startup_full_data_provider;
 
 /// This name will be used as to identify the current [AppFlowyCore] instance.
 /// Don't change this.
@@ -152,7 +153,7 @@ impl AppFlowyCore {
 
     debug!("🔥runtime:{}", runtime);
     let instant_indexed_data_writer = if get_operating_system().is_desktop() {
-      Some(Arc::new(InstantIndexedDataWriter::new()))
+      Some(Arc::new(InstantCollabDataProvider::new()))
     } else {
       None
     };
@@ -189,7 +190,7 @@ impl AppFlowyCore {
         WorkspaceCollabIntegrateImpl(Arc::downgrade(&authenticate_user)),
         instant_indexed_data_writer
           .as_ref()
-          .map(|v| Arc::downgrade(v) as Weak<dyn WorkspaceCollabEmbedding>),
+          .map(|v| Arc::downgrade(v) as Weak<dyn WorkspaceCollabIndexer>),
       ));
 
       let folder_manager = FolderDepsResolver::resolve(

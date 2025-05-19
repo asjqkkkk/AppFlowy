@@ -4,9 +4,9 @@ use client_api::v2::{ConnectState, WorkspaceController};
 use std::sync::{Arc, Weak};
 use tracing::{error, event, info, instrument};
 
-use crate::full_indexed_data_provider::FullIndexedDataWriter;
-use crate::instant_indexed_data_provider::InstantIndexedDataWriter;
+use crate::editing_collab_data_provider::InstantCollabDataProvider;
 use crate::server_layer::ServerProvider;
+use crate::startup_full_data_provider::FullIndexedDataWriter;
 use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -41,7 +41,7 @@ pub(crate) struct AppLifeCycleImpl {
   pub(crate) storage_manager: Weak<StorageManager>,
   pub(crate) search_manager: Weak<SearchManager>,
   pub(crate) ai_manager: Weak<AIManager>,
-  pub(crate) instant_indexed_data_writer: Option<Arc<InstantIndexedDataWriter>>,
+  pub(crate) instant_indexed_data_writer: Option<Arc<InstantCollabDataProvider>>,
   pub(crate) full_indexed_data_writer: Weak<RwLock<Option<FullIndexedDataWriter>>>,
   pub(crate) logged_user: Arc<dyn LoggedUser>,
   // By default, all callback will run on the caller thread. If you don't want to block the caller
@@ -204,7 +204,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await;
 
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_id,
         workspace_id,
         workspace_type,
@@ -289,7 +289,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await;
 
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_id,
         workspace_id,
         workspace_type,
@@ -383,7 +383,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       )
       .await;
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_profile.uid,
         workspace_id,
         workspace_type,
@@ -490,7 +490,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       )
       .await;
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_id,
         workspace_id,
         workspace_type,

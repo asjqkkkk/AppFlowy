@@ -1,6 +1,6 @@
 use crate::app_life_cycle::LoggedWorkspaceImpl;
 use crate::deps_resolve::MultiSourceVSTanvityImpl;
-use crate::instant_indexed_data_provider::InstantIndexedDataWriter;
+use crate::editing_collab_data_provider::InstantCollabDataProvider;
 use crate::AppFlowyCoreConfig;
 use arc_swap::{ArcSwap, ArcSwapOption};
 use client_api::v2::ConnectState;
@@ -37,7 +37,7 @@ pub struct ServerProvider {
   pub uid: Arc<ArcSwapOption<i64>>,
   pub user_enable_sync: Arc<AtomicBool>,
   pub encryption: Arc<dyn AppFlowyEncryption>,
-  pub indexed_data_writer: Option<Weak<InstantIndexedDataWriter>>,
+  pub indexed_data_writer: Option<Weak<InstantCollabDataProvider>>,
 }
 
 // Our little guard wrapper:
@@ -55,7 +55,7 @@ impl ServerProvider {
     config: AppFlowyCoreConfig,
     store_preferences: Weak<KVStorePreferences>,
     logged_user: impl LoggedUser + 'static,
-    indexed_data_writer: Option<Weak<InstantIndexedDataWriter>>,
+    indexed_data_writer: Option<Weak<InstantCollabDataProvider>>,
   ) -> Self {
     let initial_auth = current_server_type();
     let logged_user = Arc::new(logged_user) as Arc<dyn LoggedUser>;
@@ -195,7 +195,7 @@ impl ServerProvider {
 }
 
 struct EmbeddingWriterImpl {
-  indexed_data_writer: Weak<InstantIndexedDataWriter>,
+  indexed_data_writer: Weak<InstantCollabDataProvider>,
 }
 
 #[async_trait]
