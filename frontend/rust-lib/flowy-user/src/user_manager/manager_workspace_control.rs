@@ -122,7 +122,6 @@ fn spawn_subscribe_connect_state(
       reason: Some(reason),
     }) = rx.next().await
     {
-      // Try to upgrade both Weak refs; if either is gone, stop listening
       let (service, user) = match (cloud_service.upgrade(), auth_user.upgrade()) {
         (Some(s), Some(u)) => (s, u),
         _ => break,
