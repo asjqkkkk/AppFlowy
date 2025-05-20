@@ -117,6 +117,11 @@ impl WorkspaceCollabUser for WorkspaceCollabIntegrateImpl {
     Ok(workspace_id)
   }
 
+  fn uid(&self) -> Result<i64, FlowyError> {
+    let uid = self.upgrade_user()?.user_id()?;
+    Ok(uid)
+  }
+
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok(self.upgrade_user()?.user_config.device_id.clone())
   }

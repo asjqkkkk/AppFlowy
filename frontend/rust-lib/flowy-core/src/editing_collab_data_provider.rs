@@ -1,48 +1,47 @@
+use client_api::v2::{ObjectId, WorkspaceId};
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::lock::RwLock;
 use collab::preclude::Collab;
-use collab_entity::{CollabObject, CollabType};
+use collab_entity::CollabType;
 use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata};
 use flowy_error::{FlowyError, FlowyResult};
+use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user_pub::workspace_collab::adaptor::{
-  unindexed_data_form_collab, CollabIndexedData, EditingCollabDataConsumer, WorkspaceCollabIndexer,
+  unindexed_data_form_collab, unindexed_data_from_object, EditingCollabDataConsumer,
+  WorkspaceCollabIndexer,
 };
 use lib_infra::async_trait::async_trait;
-use lib_infra::util::get_operating_system;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use tokio::runtime::Runtime;
 use tokio::time::{interval, MissedTickBehavior};
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 use uuid::Uuid;
 
-pub struct WriteObject {
-  pub collab_object: CollabObject,
-  pub collab: Weak<dyn CollabIndexedData>,
+pub struct EditingCollab {
+  pub workspace_id: WorkspaceId,
+  pub object_id: ObjectId,
+  pub collab_type: CollabType,
 }
 
-pub struct InstantCollabDataProvider {
-  collab_by_object: Arc<RwLock<HashMap<String, WriteObject>>>,
+pub struct EditingCollabDataProvider {
+  collab_by_object: Arc<RwLock<HashMap<Uuid, EditingCollab>>>,
   consumers: Arc<RwLock<Vec<Box<dyn EditingCollabDataConsumer>>>>,
+  authenticate_user: Weak<AuthenticateUser>,
 }
 
-impl Default for InstantCollabDataProvider {
-  fn default() -> Self {
-    Self::new()
-  }
-}
-
-impl InstantCollabDataProvider {
-  pub fn new() -> InstantCollabDataProvider {
-    let collab_by_object = Arc::new(RwLock::new(HashMap::<String, WriteObject>::new()));
+impl EditingCollabDataProvider {
+  pub fn new(authenticate_user: Weak<AuthenticateUser>) -> EditingCollabDataProvider {
+    let collab_by_object = Arc::new(RwLock::new(HashMap::<Uuid, EditingCollab>::new()));
     let consumers = Arc::new(RwLock::new(Vec::<Box<dyn EditingCollabDataConsumer>>::new()));
 
-    InstantCollabDataProvider {
+    EditingCollabDataProvider {
       collab_by_object,
       consumers,
+      authenticate_user,
     }
   }
 
@@ -70,103 +69,118 @@ impl InstantCollabDataProvider {
     let weak_collab_by_object = Arc::downgrade(&self.collab_by_object);
     let consumers_weak = Arc::downgrade(&self.consumers);
     let interval_dur = Duration::from_secs(30);
+    let authenticate_user = self.authenticate_user.clone();
 
     runtime.spawn(async move {
       let mut ticker = interval(interval_dur);
       ticker.set_missed_tick_behavior(MissedTickBehavior::Delay);
       ticker.tick().await;
+      info!("[Indexing] Instant editing collab data provider started");
 
       loop {
         ticker.tick().await;
-
-        // Upgrade our state holders
-        let collab_by_object = match weak_collab_by_object.upgrade() {
-          Some(m) => m,
-          None => break, // provider dropped
+        let authenticate_user = match authenticate_user.upgrade() {
+          Some(auth) => auth,
+          None => {
+            debug!("[Indexing] skip when no session");
+            continue;
+          },
         };
+
+        let uid = match authenticate_user.get_session() {
+          Ok(session) => session.user_id,
+          Err(_) => {
+            debug!("[Indexing] skip when no session");
+            continue;
+          },
+        };
+
+        let db = match authenticate_user
+          .get_current_user_collab_db()
+          .map(|v| v.upgrade())
+        {
+          Ok(Some(db)) => db,
+          Ok(None) => {
+            error!("[Indexing] collab db is empty");
+            continue;
+          },
+          Err(err) => {
+            error!("[Indexing] Failed to get collab db: {}", err);
+            continue;
+          },
+        };
+
         let consumers = match consumers_weak.upgrade() {
           Some(c) => c,
-          None => break,
+          None => {
+            info!("[Indexing] exiting editing collab data provider");
+            break;
+          },
         };
 
-        // Snapshot keys and consumers under read locks
-        let (object_ids, mut to_remove) = {
-          let guard = collab_by_object.read().await;
-          let keys: Vec<_> = guard.keys().cloned().collect();
-          (keys, Vec::new())
+        let map = {
+          match weak_collab_by_object.upgrade() {
+            None => HashMap::new(),
+            Some(collab_by_object) => {
+              let mut guard = collab_by_object.write().await;
+              std::mem::take(&mut *guard)
+            },
+          }
         };
-        let guard = collab_by_object.read().await;
-        for id in object_ids {
-          // Check if the collab is still alive
-          match guard.get(&id) {
-            Some(wo) => {
-              if let Some(collab_rc) = wo.collab.upgrade() {
-                if let Some(data) = collab_rc
-                  .get_unindexed_data(&wo.collab_object.collab_type)
+
+        for (id, wo) in map {
+          match unindexed_data_from_object(
+            uid,
+            &wo.workspace_id,
+            &wo.object_id,
+            wo.collab_type,
+            db.as_ref(),
+          ) {
+            Ok(Some(data)) => {
+              let consumers_guard = consumers.read().await;
+              for consumer in consumers_guard.iter() {
+                trace!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
+                match consumer
+                  .consume_collab(
+                    &wo.workspace_id,
+                    data.clone(),
+                    &wo.object_id,
+                    wo.collab_type,
+                  )
                   .await
                 {
-                  // Snapshot consumers
-                  let consumers_guard = consumers.read().await;
-                  for consumer in consumers_guard.iter() {
-                    let workspace_id = match Uuid::parse_str(&wo.collab_object.workspace_id) {
-                      Ok(id) => id,
-                      Err(err) => {
-                        error!(
-                          "Invalid workspace_id {}: {}",
-                          wo.collab_object.workspace_id, err
-                        );
-                        continue;
-                      },
-                    };
-                    let object_id = match Uuid::parse_str(&wo.collab_object.object_id) {
-                      Ok(id) => id,
-                      Err(err) => {
-                        error!("Invalid object_id {}: {}", wo.collab_object.object_id, err);
-                        continue;
-                      },
-                    };
-                    match consumer
-                      .consume_collab(
-                        &workspace_id,
-                        data.clone(),
-                        &object_id,
-                        wo.collab_object.collab_type,
-                      )
-                      .await
-                    {
-                      Ok(is_indexed) => {
-                        if is_indexed {
-                          trace!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
-                        }
-                      },
-                      Err(err) => {
-                        error!(
-                          "Consumer {} failed on {}: {}",
-                          consumer.consumer_id(),
-                          id,
-                          err
-                        );
-                      },
+                  Ok(is_indexed) => {
+                    if is_indexed {
+                      trace!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
                     }
-                  }
+                  },
+                  Err(err) => {
+                    error!(
+                      "[Indexing] Consumer {} failed on {}: {}",
+                      consumer.consumer_id(),
+                      id,
+                      err
+                    );
+                  },
                 }
-              } else {
-                // Mark for removal if collab was dropped
-                to_remove.push(id);
               }
+              //
             },
-            None => continue,
+            Ok(None) => {
+              trace!("[Indexing] {} has no indexed data", id);
+            },
+            Err(err) => {
+              trace!(
+                "[Indexing] try to generate indexed data for:{}, got:{}",
+                id,
+                err
+              );
+            },
           }
-        }
-
-        if !to_remove.is_empty() {
-          let mut guard = collab_by_object.write().await;
-          guard.retain(|k, _| !to_remove.contains(k));
-          trace!("[Indexing] Removed {} stale entries", to_remove.len());
         }
       }
 
-      info!("[Indexing] Instant indexed data provider stopped");
+      info!("[Indexing] Instant editing collab data provider stopped");
     });
 
     Ok(())
@@ -228,22 +242,34 @@ impl InstantCollabDataProvider {
 }
 
 #[async_trait]
-impl WorkspaceCollabIndexer for InstantCollabDataProvider {
-  async fn index_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>) {
-    if !get_operating_system().is_desktop() {
+impl WorkspaceCollabIndexer for EditingCollabDataProvider {
+  async fn index_changed_collab(
+    &self,
+    workspace_id: WorkspaceId,
+    object_id: ObjectId,
+    collab_type: CollabType,
+  ) {
+    if !self.support_collab_type(&collab_type) {
       return;
     }
 
-    if !self.support_collab_type(&collab_object.collab_type) {
+    if self.collab_by_object.read().await.contains_key(&object_id) {
       return;
     }
 
+    trace!(
+      "[Indexing] queue changed collab: workspace_id: {}, object_id: {}, collab_type: {}",
+      workspace_id,
+      object_id,
+      collab_type
+    );
     let mut map = self.collab_by_object.write().await;
     map.insert(
-      collab_object.object_id.clone(),
-      WriteObject {
-        collab_object,
-        collab,
+      object_id,
+      EditingCollab {
+        workspace_id,
+        object_id,
+        collab_type,
       },
     );
   }

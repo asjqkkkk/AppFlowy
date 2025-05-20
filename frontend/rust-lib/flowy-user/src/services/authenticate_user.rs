@@ -99,6 +99,11 @@ impl AuthenticateUser {
     Ok(id)
   }
 
+  pub fn get_current_user_collab_db(&self) -> FlowyResult<Weak<CollabKVDB>> {
+    let session = self.get_session()?;
+    self.database.get_weak_collab_db(session.user_id)
+  }
+
   pub fn get_collab_db(&self, uid: i64) -> FlowyResult<Weak<CollabKVDB>> {
     self.database.get_weak_collab_db(uid)
   }

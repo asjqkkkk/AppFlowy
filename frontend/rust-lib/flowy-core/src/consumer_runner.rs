@@ -72,11 +72,6 @@ impl AppLifeCycleImpl {
         return;
       }
 
-      info!(
-        "[Indexing] Starting instant indexed data provider for workspace: {:?}",
-        workspace_id_cloned
-      );
-
       if let Some(instant_indexed_data_provider) = instant_indexed_data_provider {
         instant_indexed_data_provider.clear_consumers().await;
 
@@ -112,7 +107,7 @@ impl AppLifeCycleImpl {
 
         if instant_indexed_data_provider.num_consumers().await > 0 {
           info!(
-            "[Indexing] instant indexed data provider with {} consumers for workspace: {:?}",
+            "[Indexing] editing collab data provider with {} consumers for workspace: {:?}",
             instant_indexed_data_provider.num_consumers().await,
             workspace_id_cloned
           );

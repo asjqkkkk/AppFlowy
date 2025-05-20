@@ -31,7 +31,7 @@ use module::make_plugins;
 use crate::config::AppFlowyCoreConfig;
 use crate::deps_resolve::file_storage_deps::FileStorageResolver;
 use crate::deps_resolve::*;
-use crate::editing_collab_data_provider::InstantCollabDataProvider;
+use crate::editing_collab_data_provider::EditingCollabDataProvider;
 use crate::log_filter::init_log;
 use crate::server_layer::ServerProvider;
 use crate::startup_full_data_provider::FullIndexedDataWriter;
@@ -153,7 +153,9 @@ impl AppFlowyCore {
 
     debug!("🔥runtime:{}", runtime);
     let instant_indexed_data_writer = if get_operating_system().is_desktop() {
-      Some(Arc::new(InstantCollabDataProvider::new()))
+      Some(Arc::new(EditingCollabDataProvider::new(Arc::downgrade(
+        &authenticate_user,
+      ))))
     } else {
       None
     };

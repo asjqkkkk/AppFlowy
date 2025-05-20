@@ -10,7 +10,6 @@ use lib_infra::util::OperatingSystem;
 use tracing::subscriber::set_global_default;
 use tracing_appender::rolling::Rotation;
 use tracing_appender::{non_blocking::WorkerGuard, rolling::RollingFileAppender};
-use tracing_bunyan_formatter::JsonStorageLayer;
 use tracing_subscriber::fmt::format::Writer;
 use tracing_subscriber::fmt::MakeWriter;
 use tracing_subscriber::{layer::SubscriberExt, EnvFilter};
@@ -99,7 +98,6 @@ impl Builder {
         .pretty()
         .with_env_filter(env_filter)
         .finish()
-        .with(JsonStorageLayer)
         .with(app_file_layer)
         .with(collab_sync_file_layer);
       set_global_default(subscriber).map_err(|e| format!("{:?}", e))?;
@@ -113,7 +111,6 @@ impl Builder {
         .with_env_filter(env_filter)
         .finish()
         .with(FlowyFormattingLayer::new(DebugStdoutWriter))
-        .with(JsonStorageLayer)
         .with(app_file_layer)
         .with(collab_sync_file_layer);
       set_global_default(subscriber).map_err(|e| format!("{:?}", e))?;

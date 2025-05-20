@@ -4,7 +4,7 @@ use client_api::v2::{ConnectState, WorkspaceController};
 use std::sync::{Arc, Weak};
 use tracing::{error, event, info, instrument};
 
-use crate::editing_collab_data_provider::InstantCollabDataProvider;
+use crate::editing_collab_data_provider::EditingCollabDataProvider;
 use crate::server_layer::ServerProvider;
 use crate::startup_full_data_provider::FullIndexedDataWriter;
 use collab_entity::CollabType;
@@ -41,7 +41,7 @@ pub(crate) struct AppLifeCycleImpl {
   pub(crate) storage_manager: Weak<StorageManager>,
   pub(crate) search_manager: Weak<SearchManager>,
   pub(crate) ai_manager: Weak<AIManager>,
-  pub(crate) instant_indexed_data_writer: Option<Arc<InstantCollabDataProvider>>,
+  pub(crate) instant_indexed_data_writer: Option<Arc<EditingCollabDataProvider>>,
   pub(crate) full_indexed_data_writer: Weak<RwLock<Option<FullIndexedDataWriter>>>,
   pub(crate) logged_user: Arc<dyn LoggedUser>,
   // By default, all callback will run on the caller thread. If you don't want to block the caller

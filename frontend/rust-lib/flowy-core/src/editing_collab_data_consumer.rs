@@ -15,7 +15,7 @@ use lib_infra::async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::{error, trace};
+use tracing::{error, trace, warn};
 use uuid::Uuid;
 
 pub struct EditingCollabDataEmbeddingConsumer {
@@ -33,7 +33,7 @@ impl EditingCollabDataEmbeddingConsumer {
 #[async_trait]
 impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
   fn consumer_id(&self) -> String {
-    "embedding_instant_index_consumer".to_string()
+    "editing_collab_embedding_consumer".to_string()
   }
 
   async fn consume_collab(
@@ -51,7 +51,7 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
     if let Some(entry) = self.consume_history.get(object_id) {
       if entry.value() == &content_hash {
         trace!(
-          "[Indexing] {} instant embedding already indexed, hash:{}, skipping",
+          "[Indexing:editing:embeddings] {} instant embedding already indexed, hash:{}, skipping",
           object_id,
           content_hash,
         );
@@ -73,8 +73,15 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
           metadata: UnindexedCollabMetadata::default(),
         };
 
+        trace!(
+          "[Indexing:editing:embeddings] queue embedding for {}",
+          object_id
+        );
         if let Err(err) = scheduler.index_collab(unindex_collab).await {
-          error!("[Embedding] error generating embedding: {}", err);
+          error!(
+            "[Indexing:editing:embeddings] error generating embedding: {}",
+            err
+          );
         }
       }
     }
@@ -92,7 +99,10 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
       use flowy_ai::embeddings::context::EmbedContext;
       if let Ok(scheduler) = EmbedContext::shared().get_scheduler() {
         if let Err(err) = scheduler.delete_collab(workspace_id, object_id).await {
-          error!("[Embedding] error generating embedding: {}", err);
+          error!(
+            "[Indexing:editing:embeddings] error generating embedding: {}",
+            err
+          );
         }
       }
     }
@@ -128,7 +138,7 @@ impl EditingCollabDataSearchConsumer {
       if let Ok(rx) = folder_manager.subscribe_folder_change_rx().await {
         folder_observer.set_observer_rx(rx).await;
       } else {
-        error!("[Indexing] Failed to subscribe to folder changes");
+        error!("[Indexing:editing:search] Failed to subscribe to folder changes");
       }
     }
 
@@ -201,7 +211,7 @@ impl EditingCollabDataSearchConsumer {
 #[async_trait]
 impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
   fn consumer_id(&self) -> String {
-    "search_instant_index_consumer".into()
+    "editing_collab_search_consumer".into()
   }
 
   async fn consume_collab(
@@ -212,6 +222,10 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
     _collab_type: CollabType,
   ) -> Result<bool, FlowyError> {
     if self.workspace_id != *workspace_id {
+      warn!(
+        "[Indexing:editing:search] {} workspace_id mismatch, expected:{}, got:{}",
+        object_id, self.workspace_id, workspace_id,
+      );
       return Ok(false);
     }
 
@@ -238,7 +252,7 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
     if let Some(entry) = self.consume_history.get(object_id) {
       if entry.value() == &content_hash {
         trace!(
-          "[Indexing] {} instant search already indexed, hash:{}, skipping",
+          "[Indexing:editing:search] {} instant search already indexed, hash:{}, skipping",
           object_id,
           content_hash,
         );
@@ -246,11 +260,17 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
       }
 
       if entry.value() == &combined_hash {
+        trace!(
+          "[Indexing:editing:search] {} instant search already indexed, hash:{}, skipping",
+          object_id,
+          combined_hash,
+        );
         return Ok(false);
       }
     }
 
     self.consume_history.insert(*object_id, combined_hash);
+    trace!("[Indexing:editing:search] indexed object:{}", object_id,);
     state.write().await.add_document(
       &object_id.to_string(),
       data.into_string(),

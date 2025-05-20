@@ -248,6 +248,10 @@ impl WorkspaceCollabUser for WorkspaceCollabIntegrateImpl {
     Ok(self.workspace_id)
   }
 
+  fn uid(&self) -> Result<i64, FlowyError> {
+    Ok(0)
+  }
+
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok("fake_device_id".to_string())
   }

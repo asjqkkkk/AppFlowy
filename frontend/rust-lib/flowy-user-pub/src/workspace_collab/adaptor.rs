@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::sync::{Arc, Weak};
 
 use anyhow::{Error, anyhow};
-use client_api::v2::WorkspaceController;
+use client_api::v2::{ObjectId, WorkspaceController, WorkspaceId};
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
@@ -23,9 +23,8 @@ use collab_plugins::local_storage::rocksdb::kv_impl::KVTransactionDBRocksdbImpl;
 use collab_user::core::{UserAwareness, UserAwarenessNotifier};
 
 use flowy_ai_pub::entities::UnindexedData;
-use flowy_error::FlowyError;
+use flowy_error::{FlowyError, FlowyResult};
 use lib_infra::async_trait::async_trait;
-use lib_infra::util::get_operating_system;
 use tracing::{error, instrument, trace};
 use uuid::Uuid;
 
@@ -60,6 +59,7 @@ impl Display for CollabPluginProviderContext {
 
 pub trait WorkspaceCollabUser: Send + Sync {
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
+  fn uid(&self) -> Result<i64, FlowyError>;
   fn device_id(&self) -> Result<String, FlowyError>;
 }
 
@@ -81,7 +81,12 @@ where
 
 #[async_trait]
 pub trait WorkspaceCollabIndexer: Send + Sync {
-  async fn index_collab(&self, collab_object: CollabObject, collab: Weak<dyn CollabIndexedData>);
+  async fn index_changed_collab(
+    &self,
+    workspace_id: WorkspaceId,
+    object_id: ObjectId,
+    collab_type: CollabType,
+  );
 }
 
 /// writer interface
@@ -105,9 +110,10 @@ pub trait EditingCollabDataConsumer: Send + Sync + 'static {
 }
 
 pub struct WorkspaceCollabAdaptor {
-  controller: RwLock<Option<Weak<WorkspaceController>>>,
+  controller: RwLock<Option<Arc<Weak<WorkspaceController>>>>,
   user: Arc<dyn WorkspaceCollabUser>,
   collab_indexer: Option<Weak<dyn WorkspaceCollabIndexer>>,
+  index_task_handle: RwLock<Option<tokio::task::JoinHandle<()>>>,
 }
 
 impl WorkspaceCollabAdaptor {
@@ -119,11 +125,57 @@ impl WorkspaceCollabAdaptor {
       controller: Default::default(),
       collab_indexer,
       user: Arc::new(user),
+      index_task_handle: Default::default(),
     }
   }
 
   pub async fn set_controller(&self, controller: Weak<WorkspaceController>) {
+    if let Some(handle) = self.index_task_handle.write().await.take() {
+      handle.abort();
+    }
+
+    let controller = Arc::new(controller);
+    let weak_controller = Arc::downgrade(&controller);
     *self.controller.write().await = Some(controller);
+
+    // Only spawn indexing task if indexer is available
+    if let Ok(workspace_id) = self.user.workspace_id() {
+      if let Some(indexer) = self.collab_indexer.clone() {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
+        let handle = tokio::spawn(async move {
+          loop {
+            interval.tick().await;
+            // Get indexer and controller, breaking out if either is unavailable
+            let Some(indexer) = indexer.upgrade() else {
+              break;
+            };
+            let Some(controller) = weak_controller.upgrade().and_then(|w| w.upgrade()) else {
+              break;
+            };
+
+            // Process changed collabs
+            match controller.consume_latest_changed_collab().await {
+              collabs if !collabs.is_empty() => {
+                for collab in collabs {
+                  let _ = indexer
+                    .index_changed_collab(workspace_id, collab.id, collab.collab_type)
+                    .await;
+                }
+              },
+              _ => {
+                // If no collabs are changed, sleep for a while
+                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
+              },
+            }
+          }
+        });
+
+        *self.index_task_handle.write().await = Some(handle);
+      }
+    } else {
+      error!("Unable to spawn indexing task: workspace_id not found");
+    }
   }
 
   pub fn update_network(&self, _reachable: bool) {
@@ -276,16 +328,17 @@ impl WorkspaceCollabAdaptor {
   where
     T: BorrowMut<Collab> + Send + Sync + 'static,
   {
-    if get_operating_system().is_desktop() {
-      let cloned_object = object.clone();
-      let weak_collab = Arc::downgrade(&collab);
-      let weak_collab_indexer = self.collab_indexer.clone();
-      tokio::spawn(async move {
-        if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
-          indexer.index_collab(cloned_object, weak_collab).await;
-        }
-      });
-    }
+    let workspace_id = Uuid::parse_str(&object.workspace_id)?;
+    let object_id = Uuid::parse_str(&object.object_id)?;
+    let collab_type = object.collab_type;
+    let weak_collab_indexer = self.collab_indexer.clone();
+    tokio::spawn(async move {
+      if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
+        indexer
+          .index_changed_collab(workspace_id, object_id, collab_type)
+          .await;
+      }
+    });
 
     let controller = self.get_controller().await?;
     let collab_ref = collab.clone() as Arc<RwLock<dyn BorrowMut<Collab> + Send + Sync + 'static>>;
@@ -394,13 +447,36 @@ impl CollabPersistence for CollabPersistenceImpl {
   }
 }
 
+pub fn unindexed_data_from_object(
+  uid: i64,
+  workspace_id: &Uuid,
+  object_id: &Uuid,
+  collab_type: CollabType,
+  db: &KVTransactionDBRocksdbImpl,
+) -> FlowyResult<Option<UnindexedData>> {
+  let workspace_id = workspace_id.to_string();
+  let object_id = object_id.to_string();
+  let read_txn = db.read_txn();
+  if !read_txn.is_exist(uid, &workspace_id, &object_id) {
+    return Err(FlowyError::record_not_found());
+  }
+
+  let options = CollabOptions::new(object_id.clone());
+  let mut collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
+  let mut txn = collab.transact_mut();
+  read_txn.load_doc_with_txn(uid, &workspace_id, &object_id, &mut txn)?;
+  drop(txn);
+
+  Ok(unindexed_data_form_collab(&collab, &collab_type))
+}
+
 pub fn unindexed_data_form_collab(
   collab: &Collab,
   collab_type: &CollabType,
 ) -> Option<UnindexedData> {
   match collab_type {
     CollabType::Document => {
-      let txn = collab.doc().try_transact().ok()?;
+      let txn = collab.doc().transact();
       let doc = DocumentBody::from_collab(collab)?;
       let paras = doc.paragraphs(txn);
       Some(UnindexedData::Paragraphs(paras))
