@@ -110,6 +110,57 @@ async fn af_cloud_create_workspace_test() {
 }
 
 #[tokio::test]
+async fn af_cloud_workspace_current_view_test() {
+  use_localhost_af_cloud().await;
+  let mut test = EventIntegrationTest::new().await;
+  test.skip_auto_remove_temp_dir();
+
+  let profile = test.af_cloud_sign_up().await;
+  let config = test.appflowy_core.config.clone();
+
+  let mut views = test.get_all_workspace_views().await;
+  views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
+  let latest_view = test.get_latest_workspace().await.latest_view.unwrap();
+  dbg!(&latest_view);
+  assert_eq!(latest_view.parent_view_id, views[0].id);
+  assert_eq!(latest_view.name, "Getting started");
+
+  let current_workspace = test.get_current_workspace().await;
+  let view = test
+    .create_and_open_document(
+      &current_workspace.id,
+      "my shared document".to_string(),
+      vec![],
+    )
+    .await;
+  test.insert_document_text(&view.id, "hello world", 0).await;
+
+  let latest_view = test.get_latest_workspace().await.latest_view.unwrap();
+  assert_eq!(latest_view.name, "my shared document");
+  dbg!(&latest_view);
+  assert_eq!(latest_view.id, view.id);
+
+  drop(test);
+
+  // simulate reopen the app
+  let test_2 = EventIntegrationTest::new_with_config(config).await;
+  let latest_view = test_2.get_latest_workspace().await.latest_view.unwrap();
+  dbg!(&latest_view);
+  assert_eq!(latest_view.name, "my shared document");
+  drop(test_2);
+
+  // wait for ten seconds for sync
+  tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+  // simulate login to see the latest view
+  let test_3 = EventIntegrationTest::new().await;
+  test_3.af_cloud_sign_up_with_email(&profile.email).await;
+  let latest_view = test_3.get_latest_workspace().await.latest_view.unwrap();
+  dbg!(&latest_view);
+  assert_eq!(latest_view.name, "my shared document");
+}
+
+#[tokio::test]
 async fn af_cloud_open_workspace_test() {
   use_localhost_af_cloud().await;
   let test = EventIntegrationTest::new().await;

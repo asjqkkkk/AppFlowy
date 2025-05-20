@@ -112,6 +112,14 @@ impl EventIntegrationTest {
       .parse::<WorkspacePB>()
   }
 
+  pub async fn get_latest_workspace(&self) -> WorkspaceLatestPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetCurrentWorkspaceSetting)
+      .async_send()
+      .await
+      .parse::<WorkspaceLatestPB>()
+  }
+
   pub async fn get_workspace_id(&self) -> Uuid {
     let a = EventBuilder::new(self.clone())
       .event(FolderEvent::ReadCurrentWorkspace)
