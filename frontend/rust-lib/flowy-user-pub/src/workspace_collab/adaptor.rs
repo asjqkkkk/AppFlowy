@@ -7,6 +7,7 @@ use client_api::v2::{ObjectId, WorkspaceController, WorkspaceId};
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
+use collab::entity::EncodedCollab;
 use collab::error::CollabError;
 use collab::preclude::{Collab, Transact};
 use collab_database::workspace_database::{
@@ -404,6 +405,32 @@ impl WorkspaceCollabAdaptor {
     controller
       .cache_collab_ref(object_id, &collab, collab_type)
       .await?;
+    Ok(())
+  }
+
+  pub fn save_collab_to_disk(
+    &self,
+    object_id: &Uuid,
+    encoded_collab: EncodedCollab,
+  ) -> FlowyResult<()> {
+    let uid = self.user.uid()?;
+    let workspace_id = self.user.workspace_id()?;
+    let db = self
+      .user
+      .collab_db()?
+      .upgrade()
+      .ok_or_else(FlowyError::ref_drop)?;
+
+    let write = db.write_txn();
+    write.flush_doc(
+      uid,
+      &workspace_id.to_string(),
+      &object_id.to_string(),
+      encoded_collab.state_vector.to_vec(),
+      encoded_collab.doc_state.to_vec(),
+    )?;
+    write.commit_transaction()?;
+
     Ok(())
   }
 }

@@ -1,5 +1,6 @@
 use std::sync::Arc;
 use std::sync::Weak;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
@@ -50,7 +51,7 @@ pub trait DocumentSnapshotService: Send + Sync {
 pub struct DocumentManager {
   pub user_service: Arc<dyn DocumentUserService>,
   collab_builder: Weak<WorkspaceCollabAdaptor>,
-  documents: Arc<DashMap<Uuid, Arc<RwLock<Document>>>>,
+  documents: Arc<DashMap<Uuid, DocumentHolder>>,
   removing_documents: Arc<DashMap<Uuid, Arc<RwLock<Document>>>>,
   cloud_service: Arc<dyn DocumentCloudService>,
   storage_service: Weak<dyn StorageService>,
@@ -168,14 +169,10 @@ impl DocumentManager {
     } else {
       let encoded_collab = doc_state_from_document_data(doc_id, data).await?;
       self
-        .collab_for_document(
-          doc_id,
-          DataSource::DocStateV1(encoded_collab.doc_state.to_vec()),
-        )
-        .await?;
+        .collab_builder()?
+        .save_collab_to_disk(doc_id, encoded_collab.clone())?;
 
       // Send the collab data to server with a background task.
-      // TODO(nathan): new syncing protocol, remove following code.
       let cloud_service = self.cloud_service.clone();
       let cloned_encoded_collab = encoded_collab.clone();
       let workspace_id = self.user_service.workspace_id()?;
@@ -204,10 +201,14 @@ impl DocumentManager {
 
   /// Return a document instance if the document is already opened.
   pub async fn editable_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    if let Some(doc) = self.documents.get(doc_id).map(|item| item.value().clone()) {
-      return Ok(doc);
+    // Check if the document is in the documents map
+    if let Some(holder) = self.documents.get(doc_id) {
+      if let Some(doc) = holder.get_document() {
+        return Ok(doc);
+      }
     }
 
+    // Check if the document is in the removing_documents map
     if let Some(doc) = self.restore_document_from_removing(doc_id) {
       return Ok(doc);
     }
@@ -224,6 +225,59 @@ impl DocumentManager {
     doc_id: &Uuid,
     enable_sync: bool,
   ) -> FlowyResult<Arc<RwLock<Document>>> {
+    let entry = self.documents.entry(*doc_id);
+    let should_initialize = match entry {
+      dashmap::mapref::entry::Entry::Occupied(entry) => entry.get().try_start_initialize(),
+      dashmap::mapref::entry::Entry::Vacant(entry) => {
+        let holder = DocumentHolder::new();
+        holder.is_initializing.store(true, Ordering::Release);
+        entry.insert(holder);
+        true
+      },
+    };
+
+    if !should_initialize {
+      tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+      if let Some(holder) = self.documents.get(doc_id) {
+        if let Some(doc) = holder.get_document() {
+          return Ok(doc);
+        }
+      }
+      // If we still don't have a document, something went wrong with initialization
+      return Err(FlowyError::internal().with_context("Document initialization failed"));
+    }
+
+    // Proceed with document creation - holder is now marked as initializing
+    trace!("Initializing document: {}", doc_id);
+    match self.create_document_data(doc_id).await {
+      Ok(document) => {
+        // Store the document in the holder
+        if let Some(mut holder) = self.documents.get_mut(doc_id) {
+          holder.set_document(document.clone());
+          Ok(document)
+        } else {
+          // This shouldn't happen since we inserted it earlier
+          Err(
+            FlowyError::internal()
+              .with_context("Document holder disappeared during initialization"),
+          )
+        }
+      },
+      Err(err) => {
+        if let Some(holder) = self.documents.get_mut(doc_id) {
+          holder.is_initializing.store(false, Ordering::Release);
+        }
+
+        if err.is_invalid_data() {
+          self.delete_document(doc_id).await?;
+        }
+        Err(err)
+      },
+    }
+  }
+
+  // Helper method to create the document data and initialize subscriptions
+  async fn create_document_data(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     let mut doc_state = self.persistence()?.into_data_source();
     // If the document does not exist in local disk, try get the doc state from the cloud. This happens
     // When user_device_a create a document and user_device_b open the document.
@@ -254,25 +308,17 @@ impl DocumentManager {
       doc_id,
       self.user_service.workspace_id()
     );
-    let result = self.collab_for_document(doc_id, doc_state).await;
-    match result {
-      Ok(document) => {
-        // Only push the document to the cache if the sync is enabled.
-        let mut lock = document.write().await;
-        subscribe_document_changed(doc_id, &mut lock);
-        subscribe_document_snapshot_state(&lock);
-        subscribe_document_sync_state(&lock);
-        drop(lock);
-        self.documents.insert(*doc_id, document.clone());
-        Ok(document)
-      },
-      Err(err) => {
-        if err.is_invalid_data() {
-          self.delete_document(doc_id).await?;
-        }
-        return Err(err);
-      },
-    }
+
+    let document = self.collab_for_document(doc_id, doc_state).await?;
+
+    // Initialize subscriptions
+    let mut lock = document.write().await;
+    subscribe_document_changed(doc_id, &mut lock);
+    subscribe_document_snapshot_state(&lock);
+    subscribe_document_sync_state(&lock);
+    drop(lock);
+
+    Ok(document)
   }
 
   pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
@@ -290,10 +336,14 @@ impl DocumentManager {
   /// Return a document instance.
   /// The returned document might or might not be able to sync with the cloud.
   async fn get_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    if let Some(doc) = self.documents.get(doc_id).map(|item| item.value().clone()) {
-      return Ok(doc);
+    // Check if the document is in the documents map
+    if let Some(holder) = self.documents.get(doc_id) {
+      if let Some(doc) = holder.get_document() {
+        return Ok(doc);
+      }
     }
 
+    // Check if the document is in the removing_documents map
     if let Some(doc) = self.restore_document_from_removing(doc_id) {
       return Ok(doc);
     }
@@ -306,10 +356,14 @@ impl DocumentManager {
     if let Some(mutex_document) = self.restore_document_from_removing(doc_id) {
       let lock = mutex_document.read().await;
       lock.start_init_sync();
+      return Ok(());
     }
 
-    if self.documents.contains_key(doc_id) {
-      return Ok(());
+    // Check if the document is in the documents map
+    if let Some(holder) = self.documents.get(doc_id) {
+      if holder.get_document().is_some() {
+        return Ok(());
+      }
     }
 
     let _ = self.create_document_instance(doc_id, true).await?;
@@ -317,26 +371,28 @@ impl DocumentManager {
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    if let Some((doc_id, document)) = self.documents.remove(doc_id) {
-      {
-        // clear the awareness state when close the document
-        let mut lock = document.write().await;
-        lock.clean_awareness_local_state();
-      }
-
-      let clone_doc_id = doc_id;
-      trace!("move document to removing_documents: {}", doc_id);
-      self.removing_documents.insert(doc_id, document);
-
-      let weak_removing_documents = Arc::downgrade(&self.removing_documents);
-      tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-        if let Some(removing_documents) = weak_removing_documents.upgrade() {
-          if removing_documents.remove(&clone_doc_id).is_some() {
-            trace!("drop document from removing_documents: {}", clone_doc_id);
-          }
+    if let Some((doc_id, holder)) = self.documents.remove(doc_id) {
+      if let Some(document) = holder.get_document() {
+        {
+          // clear the awareness state when close the document
+          let mut lock = document.write().await;
+          lock.clean_awareness_local_state();
         }
-      });
+
+        let clone_doc_id = doc_id;
+        trace!("move document to removing_documents: {}", doc_id);
+        self.removing_documents.insert(doc_id, document);
+
+        let weak_removing_documents = Arc::downgrade(&self.removing_documents);
+        tokio::spawn(async move {
+          tokio::time::sleep(std::time::Duration::from_secs(120)).await;
+          if let Some(removing_documents) = weak_removing_documents.upgrade() {
+            if removing_documents.remove(&clone_doc_id).is_some() {
+              trace!("drop document from removing_documents: {}", clone_doc_id);
+            }
+          }
+        });
+      }
     }
 
     Ok(())
@@ -474,7 +530,12 @@ impl DocumentManager {
       "move document {} from removing_documents to documents",
       doc_id
     );
-    self.documents.insert(doc_id, doc.clone());
+
+    // Insert into documents map with a new holder
+    let mut holder = DocumentHolder::new();
+    holder.set_document(doc.clone());
+    self.documents.insert(doc_id, holder);
+
     Some(doc)
   }
 }
@@ -501,4 +562,37 @@ async fn doc_state_from_document_data(
   })
   .await??;
   Ok(encoded_collab)
+}
+
+struct DocumentHolder {
+  document: Option<Arc<RwLock<Document>>>,
+  is_initializing: AtomicBool,
+}
+
+impl DocumentHolder {
+  fn new() -> Self {
+    Self {
+      document: None,
+      is_initializing: AtomicBool::new(false),
+    }
+  }
+
+  /// Try to set the initializing flag. Returns true if successful (no other thread is initializing)
+  fn try_start_initialize(&self) -> bool {
+    self
+      .is_initializing
+      .compare_exchange(false, true, Ordering::Acquire, Ordering::Relaxed)
+      .is_ok()
+  }
+
+  /// Set the document and mark initialization as complete
+  fn set_document(&mut self, document: Arc<RwLock<Document>>) {
+    self.document = Some(document);
+    self.is_initializing.store(false, Ordering::Release);
+  }
+
+  /// Get the document if it exists
+  fn get_document(&self) -> Option<Arc<RwLock<Document>>> {
+    self.document.clone()
+  }
 }

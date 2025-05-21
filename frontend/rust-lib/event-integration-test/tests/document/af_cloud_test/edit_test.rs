@@ -116,6 +116,11 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
   test_1
     .insert_document_text(&view.id, "hello world", 0)
     .await;
+  test_1
+    .user_manager
+    .connect_workspace_ws_conn(&workspace_id)
+    .await
+    .unwrap();
 
   // wait all update are send to the remote
   let rx = test_1
@@ -125,10 +130,11 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
     });
   let _ = receive_with_timeout(rx, Duration::from_secs(30)).await;
   tokio::time::sleep(Duration::from_secs(10)).await;
+
   let mut views = test_2.get_all_workspace_views().await;
   views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
   dbg!(&views.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
-  assert_eq!(views.len(), 2);
+  assert_eq!(views.len(), 3);
   assert_eq!(views[2].name, "my shared document");
 
   let document_data = test_2.get_document_text(&view.id).await;

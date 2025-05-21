@@ -8,6 +8,7 @@ use client_api::v2::{
 };
 use dashmap::Entry;
 use flowy_error::{FlowyError, FlowyResult};
+use flowy_server_pub::GotrueTokenResponse;
 use flowy_user_pub::cloud::UserCloudServiceProvider;
 use flowy_user_pub::entities::WorkspaceType;
 use std::ops::Deref;
@@ -21,6 +22,19 @@ impl UserManager {
   pub async fn disconnect_workspace_ws_conn(&self, workspace_id: &Uuid) -> FlowyResult<()> {
     if let Some(c) = self.controller_by_wid.get(workspace_id) {
       c.disconnect().await?;
+    }
+    Ok(())
+  }
+
+  #[cfg(debug_assertions)]
+  pub async fn connect_workspace_ws_conn(&self, workspace_id: &Uuid) -> FlowyResult<()> {
+    if let Some(c) = self.controller_by_wid.get(workspace_id) {
+      let uid = self.user_id()?;
+      let profile = self
+        .get_user_profile_from_disk(uid, &workspace_id.to_string())
+        .await?;
+      let token = serde_json::from_str::<GotrueTokenResponse>(&profile.token)?;
+      c.connect(token.access_token).await?;
     }
     Ok(())
   }
