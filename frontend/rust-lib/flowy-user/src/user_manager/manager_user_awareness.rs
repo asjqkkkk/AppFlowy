@@ -132,31 +132,13 @@ impl UserManager {
     workspace_type: &WorkspaceType,
   ) -> FlowyResult<()> {
     let object_id = user_awareness_object_id(user_uuid, &workspace_id.to_string());
-
     let is_exist_on_disk = self
       .authenticate_user
       .is_collab_on_disk(uid, &object_id.to_string())?;
     if workspace_type.is_local() || is_exist_on_disk {
-      trace!(
-        "Initializing new user awareness from disk:{}, {:?}",
-        object_id,
-        workspace_type
-      );
-      let collab_db = self.get_collab_db(uid)?;
-      let doc_state =
-        CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
-      let awareness = Self::collab_for_user_awareness(
-        &self.workspace_collab_adaptor.clone(),
-        workspace_id,
-        &object_id,
-        doc_state,
-        None,
-      )
-      .await?;
-      info!("User awareness initialized successfully");
       self
-        .user_awareness_by_wid
-        .insert(*workspace_id, UserAwarenessLifeCycle::new(awareness));
+        .load_awareness_from_disk(uid, workspace_id, &object_id, workspace_type)
+        .await?;
     } else {
       info!(
         "Initializing new user awareness from server:{}, {:?}",
@@ -164,6 +146,36 @@ impl UserManager {
       );
       self.load_awareness_from_server(uid, workspace_id, object_id, *workspace_type)?;
     }
+    Ok(())
+  }
+
+  async fn load_awareness_from_disk(
+    &self,
+    uid: i64,
+    workspace_id: &Uuid,
+    object_id: &Uuid,
+    workspace_type: &WorkspaceType,
+  ) -> FlowyResult<()> {
+    info!(
+      "Initializing new user awareness from disk:{}, {:?}",
+      object_id, workspace_type
+    );
+    let collab_db = self.get_collab_db(uid)?;
+    let doc_state =
+      CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
+    let awareness = Self::collab_for_user_awareness(
+      &self.workspace_collab_adaptor.clone(),
+      workspace_id,
+      object_id,
+      doc_state,
+      None,
+    )
+    .await?;
+    info!("User awareness initialized successfully");
+    self
+      .user_awareness_by_wid
+      .insert(*workspace_id, UserAwarenessLifeCycle::new(awareness));
+
     Ok(())
   }
 

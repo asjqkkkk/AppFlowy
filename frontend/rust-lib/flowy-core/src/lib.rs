@@ -39,7 +39,8 @@ use app_life_cycle::AppLifeCycleImpl;
 use flowy_sqlite::DBConnection;
 use flowy_user::services::action_interceptor::ActionInterceptors;
 use flowy_user_pub::entities::WorkspaceType;
-use flowy_user_pub::workspace_collab::adaptor::{WorkspaceCollabAdaptor, WorkspaceCollabIndexer};
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use flowy_user_pub::workspace_collab::adaptor_trait::WorkspaceCollabIndexer;
 use lib_infra::async_trait::async_trait;
 
 pub(crate) mod app_life_cycle;

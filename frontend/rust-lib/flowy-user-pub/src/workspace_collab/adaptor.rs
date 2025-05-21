@@ -3,7 +3,7 @@ use std::fmt::{Debug, Display};
 use std::sync::{Arc, Weak};
 
 use anyhow::{Error, anyhow};
-use client_api::v2::{ObjectId, WorkspaceController, WorkspaceId};
+use client_api::v2::WorkspaceController;
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
@@ -19,15 +19,14 @@ use collab_entity::{CollabObject, CollabType};
 use collab_folder::{Folder, FolderData, FolderNotify};
 
 use collab::lock::RwLock;
-use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::rocksdb::kv_impl::KVTransactionDBRocksdbImpl;
 use collab_user::core::{UserAwareness, UserAwarenessNotifier};
 
+use crate::workspace_collab::adaptor_trait::{WorkspaceCollabIndexer, WorkspaceCollabUser};
 use flowy_ai_pub::entities::UnindexedData;
 use flowy_error::{FlowyError, FlowyResult};
-use lib_infra::async_trait::async_trait;
 use tracing::{error, instrument, trace};
 use uuid::Uuid;
 
@@ -58,60 +57,6 @@ impl Display for CollabPluginProviderContext {
     };
     write!(f, "{}", str)
   }
-}
-
-pub trait WorkspaceCollabUser: Send + Sync {
-  fn workspace_id(&self) -> Result<Uuid, FlowyError>;
-  fn uid(&self) -> Result<i64, FlowyError>;
-  fn device_id(&self) -> Result<String, FlowyError>;
-
-  fn collab_db(&self) -> FlowyResult<Weak<CollabKVDB>>;
-}
-
-#[async_trait]
-pub trait CollabIndexedData: Send + Sync + 'static {
-  async fn get_unindexed_data(&self, collab_type: &CollabType) -> Option<UnindexedData>;
-}
-
-#[async_trait]
-impl<T> CollabIndexedData for RwLock<T>
-where
-  T: BorrowMut<Collab> + Send + Sync + 'static,
-{
-  async fn get_unindexed_data(&self, collab_type: &CollabType) -> Option<UnindexedData> {
-    let collab = self.try_read().ok()?;
-    unindexed_data_form_collab(collab.borrow(), collab_type)
-  }
-}
-
-#[async_trait]
-pub trait WorkspaceCollabIndexer: Send + Sync {
-  async fn index_changed_collab(
-    &self,
-    workspace_id: WorkspaceId,
-    object_id: ObjectId,
-    collab_type: CollabType,
-  );
-}
-
-/// writer interface
-#[async_trait]
-pub trait EditingCollabDataConsumer: Send + Sync + 'static {
-  fn consumer_id(&self) -> String;
-
-  async fn consume_collab(
-    &self,
-    workspace_id: &Uuid,
-    data: UnindexedData,
-    object_id: &Uuid,
-    collab_type: CollabType,
-  ) -> Result<bool, FlowyError>;
-
-  async fn did_delete_collab(
-    &self,
-    workspace_id: &Uuid,
-    object_id: &Uuid,
-  ) -> Result<(), FlowyError>;
 }
 
 pub struct WorkspaceCollabAdaptor {
@@ -164,7 +109,7 @@ impl WorkspaceCollabAdaptor {
               collabs if !collabs.is_empty() => {
                 for collab in collabs {
                   let _ = indexer
-                    .index_changed_collab(workspace_id, collab.id, collab.collab_type)
+                    .index_opened_collab(workspace_id, collab.id, collab.collab_type)
                     .await;
                 }
               },
@@ -187,34 +132,6 @@ impl WorkspaceCollabAdaptor {
     // TODO(nathan): new syncing protocol
   }
 
-  pub fn collab_object(
-    &self,
-    workspace_id: &Uuid,
-    uid: i64,
-    object_id: &Uuid,
-    collab_type: CollabType,
-  ) -> Result<CollabObject, Error> {
-    // Compare the workspace_id with the currently opened workspace_id. Return an error if they do not match.
-    // This check is crucial in asynchronous code contexts where the workspace_id might change during operation.
-    let actual_workspace_id = self.user.workspace_id()?;
-    if workspace_id != &actual_workspace_id {
-      return Err(anyhow::anyhow!(
-        "workspace_id not match when build collab. expect workspace_id: {}, actual workspace_id: {}",
-        workspace_id,
-        actual_workspace_id
-      ));
-    }
-    let device_id = self.user.device_id()?;
-    Ok(CollabObject::new(
-      uid,
-      object_id.to_string(),
-      collab_type,
-      workspace_id.to_string(),
-      device_id,
-    ))
-  }
-
-  #[allow(clippy::too_many_arguments)]
   #[instrument(level = "trace", skip(self, data_source, data))]
   pub async fn create_document(
     &self,
@@ -351,24 +268,13 @@ impl WorkspaceCollabAdaptor {
   where
     T: BorrowMut<Collab> + Send + Sync + 'static,
   {
-    let weak_collab_indexer = self.collab_indexer.clone();
-    tokio::spawn(async move {
-      if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
-        indexer
-          .index_changed_collab(workspace_id, object_id, collab_type)
-          .await;
-      }
-    });
+    self.spawn_indexing_task(workspace_id, object_id, collab_type);
 
     let controller = self.get_controller().await?;
     let collab_ref = collab.clone() as Arc<RwLock<dyn BorrowMut<Collab> + Send + Sync + 'static>>;
     controller
       .bind_and_cache_collab_ref(&collab_ref, collab_type)
       .await?;
-
-    let mut write_collab = collab.try_write()?;
-    (*write_collab).borrow_mut().initialize();
-    drop(write_collab);
     Ok(collab)
   }
 
@@ -380,18 +286,21 @@ impl WorkspaceCollabAdaptor {
     collab_type: CollabType,
     collab: &mut Collab,
   ) -> Result<(), Error> {
+    self.spawn_indexing_task(workspace_id, object_id, collab_type);
+    let controller = self.get_controller().await?;
+    controller.bind(collab, collab_type).await?;
+    Ok(())
+  }
+
+  fn spawn_indexing_task(&self, workspace_id: Uuid, object_id: Uuid, collab_type: CollabType) {
     let weak_collab_indexer = self.collab_indexer.clone();
     tokio::spawn(async move {
       if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
         indexer
-          .index_changed_collab(workspace_id, object_id, collab_type)
+          .index_opened_collab(workspace_id, object_id, collab_type)
           .await;
       }
     });
-
-    let controller = self.get_controller().await?;
-    controller.bind(collab, collab_type).await?;
-    Ok(())
   }
 
   #[instrument(level = "trace", skip_all, err)]
@@ -432,23 +341,6 @@ impl WorkspaceCollabAdaptor {
     write.commit_transaction()?;
 
     Ok(())
-  }
-}
-
-pub struct CollabBuilderConfig {
-  pub sync_enable: bool,
-}
-
-impl Default for CollabBuilderConfig {
-  fn default() -> Self {
-    Self { sync_enable: true }
-  }
-}
-
-impl CollabBuilderConfig {
-  pub fn sync_enable(mut self, sync_enable: bool) -> Self {
-    self.sync_enable = sync_enable;
-    self
   }
 }
 

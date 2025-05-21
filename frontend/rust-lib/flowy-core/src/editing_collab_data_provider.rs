@@ -9,8 +9,10 @@ use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user_pub::workspace_collab::adaptor::{
-  unindexed_data_form_collab, unindexed_data_from_object, EditingCollabDataConsumer,
-  WorkspaceCollabIndexer,
+  unindexed_data_form_collab, unindexed_data_from_object,
+};
+use flowy_user_pub::workspace_collab::adaptor_trait::{
+  EditingCollabDataConsumer, WorkspaceCollabIndexer,
 };
 use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;
@@ -243,7 +245,7 @@ impl EditingCollabDataProvider {
 
 #[async_trait]
 impl WorkspaceCollabIndexer for EditingCollabDataProvider {
-  async fn index_changed_collab(
+  async fn index_opened_collab(
     &self,
     workspace_id: WorkspaceId,
     object_id: ObjectId,

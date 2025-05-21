@@ -10,7 +10,7 @@ use flowy_search_pub::entities::FolderViewObserver;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use flowy_search_pub::tantivy_state_init::get_or_init_document_tantivy_state;
 use flowy_server::af_cloud::define::LoggedUser;
-use flowy_user_pub::workspace_collab::adaptor::EditingCollabDataConsumer;
+use flowy_user_pub::workspace_collab::adaptor_trait::EditingCollabDataConsumer;
 use lib_infra::async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};

@@ -11,7 +11,8 @@ use flowy_document::manager::{DocumentManager, DocumentSnapshotService, Document
 use flowy_document_pub::cloud::*;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_storage_pub::storage::{CreatedUpload, FileProgressReceiver, StorageService};
-use flowy_user_pub::workspace_collab::adaptor::{WorkspaceCollabAdaptor, WorkspaceCollabUser};
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use flowy_user_pub::workspace_collab::adaptor_trait::WorkspaceCollabUser;
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;
 use nanoid::nanoid;

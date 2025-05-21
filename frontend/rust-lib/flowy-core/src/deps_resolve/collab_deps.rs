@@ -6,7 +6,7 @@ use flowy_sqlite::{
   schema::{collab_snapshot, collab_snapshot::dsl},
 };
 use flowy_user::services::authenticate_user::AuthenticateUser;
-use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabUser;
+use flowy_user_pub::workspace_collab::adaptor_trait::WorkspaceCollabUser;
 use std::sync::{Arc, Weak};
 use uuid::Uuid;
 
