@@ -159,7 +159,7 @@ impl WorkspaceCollabAdaptor {
             };
 
             // Process changed collabs
-            match controller.consume_latest_changed_collab().await {
+            match controller.consume_latest_changed_collab() {
               collabs if !collabs.is_empty() => {
                 for collab in collabs {
                   let _ = indexer
@@ -394,7 +394,7 @@ impl WorkspaceCollabAdaptor {
   }
 
   #[instrument(level = "trace", skip_all, err)]
-  pub async fn cache_arc_collab(
+  pub async fn cache_collab_ref(
     &self,
     object_id: Uuid,
     collab_type: CollabType,

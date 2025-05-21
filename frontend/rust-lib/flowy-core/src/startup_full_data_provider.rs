@@ -78,7 +78,6 @@ impl FullIndexedDataWriter {
         return current_workspace_id != self.workspace_id;
       }
     }
-    // If we can't determine, assume it changed to be safe
     true
   }
 

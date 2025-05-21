@@ -120,22 +120,25 @@ impl DatabaseManager {
     );
 
     let object_id = self.user.workspace_database_object_id()?;
-    let collab = collab_service
-      .build_collab(
-        object_id.to_string().as_str(),
-        CollabType::WorkspaceDatabase,
-        None,
-      )
+    let object_id_str = object_id.to_string();
+    let is_exist = collab_service.persistence.is_collab_exist(&object_id_str);
+
+    let collab_type = CollabType::WorkspaceDatabase;
+    let mut collab = collab_service
+      .build_collab(&object_id_str, collab_type, None)
       .await?;
 
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
+    if !is_exist {
+      collab_service
+        .finalize_collab(object_id, collab_type, &mut collab)
+        .await?;
+    }
 
-    let workspace_database = self
+    let workspace = WorkspaceDatabaseManager::open(&object_id.to_string(), collab, collab_service)?;
+    let workspace_database = Arc::new(RwLock::new(workspace));
+    self
       .collab_builder()?
-      .create_workspace_database_manager(workspace_id, object_id, collab, collab_service)
+      .cache_collab_ref(object_id, collab_type, workspace_database.clone())
       .await?;
 
     self
@@ -943,7 +946,7 @@ impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
   ) -> Result<(), DatabaseError> {
     self
       .collab_builder()?
-      .cache_arc_collab(object_id, collab_type, collab)
+      .cache_collab_ref(object_id, collab_type, collab)
       .await?;
     Ok(())
   }
@@ -1122,39 +1125,39 @@ impl DatabaseCollabPersistenceService for DatabasePersistenceImpl {
     }
   }
 
-  fn flush_collabs(
-    &self,
-    encoded_collabs: Vec<(String, EncodedCollab)>,
-  ) -> Result<(), DatabaseError> {
-    let uid = self
-      .user
-      .user_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?
-      .to_string();
-
-    if let Ok(Some(collab_db)) = self.user.collab_db(uid).map(|weak| weak.upgrade()) {
-      let write_txn = collab_db.write_txn();
-      for (object_id, encode_collab) in encoded_collabs {
-        write_txn
-          .flush_doc(
-            uid,
-            &workspace_id,
-            &object_id,
-            encode_collab.state_vector.to_vec(),
-            encode_collab.doc_state.to_vec(),
-          )
-          .map_err(|err| DatabaseError::Internal(anyhow!("failed to flush doc: {}", err)))?;
-      }
-      write_txn
-        .commit_transaction()
-        .map_err(|err| DatabaseError::Internal(anyhow!("failed to commit transaction: {}", err)))?;
-    }
-    Ok(())
-  }
+  // fn flush_collabs(
+  //   &self,
+  //   encoded_collabs: Vec<(String, EncodedCollab)>,
+  // ) -> Result<(), DatabaseError> {
+  //   let uid = self
+  //     .user
+  //     .user_id()
+  //     .map_err(|err| DatabaseError::Internal(err.into()))?;
+  //   let workspace_id = self
+  //     .user
+  //     .workspace_id()
+  //     .map_err(|err| DatabaseError::Internal(err.into()))?
+  //     .to_string();
+  //
+  //   if let Ok(Some(collab_db)) = self.user.collab_db(uid).map(|weak| weak.upgrade()) {
+  //     let write_txn = collab_db.write_txn();
+  //     for (object_id, encode_collab) in encoded_collabs {
+  //       write_txn
+  //         .flush_doc(
+  //           uid,
+  //           &workspace_id,
+  //           &object_id,
+  //           encode_collab.state_vector.to_vec(),
+  //           encode_collab.doc_state.to_vec(),
+  //         )
+  //         .map_err(|err| DatabaseError::Internal(anyhow!("failed to flush doc: {}", err)))?;
+  //     }
+  //     write_txn
+  //       .commit_transaction()
+  //       .map_err(|err| DatabaseError::Internal(anyhow!("failed to commit transaction: {}", err)))?;
+  //   }
+  //   Ok(())
+  // }
 }
 async fn open_database_with_retry(
   workspace_database_manager: Arc<RwLock<WorkspaceDatabaseManager>>,

@@ -167,7 +167,15 @@ impl DocumentManager {
       ))
     } else {
       let encoded_collab = doc_state_from_document_data(doc_id, data).await?;
+      self
+        .collab_for_document(
+          doc_id,
+          DataSource::DocStateV1(encoded_collab.doc_state.to_vec()),
+        )
+        .await?;
+
       // Send the collab data to server with a background task.
+      // TODO(nathan): new syncing protocol, remove following code.
       let cloud_service = self.cloud_service.clone();
       let cloned_encoded_collab = encoded_collab.clone();
       let workspace_id = self.user_service.workspace_id()?;
@@ -250,15 +258,12 @@ impl DocumentManager {
     match result {
       Ok(document) => {
         // Only push the document to the cache if the sync is enabled.
-        if enable_sync {
-          {
-            let mut lock = document.write().await;
-            subscribe_document_changed(doc_id, &mut lock);
-            subscribe_document_snapshot_state(&lock);
-            subscribe_document_sync_state(&lock);
-          }
-          self.documents.insert(*doc_id, document.clone());
-        }
+        let mut lock = document.write().await;
+        subscribe_document_changed(doc_id, &mut lock);
+        subscribe_document_snapshot_state(&lock);
+        subscribe_document_sync_state(&lock);
+        drop(lock);
+        self.documents.insert(*doc_id, document.clone());
         Ok(document)
       },
       Err(err) => {
