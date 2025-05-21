@@ -1,5 +1,6 @@
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
-use flowy_error::FlowyError;
+use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::{
   prelude::*,
   schema::{collab_snapshot, collab_snapshot::dsl},
@@ -124,5 +125,11 @@ impl WorkspaceCollabUser for WorkspaceCollabIntegrateImpl {
 
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok(self.upgrade_user()?.user_config.device_id.clone())
+  }
+
+  fn collab_db(&self) -> FlowyResult<Weak<CollabKVDB>> {
+    let user = self.upgrade_user()?;
+    let uid = user.user_id()?;
+    user.get_collab_db(uid)
   }
 }

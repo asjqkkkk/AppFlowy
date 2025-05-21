@@ -6,7 +6,6 @@ use anyhow::Context;
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::reminder::Reminder;
-use collab_entity::CollabType;
 use collab_user::core::{UserAwareness, UserAwarenessNotifier};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_user_pub::entities::{user_awareness_object_id, WorkspaceType};
@@ -149,7 +148,6 @@ impl UserManager {
       let awareness = Self::collab_for_user_awareness(
         &self.workspace_collab_adaptor.clone(),
         workspace_id,
-        uid,
         &object_id,
         doc_state,
         None,
@@ -191,15 +189,8 @@ impl UserManager {
       let create_awareness = if workspace_type.is_local() {
         let doc_state =
           CollabPersistenceImpl::new(collab_db.clone(), uid, workspace_id).into_data_source();
-        Self::collab_for_user_awareness(
-          &weak_builder,
-          &workspace_id,
-          uid,
-          &object_id,
-          doc_state,
-          None,
-        )
-        .await
+        Self::collab_for_user_awareness(&weak_builder, &workspace_id, &object_id, doc_state, None)
+          .await
       } else {
         let result = cloud_services
           .get_user_service()?
@@ -212,7 +203,6 @@ impl UserManager {
             Self::collab_for_user_awareness(
               &weak_builder,
               &workspace_id,
-              uid,
               &object_id,
               DataSource::DocStateV1(data),
               None,
@@ -227,7 +217,6 @@ impl UserManager {
               Self::collab_for_user_awareness(
                 &weak_builder,
                 &workspace_id,
-                uid,
                 &object_id,
                 doc_state,
                 None,
@@ -267,7 +256,6 @@ impl UserManager {
   async fn collab_for_user_awareness(
     collab_builder: &Weak<WorkspaceCollabAdaptor>,
     workspace_id: &Uuid,
-    uid: i64,
     object_id: &Uuid,
     doc_state: DataSource,
     notifier: Option<UserAwarenessNotifier>,
@@ -276,10 +264,8 @@ impl UserManager {
       ErrorCode::Internal,
       "Unexpected error: collab builder is not available",
     ))?;
-    let collab_object =
-      collab_builder.collab_object(workspace_id, uid, object_id, CollabType::UserAwareness)?;
     let collab = collab_builder
-      .create_user_awareness(collab_object, doc_state, notifier)
+      .create_user_awareness(*workspace_id, *object_id, doc_state, notifier)
       .await
       .context("Build collab for user awareness failed")?;
     Ok(collab)

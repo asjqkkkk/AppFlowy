@@ -2,7 +2,6 @@ use std::sync::Arc;
 use std::sync::Weak;
 
 use collab::core::collab::{CollabOptions, DataSource};
-use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::lock::RwLock;
@@ -97,7 +96,7 @@ impl DocumentManager {
     let doc_state =
       CollabPersistenceImpl::new(self.user_service.collab_db(uid)?, uid, workspace_id)
         .into_data_source();
-    let collab = self.collab_for_document(uid, doc_id, doc_state).await?;
+    let collab = self.collab_for_document(doc_id, doc_state).await?;
     let encoded_collab = collab
       .try_read()
       .unwrap()
@@ -168,11 +167,6 @@ impl DocumentManager {
       ))
     } else {
       let encoded_collab = doc_state_from_document_data(doc_id, data).await?;
-      self
-        .persistence()?
-        .save_collab_to_disk(doc_id.to_string().as_str(), encoded_collab.clone())
-        .map_err(internal_error)?;
-
       // Send the collab data to server with a background task.
       let cloud_service = self.cloud_service.clone();
       let cloned_encoded_collab = encoded_collab.clone();
@@ -189,18 +183,13 @@ impl DocumentManager {
 
   async fn collab_for_document(
     &self,
-    uid: i64,
     doc_id: &Uuid,
     data_source: DataSource,
   ) -> FlowyResult<Arc<RwLock<Document>>> {
     let workspace_id = self.user_service.workspace_id()?;
-    let collab_object =
-      self
-        .collab_builder()?
-        .collab_object(&workspace_id, uid, doc_id, CollabType::Document)?;
     let document = self
       .collab_builder()?
-      .create_document(collab_object, data_source, None)
+      .create_document(workspace_id, *doc_id, data_source, None)
       .await?;
     Ok(document)
   }
@@ -227,7 +216,6 @@ impl DocumentManager {
     doc_id: &Uuid,
     enable_sync: bool,
   ) -> FlowyResult<Arc<RwLock<Document>>> {
-    let uid = self.user_service.user_id()?;
     let mut doc_state = self.persistence()?.into_data_source();
     // If the document does not exist in local disk, try get the doc state from the cloud. This happens
     // When user_device_a create a document and user_device_b open the document.
@@ -258,7 +246,7 @@ impl DocumentManager {
       doc_id,
       self.user_service.workspace_id()
     );
-    let result = self.collab_for_document(uid, doc_id, doc_state).await;
+    let result = self.collab_for_document(doc_id, doc_state).await;
     match result {
       Ok(document) => {
         // Only push the document to the cache if the sync is enabled.

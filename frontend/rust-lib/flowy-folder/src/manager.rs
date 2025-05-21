@@ -208,11 +208,8 @@ impl FolderManager {
       CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source()
     });
 
-    let object_id = workspace_id;
-    let collab_object =
-      collab_builder.collab_object(workspace_id, uid, object_id, CollabType::Folder)?;
     let result = collab_builder
-      .create_folder(collab_object, data_source, folder_notifier, None)
+      .create_folder(*workspace_id, data_source, folder_notifier, None)
       .await;
 
     // If opening the folder fails due to missing required data (indicated by a `FolderError::NoRequiredData`),
@@ -228,7 +225,7 @@ impl FolderManager {
 
         if let Some(db) = self.user.collab_db(uid).ok().and_then(|a| a.upgrade()) {
           let _ = db
-            .delete_doc(uid, &workspace_id.to_string(), &object_id.to_string())
+            .delete_doc(uid, &workspace_id.to_string(), &workspace_id.to_string())
             .await;
         }
         Err(err.into())
@@ -247,14 +244,11 @@ impl FolderManager {
     let collab_builder = self.collab_builder.upgrade().ok_or_else(|| {
       FlowyError::internal().with_context("The folder builder is not initialized")
     })?;
-    let object_id = workspace_id;
-    let collab_object =
-      collab_builder.collab_object(workspace_id, uid, object_id, CollabType::Folder)?;
 
     let doc_state =
       CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
     let folder = collab_builder
-      .create_folder(collab_object, doc_state, notifier, folder_data)
+      .create_folder(*workspace_id, doc_state, notifier, folder_data)
       .await?;
     Ok(folder)
   }

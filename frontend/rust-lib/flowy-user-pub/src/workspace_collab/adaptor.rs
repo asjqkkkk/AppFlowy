@@ -7,16 +7,18 @@ use client_api::v2::{ObjectId, WorkspaceController, WorkspaceId};
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
-use collab::entity::EncodedCollab;
 use collab::error::CollabError;
 use collab::preclude::{Collab, Transact};
-use collab_database::workspace_database::{DatabaseCollabService, WorkspaceDatabaseManager};
+use collab_database::workspace_database::{
+  CollabRef, DatabaseCollabService, WorkspaceDatabaseManager,
+};
 use collab_document::blocks::DocumentData;
 use collab_document::document::{Document, DocumentBody};
 use collab_entity::{CollabObject, CollabType};
 use collab_folder::{Folder, FolderData, FolderNotify};
 
 use collab::lock::RwLock;
+use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::rocksdb::kv_impl::KVTransactionDBRocksdbImpl;
@@ -61,6 +63,8 @@ pub trait WorkspaceCollabUser: Send + Sync {
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn uid(&self) -> Result<i64, FlowyError>;
   fn device_id(&self) -> Result<String, FlowyError>;
+
+  fn collab_db(&self) -> FlowyResult<Weak<CollabKVDB>>;
 }
 
 #[async_trait]
@@ -213,96 +217,112 @@ impl WorkspaceCollabAdaptor {
   #[instrument(level = "trace", skip(self, data_source, data))]
   pub async fn create_document(
     &self,
-    object: CollabObject,
+    workspace_id: Uuid,
+    object_id: Uuid,
     data_source: DataSource,
     data: Option<DocumentData>,
   ) -> Result<Arc<RwLock<Document>>, Error> {
-    let expected_collab_type = CollabType::Document;
-    assert_eq!(object.collab_type, expected_collab_type);
-    let mut collab = self.build_collab(&object, data_source).await?;
+    let collab_type = CollabType::Document;
+    let mut collab = self
+      .build_collab_with_source(object_id, collab_type, data_source)
+      .await?;
     collab.enable_undo_redo();
-
     let document = match data {
       None => Document::open(collab)?,
       Some(data) => Document::create_with_data(collab, data)?,
     };
     let document = Arc::new(RwLock::new(document));
-    self.finalize(object, document).await
+    self
+      .finalize_arc_collab(workspace_id, object_id, collab_type, document)
+      .await
   }
 
   #[allow(clippy::too_many_arguments)]
-  #[instrument(level = "trace", skip(self, object, doc_state, folder_notifier))]
+  #[instrument(level = "trace", skip(self, doc_state, folder_notifier))]
   pub async fn create_folder(
     &self,
-    object: CollabObject,
+    workspace_id: Uuid,
     doc_state: DataSource,
     folder_notifier: Option<FolderNotify>,
     folder_data: Option<FolderData>,
   ) -> Result<Arc<RwLock<Folder>>, Error> {
-    let expected_collab_type = CollabType::Folder;
-    assert_eq!(object.collab_type, expected_collab_type);
+    let uid = self.user.uid()?;
+    let collab_type = CollabType::Folder;
     let folder = match folder_data {
       None => {
-        let collab = self.build_collab(&object, doc_state).await?;
-        Folder::open(object.uid, collab, folder_notifier)?
+        let collab = self
+          .build_collab_with_source(workspace_id, collab_type, doc_state)
+          .await?;
+        Folder::open(uid, collab, folder_notifier)?
       },
       Some(data) => {
-        let collab = self.build_collab(&object, doc_state).await?;
-        Folder::create(object.uid, collab, folder_notifier, data)
+        let collab = self
+          .build_collab_with_source(workspace_id, collab_type, doc_state)
+          .await?;
+        Folder::create(uid, collab, folder_notifier, data)
       },
     };
     let folder = Arc::new(RwLock::new(folder));
-    self.finalize(object, folder).await
+    self
+      .finalize_arc_collab(workspace_id, workspace_id, collab_type, folder)
+      .await
   }
 
   #[allow(clippy::too_many_arguments)]
-  #[instrument(level = "trace", skip(self, object, doc_state, notifier))]
+  #[instrument(level = "trace", skip(self, doc_state, notifier))]
   pub async fn create_user_awareness(
     &self,
-    object: CollabObject,
+    workspace_id: Uuid,
+    object_id: Uuid,
     doc_state: DataSource,
     notifier: Option<UserAwarenessNotifier>,
   ) -> Result<Arc<RwLock<UserAwareness>>, Error> {
-    let expected_collab_type = CollabType::UserAwareness;
-    assert_eq!(object.collab_type, expected_collab_type);
-    let collab = self.build_collab(&object, doc_state).await?;
+    let collab_type = CollabType::UserAwareness;
+    let collab = self
+      .build_collab_with_source(object_id, collab_type, doc_state)
+      .await?;
     let user_awareness = UserAwareness::create(collab, notifier)?;
     let user_awareness = Arc::new(RwLock::new(user_awareness));
-    self.finalize(object, user_awareness).await
+    self
+      .finalize_arc_collab(workspace_id, object_id, collab_type, user_awareness)
+      .await
   }
 
   #[allow(clippy::too_many_arguments)]
   #[instrument(level = "trace", skip_all)]
   pub async fn create_workspace_database_manager(
     &self,
-    object: CollabObject,
+    workspace_id: Uuid,
+    object_id: Uuid,
     collab: Collab,
     collab_service: impl DatabaseCollabService,
   ) -> Result<Arc<RwLock<WorkspaceDatabaseManager>>, Error> {
-    let expected_collab_type = CollabType::WorkspaceDatabase;
-    assert_eq!(object.collab_type, expected_collab_type);
-    let workspace = WorkspaceDatabaseManager::open(&object.object_id, collab, collab_service)?;
+    let collab_type = CollabType::WorkspaceDatabase;
+    let workspace = WorkspaceDatabaseManager::open(&object_id.to_string(), collab, collab_service)?;
     let workspace = Arc::new(RwLock::new(workspace));
-    self.finalize(object, workspace).await
+    self
+      .finalize_arc_collab(workspace_id, object_id, collab_type, workspace)
+      .await
   }
 
-  pub async fn build_collab(
+  pub async fn build_collab_with_source(
     &self,
-    object: &CollabObject,
+    object_id: Uuid,
+    collab_type: CollabType,
     data_source: DataSource,
   ) -> Result<Collab, Error> {
-    let object = object.clone();
+    let uid = self.user.uid()?;
     let device_id = self.user.device_id()?;
     let controller = self.get_controller().await?;
     let client_id = controller.client_id();
-    let origin = CollabOrigin::Client(CollabClient::new(object.uid, device_id));
-    let options = CollabOptions::new(object.object_id.clone())
+    let origin = CollabOrigin::Client(CollabClient::new(uid, device_id));
+    let options = CollabOptions::new(object_id.to_string())
       .with_data_source(data_source)
       .with_client_id(Some(client_id));
 
     trace!(
       "Build collab:{}:{} with client_id: {:?}",
-      object.object_id, object.collab_type, options.client_id
+      object_id, collab_type, options.client_id
     );
     let collab = Collab::new_with_options(origin, options)?;
     Ok(collab)
@@ -320,17 +340,16 @@ impl WorkspaceCollabAdaptor {
   }
 
   #[instrument(level = "trace", skip_all, err)]
-  pub async fn finalize<T>(
+  pub async fn finalize_arc_collab<T>(
     &self,
-    object: CollabObject,
+    workspace_id: Uuid,
+    object_id: Uuid,
+    collab_type: CollabType,
     collab: Arc<RwLock<T>>,
   ) -> Result<Arc<RwLock<T>>, Error>
   where
     T: BorrowMut<Collab> + Send + Sync + 'static,
   {
-    let workspace_id = Uuid::parse_str(&object.workspace_id)?;
-    let object_id = Uuid::parse_str(&object.object_id)?;
-    let collab_type = object.collab_type;
     let weak_collab_indexer = self.collab_indexer.clone();
     tokio::spawn(async move {
       if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
@@ -342,12 +361,50 @@ impl WorkspaceCollabAdaptor {
 
     let controller = self.get_controller().await?;
     let collab_ref = collab.clone() as Arc<RwLock<dyn BorrowMut<Collab> + Send + Sync + 'static>>;
-    controller.bind(&collab_ref, object.collab_type).await?;
+    controller
+      .bind_and_cache_collab_ref(&collab_ref, collab_type)
+      .await?;
 
     let mut write_collab = collab.try_write()?;
     (*write_collab).borrow_mut().initialize();
     drop(write_collab);
     Ok(collab)
+  }
+
+  #[instrument(level = "trace", skip_all, err)]
+  pub async fn finalize_collab(
+    &self,
+    workspace_id: Uuid,
+    object_id: Uuid,
+    collab_type: CollabType,
+    collab: &mut Collab,
+  ) -> Result<(), Error> {
+    let weak_collab_indexer = self.collab_indexer.clone();
+    tokio::spawn(async move {
+      if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
+        indexer
+          .index_changed_collab(workspace_id, object_id, collab_type)
+          .await;
+      }
+    });
+
+    let controller = self.get_controller().await?;
+    controller.bind(collab, collab_type).await?;
+    Ok(())
+  }
+
+  #[instrument(level = "trace", skip_all, err)]
+  pub async fn cache_arc_collab(
+    &self,
+    object_id: Uuid,
+    collab_type: CollabType,
+    collab: CollabRef,
+  ) -> Result<(), Error> {
+    let controller = self.get_controller().await?;
+    controller
+      .cache_collab_ref(object_id, &collab, collab_type)
+      .await?;
+    Ok(())
   }
 }
 
@@ -416,33 +473,6 @@ impl CollabPersistence for CollabPersistenceImpl {
       txn.commit();
       drop(txn);
     }
-    Ok(())
-  }
-
-  fn save_collab_to_disk(
-    &self,
-    object_id: &str,
-    encoded_collab: EncodedCollab,
-  ) -> Result<(), CollabError> {
-    let workspace_id = self.workspace_id.to_string();
-    let collab_db = self
-      .db
-      .upgrade()
-      .ok_or_else(|| CollabError::Internal(anyhow!("collab_db is dropped")))?;
-    let write_txn = collab_db.write_txn();
-    write_txn
-      .flush_doc(
-        self.uid,
-        workspace_id.as_str(),
-        object_id,
-        encoded_collab.state_vector.to_vec(),
-        encoded_collab.doc_state.to_vec(),
-      )
-      .map_err(|err| CollabError::Internal(err.into()))?;
-
-    write_txn
-      .commit_transaction()
-      .map_err(|err| CollabError::Internal(err.into()))?;
     Ok(())
   }
 }

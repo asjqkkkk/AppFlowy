@@ -1,5 +1,5 @@
 use std::ops::Deref;
-use std::sync::{Arc, OnceLock};
+use std::sync::{Arc, OnceLock, Weak};
 
 use collab::entity::EncodedCollab;
 use collab_document::blocks::DocumentData;
@@ -254,5 +254,9 @@ impl WorkspaceCollabUser for WorkspaceCollabIntegrateImpl {
 
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok("fake_device_id".to_string())
+  }
+
+  fn collab_db(&self) -> FlowyResult<Weak<CollabKVDB>> {
+    todo!()
   }
 }
