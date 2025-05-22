@@ -21,7 +21,6 @@ use crate::parser::parser_entities::{
 use crate::{manager::DocumentManager, parser::json::parser::JsonToDocumentParser};
 use flowy_error::{FlowyError, FlowyResult};
 use lib_dispatch::prelude::{AFPluginData, AFPluginState, DataResult, data_result_ok};
-use lib_infra::sync_trace;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -125,7 +124,6 @@ pub(crate) async fn apply_action_handler(
   let doc_id = params.document_id;
   let document = manager.editable_document(&doc_id).await?;
   let actions = params.actions;
-  sync_trace!("{} applying action: {:?}", doc_id, actions);
   document.write().await.apply_action(actions)?;
   Ok(())
 }
@@ -140,7 +138,6 @@ pub(crate) async fn create_text_handler(
   let doc_id = params.document_id;
   let document = manager.editable_document(&doc_id).await?;
   let mut document = document.write().await;
-  sync_trace!("{} creating text: {:?}", doc_id, params.delta);
   document.apply_text_delta(&params.text_id, params.delta);
   Ok(())
 }
@@ -157,7 +154,6 @@ pub(crate) async fn apply_text_delta_handler(
   let text_id = params.text_id;
   let delta = params.delta;
   let mut document = document.write().await;
-  sync_trace!("{} applying delta: {:?}", doc_id, delta);
   document.apply_text_delta(&text_id, delta);
   Ok(())
 }

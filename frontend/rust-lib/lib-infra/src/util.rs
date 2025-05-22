@@ -138,10 +138,3 @@ pub fn get_operating_system() -> OperatingSystem {
       }
   }
 }
-
-#[macro_export]
-macro_rules! sync_trace {
-    ($($arg:tt)*) => {
-        tracing::info!(target: "sync_trace_log", $($arg)*);
-    };
-}

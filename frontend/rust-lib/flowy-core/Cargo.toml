@@ -34,7 +34,7 @@ collab = { workspace = true }
 diesel.workspace = true
 flowy-storage = { workspace = true }
 flowy-storage-pub = { workspace = true }
-client-api = { workspace = true, no-default-features = true, features = ["verbose_log", "message_verbose_log"] }
+client-api = { workspace = true, no-default-features = true, features = ["verbose_log"] }
 flowy-ai = { workspace = true }
 flowy-ai-pub = { workspace = true }
 
