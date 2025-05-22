@@ -211,6 +211,10 @@ impl AppFlowyServer for AppFlowyCloudServer {
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>) {
     *self.tanvity_state.write().await = state;
   }
+
+  async fn refresh_access_token(&self, reason: &str) {
+    let _ = self.client.refresh_token(reason).await;
+  }
 }
 
 pub trait AFServer: Send + Sync + 'static {

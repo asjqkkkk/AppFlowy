@@ -60,6 +60,10 @@ impl AppFlowyServer for LocalServer {
     None
   }
 
+  async fn refresh_access_token(&self, _reason: &str) {
+    // do nothing
+  }
+
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>) {
     *self.tanvity_state.write().await = state;
   }

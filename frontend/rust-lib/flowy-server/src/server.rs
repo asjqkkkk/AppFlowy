@@ -58,6 +58,8 @@ where
 pub trait AppFlowyServer: Send + Sync + 'static {
   fn set_token(&self, _token: &str) -> Result<(), Error>;
   fn get_access_token(&self) -> Option<String>;
+
+  async fn refresh_access_token(&self, reason: &str);
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>);
   fn set_ai_model(&self, _ai_model: &str) -> Result<(), Error> {
     Ok(())

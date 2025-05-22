@@ -1,6 +1,5 @@
 use crate::services::action_interceptor::ActionInterceptors;
-use crate::services::authenticate_user::AuthenticateUser;
-use crate::user_manager::{handle_invalid_token, UserManager};
+use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
 use client_api::v2::{
@@ -109,7 +108,6 @@ impl UserManager {
         spawn_subscribe_connect_state(
           workspace_controller.clone(),
           self.cloud_service.clone(),
-          Arc::downgrade(&self.authenticate_user),
           workspace_type,
         );
         spawn_connect(controller, access_token, workspace_type);
@@ -122,7 +120,6 @@ impl UserManager {
 fn spawn_subscribe_connect_state(
   controller: Arc<WorkspaceController>,
   cloud_service: Weak<dyn UserCloudServiceProvider>,
-  auth_user: Weak<AuthenticateUser>,
   workspace_type: &WorkspaceType,
 ) {
   if matches!(workspace_type, WorkspaceType::Local) {
@@ -132,17 +129,23 @@ fn spawn_subscribe_connect_state(
   let mut rx = controller.subscribe_connect_state();
   tokio::spawn(async move {
     // Loop as long as we get a Disconnected { reason: Some(reason) }
-    while let Some(ConnectState::Disconnected {
-      reason: Some(reason),
-    }) = rx.next().await
-    {
-      let (service, user) = match (cloud_service.upgrade(), auth_user.upgrade()) {
-        (Some(s), Some(u)) => (s, u),
-        _ => break,
-      };
+    while let Some(value) = rx.next().await {
+      match value {
+        ConnectState::Disconnected {
+          reason: Some(reason),
+        } => {
+          let service = match cloud_service.upgrade() {
+            Some(s) => s,
+            _ => break,
+          };
 
-      if let DisconnectedReason::Unauthorized(_) = reason {
-        let _ = handle_invalid_token(&service, &user).await;
+          if let DisconnectedReason::Unauthorized(_) = reason {
+            service.notify_access_token_invalid();
+          }
+        },
+        ConnectState::Disconnected { reason: None } => {},
+        ConnectState::Connecting => {},
+        ConnectState::Connected => {},
       }
     }
   });

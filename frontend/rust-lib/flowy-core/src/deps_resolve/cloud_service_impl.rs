@@ -162,6 +162,14 @@ impl UserCloudServiceProvider for ServerProvider {
     server.get_access_token()
   }
 
+  fn notify_access_token_invalid(&self) {
+    if let Ok(server) = self.get_server() {
+      tokio::spawn(async move {
+        server.refresh_access_token("access token invalid").await;
+      });
+    }
+  }
+
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError> {
     info!("Set AI model: {}", ai_model);
     let server = self.get_server()?;
