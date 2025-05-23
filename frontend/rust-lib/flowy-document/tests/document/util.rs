@@ -102,8 +102,8 @@ impl DocumentUserService for FakeUser {
     Ok("".to_string())
   }
 
-  fn collab_client_id(&self, _workspace_id: &Uuid) -> Result<ClientID, FlowyError> {
-    Ok(default_client_id())
+  fn collab_client_id(&self, _workspace_id: &Uuid) -> ClientID {
+    default_client_id()
   }
 }
 

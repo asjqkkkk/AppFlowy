@@ -1,4 +1,5 @@
 use crate::deps_resolve::CollabSnapshotSql;
+use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_document::entities::{DocumentSnapshotData, DocumentSnapshotMeta};
@@ -9,6 +10,7 @@ use flowy_storage_pub::storage::StorageService;
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use std::sync::{Arc, Weak};
+use tracing::warn;
 use uuid::Uuid;
 
 pub struct DocumentDepsResolver();
@@ -112,13 +114,13 @@ impl DocumentUserService for DocumentUserImpl {
       .get_collab_db(uid)
   }
 
-  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError> {
-    Ok(
-      self
-        .0
-        .upgrade()
-        .ok_or(FlowyError::internal().with_context("Unexpected error: UserSession is None"))?
-        .collab_client_id(workspace_id),
-    )
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    match self.0.upgrade() {
+      None => {
+        warn!("Failed to get collab client id, using default client id",);
+        default_client_id()
+      },
+      Some(user) => user.collab_client_id(workspace_id),
+    }
   }
 }

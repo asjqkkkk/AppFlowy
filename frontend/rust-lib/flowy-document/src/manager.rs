@@ -38,7 +38,7 @@ pub trait DocumentUserService: Send + Sync {
   fn device_id(&self) -> Result<String, FlowyError>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
-  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError>;
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }
 
 pub trait DocumentSnapshotService: Send + Sync {
@@ -84,7 +84,7 @@ impl DocumentManager {
     }
   }
 
-  pub fn collab_client_id(&self, workspace_id: &Uuid) -> FlowyResult<ClientID> {
+  pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
     self.user_service.collab_client_id(workspace_id)
   }
 
@@ -173,7 +173,7 @@ impl DocumentManager {
       ))
     } else {
       let workspace_id = self.user_service.workspace_id()?;
-      let client_id = self.user_service.collab_client_id(&workspace_id)?;
+      let client_id = self.user_service.collab_client_id(&workspace_id);
       let encoded_collab = doc_state_from_document_data(doc_id, data, client_id).await?;
       self
         .collab_builder()?

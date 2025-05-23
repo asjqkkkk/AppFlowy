@@ -1,3 +1,4 @@
+use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
@@ -13,6 +14,7 @@ use lib_infra::async_trait::async_trait;
 use lib_infra::priority_task::TaskDispatcher;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
+use tracing::warn;
 use uuid::Uuid;
 
 pub struct DatabaseDepsResolver();
@@ -131,7 +133,13 @@ impl DatabaseUser for DatabaseUserImpl {
     self.upgrade_user()?.workspace_database_object_id()
   }
 
-  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError> {
-    Ok(self.upgrade_user()?.collab_client_id(workspace_id))
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    match self.upgrade_user() {
+      Ok(user) => user.collab_client_id(workspace_id),
+      Err(_) => {
+        warn!("Failed to get collab client id, using default client id",);
+        default_client_id()
+      },
+    }
   }
 }

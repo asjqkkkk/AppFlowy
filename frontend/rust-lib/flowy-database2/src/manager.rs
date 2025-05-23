@@ -51,7 +51,7 @@ pub trait DatabaseUser: Send + Sync {
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn workspace_database_object_id(&self) -> Result<Uuid, FlowyError>;
-  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError>;
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }
 
 pub(crate) type DatabaseEditorMap = HashMap<String, Arc<DatabaseEditor>>;
@@ -1082,7 +1082,7 @@ impl DatabaseCollabPersistenceService for DatabasePersistenceImpl {
       return None;
     }
 
-    let client_id = self.user.collab_client_id(&workspace_id).ok()?;
+    let client_id = self.user.collab_client_id(&workspace_id);
     let options = CollabOptions::new(object_id.to_string(), client_id);
     let mut collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
     let mut txn = collab.transact_mut();
