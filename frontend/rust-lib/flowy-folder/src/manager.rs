@@ -30,6 +30,7 @@ use collab_folder::{
 };
 use flowy_user_pub::workspace_collab::CollabKVDB;
 
+use collab::preclude::ClientID;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_folder_pub::cloud::{FolderCloudService, FolderCollabParams, gen_view_id};
 use flowy_folder_pub::entities::{
@@ -51,6 +52,7 @@ pub trait FolderUser: Send + Sync {
   fn user_id(&self) -> Result<i64, FlowyError>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 
   fn is_folder_exist_on_disk(&self, uid: i64, workspace_id: &Uuid) -> FlowyResult<bool>;
 }
@@ -90,6 +92,11 @@ impl FolderManager {
     };
 
     Ok(manager)
+  }
+
+  pub fn client_id(&self) -> FlowyResult<ClientID> {
+    let workspace_id = self.user.workspace_id()?;
+    Ok(self.user.collab_client_id(&workspace_id))
   }
 
   pub fn subscribe_folder_ready_notifier(&self) -> tokio::sync::watch::Receiver<bool> {
@@ -305,7 +312,10 @@ impl FolderManager {
       .mutex_folder
       .load_full()
       .ok_or_else(folder_not_init_error)?;
-    let workspace_id = self.user.workspace_id()?.to_string();
+    let workspace_id = self.user.workspace_id()?;
+    let client_id = self.user.collab_client_id(&workspace_id);
+
+    let workspace_id = workspace_id.to_string();
     let encoded_collab = self
       .store_preferences
       .get_object::<EncodedCollab>(&workspace_id);
@@ -315,7 +325,7 @@ impl FolderManager {
     }
 
     let folder = folder.read().await;
-    let changes = folder.calculate_view_changes(encoded_collab.unwrap())?;
+    let changes = folder.calculate_view_changes(encoded_collab.unwrap(), client_id)?;
 
     let encoded_collab = folder.encode_collab();
     if let Ok(encoded) = encoded_collab {

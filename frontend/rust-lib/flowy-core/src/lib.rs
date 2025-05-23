@@ -1,5 +1,7 @@
 #![allow(unused_doc_comments)]
 
+use collab::core::collab::default_client_id;
+use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::DatabaseManager;
@@ -384,5 +386,12 @@ impl LoggedUser for ServerUserImpl {
     Ok(PathBuf::from(
       self.upgrade_user()?.get_application_root_dir(),
     ))
+  }
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    match self.upgrade_user() {
+      Ok(u) => u.collab_client_id(workspace_id),
+      Err(_) => default_client_id(),
+    }
   }
 }

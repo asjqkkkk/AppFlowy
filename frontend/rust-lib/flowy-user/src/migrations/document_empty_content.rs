@@ -1,6 +1,6 @@
 use std::sync::{Arc, Weak};
 
-use collab::core::collab::CollabOptions;
+use collab::core::collab::{default_client_id, CollabOptions};
 use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::preclude::Collab;
 use collab_document::document::Document;
@@ -109,7 +109,7 @@ where
 {
   // If the document is not exist, we don't need to migrate it.
   if load_collab(user_id, write_txn, workspace_id, &view.id).is_err() {
-    let options = CollabOptions::new(view.id.clone());
+    let options = CollabOptions::new(view.id.clone(), default_client_id());
     let collab = Collab::new_with_options(origin.clone(), options)?;
     let document = Document::create_with_data(collab, default_document_data(&view.id))?;
     let encode = document.encode_collab_v1(|_| Ok::<(), PersistenceError>(()))?;

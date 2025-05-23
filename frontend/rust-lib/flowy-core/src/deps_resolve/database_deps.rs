@@ -1,3 +1,4 @@
+use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::{DatabaseManager, DatabaseUser};
@@ -128,5 +129,9 @@ impl DatabaseUser for DatabaseUserImpl {
 
   fn workspace_database_object_id(&self) -> Result<Uuid, FlowyError> {
     self.upgrade_user()?.workspace_database_object_id()
+  }
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError> {
+    Ok(self.upgrade_user()?.collab_client_id(workspace_id))
   }
 }

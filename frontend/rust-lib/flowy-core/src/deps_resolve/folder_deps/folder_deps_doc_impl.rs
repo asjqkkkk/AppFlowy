@@ -106,9 +106,16 @@ impl FolderOperationHandler for DocumentFolderOperation {
     user: &Arc<dyn FolderUser>,
     view_id: &Uuid,
   ) -> Result<GatherEncodedCollab, FlowyError> {
-    let encoded_collab =
-      get_encoded_collab_v1_from_disk(user, view_id.to_string().as_str(), CollabType::Document)
-        .await?;
+    let manager = self.document_manager()?;
+    let workspace_id = user.workspace_id()?;
+    let client_id = manager.collab_client_id(&workspace_id)?;
+    let encoded_collab = get_encoded_collab_v1_from_disk(
+      user,
+      view_id.to_string().as_str(),
+      CollabType::Document,
+      client_id,
+    )
+    .await?;
     Ok(GatherEncodedCollab::Document(encoded_collab))
   }
 

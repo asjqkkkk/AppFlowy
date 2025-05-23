@@ -9,7 +9,7 @@ use anyhow::Context;
 use client_api::entity::GotrueTokenResponse;
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
-use collab::preclude::Collab;
+use collab::preclude::{ClientID, Collab};
 use collab_entity::CollabObject;
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -213,8 +213,9 @@ impl UserCloudService for LocalServerUserServiceImpl {
     uid: i64,
     workspace_id: &Uuid,
     object_id: &Uuid,
+    client_id: ClientID,
   ) -> Result<Vec<u8>, FlowyError> {
-    let options = CollabOptions::new(object_id.to_string());
+    let options = CollabOptions::new(object_id.to_string(), client_id);
     let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
     let awareness = UserAwareness::create(collab, None)?;
     let encode_collab = awareness.encode_collab_v1(|_collab| Ok::<_, FlowyError>(()))?;

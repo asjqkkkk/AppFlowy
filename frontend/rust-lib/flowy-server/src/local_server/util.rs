@@ -1,7 +1,7 @@
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
-use collab::preclude::Collab;
+use collab::preclude::{ClientID, Collab};
 use collab_database::database::default_database_data;
 use collab_database::workspace_database::default_workspace_database_data;
 use collab_document::document_data::default_document_collab_data;
@@ -13,14 +13,17 @@ pub async fn default_encode_collab_for_collab_type(
   _uid: i64,
   object_id: &str,
   collab_type: CollabType,
+  client_id: ClientID,
 ) -> FlowyResult<EncodedCollab> {
   match collab_type {
     CollabType::Document => {
-      let encode_collab = default_document_collab_data(object_id)?;
+      let encode_collab = default_document_collab_data(object_id, client_id)?;
       Ok(encode_collab)
     },
-    CollabType::Database => default_database_data(object_id).await.map_err(Into::into),
-    CollabType::WorkspaceDatabase => Ok(default_workspace_database_data(object_id)),
+    CollabType::Database => default_database_data(object_id, client_id)
+      .await
+      .map_err(Into::into),
+    CollabType::WorkspaceDatabase => Ok(default_workspace_database_data(object_id, client_id)),
     CollabType::Folder => {
       // let collab = Collab::new_with_origin(CollabOrigin::Empty, object_id, vec![], false);
       // let workspace = Workspace::new(object_id.to_string(), "".to_string(), uid);
@@ -38,9 +41,9 @@ pub async fn default_encode_collab_for_collab_type(
     CollabType::DatabaseRow => {
       Err(FlowyError::not_support().with_context("Can not create default database row"))
     },
-    CollabType::UserAwareness => Ok(default_user_awareness_data(object_id)),
+    CollabType::UserAwareness => Ok(default_user_awareness_data(object_id, client_id)),
     CollabType::Unknown => {
-      let options = CollabOptions::new(object_id.to_string());
+      let options = CollabOptions::new(object_id.to_string(), client_id);
       let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
       let data = collab.encode_collab_v1(|_| Ok::<_, FlowyError>(()))?;
       Ok(data)

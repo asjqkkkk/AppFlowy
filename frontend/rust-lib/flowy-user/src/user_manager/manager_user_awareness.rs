@@ -3,7 +3,7 @@ use crate::notification::{send_notification, UserNotification};
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
 use anyhow::Context;
-use collab::core::collab::DataSource;
+use collab::core::collab::{default_client_id, DataSource};
 use collab::lock::RwLock;
 use collab_entity::reminder::Reminder;
 use collab_user::core::{UserAwareness, UserAwarenessNotifier};
@@ -204,9 +204,14 @@ impl UserManager {
         Self::collab_for_user_awareness(&weak_builder, &workspace_id, &object_id, doc_state, None)
           .await
       } else {
+        let client_id = match weak_builder.upgrade() {
+          None => default_client_id(),
+          Some(w) => w.client_id().await.unwrap_or(default_client_id()),
+        };
+
         let result = cloud_services
           .get_user_service()?
-          .get_user_awareness_doc_state(uid, &workspace_id, &object_id)
+          .get_user_awareness_doc_state(uid, &workspace_id, &object_id, client_id)
           .await;
 
         match result {

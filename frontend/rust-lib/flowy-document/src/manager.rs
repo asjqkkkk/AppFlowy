@@ -6,7 +6,7 @@ use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::lock::RwLock;
-use collab::preclude::Collab;
+use collab::preclude::{ClientID, Collab};
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_document::document_awareness::DocumentAwarenessState;
@@ -38,6 +38,7 @@ pub trait DocumentUserService: Send + Sync {
   fn device_id(&self) -> Result<String, FlowyError>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
+  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError>;
 }
 
 pub trait DocumentSnapshotService: Send + Sync {
@@ -81,6 +82,10 @@ impl DocumentManager {
       storage_service,
       snapshot_service,
     }
+  }
+
+  pub fn collab_client_id(&self, workspace_id: &Uuid) -> FlowyResult<ClientID> {
+    self.user_service.collab_client_id(workspace_id)
   }
 
   fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
@@ -167,7 +172,9 @@ impl DocumentManager {
         format!("document {} already exists", doc_id),
       ))
     } else {
-      let encoded_collab = doc_state_from_document_data(doc_id, data).await?;
+      let workspace_id = self.user_service.workspace_id()?;
+      let client_id = self.user_service.collab_client_id(&workspace_id)?;
+      let encoded_collab = doc_state_from_document_data(doc_id, data, client_id).await?;
       self
         .collab_builder()?
         .save_collab_to_disk(doc_id, encoded_collab.clone())?;
@@ -543,6 +550,7 @@ impl DocumentManager {
 async fn doc_state_from_document_data(
   doc_id: &Uuid,
   data: Option<DocumentData>,
+  client_id: ClientID,
 ) -> Result<EncodedCollab, FlowyError> {
   let doc_id = doc_id.to_string();
   let data = data.unwrap_or_else(|| {
@@ -554,7 +562,7 @@ async fn doc_state_from_document_data(
   });
   // spawn_blocking is used to avoid blocking the tokio thread pool if the document is large.
   let encoded_collab = tokio::task::spawn_blocking(move || {
-    let options = CollabOptions::new(doc_id.clone());
+    let options = CollabOptions::new(doc_id.clone(), client_id);
     let collab = Collab::new_with_options(CollabOrigin::Empty, options).map_err(internal_error)?;
     let document = Document::create_with_data(collab, data).map_err(internal_error)?;
     let encode_collab = document.encode_collab()?;

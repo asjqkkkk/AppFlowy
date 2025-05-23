@@ -10,6 +10,7 @@ pub use client_api::entity::billing_dto::SubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceSubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
 pub use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
+use collab::preclude::ClientID;
 use collab_entity::{CollabObject, CollabType};
 use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_error::{ErrorCode, FlowyError, internal_error};
@@ -247,6 +248,7 @@ pub trait UserCloudService: Send + Sync + 'static {
     uid: i64,
     workspace_id: &Uuid,
     object_id: &Uuid,
+    client_id: ClientID,
   ) -> Result<Vec<u8>, FlowyError>;
 
   fn receive_realtime_event(&self, _json: Value) {}

@@ -58,10 +58,11 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 
   async fn gather_publish_encode_collab(
     &self,
-    _user: &Arc<dyn FolderUser>,
+    user: &Arc<dyn FolderUser>,
     view_id: &Uuid,
   ) -> Result<GatherEncodedCollab, FlowyError> {
-    let workspace_id = _user.workspace_id()?;
+    let workspace_id = user.workspace_id()?;
+    let client_id = user.collab_client_id(&workspace_id);
     let view_id_str = view_id.to_string();
     let database_manager = self.database_manager()?;
     // get the collab_object_id for the database.
@@ -87,12 +88,12 @@ impl FolderOperationHandler for DatabaseFolderOperation {
       .collect::<Vec<_>>();
     let database_metas = database_manager.get_all_databases_meta().await;
 
-    let uid = _user
+    let uid = user
       .user_id()
       .map_err(|e| e.with_context("unable to get the uid: {}"))?;
 
     // get the collab db
-    let collab_db = _user
+    let collab_db = user
       .collab_db(uid)
       .map_err(|e| e.with_context("unable to get the collab"))?;
     let collab_db = collab_db.upgrade().ok_or_else(|| {
@@ -103,7 +104,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 
     tokio::task::spawn_blocking(move || {
             let collab_read_txn = collab_db.read_txn();
-            let database_collab = load_collab_by_object_id(uid, &collab_read_txn, &workspace_id.to_string(), &oid)
+            let database_collab = load_collab_by_object_id(uid, &collab_read_txn, &workspace_id.to_string(), &oid, client_id)
                 .map_err(|e| {
                     FlowyError::internal().with_context(format!("load database collab failed: {}", e))
                 })?;
@@ -116,7 +117,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
                 })?;
 
             let database_row_encoded_collabs =
-                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_oids)
+                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_oids,client_id)
                     .0
                     .into_iter()
                     .map(|(oid, collab)| {
@@ -142,7 +143,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
                 .collect::<HashMap<_, _>>();
 
             let database_row_document_encoded_collabs =
-                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_document_ids)
+                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_document_ids, client_id)
                     .0
                     .into_iter()
                     .map(|(oid, collab)| {

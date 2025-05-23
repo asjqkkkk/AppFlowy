@@ -1,6 +1,6 @@
 use crate::util::unzip;
 use assert_json_diff::assert_json_include;
-use collab::core::collab::{CollabOptions, DataSource};
+use collab::core::collab::{default_client_id, CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::{Any, Collab};
 use collab_database::rows::database_row_document_id_from_row_id;
@@ -44,8 +44,11 @@ async fn import_appflowy_data_with_ref_views_test() {
   let doc_state = test
     .get_document_doc_state(&imported_get_started_view_id)
     .await;
-  let options = CollabOptions::new(imported_get_started_view_id.to_string())
-    .with_data_source(DataSource::DocStateV1(doc_state));
+  let options = CollabOptions::new(
+    imported_get_started_view_id.to_string(),
+    default_client_id(),
+  )
+  .with_data_source(DataSource::DocStateV1(doc_state));
   let collab = Collab::new_with_options(CollabOrigin::Empty, options).unwrap();
   let document = Document::open(collab).unwrap();
 

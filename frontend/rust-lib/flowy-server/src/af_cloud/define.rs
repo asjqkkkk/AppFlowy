@@ -1,4 +1,5 @@
 use client_api::v2::ConnectState;
+use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};
@@ -36,6 +37,8 @@ pub trait LoggedUser: Send + Sync {
   fn get_collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
 
   fn application_root_dir(&self) -> Result<PathBuf, FlowyError>;
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }
 
 //

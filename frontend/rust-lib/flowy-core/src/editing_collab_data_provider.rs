@@ -1,5 +1,5 @@
 use client_api::v2::{ObjectId, WorkspaceId};
-use collab::core::collab::{CollabOptions, DataSource};
+use collab::core::collab::{default_client_id, CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::lock::RwLock;
@@ -285,7 +285,7 @@ pub fn unindexed_collab_from_encoded_collab(
 ) -> Option<UnindexedCollab> {
   match collab_type {
     CollabType::Document => {
-      let options = CollabOptions::new(object_id.to_string())
+      let options = CollabOptions::new(object_id.to_string(), default_client_id())
         .with_data_source(DataSource::DocStateV1(encoded_collab.doc_state.to_vec()));
       let collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
       let data = unindexed_data_form_collab(&collab, &collab_type)?;

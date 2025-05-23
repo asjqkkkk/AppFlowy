@@ -13,6 +13,8 @@ use crate::services::data_import::{
   generate_import_data, upload_collab_objects_data, ImportedFolder,
 };
 use crate::user_manager::UserManager;
+use collab::core::collab::default_client_id;
+use collab::preclude::ClientID;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_folder_pub::entities::{ImportFrom, ImportedCollabData, ImportedFolderData};
 use flowy_sqlite::ConnectionPool;
@@ -42,10 +44,22 @@ impl UserManager {
       .upgrade()
       .ok_or_else(|| FlowyError::internal().with_context("Collab db not found"))?;
 
+    let workspace_id = Uuid::parse_str(&current_session.workspace_id)?;
+    let client_id = self
+      .controller_by_wid
+      .get(&workspace_id)
+      .map(|w| w.client_id())
+      .unwrap_or_else(default_client_id);
+
     let cloned_current_session = current_session.clone();
     let import_data = tokio::task::spawn_blocking(move || {
-      generate_import_data(&cloned_current_session, &user_collab_db, imported_folder)
-        .map_err(|err| FlowyError::new(ErrorCode::AppFlowyDataFolderImportError, err.to_string()))
+      generate_import_data(
+        &cloned_current_session,
+        &user_collab_db,
+        imported_folder,
+        client_id,
+      )
+      .map_err(|err| FlowyError::new(ErrorCode::AppFlowyDataFolderImportError, err.to_string()))
     })
     .await??;
 
@@ -56,7 +70,7 @@ impl UserManager {
       import_data.collab_data.row_object_ids.len()
     );
     self
-      .upload_collab_data(&current_session, import_data.collab_data)
+      .upload_collab_data(&current_session, import_data.collab_data, client_id)
       .await?;
 
     self
@@ -99,6 +113,7 @@ impl UserManager {
     &self,
     current_session: &Session,
     collab_data: ImportedCollabData,
+    client_id: ClientID,
   ) -> Result<(), FlowyError> {
     let user = self
       .get_user_profile_from_disk(current_session.user_id, &current_session.workspace_id)
@@ -119,6 +134,7 @@ impl UserManager {
       &user.auth_type,
       collab_data,
       weak_user_cloud_service,
+      client_id,
     )
     .await
     {

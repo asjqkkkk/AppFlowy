@@ -88,7 +88,12 @@ where
       &self.logged_user,
       format!("Get {} document", document_id),
     )?;
-    let options = CollabOptions::new(document_id.to_string())
+    let client_id = self
+      .logged_user
+      .upgrade()
+      .ok_or_else(|| FlowyError::ref_drop().with_context("logged user is dropped"))?
+      .collab_client_id(workspace_id);
+    let options = CollabOptions::new(document_id.to_string(), client_id)
       .with_data_source(DataSource::DocStateV1(doc_state));
     let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
     let document = Document::open(collab)?;

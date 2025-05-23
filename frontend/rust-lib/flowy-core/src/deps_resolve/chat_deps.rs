@@ -1,4 +1,4 @@
-use collab::core::collab::{CollabOptions, DataSource};
+use collab::core::collab::{default_client_id, CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::updates::decoder::Decode;
 use collab::preclude::{Collab, StateVector};
@@ -88,6 +88,10 @@ impl AIExternalService for ChatQueryServiceImpl {
     mut rag_metadata_map: HashMap<Uuid, AFCollabMetadata>,
   ) -> Result<Vec<AFCollabMetadata>, FlowyError> {
     let mut result = Vec::new();
+    let client_id = self
+      .folder_service
+      .collab_client_id()
+      .unwrap_or(default_client_id());
 
     info!("[Embedding] sync rag documents: {:?}", rag_ids);
     for rag_id in rag_ids {
@@ -110,7 +114,7 @@ impl AIExternalService for ChatQueryServiceImpl {
       // Check if the state vector exists and detect changes
       if let Some(metadata) = rag_metadata_map.remove(&rag_id) {
         if let Ok(prev_sv) = StateVector::decode_v1(&metadata.prev_sync_state_vector) {
-          let options = CollabOptions::new(rag_id.to_string()).with_data_source(
+          let options = CollabOptions::new(rag_id.to_string(), client_id).with_data_source(
             DataSource::DocStateV1(query_collab.encoded_collab.doc_state.to_vec()),
           );
           if let Ok(collab) = Collab::new_with_options(CollabOrigin::Empty, options) {

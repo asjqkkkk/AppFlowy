@@ -3,6 +3,9 @@ use crate::services::db::UserDB;
 use crate::services::entities::{UserConfig, UserPaths};
 
 use arc_swap::ArcSwapOption;
+use client_api::v2::CollabKVActionExt;
+use collab::core::collab::default_client_id;
+use collab::preclude::ClientID;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::CollabKVDB;
@@ -76,6 +79,21 @@ impl AuthenticateUser {
 
   pub fn device_id(&self) -> FlowyResult<String> {
     Ok(self.user_config.device_id.to_string())
+  }
+
+  pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    let get_client_id = || {
+      let uid = self.user_id()?;
+      let db = self
+        .get_collab_db(uid)?
+        .upgrade()
+        .ok_or_else(|| FlowyError::internal().with_context("Unexpected error: CollabDB is None"))?;
+
+      let client_id = db.read_txn().client_id(workspace_id)?;
+      Ok::<_, FlowyError>(client_id)
+    };
+
+    get_client_id().unwrap_or_else(|_| default_client_id())
   }
 
   pub fn workspace_id(&self) -> FlowyResult<Uuid> {

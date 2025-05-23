@@ -1,7 +1,6 @@
-use std::ops::Deref;
-use std::sync::{Arc, OnceLock, Weak};
-
+use collab::core::collab::default_client_id;
 use collab::entity::EncodedCollab;
+use collab::preclude::ClientID;
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_document::document_data::default_document_data;
@@ -16,6 +15,8 @@ use flowy_user_pub::workspace_collab::adaptor_trait::WorkspaceCollabUser;
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;
 use nanoid::nanoid;
+use std::ops::Deref;
+use std::sync::{Arc, OnceLock, Weak};
 use tempfile::TempDir;
 use tokio::sync::RwLock;
 use tracing_subscriber::{EnvFilter, fmt::Subscriber, util::SubscriberInitExt};
@@ -99,6 +100,10 @@ impl DocumentUserService for FakeUser {
 
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok("".to_string())
+  }
+
+  fn collab_client_id(&self, _workspace_id: &Uuid) -> Result<ClientID, FlowyError> {
+    Ok(default_client_id())
   }
 }
 

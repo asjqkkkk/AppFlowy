@@ -10,7 +10,7 @@ use collab::core::origin::CollabOrigin;
 
 use collab::preclude::updates::decoder::Decode;
 use collab::preclude::updates::encoder::Encode;
-use collab::preclude::{Any, Collab, Doc, ReadTxn, StateVector, Transact, Update};
+use collab::preclude::{Any, ClientID, Collab, Doc, ReadTxn, StateVector, Transact, Update};
 use collab_database::database::{
   is_database_collab, mut_database_views_with_collab, reset_inline_view_id,
 };
@@ -165,6 +165,7 @@ pub(crate) fn generate_import_data(
   current_session: &Session,
   user_collab_db: &Arc<CollabKVDB>,
   imported_folder: ImportedFolder,
+  client_id: ClientID,
 ) -> anyhow::Result<ImportedAppFlowyData> {
   info!(
     "[AppflowyData]:importing workspace: {}",
@@ -229,6 +230,7 @@ pub(crate) fn generate_import_data(
       &imported_collab_db_read_txn,
       &mut database_view_ids_by_database_id,
       &mut database_object_ids,
+      client_id,
     ) {
       error!("[AppflowyData]:import workspace database fail: {}", err);
     }
@@ -248,6 +250,7 @@ pub(crate) fn generate_import_data(
       &imported_workspace_id,
       &imported_collab_db_read_txn,
       &all_imported_object_ids,
+      client_id,
     );
 
     // remove the invalid object ids from the object ids
@@ -272,6 +275,7 @@ pub(crate) fn generate_import_data(
       &mut all_imported_object_ids,
       &mut imported_collab_by_oid,
       &mut row_object_ids,
+      client_id,
     )?;
 
     migrate_database_rows(
@@ -280,6 +284,7 @@ pub(crate) fn generate_import_data(
       current_collab_db_write_txn,
       &mut imported_collab_by_oid,
       database_row_ids,
+      client_id,
     )?;
 
     // Update the parent view IDs of all top-level views to match the new container view ID, making
@@ -297,6 +302,7 @@ pub(crate) fn generate_import_data(
       &imported_collab_db_read_txn,
       &imported_collab_by_oid,
       &database_view_ids,
+      client_id,
     )?;
 
     // Create collaboration documents for views that don't have existing collaboration objects.
@@ -308,6 +314,7 @@ pub(crate) fn generate_import_data(
         &current_session.workspace_id,
         &view_id,
         current_collab_db_write_txn,
+        client_id,
       ) {
         error!(
           "[AppflowyData]: create empty document for view failed: {}",
@@ -328,6 +335,7 @@ pub(crate) fn generate_import_data(
             imported_collab,
             CollabType::Document,
             &old_to_new_id_map,
+            client_id,
           )
         };
         f()
@@ -354,6 +362,7 @@ pub(crate) fn generate_import_data(
             current_collab_db_write_txn,
             child_views,
             container_name,
+            client_id,
           )?];
           Ok((child_views, orphan_views))
         },
@@ -377,6 +386,7 @@ pub(crate) fn generate_import_data(
         current_collab_db_write_txn,
         invalid_orphan_views,
         "Others".to_string(),
+        client_id,
       )?;
 
       // if the views is empty, the other view is the top level view
@@ -421,17 +431,18 @@ fn create_empty_document_for_view<'a, W>(
   workspace_id: &str,
   view_id: &str,
   collab_write_txn: &'a W,
+  client_id: ClientID,
 ) -> FlowyResult<()>
 where
   W: CollabKVAction<'a>,
   PersistenceError: From<W::Error>,
 {
-  let import_container_doc_state = default_document_collab_data(view_id)
+  let import_container_doc_state = default_document_collab_data(view_id, client_id)
     .map_err(|err| PersistenceError::InvalidData(err.to_string()))?
     .doc_state
     .to_vec();
 
-  let options = CollabOptions::new(view_id.to_string())
+  let options = CollabOptions::new(view_id.to_string(), client_id)
     .with_data_source(DataSource::DocStateV1(import_container_doc_state));
   let collab = Collab::new_with_options(CollabOrigin::Empty, options)
     .map_err(|err| PersistenceError::InvalidData(err.to_string()))?;
@@ -455,6 +466,7 @@ fn create_new_container_view<'a, W>(
   collab_write_txn: &'a W,
   mut child_views: Vec<ParentChildViews>,
   container_name: String,
+  client_id: ClientID,
 ) -> Result<ParentChildViews, PersistenceError>
 where
   W: CollabKVAction<'a>,
@@ -480,12 +492,13 @@ where
   };
 
   // create the content for the container view
-  let import_container_doc_state = default_document_collab_data(import_container_view_id)
-    .map_err(|err| PersistenceError::InvalidData(err.to_string()))?
-    .doc_state
-    .to_vec();
+  let import_container_doc_state =
+    default_document_collab_data(import_container_view_id, client_id)
+      .map_err(|err| PersistenceError::InvalidData(err.to_string()))?
+      .doc_state
+      .to_vec();
 
-  let options = CollabOptions::new(import_container_view_id.to_string())
+  let options = CollabOptions::new(import_container_view_id.to_string(), client_id)
     .with_data_source(DataSource::DocStateV1(import_container_doc_state));
   let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
   write_collab_object(
@@ -520,6 +533,7 @@ fn mapping_workspace_database_ids<'a, W>(
   imported_collab_db_read_txn: &W,
   database_view_ids_by_database_id: &mut HashMap<String, Vec<String>>,
   database_object_ids: &mut HashSet<String>,
+  client_id: ClientID,
 ) -> Result<(), PersistenceError>
 where
   W: CollabKVAction<'a>,
@@ -529,7 +543,7 @@ where
     imported_session.user_id,
     imported_session_workspace_database_id,
     "import_device",
-    None,
+    client_id,
   );
   imported_collab_db_read_txn.load_doc_with_txn(
     imported_session.user_id,
@@ -541,6 +555,7 @@ where
   let workspace_database = init_workspace_database(
     imported_session_workspace_database_id,
     workspace_database_collab,
+    client_id,
   );
   for database_meta_list in workspace_database.get_all_database_meta() {
     database_view_ids_by_database_id.insert(
@@ -561,7 +576,11 @@ where
   Ok(())
 }
 
-fn init_workspace_database(object_id: &str, collab: Collab) -> WorkspaceDatabase {
+fn init_workspace_database(
+  object_id: &str,
+  collab: Collab,
+  client_id: ClientID,
+) -> WorkspaceDatabase {
   match WorkspaceDatabase::open(collab) {
     Ok(body) => body,
     Err(err) => {
@@ -569,7 +588,7 @@ fn init_workspace_database(object_id: &str, collab: Collab) -> WorkspaceDatabase
         "[AppflowyData]:init workspace database body failed: {:?}, create a new one",
         err
       );
-      let options = CollabOptions::new(object_id.to_string());
+      let options = CollabOptions::new(object_id.to_string(), client_id);
       let collab = Collab::new_with_options(CollabOrigin::Empty, options)
         .unwrap_or_else(|_| panic!("Failed to create collab"));
       WorkspaceDatabase::create(collab)
@@ -590,6 +609,7 @@ fn migrate_databases<'a, W>(
   all_imported_object_ids: &mut Vec<String>,
   imported_collab_by_oid: &mut HashMap<String, Collab>,
   row_object_ids: &mut HashSet<String>,
+  client_id: ClientID,
 ) -> Result<MigrateDatabase, PersistenceError>
 where
   W: CollabKVAction<'a>,
@@ -684,6 +704,7 @@ where
         imported_collab,
         CollabType::Document,
         old_to_new_id_map,
+        client_id,
       )
     })
     .collect::<Vec<_>>();
@@ -721,6 +742,7 @@ fn migrate_database_rows<'a, W>(
   collab_write_txn: &'a W,
   imported_collab_by_oid: &mut HashMap<String, Collab>,
   imported_database_row_object_ids: HashMap<String, HashSet<String>>,
+  client_id: ClientID,
 ) -> Result<(), PersistenceError>
 where
   W: CollabKVAction<'a>,
@@ -769,6 +791,7 @@ where
             imported_collab,
             CollabType::DatabaseRow,
             old_to_new_id_map,
+            client_id,
           ),
         }
       })
@@ -864,6 +887,7 @@ fn gen_sv_and_doc_state(
   collab: &Collab,
   collab_type: CollabType,
   ids_map: &OldToNewIdMap,
+  client_id: ClientID,
 ) -> Option<GenCollab> {
   let encoded_collab = collab
     .encode_collab_v1(|collab| collab_type.validate_require_data(collab))
@@ -871,8 +895,8 @@ fn gen_sv_and_doc_state(
 
   let (state_vector, doc_state) = match collab_type {
     CollabType::Document => {
-      let options =
-        CollabOptions::new(object_id.to_string()).with_data_source(encoded_collab.into());
+      let options = CollabOptions::new(object_id.to_string(), client_id)
+        .with_data_source(encoded_collab.into());
       let collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
       let mut document = Document::open(collab).ok()?;
       if let Err(err) = replace_document_ref_ids(&mut document, ids_map) {
@@ -928,6 +952,7 @@ fn migrate_folder_views<'a, W>(
   imported_collab_db_read_txn: &W,
   imported_collab_by_oid: &HashMap<String, Collab>,
   database_view_ids: &HashSet<String>,
+  client_id: ClientID,
 ) -> Result<MigrateViews, PersistenceError>
 where
   W: CollabKVAction<'a>,
@@ -937,7 +962,7 @@ where
     imported_session.user_id,
     &imported_session.workspace_id,
     "migrate_device",
-    None,
+    client_id,
   );
 
   imported_collab_db_read_txn
@@ -1181,6 +1206,7 @@ pub async fn upload_collab_objects_data(
   user_authenticator: &AuthType,
   collab_data: ImportedCollabData,
   user_cloud_service: Arc<dyn UserCloudService>,
+  client_id: ClientID,
 ) -> Result<(), FlowyError> {
   // Only support uploading the collab data when the current server is AppFlowy Cloud server
   if !user_authenticator.is_appflowy_cloud() {
@@ -1215,6 +1241,7 @@ pub async fn upload_collab_objects_data(
           &cloned_workspace_id,
           &collab_read,
           &database_object_ids,
+          client_id,
         ),
       );
 
@@ -1229,6 +1256,7 @@ pub async fn upload_collab_objects_data(
           &cloned_workspace_id,
           &collab_read,
           &document_object_ids,
+          client_id,
         ),
       );
 
@@ -1238,7 +1266,13 @@ pub async fn upload_collab_objects_data(
       );
       object_by_collab_type.insert(
         CollabType::DatabaseRow,
-        load_and_process_collab_data(uid, &cloned_workspace_id, &collab_read, &row_object_ids),
+        load_and_process_collab_data(
+          uid,
+          &cloned_workspace_id,
+          &collab_read,
+          &row_object_ids,
+          client_id,
+        ),
       );
       Ok::<_, FlowyError>(object_by_collab_type)
     })
@@ -1310,12 +1344,13 @@ fn load_and_process_collab_data<'a, R>(
   workspace_id: &str,
   collab_read: &R,
   object_ids: &[String],
+  client_id: ClientID,
 ) -> HashMap<String, Vec<u8>>
 where
   R: CollabKVAction<'a>,
   PersistenceError: From<R::Error>,
 {
-  load_collab_by_object_ids(uid, workspace_id, collab_read, object_ids)
+  load_collab_by_object_ids(uid, workspace_id, collab_read, object_ids, client_id)
     .0
     .into_iter()
     .filter_map(|(oid, collab)| {

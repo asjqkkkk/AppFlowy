@@ -1,5 +1,6 @@
 use crate::editing_collab_data_consumer::index_views_from_folder;
 use client_api::entity::workspace_dto::ViewIcon;
+use collab::core::collab::default_client_id;
 use collab::preclude::Collab;
 use collab_entity::CollabType;
 use collab_folder::{View, ViewLayout};
@@ -259,7 +260,7 @@ impl FullIndexedDataWriter {
         match collab_type {
           CollabType::Document => {
             // 1) Load into a Collab
-            let mut collab = Collab::new(uid, &object_str, "indexing_device", None);
+            let mut collab = Collab::new(uid, &object_str, "indexing_device", default_client_id());
             let load_success = {
               let mut txn = collab.transact_mut();
               read_txn

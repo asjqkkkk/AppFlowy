@@ -1,5 +1,5 @@
 use crate::user_event::TestNotificationSender;
-use collab::core::collab::{CollabOptions, DataSource};
+use collab::core::collab::{default_client_id, CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::Collab;
 use collab_document::blocks::DocumentData;
@@ -175,8 +175,8 @@ pub fn document_data_from_document_doc_state(doc_id: &str, doc_state: Vec<u8>) -
 }
 
 pub fn document_from_document_doc_state(doc_id: &str, doc_state: Vec<u8>) -> Document {
-  let options =
-    CollabOptions::new(doc_id.to_string()).with_data_source(DataSource::DocStateV1(doc_state));
+  let options = CollabOptions::new(doc_id.to_string(), default_client_id())
+    .with_data_source(DataSource::DocStateV1(doc_state));
   let collab = Collab::new_with_options(CollabOrigin::Empty, options).unwrap();
   Document::open(collab).unwrap()
 }

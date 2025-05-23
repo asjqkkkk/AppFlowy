@@ -4,12 +4,12 @@ use std::sync::{Arc, Weak};
 
 use anyhow::{Error, anyhow};
 use client_api::v2::WorkspaceController;
-use collab::core::collab::{CollabOptions, DataSource};
+use collab::core::collab::{CollabOptions, DataSource, default_client_id};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::entity::EncodedCollab;
 use collab::error::CollabError;
-use collab::preclude::{Collab, Transact};
+use collab::preclude::{ClientID, Collab, Transact};
 use collab_database::workspace_database::{
   CollabRef, DatabaseCollabService, WorkspaceDatabaseManager,
 };
@@ -77,6 +77,10 @@ impl WorkspaceCollabAdaptor {
       user: Arc::new(user),
       index_task_handle: Default::default(),
     }
+  }
+
+  pub async fn client_id(&self) -> FlowyResult<ClientID> {
+    Ok(self.get_controller().await?.client_id())
   }
 
   pub async fn set_controller(&self, controller: Weak<WorkspaceController>) {
@@ -234,9 +238,8 @@ impl WorkspaceCollabAdaptor {
     let controller = self.get_controller().await?;
     let client_id = controller.client_id();
     let origin = CollabOrigin::Client(CollabClient::new(uid, device_id));
-    let options = CollabOptions::new(object_id.to_string())
-      .with_data_source(data_source)
-      .with_client_id(Some(client_id));
+    let options =
+      CollabOptions::new(object_id.to_string(), client_id).with_data_source(data_source);
 
     trace!(
       "Build collab:{}:{} with client_id: {:?}",
@@ -410,7 +413,7 @@ pub fn unindexed_data_from_object(
     return Err(FlowyError::record_not_found());
   }
 
-  let options = CollabOptions::new(object_id.clone());
+  let options = CollabOptions::new(object_id.clone(), default_client_id());
   let mut collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
   let mut txn = collab.transact_mut();
   read_txn.load_doc_with_txn(uid, &workspace_id, &object_id, &mut txn)?;

@@ -1,10 +1,10 @@
 use anyhow::anyhow;
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
-use collab::core::collab::{CollabOptions, DataSource};
+use collab::core::collab::{CollabOptions, DataSource, default_client_id};
 use collab::core::origin::CollabOrigin;
 use collab::lock::RwLock;
-use collab::preclude::Collab;
+use collab::preclude::{ClientID, Collab};
 use collab_database::database::{Database, DatabaseData};
 use collab_database::entity::{CreateDatabaseParams, CreateViewParams, EncodedDatabase};
 use collab_database::error::DatabaseError;
@@ -51,6 +51,7 @@ pub trait DatabaseUser: Send + Sync {
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn workspace_database_object_id(&self) -> Result<Uuid, FlowyError>;
+  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError>;
 }
 
 pub(crate) type DatabaseEditorMap = HashMap<String, Arc<DatabaseEditor>>;
@@ -886,6 +887,13 @@ impl WorkspaceDatabaseCollabServiceImpl {
 
 #[async_trait]
 impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
+  async fn client_id(&self) -> ClientID {
+    match self.collab_builder.upgrade() {
+      None => default_client_id(),
+      Some(b) => b.client_id().await.unwrap_or(default_client_id()),
+    }
+  }
+
   ///NOTE: this method doesn't initialize plugins, however it is passed into WorkspaceDatabase,
   /// therefore all Database/DatabaseRow creation methods must initialize plugins thmselves.
   #[instrument(level = "trace", skip_all)]
@@ -1066,18 +1074,19 @@ impl DatabaseCollabPersistenceService for DatabasePersistenceImpl {
   }
 
   fn get_encoded_collab(&self, object_id: &str, collab_type: CollabType) -> Option<EncodedCollab> {
-    let workspace_id = self.user.workspace_id().ok()?.to_string();
+    let workspace_id = self.user.workspace_id().ok()?;
     let uid = self.user.user_id().ok()?;
     let db = self.user.collab_db(uid).ok()?.upgrade()?;
     let read_txn = db.read_txn();
-    if !read_txn.is_exist(uid, workspace_id.as_str(), object_id) {
+    if !read_txn.is_exist(uid, workspace_id.to_string().as_str(), object_id) {
       return None;
     }
 
-    let options = CollabOptions::new(object_id.to_string());
+    let client_id = self.user.collab_client_id(&workspace_id).ok()?;
+    let options = CollabOptions::new(object_id.to_string(), client_id);
     let mut collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
     let mut txn = collab.transact_mut();
-    let _ = read_txn.load_doc_with_txn(uid, workspace_id.as_str(), object_id, &mut txn);
+    let _ = read_txn.load_doc_with_txn(uid, workspace_id.to_string().as_str(), object_id, &mut txn);
     drop(txn);
 
     collab

@@ -17,6 +17,7 @@ use client_api::entity::{
 };
 use client_api::entity::{QueryCollab, QueryCollabParams};
 use client_api::{Client, ClientConfiguration};
+use collab::preclude::ClientID;
 use collab_entity::{CollabObject, CollabType};
 use tracing::{instrument, trace};
 
@@ -345,6 +346,7 @@ where
     _uid: i64,
     workspace_id: &Uuid,
     object_id: &Uuid,
+    _client_id: ClientID,
   ) -> Result<Vec<u8>, FlowyError> {
     let try_get_client = self.server.try_get_client();
     let cloned_user = self.logged_user.clone();

@@ -1,5 +1,6 @@
 use crate::user::af_cloud_test::util::get_synced_workspaces;
 use crate::util::unzip;
+use collab::core::collab::default_client_id;
 use collab::core::collab::DataSource::DocStateV1;
 use collab::core::origin::CollabOrigin;
 use collab_entity::CollabType;
@@ -351,6 +352,7 @@ async fn af_cloud_open_different_workspace_test() {
     CollabOrigin::Empty,
     DocStateV1(doc_state),
     &shared_workspace_id,
+    default_client_id(),
   )
   .unwrap();
 

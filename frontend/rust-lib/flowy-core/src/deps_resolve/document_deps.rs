@@ -1,4 +1,5 @@
 use crate::deps_resolve::CollabSnapshotSql;
+use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_document::entities::{DocumentSnapshotData, DocumentSnapshotMeta};
 use flowy_document::manager::{DocumentManager, DocumentSnapshotService, DocumentUserService};
@@ -109,5 +110,15 @@ impl DocumentUserService for DocumentUserImpl {
       .upgrade()
       .ok_or(FlowyError::internal().with_context("Unexpected error: UserSession is None"))?
       .get_collab_db(uid)
+  }
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> Result<ClientID, FlowyError> {
+    Ok(
+      self
+        .0
+        .upgrade()
+        .ok_or(FlowyError::internal().with_context("Unexpected error: UserSession is None"))?
+        .collab_client_id(workspace_id),
+    )
   }
 }
