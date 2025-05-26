@@ -82,9 +82,11 @@ class _AFBaseButtonState extends State<AFBaseButton> {
           setState(() => this.isFocused = isFocused);
         },
         child: MouseRegion(
-          cursor: widget.disabled
+          cursor: widget.onTap == null
               ? SystemMouseCursors.basic
-              : SystemMouseCursors.click,
+              : widget.disabled
+                  ? SystemMouseCursors.basic
+                  : SystemMouseCursors.click,
           onEnter: (_) => setState(() => isHovering = true),
           onExit: (_) => setState(() => isHovering = false),
           child: GestureDetector(
@@ -126,13 +128,13 @@ class _AFBaseButtonState extends State<AFBaseButton> {
     final theme = AppFlowyTheme.of(context);
     return widget.borderColor
             ?.call(context, isHovering, widget.disabled, isFocused) ??
-        theme.borderColorScheme.greyTertiary;
+        theme.borderColorScheme.primary;
   }
 
   Color _buildBackgroundColor(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     return widget.backgroundColor?.call(context, isHovering, widget.disabled) ??
-        theme.fillColorScheme.transparent;
+        theme.fillColorScheme.content;
   }
 
   Color _buildRingColor(BuildContext context) {
@@ -147,6 +149,6 @@ class _AFBaseButtonState extends State<AFBaseButton> {
       return theme.borderColorScheme.themeThick.withAlpha(128);
     }
 
-    return theme.borderColorScheme.transparent;
+    return Colors.transparent;
   }
 }

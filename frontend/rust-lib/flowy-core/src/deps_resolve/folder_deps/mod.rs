@@ -20,6 +20,7 @@ use flowy_folder::manager::{FolderManager, FolderUser};
 use flowy_folder::ViewLayout;
 use flowy_folder_pub::query::{FolderQueryService, FolderService, FolderViewEdit, QueryCollab};
 use flowy_sqlite::kv::KVStorePreferences;
+use flowy_sqlite::DBConnection;
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user::services::data_import::load_collab_by_object_id;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
@@ -109,6 +110,10 @@ impl FolderUser for FolderUserImpl {
     self
       .upgrade_user()?
       .is_collab_on_disk(uid, workspace_id.to_string().as_str())
+  }
+
+  fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError> {
+    self.upgrade_user()?.get_sqlite_connection(uid)
   }
 }
 
