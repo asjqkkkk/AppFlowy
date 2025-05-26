@@ -291,7 +291,7 @@ impl WorkspaceCollabAdaptor {
   ) -> Result<(), Error> {
     self.spawn_indexing_task(workspace_id, object_id, collab_type);
     let controller = self.get_controller().await?;
-    controller.bind(collab, collab_type).await?;
+    controller.bind(collab, collab_type)?;
     Ok(())
   }
 
