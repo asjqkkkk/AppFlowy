@@ -4,6 +4,7 @@ import 'package:appflowy/workspace/application/action_navigation/action_navigati
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/recent/recent_views_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy/workspace/presentation/command_palette/widgets/search_special_styles.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra/theme_extension.dart';
@@ -19,11 +20,13 @@ class SearchRecentViewCell extends StatefulWidget {
     required this.icon,
     required this.view,
     required this.onSelected,
+    required this.isNarrowWindow,
   });
 
   final Widget icon;
   final ViewPB view;
   final VoidCallback onSelected;
+  final bool isNarrowWindow;
 
   @override
   State<SearchRecentViewCell> createState() => _SearchRecentViewCellState();
@@ -42,11 +45,10 @@ class _SearchRecentViewCellState extends State<SearchRecentViewCell> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context),
-        textColor = theme.textColorScheme.primary;
+    final theme = AppFlowyTheme.of(context);
     final sapceM = theme.spacing.m, spaceL = theme.spacing.l;
     final bloc = context.read<RecentViewsBloc>(), state = bloc.state;
-    final hoveredView = state.hoveredView;
+    final hoveredView = state.hoveredView, hasHovered = hoveredView != null;
     final hovering = hoveredView == view;
 
     return GestureDetector(
@@ -74,30 +76,34 @@ class _SearchRecentViewCellState extends State<SearchRecentViewCell> {
           },
           style: HoverStyle(
             borderRadius: BorderRadius.circular(8),
-            hoverColor: Theme.of(context).colorScheme.secondary,
+            hoverColor: theme.fillColorScheme.contentHover,
             foregroundColorOnHover: AFThemeExtension.of(context).textColor,
           ),
           isSelected: () => hovering,
           child: Padding(
             padding: EdgeInsets.symmetric(vertical: spaceL, horizontal: sapceM),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                widget.icon,
-                HSpace(12),
-                Flexible(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        view.nameOrDefault,
-                        style: theme.textStyle.body.standard(color: textColor),
-                      ),
-                      buildPath(theme),
-                    ],
+            child: SizedBox(
+              height: 20,
+              child: Row(
+                children: [
+                  widget.icon,
+                  HSpace(8),
+                  Container(
+                    constraints: BoxConstraints(
+                      maxWidth: (!widget.isNarrowWindow && hasHovered)
+                          ? 480.0
+                          : 680.0,
+                    ),
+                    child: Text(
+                      view.nameOrDefault,
+                      maxLines: 1,
+                      style: context.searchPanelTitle2.copyWith(height: 1),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
-                ),
-              ],
+                  Flexible(child: buildPath(theme)),
+                ],
+              ),
             ),
           ),
         ),
@@ -109,7 +115,10 @@ class _SearchRecentViewCellState extends State<SearchRecentViewCell> {
     return BlocProvider(
       create: (context) => ViewAncestorBloc(view.id),
       child: BlocBuilder<ViewAncestorBloc, ViewAncestorState>(
-        builder: (context, state) => state.buildPath(context),
+        builder: (context, state) {
+          if (state.ancestor.ancestors.isEmpty) return const SizedBox.shrink();
+          return state.buildOnelinePath(context);
+        },
       ),
     );
   }

@@ -46,6 +46,9 @@ enum FeatureFlag {
   // this value should be false in the production environment
   createVaultWorkspace,
 
+  // used for the shared section
+  sharedSection,
+
   // used for ignore the conflicted feature flag
   unknown;
 
@@ -130,6 +133,7 @@ enum FeatureFlag {
       case FeatureFlag.membersSettings:
         return true;
       case FeatureFlag.createVaultWorkspace:
+      case FeatureFlag.sharedSection:
       case FeatureFlag.unknown:
         return false;
     }
@@ -155,6 +159,8 @@ enum FeatureFlag {
         return 'if it\'s on, the inline sub-page mention feature will be available';
       case FeatureFlag.createVaultWorkspace:
         return 'if it\'s on, the create vault workspace feature will be available';
+      case FeatureFlag.sharedSection:
+        return 'if it\'s on, the shared section will be available';
       case FeatureFlag.unknown:
         return '';
     }
