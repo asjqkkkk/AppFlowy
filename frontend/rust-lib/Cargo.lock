@@ -1995,6 +1995,7 @@ dependencies = [
  "flowy-core",
  "flowy-database2",
  "flowy-document",
+ "flowy-error",
  "flowy-folder",
  "flowy-folder-pub",
  "flowy-notification",

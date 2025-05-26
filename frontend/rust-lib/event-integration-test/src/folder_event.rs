@@ -14,7 +14,7 @@ use flowy_user::entities::{
   RepeatedWorkspaceInvitationPB, RepeatedWorkspaceMemberPB, UserWorkspaceIdPB, UserWorkspacePB,
   WorkspaceMemberInvitationPB, WorkspaceMemberPB,
 };
-use flowy_user::errors::FlowyError;
+use flowy_user::errors::{FlowyError, FlowyResult};
 use flowy_user::event_map::UserEvent;
 use flowy_user_pub::entities::Role;
 use uuid::Uuid;
@@ -60,7 +60,7 @@ impl EventIntegrationTest {
       .event(UserEvent::ListWorkspaceInvitations)
       .async_send()
       .await
-      .parse()
+      .parse_or_panic()
   }
 
   pub async fn accept_workspace_invitation(&self, invitation_id: &str) {
@@ -100,7 +100,7 @@ impl EventIntegrationTest {
       })
       .async_send()
       .await
-      .parse::<RepeatedWorkspaceMemberPB>()
+      .parse_or_panic::<RepeatedWorkspaceMemberPB>()
       .items
   }
 
@@ -109,7 +109,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::ReadCurrentWorkspace)
       .async_send()
       .await
-      .parse::<WorkspacePB>()
+      .parse_or_panic::<WorkspacePB>()
   }
 
   pub async fn get_latest_workspace(&self) -> WorkspaceLatestPB {
@@ -125,7 +125,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::ReadCurrentWorkspace)
       .async_send()
       .await
-      .parse::<WorkspacePB>();
+      .parse_or_panic::<WorkspacePB>();
     Uuid::from_str(&a.id).unwrap()
   }
 
@@ -138,7 +138,7 @@ impl EventIntegrationTest {
       .payload(payload)
       .async_send()
       .await
-      .parse::<UserWorkspacePB>()
+      .parse_or_panic::<UserWorkspacePB>()
   }
 
   pub fn get_folder_search_handler(&self) -> Arc<dyn SearchHandler> {
@@ -239,7 +239,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::ReadCurrentWorkspaceViews)
       .async_send()
       .await
-      .parse::<RepeatedViewPB>()
+      .parse_or_panic::<RepeatedViewPB>()
       .items
   }
 
@@ -249,7 +249,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetAllViews)
       .async_send()
       .await
-      .parse::<RepeatedViewPB>()
+      .parse_or_panic::<RepeatedViewPB>()
       .items
   }
 
@@ -258,7 +258,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::ListTrashItems)
       .async_send()
       .await
-      .parse::<RepeatedTrashPB>()
+      .parse_or_panic::<RepeatedTrashPB>()
   }
 
   pub async fn delete_view(&self, view_id: &str) {
@@ -327,7 +327,7 @@ impl EventIntegrationTest {
       .payload(payload)
       .async_send()
       .await
-      .parse::<ViewPB>()
+      .parse_or_panic::<ViewPB>()
   }
 
   pub async fn get_view(&self, view_id: &str) -> ViewPB {
@@ -338,17 +338,16 @@ impl EventIntegrationTest {
       })
       .async_send()
       .await
-      .parse::<ViewPB>()
+      .parse_or_panic::<ViewPB>()
   }
 
-  pub async fn import_data(&self, data: ImportPayloadPB) -> Vec<ViewPB> {
+  pub async fn import_data(&self, data: ImportPayloadPB) -> FlowyResult<RepeatedViewPB> {
     EventBuilder::new(self.clone())
       .event(FolderEvent::ImportData)
       .payload(data)
       .async_send()
       .await
       .parse::<RepeatedViewPB>()
-      .items
   }
 
   pub async fn get_view_ancestors(&self, view_id: &str) -> Vec<ViewPB> {
@@ -359,7 +358,7 @@ impl EventIntegrationTest {
       })
       .async_send()
       .await
-      .parse::<RepeatedViewPB>()
+      .parse_or_panic::<RepeatedViewPB>()
       .items
   }
 }
@@ -393,7 +392,7 @@ impl ViewTest {
       .payload(payload)
       .async_send()
       .await
-      .parse::<ViewPB>();
+      .parse_or_panic::<ViewPB>();
 
     Self {
       sdk: sdk.clone(),
