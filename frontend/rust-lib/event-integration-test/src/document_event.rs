@@ -103,7 +103,7 @@ impl EventIntegrationTest {
       })
       .async_send()
       .await
-      .parse::<DocumentTextPB>()
+      .parse_or_panic::<DocumentTextPB>()
   }
 
   pub async fn get_document_doc_state(&self, document_id: &str) -> Vec<u8> {

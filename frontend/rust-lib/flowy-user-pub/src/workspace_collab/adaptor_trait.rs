@@ -53,7 +53,7 @@ pub trait EditingCollabDataConsumer: Send + Sync + 'static {
   async fn consume_collab(
     &self,
     workspace_id: &Uuid,
-    data: UnindexedData,
+    data: Option<UnindexedData>,
     object_id: &Uuid,
     collab_type: CollabType,
   ) -> Result<bool, FlowyError>;

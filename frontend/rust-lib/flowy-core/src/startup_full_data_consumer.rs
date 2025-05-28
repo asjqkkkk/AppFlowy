@@ -26,7 +26,7 @@ impl FullIndexedDataConsumer for EmbeddingFullIndexConsumer {
       return Ok(());
     }
 
-    if data.data.is_empty() {
+    if data.is_empty() {
       return Ok(());
     }
 
@@ -70,8 +70,8 @@ impl FullIndexedDataConsumer for SearchFullIndexConsumer {
       .upgrade()
       .ok_or_else(|| FlowyError::internal().with_context("Tantivy state dropped"))?;
     let object_id = data.object_id.to_string();
-    let content = data.data.clone().into_string();
 
+    let content = data.data.clone().map(|v| v.into_string());
     strong.write().await.add_document(
       &object_id,
       content,

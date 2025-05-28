@@ -117,7 +117,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetCurrentWorkspaceSetting)
       .async_send()
       .await
-      .parse::<WorkspaceLatestPB>()
+      .parse_or_panic::<WorkspaceLatestPB>()
   }
 
   pub async fn get_workspace_id(&self) -> Uuid {

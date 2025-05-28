@@ -284,8 +284,11 @@ async fn spawn_generate_embeddings(
             for record in records {
               if let Some(indexer) = indexer_provider.indexer_for(record.collab_type) {
                 let paragraphs = match record.data {
-                  UnindexedData::Paragraphs(paragraphs) => paragraphs,
-                  UnindexedData::Text(text) => text.split('\n').map(|s| s.to_string()).collect(),
+                 None => continue,
+                  Some(data) => match data {
+                    UnindexedData::Paragraphs(paragraphs) => paragraphs,
+                    UnindexedData::Text(text) => text.split('\n').map(|s| s.to_string()).collect(),
+                  }
                 };
                 let embedder = embedder.clone();
                 match indexer.create_embedded_chunks_from_text(

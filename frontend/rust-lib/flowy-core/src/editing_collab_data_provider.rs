@@ -138,7 +138,7 @@ impl EditingCollabDataProvider {
             wo.collab_type,
             db.as_ref(),
           ) {
-            Ok(Some(data)) => {
+            Ok(data) => {
               let consumers_guard = consumers.read().await;
               for consumer in consumers_guard.iter() {
                 trace!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
@@ -167,9 +167,6 @@ impl EditingCollabDataProvider {
                 }
               }
               //
-            },
-            Ok(None) => {
-              trace!("[Indexing] {} has no indexed data", id);
             },
             Err(err) => {
               trace!(
@@ -293,7 +290,7 @@ pub fn unindexed_collab_from_encoded_collab(
         workspace_id,
         object_id,
         collab_type,
-        data,
+        data: Some(data),
         metadata: UnindexedCollabMetadata::default(), // default means do not update metadata
       })
     },

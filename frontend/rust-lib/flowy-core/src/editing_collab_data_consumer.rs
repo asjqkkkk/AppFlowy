@@ -39,10 +39,17 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
   async fn consume_collab(
     &self,
     workspace_id: &Uuid,
-    data: UnindexedData,
+    data: Option<UnindexedData>,
     object_id: &Uuid,
     collab_type: CollabType,
   ) -> Result<bool, FlowyError> {
+    let data = match data {
+      None => {
+        return Ok(false);
+      },
+      Some(data) => data,
+    };
+
     if data.is_empty() {
       return Ok(false);
     }
@@ -69,7 +76,7 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
           workspace_id: *workspace_id,
           object_id: *object_id,
           collab_type,
-          data,
+          data: Some(data),
           metadata: UnindexedCollabMetadata::default(),
         };
 
@@ -217,7 +224,7 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
   async fn consume_collab(
     &self,
     workspace_id: &Uuid,
-    data: UnindexedData,
+    data: Option<UnindexedData>,
     object_id: &Uuid,
     _collab_type: CollabType,
   ) -> Result<bool, FlowyError> {
@@ -241,7 +248,7 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
     let view = folder_manager.get_view(&object_id.to_string()).await?;
 
     // Create a combined hash that includes content + view name + icon
-    let content_hash = data.content_hash();
+    let content_hash = data.as_ref().map(|v| v.content_hash()).unwrap_or_default();
     let name_hash = format!("{}:{}", content_hash, view.name);
     let combined_hash = if let Some(icon) = &view.icon {
       format!("{}:{}:{}", name_hash, icon.ty.clone() as u8, icon.value)
@@ -273,7 +280,7 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
     trace!("[Indexing:editing:search] indexed object:{}", object_id,);
     state.write().await.add_document(
       &object_id.to_string(),
-      data.into_string(),
+      data.map(|v| v.into_string()),
       Some(view.name.clone()),
       view.icon.clone().map(|v| ViewIcon {
         ty: IconType::from(v.ty as u8),

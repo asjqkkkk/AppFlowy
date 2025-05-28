@@ -6,7 +6,7 @@ use collab_entity::CollabType;
 use collab_folder::{View, ViewLayout};
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
-use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata, UnindexedData};
+use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata};
 use flowy_ai_pub::persistence::{
   batch_upsert_index_collab, select_indexed_collab_ids, IndexCollabRecordTable,
 };
@@ -172,7 +172,7 @@ impl FullIndexedDataWriter {
               .map(|v| IndexCollabRecordTable {
                 oid: v.object_id.to_string(),
                 workspace_id: v.workspace_id.to_string(),
-                content_hash: v.data.content_hash(),
+                content_hash: v.data.map(|v| v.content_hash()).unwrap_or_default(),
               })
               .collect::<Vec<_>>();
 
@@ -261,31 +261,27 @@ impl FullIndexedDataWriter {
           CollabType::Document => {
             // 1) Load into a Collab
             let mut collab = Collab::new(uid, &object_str, "indexing_device", default_client_id());
-            let load_success = {
+            {
               let mut txn = collab.transact_mut();
-              read_txn
-                .load_doc_with_txn(uid, &workspace_id.to_string(), &object_str, &mut txn)
-                .is_ok()
+              let _ =
+                read_txn.load_doc_with_txn(uid, &workspace_id.to_string(), &object_str, &mut txn);
             };
 
-            if load_success {
-              if let Some(data) = unindexed_data_form_collab(&collab, &collab_type) {
-                results.push(UnindexedCollab {
-                  workspace_id,
-                  object_id,
-                  collab_type,
-                  data,
-                  metadata,
-                });
-              }
-            }
+            let data = unindexed_data_form_collab(&collab, &collab_type);
+            results.push(UnindexedCollab {
+              workspace_id,
+              object_id,
+              collab_type,
+              data,
+              metadata,
+            });
           },
           CollabType::Database => {
             results.push(UnindexedCollab {
               workspace_id,
               object_id,
               collab_type: CollabType::Database,
-              data: UnindexedData::Text(String::new()),
+              data: None,
               metadata,
             });
           },

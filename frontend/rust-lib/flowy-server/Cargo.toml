@@ -49,7 +49,6 @@ workspace-template.workspace = true
 [dependencies.client-api]
 workspace = true
 features = [
-  "collab-sync",
   "test_util",
   "enable_brotli",
   # Uncomment the following line to enable verbose logging for sync

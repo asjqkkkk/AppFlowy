@@ -102,7 +102,11 @@ pub struct NotificationInterceptorImpl;
 #[async_trait]
 impl NotificationInterceptor for NotificationInterceptorImpl {
   async fn receive_notification(&self, notification: WorkspaceNotification) {
-    info!("Received notification: {:?}", notification);
+    info!("Received workspace notification: {:?}", notification);
+    match notification {
+      WorkspaceNotification::UserProfileChange { .. } => {},
+      WorkspaceNotification::ObjectAccessChanged { .. } => {},
+    }
   }
 }
 
