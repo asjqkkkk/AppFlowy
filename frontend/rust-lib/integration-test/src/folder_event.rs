@@ -64,17 +64,30 @@ impl EventIntegrationTest {
   }
 
   pub async fn accept_workspace_invitation(&self, invitation_id: &str) {
-    if let Some(err) = EventBuilder::new(self.clone())
-      .event(UserEvent::AcceptWorkspaceInvitation)
-      .payload(AcceptWorkspaceInvitationPB {
-        invite_id: invitation_id.to_string(),
-      })
-      .async_send()
-      .await
-      .error()
-    {
-      panic!("Accept workspace invitation failed: {:?}", err)
-    };
+    let invitation_id = invitation_id.to_string();
+    let result = self
+      .retry_on_retry_later(
+        || async {
+          match EventBuilder::new(self.clone())
+            .event(UserEvent::AcceptWorkspaceInvitation)
+            .payload(AcceptWorkspaceInvitationPB {
+              invite_id: invitation_id.clone(),
+            })
+            .async_send()
+            .await
+            .error()
+          {
+            Some(err) => Err(err),
+            None => Ok(()),
+          }
+        },
+        "Accept workspace invitation",
+      )
+      .await;
+
+    if let Err(err) = result {
+      panic!("Accept workspace invitation failed: {:?}", err);
+    }
   }
 
   pub async fn delete_workspace_member(&self, workspace_id: &str, email: &str) {

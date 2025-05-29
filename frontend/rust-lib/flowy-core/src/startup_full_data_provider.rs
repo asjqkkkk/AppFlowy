@@ -5,7 +5,7 @@ use collab::preclude::Collab;
 use collab_entity::CollabType;
 use collab_folder::{View, ViewLayout};
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
-use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
 use flowy_ai_pub::entities::{UnindexedCollab, UnindexedCollabMetadata};
 use flowy_ai_pub::persistence::{
   batch_upsert_index_collab, select_indexed_collab_ids, IndexCollabRecordTable,
@@ -276,8 +276,12 @@ impl FullIndexedDataWriter {
             let mut collab = Collab::new(uid, &object_str, "indexing_device", default_client_id());
             {
               let mut txn = collab.transact_mut();
-              let _ =
-                read_txn.load_doc_with_txn(uid, &workspace_id.to_string(), &object_str, &mut txn);
+              if let Some(PersistenceError::RecordNotFound(_)) = read_txn
+                .load_doc_with_txn(uid, &workspace_id.to_string(), &object_str, &mut txn)
+                .err()
+              {
+                //
+              }
             };
 
             let data = unindexed_data_form_collab(&collab, &collab_type);

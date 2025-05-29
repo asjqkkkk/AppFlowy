@@ -24,12 +24,169 @@ use flowy_user::entities::{
   SignInUrlPayloadPB, SignUpPayloadPB, UpdateCloudConfigPB, UpdateUserProfilePayloadPB,
   UserProfilePB, UserWorkspaceIdPB, UserWorkspacePB, WorkspaceTypePB,
 };
-use flowy_user::errors::{FlowyError, FlowyResult};
+use flowy_user::errors::{ErrorCode, FlowyError, FlowyResult};
 use flowy_user::event_map::UserEvent;
 use flowy_user_pub::entities::WorkspaceType;
 use lib_dispatch::prelude::{AFPluginDispatcher, AFPluginRequest, ToBytes};
 
 impl EventIntegrationTest {
+  /// Generic retry utility for operations that return FlowyResult<T>
+  ///
+  /// # Arguments
+  /// * `operation` - A closure that returns a Future with FlowyResult<T>
+  /// * `max_retries` - Maximum number of retry attempts
+  /// * `delay` - Duration to wait between retries
+  /// * `should_retry` - Function that determines if an error should be retried
+  /// * `operation_name` - Name of the operation for logging purposes
+  ///
+  /// # Examples
+  /// ```
+  /// // Retry on specific error code with custom settings
+  /// let result = self.retry_operation(
+  ///   || self.some_operation(),
+  ///   5, // 5 retries
+  ///   Duration::from_secs(2), // 2 second delay
+  ///   |err| err.code == ErrorCode::InternalServerError,
+  ///   "Custom operation"
+  /// ).await;
+  ///
+  /// // Retry on multiple error codes
+  /// let result = self.retry_operation(
+  ///   || self.database_operation(),
+  ///   3,
+  ///   Duration::from_millis(500),
+  ///   |err| matches!(err.code, ErrorCode::NetworkError | ErrorCode::ConnectTimeout),
+  ///   "Database operation"
+  /// ).await;
+  /// ```
+  pub async fn retry_operation<T, F, Fut>(
+    &self,
+    operation: F,
+    max_retries: u32,
+    delay: tokio::time::Duration,
+    should_retry: impl Fn(&FlowyError) -> bool,
+    operation_name: &str,
+  ) -> FlowyResult<T>
+  where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = FlowyResult<T>>,
+  {
+    let mut last_error = None;
+
+    for attempt in 0..=max_retries {
+      match operation().await {
+        Ok(result) => return Ok(result),
+        Err(err) => {
+          last_error = Some(err.clone());
+
+          // Only retry if the error condition is met and we haven't exhausted retries
+          if should_retry(&err) && attempt < max_retries {
+            tracing::warn!(
+              "{} failed: {}, retrying (attempt {}/{})",
+              operation_name,
+              err,
+              attempt + 1,
+              max_retries
+            );
+            tokio::time::sleep(delay).await;
+          } else if should_retry(&err) {
+            // Exhausted all retries for retryable error
+            return Err(FlowyError::new(
+              ErrorCode::Internal,
+              format!(
+                "{} failed after {} retries: {}",
+                operation_name, max_retries, err
+              ),
+            ));
+          } else {
+            // Non-retryable error, fail immediately
+            return Err(err);
+          }
+        },
+      }
+    }
+
+    // This should never be reached, but just in case
+    Err(last_error.unwrap_or_else(|| {
+      FlowyError::new(
+        ErrorCode::Internal,
+        format!("{} failed: exceeded maximum retry attempts", operation_name),
+      )
+    }))
+  }
+
+  /// Convenience method to retry operations that should retry on ErrorCode::RetryLater
+  /// Uses default settings: 10 retries, 300ms delay
+  pub async fn retry_on_retry_later<T, F, Fut>(
+    &self,
+    operation: F,
+    operation_name: &str,
+  ) -> FlowyResult<T>
+  where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = FlowyResult<T>>,
+  {
+    self
+      .retry_operation(
+        operation,
+        5,
+        tokio::time::Duration::from_secs(5),
+        |err| err.code == ErrorCode::RetryLater,
+        operation_name,
+      )
+      .await
+  }
+
+  pub async fn retry_with_config<T, F, Fut>(
+    &self,
+    operation: F,
+    max_retries: u32,
+    delay_ms: u64,
+    retry_codes: &[ErrorCode],
+    operation_name: &str,
+  ) -> FlowyResult<T>
+  where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = FlowyResult<T>>,
+  {
+    self
+      .retry_operation(
+        operation,
+        max_retries,
+        tokio::time::Duration::from_millis(delay_ms),
+        |err| retry_codes.contains(&err.code),
+        operation_name,
+      )
+      .await
+  }
+
+  /// Convenience method to retry operations on network-related errors
+  /// Uses 5 retries with 1 second delay for network issues
+  pub async fn retry_on_network_errors<T, F, Fut>(
+    &self,
+    operation: F,
+    operation_name: &str,
+  ) -> FlowyResult<T>
+  where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = FlowyResult<T>>,
+  {
+    self
+      .retry_operation(
+        operation,
+        5,                                        // fewer retries for network errors
+        tokio::time::Duration::from_millis(1000), // longer delay for network issues
+        |err| {
+          matches!(
+            err.code,
+            ErrorCode::NetworkError | ErrorCode::ConnectTimeout | ErrorCode::RequestTimeout
+          )
+        },
+        operation_name,
+      )
+      .await
+  }
+
   pub async fn enable_encryption(&self) -> String {
     let config = EventBuilder::new(self.clone())
       .event(UserEvent::GetCloudConfig)
@@ -95,17 +252,16 @@ impl EventIntegrationTest {
   }
 
   pub async fn af_cloud_sign_up_with_email(&self, email: &str) -> UserProfilePB {
-    match self.af_cloud_sign_in_with_email(email).await {
+    let result = self
+      .retry_on_retry_later(
+        || self.af_cloud_sign_in_with_email(email),
+        "AF Cloud sign up",
+      )
+      .await;
+
+    match result {
       Ok(profile) => profile,
-      Err(err) => {
-        tracing::warn!(
-          "Failed to sign up with email: {}, error: {}, retrying",
-          email,
-          err
-        );
-        tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
-        self.af_cloud_sign_in_with_email(email).await.unwrap()
-      },
+      Err(err) => panic!("Sign up failed with error: {}", err),
     }
   }
 
@@ -440,10 +596,6 @@ pub fn login_password() -> String {
 pub struct SignUpContext {
   pub user_profile: UserProfilePB,
   pub password: String,
-}
-pub async fn use_local_mode() {
-  AuthenticatorType::Local.write_env();
-  AFCloudConfiguration::default().write_env();
 }
 pub async fn use_localhost_af_cloud() {
   AuthenticatorType::AppFlowyCloud.write_env();
