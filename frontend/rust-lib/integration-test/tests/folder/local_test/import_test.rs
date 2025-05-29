@@ -19,7 +19,7 @@ async fn import_492_row_csv_file_test() {
 
   let views = test.import_data(import_data).await.unwrap().items;
   let view_id = views[0].clone().id;
-  let database = test.get_database(&view_id).await;
+  let database = test.get_database_or_panic(&view_id).await;
   assert_eq!(database.rows.len(), 492);
 }
 

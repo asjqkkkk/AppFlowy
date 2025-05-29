@@ -117,7 +117,7 @@ impl EventIntegrationTest {
       .parse_or_panic::<ViewPB>()
   }
 
-  pub async fn get_database(&self, view_id: &str) -> DatabasePB {
+  pub async fn get_database_or_panic(&self, view_id: &str) -> DatabasePB {
     EventBuilder::new(self.clone())
       .event(DatabaseEvent::GetDatabase)
       .payload(DatabaseViewIdPB {
@@ -126,6 +126,17 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse_or_panic::<DatabasePB>()
+  }
+
+  pub async fn get_database(&self, view_id: &str) -> FlowyResult<DatabasePB> {
+    EventBuilder::new(self.clone())
+      .event(DatabaseEvent::GetDatabase)
+      .payload(DatabaseViewIdPB {
+        value: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<DatabasePB>()
   }
 
   pub async fn get_all_database_fields(&self, view_id: &str) -> RepeatedFieldPB {

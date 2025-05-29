@@ -42,7 +42,7 @@ async fn get_database_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.fields.len(), 3);
   assert_eq!(database.rows.len(), 3);
   assert_eq!(database.layout_type, DatabaseLayoutPB::Grid);
@@ -207,7 +207,7 @@ async fn create_row_event_test() {
     .create_row(&grid_view.id, OrderObjectPositionPB::default(), None)
     .await
     .unwrap();
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows.len(), 4);
 }
 
@@ -220,13 +220,13 @@ async fn delete_row_event_test() {
     .await;
 
   // delete the row
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let remove_row_id = database.rows[0].id.clone();
   assert_eq!(database.rows.len(), 3);
   let error = test.delete_row(&grid_view.id, &remove_row_id).await;
   assert!(error.is_none());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows.len(), 2);
 
   // get the row again and check if it is deleted.
@@ -241,7 +241,7 @@ async fn get_row_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   let row = test.get_row(&grid_view.id, &database.rows[0].id).await.row;
   assert!(row.is_some());
@@ -257,7 +257,7 @@ async fn update_row_meta_event_with_url_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   // By default the row icon is None.
   let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
@@ -287,7 +287,7 @@ async fn update_row_meta_event_with_cover_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   // By default the row icon is None.
   let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
@@ -322,7 +322,7 @@ async fn delete_row_event_with_invalid_row_id_test() {
   let error = test.delete_row(&grid_view.id, "").await;
   assert!(error.is_none());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows.len(), 3);
 }
 
@@ -333,13 +333,13 @@ async fn duplicate_row_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let error = test
     .duplicate_row(&grid_view.id, &database.rows[0].id)
     .await;
   assert!(error.is_none());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows.len(), 4);
 }
 
@@ -350,13 +350,13 @@ async fn duplicate_row_event_with_invalid_row_id_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows.len(), 3);
 
   let error = test.duplicate_row(&grid_view.id, "").await;
   assert!(error.is_some());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows.len(), 3);
 }
 
@@ -367,14 +367,14 @@ async fn move_row_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let row_1 = database.rows[0].id.clone();
   let row_2 = database.rows[1].id.clone();
   let row_3 = database.rows[2].id.clone();
   let error = test.move_row(&grid_view.id, &row_1, &row_3).await;
   assert!(error.is_none());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows[0].id, row_2);
   assert_eq!(database.rows[1].id, row_3);
   assert_eq!(database.rows[2].id, row_1);
@@ -387,14 +387,14 @@ async fn move_row_event_test2() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let row_1 = database.rows[0].id.clone();
   let row_2 = database.rows[1].id.clone();
   let row_3 = database.rows[2].id.clone();
   let error = test.move_row(&grid_view.id, &row_2, &row_1).await;
   assert!(error.is_none());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.rows[0].id, row_2);
   assert_eq!(database.rows[1].id, row_1);
   assert_eq!(database.rows[2].id, row_3);
@@ -407,7 +407,7 @@ async fn move_row_event_with_invalid_row_id_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let row_1 = database.rows[0].id.clone();
   let row_2 = database.rows[1].id.clone();
   let row_3 = database.rows[2].id.clone();
@@ -420,7 +420,7 @@ async fn move_row_event_with_invalid_row_id_test() {
       let error = test.move_row(&grid_view.id, "", &row_1).await;
       assert!(error.is_some());
     }
-    let database = test.get_database(&grid_view.id).await;
+    let database = test.get_database_or_panic(&grid_view.id).await;
     assert_eq!(database.rows[0].id, row_1);
     assert_eq!(database.rows[1].id, row_2);
     assert_eq!(database.rows[2].id, row_3);
@@ -434,7 +434,7 @@ async fn update_text_cell_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let fields = test.get_all_database_fields(&grid_view.id).await.items;
 
   let row_id = database.rows[0].id.clone();
@@ -464,7 +464,7 @@ async fn update_checkbox_cell_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let fields = test.get_all_database_fields(&grid_view.id).await.items;
 
   let row_id = database.rows[0].id.clone();
@@ -495,7 +495,7 @@ async fn update_single_select_cell_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let fields = test.get_all_database_fields(&grid_view.id).await.items;
   let row_id = database.rows[0].id.clone();
   let field_id = fields[1].id.clone();
@@ -521,7 +521,7 @@ async fn update_date_cell_event_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   // Create a date field
   let date_field = test.create_field(&grid_view.id, FieldType::DateTime).await;
@@ -557,7 +557,7 @@ async fn update_date_cell_event_with_empty_time_str_test() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   let row_id = database.rows[0].id.clone();
 
   // Create a date field
@@ -595,7 +595,7 @@ async fn create_checklist_field_test() {
 
   // create checklist field
   let checklist_field = test.create_field(&grid_view.id, FieldType::Checklist).await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   // Get the checklist cell
   let cell = test
@@ -616,7 +616,7 @@ async fn update_checklist_cell_test() {
 
   // create checklist field
   let checklist_field = test.create_field(&grid_view.id, FieldType::Checklist).await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   // update the checklist cell
   let changeset = ChecklistCellDataChangesetPB {
@@ -694,7 +694,7 @@ async fn update_database_layout_event_test() {
     .await;
   assert!(error.is_none());
 
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
   assert_eq!(database.layout_type, DatabaseLayoutPB::Board);
 }
 
@@ -806,7 +806,7 @@ async fn update_relation_cell_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
   let relation_field = test.create_field(&grid_view.id, FieldType::Relation).await;
-  let database = test.get_database(&grid_view.id).await;
+  let database = test.get_database_or_panic(&grid_view.id).await;
 
   // update the relation cell
   let changeset = RelationCellChangesetPB {
@@ -872,7 +872,7 @@ async fn get_detailed_relation_cell_data() {
     .create_field(&relation_grid_view.id, FieldType::Relation)
     .await;
 
-  let origin_database = test.get_database(&origin_grid_view.id).await;
+  let origin_database = test.get_database_or_panic(&origin_grid_view.id).await;
   let origin_fields = test.get_all_database_fields(&origin_grid_view.id).await;
   let linked_row = origin_database.rows[0].clone();
 
@@ -885,7 +885,7 @@ async fn get_detailed_relation_cell_data() {
     })
     .await;
 
-  let new_database = test.get_database(&relation_grid_view.id).await;
+  let new_database = test.get_database_or_panic(&relation_grid_view.id).await;
 
   // update the relation cell
   let changeset = RelationCellChangesetPB {

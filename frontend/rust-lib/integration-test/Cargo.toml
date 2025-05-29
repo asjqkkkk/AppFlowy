@@ -39,6 +39,7 @@ collab-document = { workspace = true }
 collab-folder = { workspace = true }
 collab-database = { workspace = true }
 collab-entity = { workspace = true }
+collab-plugins = { workspace = true }
 rand = { version = "0.8.5", features = [] }
 strum = "0.25.0"
 

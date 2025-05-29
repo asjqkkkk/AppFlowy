@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use collab::core::collab::{CollabOptions, DataSource, default_client_id};
 use collab::core::origin::CollabOrigin;
 use collab::lock::RwLock;
-use collab::preclude::{ClientID, Collab, ReadTxn, StateVector};
+use collab::preclude::{ClientID, Collab};
 use collab_database::database::{
   Database, DatabaseBody, DatabaseContext, DatabaseData, default_database_collab,
 };
@@ -887,12 +887,13 @@ impl WorkspaceDatabaseCollabServiceImpl {
     }
   }
 
-  async fn build_collab(
+  async fn build_collab<T: Into<DataSourceOrCollab>>(
     &self,
     object_id: &str,
     collab_type: CollabType,
-    data_source: DataSource,
+    data: T,
   ) -> Result<Collab, DatabaseError> {
+    let data: DataSourceOrCollab = data.into();
     let workspace_id = self
       .user
       .workspace_id()
@@ -901,15 +902,43 @@ impl WorkspaceDatabaseCollabServiceImpl {
     let object_uuid = Uuid::parse_str(object_id)?;
     let collab_builder = self.collab_builder()?;
 
-    let mut collab = collab_builder
-      .build_collab_with_source(object_uuid, collab_type, data_source)
-      .await?;
+    let mut collab = match data {
+      DataSourceOrCollab::Collab(collab) => collab,
+      DataSourceOrCollab::DataSource(source) => {
+        collab_builder
+          .build_collab_with_source(object_uuid, collab_type, source)
+          .await?
+      },
+    };
 
     collab_builder
       .finalize_collab(workspace_id, object_uuid, collab_type, &mut collab)
       .await?;
 
     Ok(collab)
+  }
+}
+
+enum DataSourceOrCollab {
+  Collab(Collab),
+  DataSource(DataSource),
+}
+
+impl From<DataSource> for DataSourceOrCollab {
+  fn from(source: DataSource) -> Self {
+    DataSourceOrCollab::DataSource(source)
+  }
+}
+
+impl From<Collab> for DataSourceOrCollab {
+  fn from(collab: Collab) -> Self {
+    DataSourceOrCollab::Collab(collab)
+  }
+}
+
+impl From<EncodedCollab> for DataSourceOrCollab {
+  fn from(encoded_collab: EncodedCollab) -> Self {
+    DataSourceOrCollab::DataSource(DataSource::from(encoded_collab))
   }
 }
 
@@ -964,20 +993,12 @@ impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
               .await?
               .1;
           self
-            .build_collab(
-              object_id,
-              CollabType::Database,
-              DataSource::DocStateV1(
-                collab
-                  .transact()
-                  .encode_state_as_update_v1(&StateVector::default()),
-              ),
-            )
+            .build_collab(object_id, CollabType::Database, collab)
             .await?
         },
         DatabaseDataVariant::EncodedCollab(data) => {
           self
-            .build_collab(object_id, CollabType::Database, DataSource::from(data))
+            .build_collab(object_id, CollabType::Database, data)
             .await?
         },
       },

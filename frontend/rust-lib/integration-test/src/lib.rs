@@ -5,11 +5,13 @@ use collab::preclude::Collab;
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_entity::CollabType;
+use collab_plugins::local_storage::kv::KVTransactionDB;
 use flowy_core::config::AppFlowyCoreConfig;
 use flowy_core::AppFlowyCore;
 use flowy_notification::register_notification_sender;
 use flowy_user::entities::AuthTypePB;
 use flowy_user::errors::{FlowyError, FlowyResult};
+use flowy_user_pub::workspace_collab::CollabKVAction;
 use lib_dispatch::runtime::AFPluginRuntime;
 use nanoid::nanoid;
 use semver::Version;
@@ -143,6 +145,23 @@ impl EventIntegrationTest {
       }
     }
     Ok(())
+  }
+
+  pub async fn get_local_collab(&self, oid: &str) -> FlowyResult<Collab> {
+    let uid = self.user_manager.get_session()?.user_id;
+    let db = self.user_manager.get_collab_db(uid)?.upgrade().unwrap();
+    let workspace_id = self.get_current_workspace().await.id;
+
+    let mut collab = Collab::new_with_options(
+      CollabOrigin::Empty,
+      CollabOptions::new(oid.to_string(), default_client_id()),
+    )
+    .unwrap();
+    let txn = db.read_txn();
+    txn
+      .load_doc_with_txn(uid, &workspace_id, oid, &mut collab.transact_mut())
+      .map_err(|e| FlowyError::internal().with_context(e))?;
+    Ok(collab)
   }
 
   pub async fn get_collab_doc_state(

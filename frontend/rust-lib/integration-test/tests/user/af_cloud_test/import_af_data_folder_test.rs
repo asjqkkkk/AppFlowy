@@ -161,7 +161,10 @@ async fn import_appflowy_data_folder_into_new_view_test() {
   assert_eq!(document2_child_views[0].name, "Grid1");
   assert_eq!(document2_child_views[1].name, "Grid2");
 
-  let rows = test.get_database(&document2_child_views[1].id).await.rows;
+  let rows = test
+    .get_database_or_panic(&document2_child_views[1].id)
+    .await
+    .rows;
   assert_eq!(rows.len(), 3);
 
   // In the 040_local, only the first row has a document with content
