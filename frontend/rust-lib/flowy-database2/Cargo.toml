@@ -54,7 +54,7 @@ moka = { version = "0.12.8", features = ["future"] }
 uuid.workspace = true
 
 [dev-dependencies]
-event-integration-test = { path = "../event-integration-test", default-features = false }
+event-integration-test = { path = "../integration-test", default-features = false }
 flowy-database2 = { path = ".", features = ["verbose_log"] }
 
 [build-dependencies]

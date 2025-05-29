@@ -24,6 +24,7 @@ flowy-storage-pub = { workspace = true }
 flowy-search = { workspace = true }
 semver = "1.0.23"
 flowy-error = { workspace = true }
+anyhow.workspace = true
 
 serde.workspace = true
 serde_json.workspace = true

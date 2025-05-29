@@ -53,7 +53,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLockWriteGuard;
-use tracing::{error, info, instrument};
+use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 
 pub trait FolderUser: Send + Sync {
@@ -1267,8 +1267,13 @@ impl FolderManager {
   pub(crate) async fn set_current_view(&self, view_id: String) -> Result<(), FlowyError> {
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      folder.set_current_view(view_id.clone());
-      folder.add_recent_view_ids(vec![view_id.clone()]);
+      if let Some(current_view_id) = folder.get_current_view() {
+        if current_view_id != view_id {
+          info!("Set current view: {}", view_id);
+          folder.set_current_view(view_id.clone());
+          folder.add_recent_view_ids(vec![view_id.clone()]);
+        }
+      }
     } else {
       return Err(FlowyError::record_not_found());
     }
@@ -1305,7 +1310,16 @@ impl FolderManager {
       drop(folder);
       view
     };
-    self.get_view_pb(&view_id).await.ok()
+    match self.get_view_pb(&view_id).await {
+      Ok(view) => {
+        debug!("Current view: {}", view.id);
+        Some(view)
+      },
+      Err(err) => {
+        error!("Get current view error: {:?}", err);
+        None
+      },
+    }
   }
 
   /// Toggles the favorite status of a view identified by `view_id`If the view is not a favorite, it will be added to the favorites list; otherwise, it will be removed from the list.

@@ -14,6 +14,7 @@ use lib_dispatch::runtime::AFPluginRuntime;
 use nanoid::nanoid;
 use semver::Version;
 use std::env::temp_dir;
+use std::future::Future;
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
@@ -21,7 +22,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
 use tokio::task::LocalSet;
-use tokio::time::sleep;
+use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
 mod chat_event;
@@ -218,5 +219,81 @@ impl Drop for Cleaner {
     if self.should_clean.load(Ordering::Acquire) {
       Self::cleanup(&self.dir)
     }
+  }
+}
+
+#[derive(Clone, Debug)]
+pub struct RetryConfig {
+  pub timeout: Duration,
+  pub poll_interval: Duration,
+  pub max_retries: u32,
+}
+
+impl Default for RetryConfig {
+  fn default() -> Self {
+    Self {
+      timeout: Duration::from_secs(30),
+      poll_interval: Duration::from_secs(2),
+      max_retries: 10,
+    }
+  }
+}
+
+pub async fn retry_with_backoff<T, F, Fut>(operation: F) -> Result<T, anyhow::Error>
+where
+  F: Fn() -> Fut,
+  Fut: Future<Output = Result<T, anyhow::Error>>,
+{
+  retry_with_backoff_config(operation, RetryConfig::default()).await
+}
+
+pub async fn retry_with_backoff_config<T, F, Fut>(
+  operation: F,
+  config: RetryConfig,
+) -> Result<T, anyhow::Error>
+where
+  F: Fn() -> Fut,
+  Fut: Future<Output = Result<T, anyhow::Error>>,
+{
+  let mut attempt = 0;
+  let mut delay = config.poll_interval;
+  let max_delay = config.poll_interval * 10; // Cap maximum delay
+
+  let result = timeout(config.timeout, async {
+    loop {
+      match operation().await {
+        Ok(result) => return Ok(result),
+        Err(e) if attempt >= config.max_retries => {
+          return Err(anyhow::anyhow!(
+            "Max retries ({}) exceeded. Last error: {}",
+            config.max_retries,
+            e
+          ));
+        },
+        Err(e) => {
+          attempt += 1;
+          tracing::warn!(
+            "Operation failed (attempt {}/{}): {}. Retrying in {:?}",
+            attempt,
+            config.max_retries,
+            e,
+            delay
+          );
+
+          tokio::time::sleep(delay).await;
+          // Exponential backoff with jitter
+          delay = std::cmp::min(delay * 2, max_delay);
+        },
+      }
+    }
+  })
+  .await;
+
+  match result {
+    Ok(value) => value,
+    Err(_) => Err(anyhow::anyhow!(
+      "Operation timed out after {:?}",
+      config.timeout
+    )),
   }
 }

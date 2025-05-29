@@ -13,6 +13,7 @@ use flowy_database2::event_map::DatabaseEvent;
 use flowy_database2::services::cell::CellBuilder;
 use flowy_database2::services::field::checklist_filter::ChecklistCellInsertChangeset;
 use flowy_database2::services::share::csv::CSVFormat;
+use flowy_error::FlowyResult;
 use flowy_folder::entities::*;
 use flowy_folder::event_map::FolderEvent;
 use flowy_user::errors::FlowyError;
@@ -269,7 +270,7 @@ impl EventIntegrationTest {
     view_id: &str,
     row_position: OrderObjectPositionPB,
     data: Option<HashMap<String, String>>,
-  ) -> RowMetaPB {
+  ) -> FlowyResult<RowMetaPB> {
     EventBuilder::new(self.clone())
       .event(DatabaseEvent::CreateRow)
       .payload(CreateRowPayloadPB {
@@ -280,7 +281,7 @@ impl EventIntegrationTest {
       })
       .async_send()
       .await
-      .parse_or_panic::<RowMetaPB>()
+      .parse::<RowMetaPB>()
   }
 
   pub async fn delete_row(&self, view_id: &str, row_id: &str) -> Option<FlowyError> {

@@ -1991,6 +1991,7 @@ dependencies = [
 name = "event-integration-test"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "assert-json-diff",
  "bytes",
  "chrono",

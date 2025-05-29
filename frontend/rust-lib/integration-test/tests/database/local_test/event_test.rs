@@ -205,7 +205,8 @@ async fn create_row_event_test() {
 
   let _ = test
     .create_row(&grid_view.id, OrderObjectPositionPB::default(), None)
-    .await;
+    .await
+    .unwrap();
   let database = test.get_database(&grid_view.id).await;
   assert_eq!(database.rows.len(), 4);
 }
@@ -776,7 +777,8 @@ async fn create_calendar_event_test() {
   // create a new row
   let row = test
     .create_row(&calendar_view.id, OrderObjectPositionPB::default(), None)
-    .await;
+    .await
+    .unwrap();
 
   // Insert data into the date cell of the first row.
   let error = test
