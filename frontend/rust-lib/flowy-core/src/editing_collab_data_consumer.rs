@@ -117,8 +117,6 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
     Ok(())
   }
 }
-
-/// -----------------------------------------------------
 /// Instant‐index consumer also holds a Weak:
 /// -------------e----------------------------------------
 pub struct EditingCollabDataSearchConsumer {

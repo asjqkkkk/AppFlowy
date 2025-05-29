@@ -122,8 +122,7 @@ impl FullIndexedDataWriter {
       return Ok(());
     }
 
-    // chunk the unindex_ids into smaller chunks
-    let chunk_size = 20;
+    let chunk_size = 50;
     info!(
       "[Indexing] {} consumers start indexing {} unindexed documents",
       self.consumers.read().await.len(),
@@ -145,23 +144,37 @@ impl FullIndexedDataWriter {
             info!("[Indexing] cancelled");
             break;
           }
+          info!(
+            "[Indexing] {} unindexed documents found in chunk",
+            unindexed.len()
+          );
 
-          for consumer in self.consumers.read().await.iter() {
-            for data in &unindexed {
-              trace!(
-                "[Indexing] {} consume {} unindexed data",
-                consumer.consumer_id(),
-                data.object_id
-              );
-              if let Err(err) = consumer.consume_indexed_data(uid, data).await {
-                error!(
-                  "[Indexing] Failed to consume unindexed data: {}: {:?}",
-                  consumer.consumer_id(),
-                  err
-                );
-              }
-            }
+          let consumers = self.consumers.read().await;
+          for consumer in consumers.iter() {
+            let consumer_tasks: Vec<_> = unindexed
+              .iter()
+              .map(|data| {
+                let consumer_id = consumer.consumer_id();
+                let object_id = data.object_id;
+                async move {
+                  trace!(
+                    "[Indexing] {} consume {} unindexed data",
+                    consumer_id,
+                    object_id
+                  );
+                  if let Err(err) = consumer.consume_indexed_data(uid, data).await {
+                    error!(
+                      "[Indexing] Failed to consume unindexed data: {}: {:?}",
+                      consumer_id, err
+                    );
+                  }
+                }
+              })
+              .collect();
+
+            futures::future::join_all(consumer_tasks).await;
           }
+
           if let Some(mut db) = self
             .logged_user
             .upgrade()

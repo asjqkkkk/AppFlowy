@@ -2332,6 +2332,7 @@ dependencies = [
  "flowy-storage-pub",
  "flowy-user",
  "flowy-user-pub",
+ "futures",
  "lib-dispatch",
  "lib-infra",
  "lib-log",
