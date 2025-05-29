@@ -56,7 +56,10 @@ async fn get_field_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields[0].field_type, FieldType::RichText);
   assert_eq!(fields[1].field_type, FieldType::SingleSelect);
   assert_eq!(fields[2].field_type, FieldType::Checkbox);
@@ -72,7 +75,10 @@ async fn create_field_event_test() {
     .await;
 
   test.create_field(&grid_view.id, FieldType::Checkbox).await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields.len(), 4);
   assert_eq!(fields[3].field_type, FieldType::Checkbox);
 }
@@ -85,7 +91,10 @@ async fn delete_field_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields[0].field_type, FieldType::RichText);
   assert_eq!(fields[1].field_type, FieldType::SingleSelect);
   assert_eq!(fields[2].field_type, FieldType::Checkbox);
@@ -93,7 +102,10 @@ async fn delete_field_event_test() {
   let error = test.delete_field(&grid_view.id, &fields[1].id).await;
   assert!(error.is_none());
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields.len(), 2);
 }
 
@@ -106,7 +118,10 @@ async fn delete_primary_field_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   // the primary field is not allowed to be deleted.
   assert!(fields[0].is_primary);
   let error = test.delete_field(&grid_view.id, &fields[0].id).await;
@@ -121,13 +136,19 @@ async fn update_field_type_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   let error = test
     .update_field_type(&grid_view.id, &fields[1].id, FieldType::Checklist)
     .await;
   assert!(error.is_none());
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields[1].field_type, FieldType::Checklist);
 }
 
@@ -139,7 +160,10 @@ async fn update_primary_field_type_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   // the primary field is not allowed to be deleted.
   assert!(fields[0].is_primary);
 
@@ -158,12 +182,18 @@ async fn duplicate_field_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   // the primary field is not allowed to be updated.
   let error = test.duplicate_field(&grid_view.id, &fields[1].id).await;
   assert!(error.is_none());
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields.len(), 4);
 }
 
@@ -176,7 +206,10 @@ async fn duplicate_primary_field_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
 
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   // the primary field is not allowed to be duplicated.
   let error = test.duplicate_field(&grid_view.id, &fields[0].id).await;
   assert!(error.is_some());
@@ -435,7 +468,10 @@ async fn update_text_cell_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
   let database = test.get_database_or_panic(&grid_view.id).await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
 
   let row_id = database.rows[0].id.clone();
   let field_id = fields[0].id.clone();
@@ -465,7 +501,10 @@ async fn update_checkbox_cell_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
   let database = test.get_database_or_panic(&grid_view.id).await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
 
   let row_id = database.rows[0].id.clone();
   let field_id = fields[2].id.clone();
@@ -496,7 +535,10 @@ async fn update_single_select_cell_event_test() {
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
   let database = test.get_database_or_panic(&grid_view.id).await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   let row_id = database.rows[0].id.clone();
   let field_id = fields[1].id.clone();
   assert_eq!(fields[1].field_type, FieldType::SingleSelect);
@@ -706,7 +748,10 @@ async fn update_database_layout_event_test2() {
   let grid_view = test
     .create_grid(&current_workspace.id, "my grid view".to_owned(), vec![])
     .await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
 
   let checkbox_field = fields
     .iter()
@@ -768,7 +813,10 @@ async fn create_calendar_event_test() {
   let calendar_view = test
     .create_calendar(&current_workspace.id, "my calendar view".to_owned(), vec![])
     .await;
-  let fields = test.get_all_database_fields(&calendar_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&calendar_view.id)
+    .await
+    .items;
   let date_field = fields
     .iter()
     .find(|field| field.field_type == FieldType::DateTime)
@@ -873,7 +921,9 @@ async fn get_detailed_relation_cell_data() {
     .await;
 
   let origin_database = test.get_database_or_panic(&origin_grid_view.id).await;
-  let origin_fields = test.get_all_database_fields(&origin_grid_view.id).await;
+  let origin_fields = test
+    .get_all_database_fields_or_panic(&origin_grid_view.id)
+    .await;
   let linked_row = origin_database.rows[0].clone();
 
   test

@@ -16,7 +16,10 @@ async fn af_cloud_database_create_field_and_row_test() {
     .create_grid(&workspace_id.to_string(), "my grid view".to_owned(), vec![])
     .await;
   test.create_field(&grid_view.id, FieldType::Checkbox).await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields.len(), 4);
   assert_eq!(fields[3].field_type, FieldType::Checkbox);
 
@@ -35,7 +38,7 @@ async fn af_cloud_database_create_field_and_row_test() {
     tokio::time::sleep(Duration::from_secs(1)).await;
 
     retry_with_backoff(|| async {
-      let fields = test_2.get_all_database_fields(&grid_view.id).await.items;
+      let fields = test_2.get_all_database_fields(&grid_view.id).await?.items;
       assert_eq!(fields.len(), 4);
       assert_eq!(fields[3].field_type, FieldType::Checkbox);
 
@@ -63,7 +66,10 @@ async fn af_cloud_database_duplicate_row_test() {
     .create_grid(&workspace_id.to_string(), "my grid view".to_owned(), vec![])
     .await;
   let database = test.get_database_or_panic(&grid_view.id).await;
-  let fields = test.get_all_database_fields(&grid_view.id).await.items;
+  let fields = test
+    .get_all_database_fields_or_panic(&grid_view.id)
+    .await
+    .items;
   assert_eq!(fields[0].field_type, FieldType::RichText);
 
   let row_id = database.rows[0].id.clone();
@@ -161,7 +167,7 @@ async fn af_cloud_multiple_user_edit_database_test() {
         ));
       }
 
-      let fields = client.get_all_database_fields(&grid_view.id).await.items;
+      let fields = client.get_all_database_fields(&grid_view.id).await?.items;
       if fields.len() != 6 {
         return Err(anyhow::anyhow!(
           "Client {} sees {} fields instead of 4",

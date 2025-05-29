@@ -1449,7 +1449,6 @@ async fn open_database_with_retry(
 #[derive(Clone, Debug)]
 enum DatabaseEditorState {
   Active {
-    last_access: Instant,
     access_count: u32,
   },
   PendingRemoval {
@@ -1469,10 +1468,7 @@ impl DatabaseEditorEntry {
   fn new_active(editor: Arc<DatabaseEditor>) -> Self {
     Self {
       editor,
-      state: DatabaseEditorState::Active {
-        last_access: Instant::now(),
-        access_count: 1,
-      },
+      state: DatabaseEditorState::Active { access_count: 1 },
     }
   }
 
@@ -1510,19 +1506,13 @@ impl DatabaseEditorEntry {
         mut access_count, ..
       } => {
         access_count += 1;
-        self.state = DatabaseEditorState::Active {
-          last_access: Instant::now(),
-          access_count,
-        };
+        self.state = DatabaseEditorState::Active { access_count };
       },
       DatabaseEditorState::PendingRemoval {
         mut access_count, ..
       } => {
         access_count += 1;
-        self.state = DatabaseEditorState::Active {
-          last_access: Instant::now(),
-          access_count,
-        };
+        self.state = DatabaseEditorState::Active { access_count };
       },
     }
     self
