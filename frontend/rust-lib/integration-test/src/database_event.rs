@@ -22,16 +22,14 @@ use crate::event_builder::EventBuilder;
 use crate::EventIntegrationTest;
 
 impl EventIntegrationTest {
-  pub async fn get_database_export_data(&self, database_view_id: &str) -> String {
+  pub async fn export_database(&self, database_view_id: &str) -> FlowyResult<String> {
     self
       .appflowy_core
       .database_manager
       .get_database_editor_with_view_id(database_view_id)
-      .await
-      .unwrap()
+      .await?
       .export_csv(CSVFormat::Original)
       .await
-      .unwrap()
   }
 
   /// The initial data can refer to the [FolderOperationHandler::create_view_with_view_data] method.

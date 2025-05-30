@@ -3,6 +3,7 @@ use std::str::FromStr;
 use std::sync::Arc;
 
 use collab_folder::{FolderData, SpaceInfo, View};
+use csv::ReaderBuilder;
 use flowy_folder::entities::icon::UpdateViewIconPayloadPB;
 use flowy_folder::event_map::FolderEvent;
 use flowy_folder::event_map::FolderEvent::*;
@@ -472,5 +473,37 @@ impl ViewTest {
 
   pub async fn new_calendar_view(sdk: &EventIntegrationTest, data: Vec<u8>) -> Self {
     Self::new(sdk, ViewLayout::Calendar, data).await
+  }
+}
+
+/// Parse CSV string into a Vec<Vec<String>> for comparison
+pub fn parse_csv_string(csv_content: &str) -> Result<Vec<Vec<String>>, anyhow::Error> {
+  let mut reader = ReaderBuilder::new()
+    .has_headers(false)
+    .from_reader(csv_content.as_bytes());
+
+  let mut records = Vec::new();
+  for result in reader.records() {
+    let record = result?;
+    let row: Vec<String> = record.iter().map(|field| field.to_string()).collect();
+    records.push(row);
+  }
+  Ok(records)
+}
+
+pub fn gen_import_data(
+  file_name: String,
+  csv_string: String,
+  parent_view_id: String,
+) -> ImportPayloadPB {
+  ImportPayloadPB {
+    parent_view_id,
+    items: vec![ImportItemPayloadPB {
+      name: file_name,
+      data: Some(csv_string.as_bytes().to_vec()),
+      file_path: None,
+      view_layout: ViewLayoutPB::Grid,
+      import_type: ImportTypePB::CSV,
+    }],
   }
 }

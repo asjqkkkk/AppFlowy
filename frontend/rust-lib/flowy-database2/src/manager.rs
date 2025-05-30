@@ -828,33 +828,6 @@ impl DatabaseManager {
     (count, pending_removal_entries)
   }
 
-  /// Force cleanup of removing_editor entries (useful for testing or manual cleanup)
-  pub async fn force_cleanup_removing_editors(&self) {
-    let mut database_editors = self.database_editors.lock().await;
-    let initial_count = database_editors.len();
-
-    // Only remove entries that are pending removal
-    database_editors.retain(|_, entry| entry.is_active());
-
-    let removed_count = initial_count - database_editors.len();
-    trace!(
-      "[Database]: Force cleaned {} pending removal entries",
-      removed_count
-    );
-  }
-
-  /// Get the current active editors count
-  pub async fn get_active_editors_count(&self) -> usize {
-    self
-      .database_editors
-      .lock()
-      .await
-      .values()
-      .filter(|entry| entry.is_active())
-      .count()
-  }
-
-  /// Get the current pending removal editors count
   pub async fn get_pending_removal_editors_count(&self) -> usize {
     self
       .database_editors
@@ -1127,34 +1100,28 @@ impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
     let client_id = self.client_id().await;
     let collab_type = CollabType::Database;
 
-    let collab = match data {
+    let collab_service = context.collab_service.clone();
+    let (body, collab) = match data {
       None => {
         let source = self.get_data_source(object_id, collab_type, None).await?;
-        self
-          .build_collab(object_id, CollabType::Database, source)
-          .await?
+        let collab = self.build_collab(object_id, collab_type, source).await?;
+        DatabaseBody::open(collab, context)?
       },
       Some(data) => match data {
         DatabaseDataVariant::Params(params) => {
           let database_id = params.database_id.clone();
-          let collab =
-            default_database_collab(&database_id, client_id, Some(params), context.clone())
-              .await?
-              .1;
-          self
-            .build_collab(object_id, CollabType::Database, collab)
-            .await?
+          let (body, collab) =
+            default_database_collab(&database_id, client_id, Some(params), context.clone()).await?;
+          let collab = self.build_collab(object_id, collab_type, collab).await?;
+          (body, collab)
         },
         DatabaseDataVariant::EncodedCollab(data) => {
-          self
-            .build_collab(object_id, CollabType::Database, data)
-            .await?
+          let collab = self.build_collab(object_id, collab_type, data).await?;
+          DatabaseBody::open(collab, context)?
         },
       },
     };
 
-    let collab_service = context.collab_service.clone();
-    let (body, collab) = DatabaseBody::open(collab, context)?;
     Ok(Database {
       collab,
       body,

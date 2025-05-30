@@ -1,4 +1,6 @@
+use crate::util::unzip;
 use anyhow::anyhow;
+use event_integration_test::folder_event::{gen_import_data, parse_csv_string};
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::{retry_with_backoff, EventIntegrationTest};
 use uuid::Uuid;
@@ -24,12 +26,10 @@ async fn af_cloud_folder_sync_duplicated_document_test() {
   // Create 3 documents with consistent content
   let parent_id = Uuid::parse_str(&space.id).unwrap();
   let document_count = 3;
-
   for i in 0..document_count {
     let document = test
       .create_document(&format!("my document {}", i), parent_id)
       .await;
-
     test
       .insert_document_text(&document.id, &format!("hello duplicate {}", i), 0)
       .await;
@@ -45,13 +45,9 @@ async fn af_cloud_folder_sync_duplicated_document_test() {
 
   // Verify all duplicated document contents are consistent
   assert_eq!(duplicated_view_child_views.len(), document_count);
-  for i in 0..document_count {
-    let text = test
-      .get_document_text(&duplicated_view_child_views[i].id)
-      .await
-      .unwrap()
-      .text;
-    assert_eq!(text, format!("hello duplicate {}", i));
+  for (index, view) in duplicated_view_child_views.iter().enumerate() {
+    let text = test.get_document_text(&view.id).await.unwrap().text;
+    assert_eq!(text, format!("hello duplicate {}", index));
   }
 
   // Wait for original documents to sync to client 2
@@ -92,4 +88,79 @@ async fn af_cloud_folder_sync_duplicated_document_test() {
   .unwrap();
 
   drop(test);
+}
+
+#[tokio::test]
+async fn af_cloud_folder_sync_duplicated_database_test() {
+  use_localhost_af_cloud().await;
+
+  // Setup two test clients
+  let test = EventIntegrationTest::new().await;
+  let email = test.af_cloud_sign_up().await.email;
+  let workspace_id = test.get_workspace_id().await;
+
+  let test_2 = EventIntegrationTest::new().await;
+  test_2.af_cloud_sign_in_with_email(&email).await.unwrap();
+
+  // Create a test space
+  let space = test
+    .create_space(workspace_id, "Test space".to_string())
+    .await;
+  assert!(space.extra.is_some());
+
+  let parent_id = Uuid::parse_str(&space.id).unwrap();
+  let file_name = "csv_49r_17c.csv".to_string();
+  let csv_file_path = unzip("./tests/asset", &file_name).unwrap();
+  let csv_string = std::fs::read_to_string(csv_file_path).unwrap();
+  let import_data = gen_import_data(file_name, csv_string.clone(), parent_id.to_string());
+  let database_view = test
+    .import_data(import_data)
+    .await
+    .unwrap()
+    .items
+    .pop()
+    .unwrap();
+
+  let database = test.get_database(&database_view.id).await.unwrap();
+  assert_eq!(database.rows.len(), 49);
+
+  let duplicated_view = test
+    .duplicate_view_or_panic(Uuid::parse_str(&database_view.id).unwrap(), true)
+    .await;
+
+  // Wait for original documents to sync to client 2
+  let cloned_test_2 = test_2.clone();
+  let cloned_csv_string = csv_string.clone();
+  retry_with_backoff(|| async {
+    let csv = cloned_test_2.export_database(&database_view.id).await?;
+    let database = cloned_test_2.get_database(&database_view.id).await.unwrap();
+    assert_eq!(database.rows.len(), 49);
+    dbg!("csv content", &csv);
+
+    let exported_csv_data = parse_csv_string(&csv)?;
+    let original_csv_data = parse_csv_string(&cloned_csv_string)?;
+    if exported_csv_data.len() != original_csv_data.len() {
+      return Err(anyhow!("syncing database rows"));
+    }
+    assert_eq!(exported_csv_data, original_csv_data);
+    Ok(())
+  })
+  .await
+  .unwrap();
+
+  // Wait for original documents to sync to client 2
+  retry_with_backoff(|| async {
+    let csv = test_2.export_database(&duplicated_view.id).await?;
+    dbg!("duplicated csv content", &csv);
+
+    let exported_csv_data = parse_csv_string(&csv)?;
+    let original_csv_data = parse_csv_string(&csv_string)?;
+    if exported_csv_data.len() != original_csv_data.len() {
+      return Err(anyhow!("syncing database rows"));
+    }
+    assert_eq!(exported_csv_data, original_csv_data);
+    Ok(())
+  })
+  .await
+  .unwrap();
 }

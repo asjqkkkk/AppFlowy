@@ -2001,6 +2001,7 @@ dependencies = [
  "collab-entity",
  "collab-folder",
  "collab-plugins",
+ "csv",
  "flowy-ai",
  "flowy-ai-pub",
  "flowy-core",
