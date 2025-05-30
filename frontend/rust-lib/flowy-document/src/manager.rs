@@ -209,6 +209,7 @@ impl DocumentManager {
     }
   }
 
+  #[instrument(level = "debug", skip(self))]
   pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     if let Some(mut entry) = self.documents.get_mut(doc_id) {
       if entry.is_pending_removal() {

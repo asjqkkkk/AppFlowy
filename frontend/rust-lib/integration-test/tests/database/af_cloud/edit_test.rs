@@ -1,4 +1,5 @@
 use collab_database::database::get_database_row_ids;
+use collab_document::document::DocumentBody;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::{retry_with_backoff, EventIntegrationTest};
 use flowy_database2::entities::{CellChangesetPB, FieldType, OrderObjectPositionPB};
@@ -213,6 +214,59 @@ async fn af_cloud_sync_database_without_open_it_test() {
     }
 
     assert_eq!(rows.len(), 4);
+    Ok(())
+  })
+  .await
+  .unwrap();
+}
+
+#[tokio::test]
+async fn af_cloud_sync_database_row_document_test() {
+  use_localhost_af_cloud().await;
+  let test = EventIntegrationTest::new().await;
+  let email = test.af_cloud_sign_up().await.email;
+
+  let test2 = EventIntegrationTest::new().await;
+  test2.af_cloud_sign_in_with_email(&email).await.unwrap();
+
+  let workspace_id = test.get_workspace_id().await;
+  let grid_view = test
+    .create_grid(&workspace_id.to_string(), "my grid view".to_owned(), vec![])
+    .await;
+
+  let rows = test.get_database(grid_view.id.as_str()).await.unwrap().rows;
+  assert_eq!(rows.len(), 3);
+  for (index, row) in rows.iter().enumerate() {
+    test.create_row_document(&row.id, &grid_view.id).await;
+    let document_id = test
+      .get_row_document_id(&grid_view.id, &row.id)
+      .await
+      .unwrap();
+    let content = format!("Hello database row document content {}", index);
+    test.insert_document_text(&document_id, &content, 0).await;
+  }
+
+  retry_with_backoff(|| async {
+    let database = test2.get_database(&grid_view.id).await?;
+    for (index, row) in database.rows.iter().enumerate() {
+      let row_document_id = test2.get_row_document_id(&grid_view.id, &row.id).await?;
+      let collab = test.get_local_collab(&row_document_id).await?;
+
+      let txn = collab.transact();
+      let document = DocumentBody::from_collab(&collab).unwrap();
+      let paragraphs = document.paragraphs(txn);
+      dbg!(&paragraphs);
+      if paragraphs.len() != 1
+        || paragraphs[0] != format!("Hello database row document content {}", index)
+      {
+        return Err(anyhow::anyhow!(
+          "Expected document text 'Hello database row document content {}', got '{}'",
+          index,
+          paragraphs[0]
+        ));
+      }
+    }
+
     Ok(())
   })
   .await

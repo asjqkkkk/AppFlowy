@@ -78,6 +78,7 @@ pub(crate) async fn read_current_workspace_handler(
   data_result_ok(workspace)
 }
 
+#[instrument(level = "debug", skip_all)]
 pub(crate) async fn create_view_handler(
   data: AFPluginData<CreateViewPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,

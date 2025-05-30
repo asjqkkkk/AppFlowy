@@ -20,7 +20,7 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::info;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct DocumentFolderOperation(pub Weak<DocumentManager>);
@@ -120,6 +120,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
     Ok(GatherEncodedCollab::Document(encoded_collab))
   }
 
+  #[instrument(level = "debug", skip_all)]
   async fn create_view_with_view_data(
     &self,
     user_id: i64,
@@ -139,6 +140,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
   }
 
   /// Create a view with built-in data.
+  #[instrument(level = "debug", skip(self))]
   async fn create_default_view(
     &self,
     user_id: i64,

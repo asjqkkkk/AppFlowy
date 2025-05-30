@@ -1087,7 +1087,7 @@ impl DatabaseEditor {
           .update_row_meta(
             row_id,
             UpdateRowMetaParams {
-              id: row_id.clone().into_inner(),
+              row_id: row_id.clone().into_inner(),
               view_id: view_id.to_string(),
               cover: None,
               icon_url: None,

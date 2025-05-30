@@ -279,7 +279,9 @@ async fn get_row_event_test() {
   let row = test.get_row(&grid_view.id, &database.rows[0].id).await.row;
   assert!(row.is_some());
 
-  let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
+  let row = test
+    .get_row_meta_or_panic(&grid_view.id, &database.rows[0].id)
+    .await;
   assert!(row.document_id.is_some());
 }
 
@@ -293,7 +295,9 @@ async fn update_row_meta_event_with_url_test() {
   let database = test.get_database_or_panic(&grid_view.id).await;
 
   // By default the row icon is None.
-  let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
+  let row = test
+    .get_row_meta_or_panic(&grid_view.id, &database.rows[0].id)
+    .await;
   assert_eq!(row.icon, None);
 
   // Insert icon url to the row.
@@ -309,7 +313,9 @@ async fn update_row_meta_event_with_url_test() {
   assert!(error.is_none());
 
   // Check if the icon is updated.
-  let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
+  let row = test
+    .get_row_meta_or_panic(&grid_view.id, &database.rows[0].id)
+    .await;
   assert_eq!(row.icon, Some("icon_url".to_owned()));
 }
 
@@ -323,7 +329,9 @@ async fn update_row_meta_event_with_cover_test() {
   let database = test.get_database_or_panic(&grid_view.id).await;
 
   // By default the row icon is None.
-  let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
+  let row = test
+    .get_row_meta_or_panic(&grid_view.id, &database.rows[0].id)
+    .await;
   assert_eq!(row.icon, None);
 
   // Insert cover to the row.
@@ -339,7 +347,9 @@ async fn update_row_meta_event_with_cover_test() {
   assert!(error.is_none());
 
   // Check if the icon is updated.
-  let row = test.get_row_meta(&grid_view.id, &database.rows[0].id).await;
+  let row = test
+    .get_row_meta_or_panic(&grid_view.id, &database.rows[0].id)
+    .await;
   assert_eq!(row.icon, Some("cover url".to_owned()));
 }
 

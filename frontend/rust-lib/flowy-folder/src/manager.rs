@@ -545,6 +545,7 @@ impl FolderManager {
   /// Commonly, the notify_workspace_update parameter is set to true when the view is created in the workspace.
   /// If you're handling multiple views in the same hierarchy and want to notify the workspace only after the last view is created,
   ///   you can set notify_workspace_update to false to avoid multiple notifications.
+  #[instrument(level = "debug", skip_all)]
   pub async fn create_view_with_params(
     &self,
     params: CreateViewParams,
@@ -593,12 +594,12 @@ impl FolderManager {
   /// The orphan view is meant to be a view that is not attached to any parent view. By default, this
   /// view will not be shown in the view list unless it is attached to a parent view that is shown in
   /// the view list.
+  #[instrument(level = "debug", skip_all, err)]
   pub async fn create_orphan_view_with_params(
     &self,
     params: CreateViewParams,
   ) -> FlowyResult<View> {
     let view_layout: ViewLayout = params.layout.clone().into();
-    // TODO(nathan): remove orphan view. Just use for create document in row
     let handler = self.get_handler(&view_layout)?;
     let user_id = self.user.user_id()?;
     handler

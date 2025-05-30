@@ -90,6 +90,7 @@ impl EventIntegrationTest {
       .parse_or_panic::<DocumentDataPB>();
     OpenDocumentData { id: doc_id, data }
   }
+
   pub async fn insert_document_text(&self, document_id: &str, text: &str, index: usize) {
     let document_event = DocumentEventTest::new_with_core(self.clone());
     document_event

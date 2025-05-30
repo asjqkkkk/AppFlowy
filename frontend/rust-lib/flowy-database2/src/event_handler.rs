@@ -452,7 +452,7 @@ pub(crate) async fn update_row_meta_handler(
   let database_editor = manager
     .get_database_editor_with_view_id(&params.view_id)
     .await?;
-  let row_id = RowId::from(params.id.clone());
+  let row_id = RowId::from(params.row_id.clone());
   database_editor
     .update_row_meta(&row_id.clone(), params)
     .await;
@@ -522,7 +522,7 @@ pub(crate) async fn remove_cover_handler(
     .await?;
 
   let update_row_changeset = UpdateRowMetaParams {
-    id: params.row_id.clone().into(),
+    row_id: params.row_id.clone().into(),
     view_id: params.view_id.clone(),
     cover: Some(RowCover::default()),
     ..Default::default()

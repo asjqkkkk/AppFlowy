@@ -190,7 +190,6 @@ class ViewBloc extends Bloc<ViewEvent, ViewState> {
             final result = await ViewBackendService.duplicate(
               view: view,
               openAfterDuplicate: true,
-              syncAfterDuplicate: true,
               includeChildren: true,
               suffix: ' (${LocaleKeys.menuAppHeader_pageNameSuffix.tr()})',
             );

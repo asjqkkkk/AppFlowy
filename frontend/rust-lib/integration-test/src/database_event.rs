@@ -330,7 +330,51 @@ impl EventIntegrationTest {
       .parse_or_panic::<OptionalRowPB>()
   }
 
-  pub async fn get_row_meta(&self, view_id: &str, row_id: &str) -> RowMetaPB {
+  pub async fn create_row_document<T1: ToString, T2: ToString>(&self, row_id: T1, view_id: T2) {
+    let changeset = UpdateRowMetaChangesetPB {
+      id: row_id.to_string(),
+      view_id: view_id.to_string(),
+      icon_url: None,
+      cover: None,
+      is_document_empty: Some(false),
+      attachment_count: None,
+    };
+    let err = EventBuilder::new(self.clone())
+      .event(DatabaseEvent::UpdateRowMeta)
+      .payload(changeset)
+      .async_send()
+      .await
+      .error();
+    assert!(err.is_none(), "Failed to create row document: {:?}", err);
+
+    let row_meta = self.get_row_meta(view_id, row_id).await.unwrap();
+    let payload = CreateOrphanViewPayloadPB {
+      name: "".to_string(),
+      layout: ViewLayoutPB::Document,
+      view_id: row_meta.document_id.unwrap(),
+      initial_data: vec![],
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateOrphanView)
+      .payload(payload)
+      .async_send()
+      .await;
+  }
+
+  pub async fn get_row_document_id<T1: ToString, T2: ToString>(
+    &self,
+    view_id: T1,
+    row_id: T2,
+  ) -> FlowyResult<String> {
+    let row_meta = self.get_row_meta(view_id, row_id).await?;
+    Ok(row_meta.document_id.unwrap_or_default())
+  }
+
+  pub async fn get_row_meta_or_panic<T1: ToString, T2: ToString>(
+    &self,
+    view_id: T1,
+    row_id: T2,
+  ) -> RowMetaPB {
     EventBuilder::new(self.clone())
       .event(DatabaseEvent::GetRowMeta)
       .payload(DatabaseViewRowIdPB {
@@ -341,6 +385,23 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse_or_panic::<RowMetaPB>()
+  }
+
+  pub async fn get_row_meta<T1: ToString, T2: ToString>(
+    &self,
+    view_id: T1,
+    row_id: T2,
+  ) -> FlowyResult<RowMetaPB> {
+    EventBuilder::new(self.clone())
+      .event(DatabaseEvent::GetRowMeta)
+      .payload(DatabaseViewRowIdPB {
+        view_id: view_id.to_string(),
+        row_id: row_id.to_string(),
+        group_id: None,
+      })
+      .async_send()
+      .await
+      .parse::<RowMetaPB>()
   }
 
   pub async fn update_row_meta(&self, changeset: UpdateRowMetaChangesetPB) -> Option<FlowyError> {
