@@ -108,9 +108,9 @@ flowy-sqlite-vec = { path = "flowy-sqlite-vec" }
 # Run the script.add_workspace_members:
 # scripts/tool/update_client_api_rev.sh  new_rev_id
 # ⚠️⚠️⚠️️
-client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "781af644208fa98dcedb984d847b8734dd82528a" }
-client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "781af644208fa98dcedb984d847b8734dd82528a" }
-workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "781af644208fa98dcedb984d847b8734dd82528a" }
+client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "ff9a62b85dbc930a16b1c066a1ff4ba110a6d136" }
+client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "ff9a62b85dbc930a16b1c066a1ff4ba110a6d136" }
+workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud", rev = "ff9a62b85dbc930a16b1c066a1ff4ba110a6d136" }
 
 [profile.dev]
 opt-level = 0
