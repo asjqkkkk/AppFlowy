@@ -115,6 +115,31 @@ impl EventIntegrationTest {
     self.appflowy_core.config.application_path.clone()
   }
 
+  pub async fn disconnect_ws(&self) -> FlowyResult<()> {
+    self.wait_ws_connected().await?;
+
+    let workspace_id = self.get_workspace_id().await;
+    self
+      .user_manager
+      .disconnect_workspace_ws_conn(&workspace_id)
+      .await?;
+    Ok(())
+  }
+
+  pub async fn connect_ws(&self) -> FlowyResult<()> {
+    let workspace_id = self.get_workspace_id().await;
+    self
+      .user_manager
+      .connect_workspace_ws_conn(&workspace_id)
+      .await?;
+    Ok(())
+  }
+
+  pub async fn is_ws_connected(&self) -> FlowyResult<bool> {
+    let ws_state = self.appflowy_core.server_provider.get_ws_state()?;
+    Ok(ws_state.is_connected())
+  }
+
   pub async fn wait_ws_connected(&self) -> FlowyResult<()> {
     if self
       .appflowy_core

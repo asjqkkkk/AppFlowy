@@ -346,8 +346,8 @@ impl From<(&Vec<BlockEvent>, bool, Option<DocumentData>)> for DocEventPB {
 ///
 /// ```txt
 /// // document: [{ "block_id": "1", "type": "paragraph", "data": {"delta": [{ "insert": "Hello World!" }] } }, { "block_id": "2", "type": "paragraph", "data": {"delta": [{ "insert": "Hello World!" }] }
-/// let test = DocumentEventTest::new().await;
-/// let view = test.create_document().await;
+/// let test = EventIntegrationTest::new().await;
+/// let view = test.create_document_simple().await;
 /// let payload = ConvertDocumentPayloadPB {
 ///   document_id: view.id,
 ///   range: Some(RangePB {
@@ -410,7 +410,7 @@ pub async fn convert_document_handler(
 /// # Examples
 /// Basic usage:
 /// ```txt
-/// let test = DocumentEventTest::new().await;
+/// let test = EventIntegrationTest::new().await;
 /// let payload = ConvertDataToJsonPayloadPB {
 ///  data: "<p>Hello</p><p> World!</p>".to_string(),
 ///  input_type: InputTypePB::Html,

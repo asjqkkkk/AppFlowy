@@ -124,11 +124,7 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
     .parse::<Uuid>()
     .unwrap();
   test_1.wait_ws_connected().await.unwrap();
-  test_1
-    .user_manager
-    .disconnect_workspace_ws_conn(&workspace_id)
-    .await
-    .unwrap();
+  test_1.disconnect_ws().await.unwrap();
 
   let test_2 = EventIntegrationTest::new().await;
   test_2.af_cloud_sign_up_with_email(&profile.email).await;

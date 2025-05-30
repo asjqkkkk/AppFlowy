@@ -1,4 +1,4 @@
-use crate::document::document_event::*;
+use crate::document_event::OpenDocumentData;
 use flowy_document::entities::*;
 use nanoid::nanoid;
 use serde_json::json;

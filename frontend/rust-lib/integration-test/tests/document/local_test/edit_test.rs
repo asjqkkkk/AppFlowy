@@ -1,7 +1,7 @@
 use crate::document::generate_random_string;
 use collab_document::blocks::json_str_to_hashmap;
-use event_integration_test::document::document_event::DocumentEventTest;
 use event_integration_test::document::utils::*;
+use event_integration_test::EventIntegrationTest;
 use flowy_document::entities::*;
 use flowy_document::parser::parser_entities::{
   ConvertDataToJsonPayloadPB, ConvertDocumentPayloadPB, InputType, NestedBlock, ParseTypePB,
@@ -13,8 +13,8 @@ use uuid::Uuid;
 
 #[tokio::test]
 async fn get_document_event_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let document = test.open_document(view.id).await;
   let document_data = document.data;
   assert!(!document_data.page_id.is_empty());
@@ -23,8 +23,8 @@ async fn get_document_event_test() {
 
 #[tokio::test]
 async fn get_encoded_collab_event_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let doc_id = view.id.clone();
   let encoded_v1 = test.get_encoded_collab(&doc_id).await;
   assert!(!encoded_v1.doc_state.is_empty());
@@ -33,8 +33,8 @@ async fn get_encoded_collab_event_test() {
 
 #[tokio::test]
 async fn apply_document_event_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let doc_id = view.id.clone();
   let document = test.open_document(doc_id.clone()).await;
   let block_count = document.data.blocks.len();
@@ -52,8 +52,8 @@ async fn apply_document_event_test() {
 
 #[tokio::test]
 async fn undo_redo_event_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let doc_id = view.id.clone();
 
   let document = test.open_document(doc_id.clone()).await;
@@ -82,8 +82,8 @@ async fn undo_redo_event_test() {
 
 #[tokio::test]
 async fn insert_text_block_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let text = "Hello World";
   let block_id = test.insert_index(&view.id, text, 1, None).await;
   let text_id = test.get_text_id(&view.id, &block_id).await.unwrap();
@@ -92,8 +92,8 @@ async fn insert_text_block_test() {
 }
 #[tokio::test]
 async fn document_size_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
 
   let max_size = 1024 * 1024; // 1mb
   let total_string_size = 500 * 1024; // 500kb
@@ -116,8 +116,8 @@ async fn document_size_test() {
 
 #[tokio::test]
 async fn update_block_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let block_id = test.insert_index(&view.id, "Hello World", 1, None).await;
   let data: HashMap<String, Value> = HashMap::from([
     (
@@ -139,8 +139,8 @@ async fn update_block_test() {
 
 #[tokio::test]
 async fn apply_text_delta_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   let text = "Hello World";
   let block_id = test.insert_index(&view.id, text, 1, None).await;
   let text_id = test.get_text_id(&view.id, &block_id).await.unwrap();
@@ -161,8 +161,8 @@ macro_rules! generate_convert_document_test_cases {
 
 #[tokio::test]
 async fn convert_document_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
 
   let test_cases = generate_convert_document_test_cases! {
     true, true, true,
@@ -189,8 +189,8 @@ async fn convert_document_test() {
 /// - output json: { "type": "page", "data": {}, "children": [{ "type": "paragraph", "children": [], "data": { "delta": [{ "insert": "Hello" }] } }, { "type": "paragraph", "children": [], "data": { "delta": [{ "insert": " World!" }] } }] }
 #[tokio::test]
 async fn convert_data_to_json_test() {
-  let test = DocumentEventTest::new().await;
-  let _ = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let _ = test.create_document_simple().await;
 
   let html = r#"<p>Hello</p><p>World!</p>"#;
   let payload = ConvertDataToJsonPayloadPB {

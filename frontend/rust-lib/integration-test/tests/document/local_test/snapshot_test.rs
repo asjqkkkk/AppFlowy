@@ -1,12 +1,12 @@
-use event_integration_test::document::document_event::DocumentEventTest;
 use event_integration_test::document_data_from_document_doc_state;
+use event_integration_test::EventIntegrationTest;
 use std::time::Duration;
 use tokio::task::yield_now;
 
 #[tokio::test]
 async fn create_document_snapshot_test() {
-  let test = DocumentEventTest::new().await;
-  let view = test.create_document().await;
+  let test = EventIntegrationTest::new_anon().await;
+  let view = test.create_document_simple().await;
   for i in 0..1000 {
     test.insert_index(&view.id, &i.to_string(), 1, None).await;
     if i % 10 == 0 {
@@ -28,8 +28,8 @@ async fn create_document_snapshot_test() {
 //
 // #[tokio::test]
 // async fn maximum_document_snapshot_tests() {
-//   let test = DocumentEventTest::new().await;
-//   let view = test.create_document().await;
+//   let test = EventIntegrationTest::new_anon().await;
+//   let view = test.create_document_simple().await;
 //   for i in 0..8000 {
 //     test.insert_index(&view.id, &i.to_string(), 1, None).await;
 //     if i % 1000 == 0 {
