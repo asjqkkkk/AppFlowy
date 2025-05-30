@@ -167,60 +167,99 @@ async fn af_cloud_open_workspace_test() {
   use_localhost_af_cloud().await;
   let test = EventIntegrationTest::new().await;
   let _ = test.af_cloud_sign_up().await;
-  let default_document_name = "General";
+
+  // Step 1: Setup first workspace with spaces A and B
+  let first_workspace = setup_first_workspace(&test).await;
+  verify_first_workspace_views(&test).await;
+
+  // Step 2: Create and setup second workspace with spaces C and D
+  let second_workspace = setup_second_workspace(&test).await;
+  verify_second_workspace_views(&test).await;
+
+  // Step 3: Test workspace switching with document creation
+  simulate_workspace_switching(&test, &first_workspace, &second_workspace).await;
+
+  // Step 4: Final verification of workspace isolation
+  verify_workspace_isolation(&test, &first_workspace, &second_workspace).await;
+}
+
+/// Sets up the first workspace with spaces A and B
+async fn setup_first_workspace(test: &EventIntegrationTest) -> flowy_user::entities::UserWorkspacePB {
   let workspace_id = test.get_workspace_id().await;
+  
+  // Create spaces in the first workspace
+  test.create_space(workspace_id, "A").await;
+  test.create_space(workspace_id, "B").await;
+  
+  let current_workspace = test.get_current_workspace().await;
+  test.get_user_workspace(&current_workspace.id).await
+}
 
-  test.create_document("A", workspace_id).await;
-  test.create_document("B", workspace_id).await;
-  let first_workspace = test.get_current_workspace().await;
-  let first_workspace = test.get_user_workspace(&first_workspace.id).await;
+/// Verifies that the first workspace has the expected views
+async fn verify_first_workspace_views(test: &EventIntegrationTest) {
   let views = test.get_all_workspace_views().await;
-  assert_eq!(views.len(), 4);
-  assert_eq!(views[0].name, default_document_name);
-  assert_eq!(views[1].name, "Shared");
-  assert_eq!(views[2].name, "A");
-  assert_eq!(views[3].name, "B");
+  assert_eq!(views.len(), 4, "First workspace should have 4 views");
+  assert_eq!(views[0].name, "General", "First view should be General");
+  assert_eq!(views[1].name, "Shared", "Second view should be Shared");
+  assert_eq!(views[2].name, "A", "Third view should be space A");
+  assert_eq!(views[3].name, "B", "Fourth view should be space B");
+}
 
+/// Creates and sets up the second workspace with spaces C and D
+async fn setup_second_workspace(test: &EventIntegrationTest) -> flowy_user::entities::UserWorkspacePB {
+  // Create second workspace
   let user_workspace = test
     .create_workspace("second workspace", WorkspaceType::Server)
     .await;
+  
+  // Switch to second workspace
   test
     .open_workspace(&user_workspace.workspace_id, user_workspace.workspace_type)
     .await;
-  let second_workspace = test.get_current_workspace().await;
-  let second_workspace = test.get_user_workspace(&second_workspace.id).await;
-  test.create_document("C", workspace_id).await;
-  test.create_document("D", workspace_id).await;
+  
+  // Create spaces in the second workspace
+  let workspace_id = test.get_workspace_id().await;
+  test.create_space(workspace_id, "C").await;
+  test.create_space(workspace_id, "D").await;
+  
+  let current_workspace = test.get_current_workspace().await;
+  test.get_user_workspace(&current_workspace.id).await
+}
 
+/// Verifies that the second workspace has the expected views
+async fn verify_second_workspace_views(test: &EventIntegrationTest) {
   let views = test.get_all_workspace_views().await;
-  assert_eq!(views.len(), 4);
-  assert_eq!(views[0].name, default_document_name);
-  assert_eq!(views[1].name, "Shared");
-  assert_eq!(views[2].name, "C");
-  assert_eq!(views[3].name, "D");
+  assert_eq!(views.len(), 4, "Second workspace should have 4 views");
+  assert_eq!(views[0].name, "General", "First view should be General");
+  assert_eq!(views[1].name, "Shared", "Second view should be Shared");
+  assert_eq!(views[2].name, "C", "Third view should be space C");
+  assert_eq!(views[3].name, "D", "Fourth view should be space D");
+}
 
+/// Simulates switching between workspaces while creating documents
+async fn simulate_workspace_switching(
+  test: &EventIntegrationTest,
+  first_workspace: &flowy_user::entities::UserWorkspacePB,
+  second_workspace: &flowy_user::entities::UserWorkspacePB,
+) {
   let first_workspace_uuid = Uuid::parse_str(&first_workspace.workspace_id).unwrap();
   let second_workspace_uuid = Uuid::parse_str(&second_workspace.workspace_id).unwrap();
-
-  // simulate open workspace and check if the views are correct
+  
+  // Switch between workspaces 10 times, creating documents in each
   for i in 0..10 {
     if i % 2 == 0 {
+      // Switch to first workspace and create a document
       test
-        .open_workspace(
-          &first_workspace.workspace_id,
-          first_workspace.workspace_type,
-        )
+        .open_workspace(&first_workspace.workspace_id, first_workspace.workspace_type)
         .await;
       sleep(Duration::from_millis(300)).await;
       test
         .create_document(&uuid::Uuid::new_v4().to_string(), first_workspace_uuid)
         .await;
     } else {
+      // Switch to second workspace and create a document
       test
-        .open_workspace(
-          &second_workspace.workspace_id,
-          second_workspace.workspace_type,
-        )
+        .open_workspace(&second_workspace.workspace_id, second_workspace.workspace_type)
         .await;
       sleep(Duration::from_millis(200)).await;
       test
@@ -228,30 +267,33 @@ async fn af_cloud_open_workspace_test() {
         .await;
     }
   }
+}
 
+/// Verifies that each workspace maintains its own set of views after switching
+async fn verify_workspace_isolation(
+  test: &EventIntegrationTest,
+  first_workspace: &flowy_user::entities::UserWorkspacePB,
+  second_workspace: &flowy_user::entities::UserWorkspacePB,
+) {
+  // Verify first workspace still has its original views
   test
-    .open_workspace(
-      &first_workspace.workspace_id,
-      first_workspace.workspace_type,
-    )
+    .open_workspace(&first_workspace.workspace_id, first_workspace.workspace_type)
     .await;
   let views_1 = test.get_all_workspace_views().await;
-  assert_eq!(views_1[0].name, default_document_name);
-  assert_eq!(views_1[1].name, "Shared");
-  assert_eq!(views_1[2].name, "A");
-  assert_eq!(views_1[3].name, "B");
+  assert_eq!(views_1[0].name, "General", "First workspace should still have General view");
+  assert_eq!(views_1[1].name, "Shared", "First workspace should still have Shared view");
+  assert_eq!(views_1[2].name, "A", "First workspace should still have space A");
+  assert_eq!(views_1[3].name, "B", "First workspace should still have space B");
 
+  // Verify second workspace still has its original views
   test
-    .open_workspace(
-      &second_workspace.workspace_id,
-      second_workspace.workspace_type,
-    )
+    .open_workspace(&second_workspace.workspace_id, second_workspace.workspace_type)
     .await;
   let views_2 = test.get_all_workspace_views().await;
-  assert_eq!(views_2[0].name, default_document_name);
-  assert_eq!(views_2[1].name, "Shared");
-  assert_eq!(views_2[2].name, "C");
-  assert_eq!(views_2[3].name, "D");
+  assert_eq!(views_2[0].name, "General", "Second workspace should still have General view");
+  assert_eq!(views_2[1].name, "Shared", "Second workspace should still have Shared view");
+  assert_eq!(views_2[2].name, "C", "Second workspace should still have space C");
+  assert_eq!(views_2[3].name, "D", "Second workspace should still have space D");
 }
 
 #[tokio::test]

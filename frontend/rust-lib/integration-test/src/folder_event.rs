@@ -317,10 +317,10 @@ impl EventIntegrationTest {
       .await
   }
 
-  pub async fn create_space(&self, parent_id: Uuid, name: String) -> ViewPB {
+  pub async fn create_space<T: ToString>(&self, parent_id: Uuid, name: T) -> ViewPB {
     let payload = CreateViewPayloadPB {
       parent_view_id: parent_id.to_string(),
-      name,
+      name: name.to_string(),
       thumbnail: None,
       layout: ViewLayoutPB::Document,
       initial_data: vec![],

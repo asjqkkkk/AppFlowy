@@ -129,7 +129,7 @@ impl EventIntegrationTest {
     self
       .retry_operation(
         operation,
-        5,
+        10,
         tokio::time::Duration::from_secs(5),
         |err| err.code == ErrorCode::RetryLater,
         operation_name,
