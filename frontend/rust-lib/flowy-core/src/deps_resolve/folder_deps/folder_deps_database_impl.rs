@@ -1,6 +1,5 @@
 #![allow(unused_variables)]
 use bytes::Bytes;
-use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use collab_folder::{View, ViewLayout};
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -20,6 +19,7 @@ use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Weak};
+use tracing::info;
 use uuid::Uuid;
 
 pub struct DatabaseFolderOperation(pub Weak<DatabaseManager>);
@@ -168,6 +168,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
   }
 
   async fn duplicate_view(&self, view_id: &Uuid) -> Result<Bytes, FlowyError> {
+    info!("Duplicate database view: {}", view_id);
     Ok(Bytes::from(view_id.to_string()))
   }
 
@@ -178,26 +179,26 @@ impl FolderOperationHandler for DatabaseFolderOperation {
     &self,
     _user_id: i64,
     params: CreateViewParams,
-  ) -> Result<Option<EncodedCollab>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     match CreateDatabaseExtParams::from_map(params.meta.clone()) {
       None => match params.initial_data {
         ViewData::DuplicateData(data) => {
           let duplicated_view_id =
             String::from_utf8(data.to_vec()).map_err(|_| FlowyError::invalid_data())?;
-          let encoded_collab = self
+          self
             .database_manager()?
             .duplicate_database(&duplicated_view_id, &params.view_id.to_string())
             .await?;
-          Ok(Some(encoded_collab))
+          Ok(())
         },
         ViewData::Data(data) => {
-          let encoded_collab = self
+          self
             .database_manager()?
             .create_database_with_data(&params.view_id.to_string(), data.to_vec())
             .await?;
-          Ok(Some(encoded_collab))
+          Ok(())
         },
-        ViewData::Empty => Ok(None),
+        ViewData::Empty => Ok(()),
       },
       Some(database_params) => {
         let layout = match params.layout {
@@ -223,7 +224,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
             database_parent_view_id,
           )
           .await?;
-        Ok(None)
+        Ok(())
       },
     }
   }
@@ -290,13 +291,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
       result
         .encoded_collabs
         .into_iter()
-        .map(|encoded| {
-          (
-            encoded.object_id,
-            encoded.collab_type,
-            encoded.encoded_collab,
-          )
-        })
+        .map(|encoded| (encoded.object_id, encoded.collab_type))
         .collect(),
     )
   }

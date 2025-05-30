@@ -96,87 +96,6 @@ impl DocumentManager {
     self.max_removal_timeout = max_timeout;
   }
 
-  /// Start a periodic cleanup task to remove old entries
-  fn start_periodic_cleanup(&self) {
-    let weak_documents = Arc::downgrade(&self.documents);
-    let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
-    let base_timeout = self.base_removal_timeout;
-    let max_timeout = self.max_removal_timeout;
-
-    tokio::spawn(async move {
-      let mut interval = tokio::time::interval(cleanup_interval);
-      loop {
-        interval.tick().await;
-
-        if let Some(documents) = weak_documents.upgrade() {
-          let now = Instant::now();
-          let mut to_remove = Vec::new();
-
-          for entry in documents.iter() {
-            let (doc_id, document_entry) = entry.pair();
-            if let Some(removal_time) = document_entry.removal_time() {
-              // Calculate dynamic timeout based on access patterns
-              let access_multiplier = (document_entry.access_count() as f64 / 10.0).min(2.0);
-              let timeout = Duration::from_secs(
-                (base_timeout.as_secs() as f64 * (1.0 + access_multiplier)) as u64,
-              )
-              .min(max_timeout);
-
-              if now.duration_since(removal_time) >= timeout {
-                to_remove.push(*doc_id);
-              }
-            }
-          }
-
-          // Remove expired entries
-          for doc_id in to_remove {
-            if let Some((_, entry)) = documents.remove(&doc_id) {
-              if entry.is_pending_removal() {
-                trace!("[Document]: Periodic cleanup removing document: {}", doc_id);
-
-                // Clean awareness state when removing
-                if let Some(document) = entry.get_document() {
-                  let mut lock = document.write().await;
-                  lock.clean_awareness_local_state();
-                }
-              } else {
-                // Entry was reactivated, put it back
-                documents.insert(doc_id, entry);
-              }
-            }
-          }
-
-          // Safety cleanup for entries that have been pending for too long
-          let max_age = Duration::from_secs(600); // 10 minutes absolute max
-          let initial_count = documents.len();
-          documents.retain(|doc_id, entry| {
-            if let Some(removal_time) = entry.removal_time() {
-              let should_retain = now.duration_since(removal_time) < max_age;
-              if !should_retain {
-                trace!("[Document]: Safety cleanup removing old entry: {}", doc_id);
-              }
-              should_retain
-            } else {
-              // Keep active entries
-              true
-            }
-          });
-
-          let removed_count = initial_count - documents.len();
-          if removed_count > 0 {
-            trace!(
-              "[Document]: Periodic cleanup removed {} entries",
-              removed_count
-            );
-          }
-        } else {
-          // DocumentManager has been dropped, exit the cleanup task
-          break;
-        }
-      }
-    });
-  }
-
   pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
     self.user_service.collab_client_id(workspace_id)
   }
@@ -195,8 +114,13 @@ impl DocumentManager {
     let doc_state =
       CollabPersistenceImpl::new(self.user_service.collab_db(uid)?, uid, workspace_id)
         .into_data_source();
-    let collab = self.collab_for_document(doc_id, doc_state).await?;
-    let encoded_collab = collab
+
+    let document = self
+      .collab_builder()?
+      .create_document(workspace_id, *doc_id, doc_state)
+      .await?;
+
+    let encoded_collab = document
       .try_read()
       .unwrap()
       .encode_collab_v1(|collab| CollabType::Document.validate_require_data(collab))
@@ -206,14 +130,7 @@ impl DocumentManager {
 
   pub async fn initialize(&self, _uid: i64) -> FlowyResult<()> {
     trace!("initialize document manager");
-    // Close all existing documents
-    for entry in self.documents.iter() {
-      if let Some(document) = entry.value().get_document() {
-        let mut lock = document.write().await;
-        lock.clean_awareness_local_state();
-      }
-    }
-    self.documents.clear();
+    self.clear_all_documents().await;
     Ok(())
   }
 
@@ -254,17 +171,26 @@ impl DocumentManager {
     Ok(CollabPersistenceImpl::new(db, uid, workspace_id))
   }
 
-  /// Create a new document.
-  ///
-  /// if the document already exists, return the existing document.
-  /// if the data is None, will create a document with default data.
+  pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
+    let document = self.get_document(doc_id).await?;
+    let document = document.read().await;
+    document.get_document_data().map_err(internal_error)
+  }
+
+  pub async fn get_document_text(&self, doc_id: &Uuid) -> FlowyResult<String> {
+    let document = self.get_document(doc_id).await?;
+    let document = document.read().await;
+    let text = document.paragraphs().join("\n");
+    Ok(text)
+  }
+
   #[instrument(level = "info", skip(self, data))]
   pub async fn create_document(
     &self,
     _uid: i64,
     doc_id: &Uuid,
     data: Option<DocumentData>,
-  ) -> FlowyResult<EncodedCollab> {
+  ) -> FlowyResult<()> {
     if self.is_doc_exist(doc_id).await.unwrap_or(false) {
       Err(FlowyError::new(
         ErrorCode::RecordAlreadyExists,
@@ -274,73 +200,27 @@ impl DocumentManager {
       let workspace_id = self.user_service.workspace_id()?;
       let client_id = self.user_service.collab_client_id(&workspace_id);
       let encoded_collab = doc_state_from_document_data(doc_id, data, client_id).await?;
-      self
+      let document = self
         .collab_builder()?
-        .save_collab_to_disk(doc_id, encoded_collab.clone())?;
-
-      // Send the collab data to server with a background task.
-      let cloud_service = self.cloud_service.clone();
-      let cloned_encoded_collab = encoded_collab.clone();
-      let workspace_id = self.user_service.workspace_id()?;
-      let doc_id = *doc_id;
-      tokio::spawn(async move {
-        let _ = cloud_service
-          .create_document_collab(&workspace_id, &doc_id, cloned_encoded_collab)
-          .await;
-      });
-      Ok(encoded_collab)
+        .create_document(workspace_id, *doc_id, encoded_collab.into())
+        .await?;
+      self.cache_and_initialize_document(*doc_id, document).await;
+      Ok(())
     }
   }
 
-  async fn collab_for_document(
-    &self,
-    doc_id: &Uuid,
-    data_source: DataSource,
-  ) -> FlowyResult<Arc<RwLock<Document>>> {
-    let workspace_id = self.user_service.workspace_id()?;
-    let document = self
-      .collab_builder()?
-      .create_document(workspace_id, *doc_id, data_source, None)
-      .await?;
-    Ok(document)
-  }
-
-  /// Return a document instance.
-  /// The returned document might or might not be able to sync with the cloud.
-  async fn get_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    // Check if we have an active document
-    if let Some(entry) = self.documents.get(doc_id) {
-      if entry.is_active() {
-        if let Some(doc) = entry.get_document() {
-          return Ok(doc);
-        }
-      }
-    }
-
-    let document = self.create_document_instance(doc_id, false).await?;
-    Ok(document)
-  }
-
-  pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    // Check if we have an existing entry (active or pending removal)
+  pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     if let Some(mut entry) = self.documents.get_mut(doc_id) {
       if entry.is_pending_removal() {
-        // Reactivate the entry
         let reactivated_entry = entry.value().clone().reactivate();
         *entry = reactivated_entry;
-
-        if let Some(document) = entry.get_document() {
-          let lock = document.read().await;
-          lock.start_init_sync();
-          return Ok(());
-        }
       } else if entry.is_active() && entry.get_document().is_some() {
-        return Ok(());
+        return Ok(entry.get_document().unwrap());
       }
     }
 
-    let _ = self.create_document_instance(doc_id, true).await?;
-    Ok(())
+    let document = self.create_document_instance(doc_id).await?;
+    Ok(document)
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
@@ -371,6 +251,47 @@ impl DocumentManager {
       self.documents.remove(doc_id);
     }
     Ok(())
+  }
+
+  async fn cache_and_initialize_document(&self, doc_id: Uuid, document: Arc<RwLock<Document>>) {
+    let mut document_entry = DocumentEntry::new_initializing(doc_id);
+    document_entry.set_document(document.clone());
+    self.documents.insert(doc_id, document_entry);
+    self.setup_document_subscriptions(&doc_id, &document).await;
+  }
+
+  async fn setup_document_subscriptions(&self, doc_id: &Uuid, document: &Arc<RwLock<Document>>) {
+    let mut lock = document.write().await;
+    subscribe_document_changed(doc_id, &mut lock);
+    subscribe_document_snapshot_state(&lock);
+    subscribe_document_sync_state(&lock);
+  }
+
+  /// Return a document instance.
+  /// The returned document might or might not be able to sync with the cloud.
+  async fn get_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    // Check if we have an active document
+    if let Some(entry) = self.documents.get(doc_id) {
+      if entry.is_active() {
+        if let Some(doc) = entry.get_document() {
+          return Ok(doc);
+        }
+      }
+    }
+
+    let document = self.create_document_instance(doc_id).await?;
+    Ok(document)
+  }
+
+  async fn clear_all_documents(&self) {
+    trace!("[DocumentManager]: Clearing all documents");
+    for entry in self.documents.iter() {
+      if let Some(document) = entry.value().get_document() {
+        let mut lock = document.write().await;
+        lock.clean_awareness_local_state();
+      }
+    }
+    self.documents.clear();
   }
 
   #[instrument(level = "debug", skip_all, err)]
@@ -460,6 +381,10 @@ impl DocumentManager {
     let uid = self.user_service.user_id()?;
     let workspace_id = self.user_service.workspace_id()?;
     if let Some(collab_db) = self.user_service.collab_db(uid)?.upgrade() {
+      trace!(
+        "Check {}/Workspace, if {}/Document exist",
+        workspace_id, doc_id
+      );
       let is_exist = collab_db
         .is_exist(uid, &workspace_id.to_string(), &doc_id.to_string())
         .await?;
@@ -487,43 +412,6 @@ impl DocumentManager {
     &self.storage_service
   }
 
-  /// Get statistics about the pending removal documents
-  pub async fn get_pending_removal_stats(&self) -> (usize, Vec<(Uuid, u32, Duration)>) {
-    let now = Instant::now();
-
-    let pending_removal_entries: Vec<_> = self
-      .documents
-      .iter()
-      .filter_map(|entry| {
-        let (doc_id, document_entry) = entry.pair();
-        if let Some(removal_time) = document_entry.removal_time() {
-          let age = now.duration_since(removal_time);
-          Some((*doc_id, document_entry.access_count(), age))
-        } else {
-          None
-        }
-      })
-      .collect();
-
-    let count = pending_removal_entries.len();
-    (count, pending_removal_entries)
-  }
-
-  /// Force cleanup of pending removal entries (useful for testing or manual cleanup)
-  pub async fn force_cleanup_pending_documents(&self) {
-    let initial_count = self.documents.len();
-
-    // Only remove entries that are pending removal
-    self.documents.retain(|_, entry| entry.is_active());
-
-    let removed_count = initial_count - self.documents.len();
-    trace!(
-      "[Document]: Force cleaned {} pending removal entries",
-      removed_count
-    );
-  }
-
-  /// Get the current active documents count
   pub async fn get_active_documents_count(&self) -> usize {
     self
       .documents
@@ -532,18 +420,12 @@ impl DocumentManager {
       .count()
   }
 
-  /// Get the current pending removal documents count
   pub async fn get_pending_removal_documents_count(&self) -> usize {
     self
       .documents
       .iter()
       .filter(|entry| entry.value().is_pending_removal())
       .count()
-  }
-
-  /// Get total documents count (active + pending removal)
-  pub async fn get_total_documents_count(&self) -> usize {
-    self.documents.len()
   }
 
   /// Return a document instance if the document is already opened.
@@ -556,19 +438,14 @@ impl DocumentManager {
         }
       }
     }
-
-    Err(FlowyError::internal().with_context("Call open document first"))
+    self.open_document(doc_id).await
   }
 
   /// Returns Document for given object id
   /// If the document does not exist in local disk, try get the doc state from the cloud.
   /// If the document exists, open the document and cache it
   #[tracing::instrument(level = "info", skip(self), err)]
-  async fn create_document_instance(
-    &self,
-    doc_id: &Uuid,
-    enable_sync: bool,
-  ) -> FlowyResult<Arc<RwLock<Document>>> {
+  async fn create_document_instance(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     // Check if we have an existing entry (active or pending removal)
     if let Some(mut entry) = self.documents.get_mut(doc_id) {
       if entry.is_pending_removal() {
@@ -619,7 +496,7 @@ impl DocumentManager {
 
     // Proceed with document creation
     trace!("Initializing document: {}", doc_id);
-    match self.create_document_data(doc_id).await {
+    match self.initialize_document(doc_id).await {
       Ok(document) => {
         // Store the document in the holder
         if let Some(mut entry) = self.documents.get_mut(doc_id) {
@@ -646,13 +523,13 @@ impl DocumentManager {
   }
 
   // Helper method to create the document data and initialize subscriptions
-  async fn create_document_data(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+  async fn initialize_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     let mut doc_state = self.persistence()?.into_data_source();
     // If the document does not exist in local disk, try get the doc state from the cloud. This happens
     // When user_device_a create a document and user_device_b open the document.
     if !self.is_doc_exist(doc_id).await? {
       info!(
-        "document {} not found in local disk, try to get the doc state from the cloud",
+        "{}/Document not found in local disk, try to get the doc state from the cloud",
         doc_id
       );
       doc_state = DataSource::DocStateV1(
@@ -678,29 +555,95 @@ impl DocumentManager {
       self.user_service.workspace_id()
     );
 
-    let document = self.collab_for_document(doc_id, doc_state).await?;
-
-    // Initialize subscriptions
-    let mut lock = document.write().await;
-    subscribe_document_changed(doc_id, &mut lock);
-    subscribe_document_snapshot_state(&lock);
-    subscribe_document_sync_state(&lock);
-    drop(lock);
+    let workspace_id = self.user_service.workspace_id()?;
+    let document = self
+      .collab_builder()?
+      .create_document(workspace_id, *doc_id, doc_state)
+      .await?;
+    self.setup_document_subscriptions(doc_id, &document).await;
 
     Ok(document)
   }
 
-  pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
-    let document = self.get_document(doc_id).await?;
-    let document = document.read().await;
-    document.get_document_data().map_err(internal_error)
-  }
+  /// Start a periodic cleanup task to remove old entries
+  fn start_periodic_cleanup(&self) {
+    let weak_documents = Arc::downgrade(&self.documents);
+    let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
+    let base_timeout = self.base_removal_timeout;
+    let max_timeout = self.max_removal_timeout;
 
-  pub async fn get_document_text(&self, doc_id: &Uuid) -> FlowyResult<String> {
-    let document = self.get_document(doc_id).await?;
-    let document = document.read().await;
-    let text = document.paragraphs().join("\n");
-    Ok(text)
+    tokio::spawn(async move {
+      let mut interval = tokio::time::interval(cleanup_interval);
+      loop {
+        interval.tick().await;
+
+        if let Some(documents) = weak_documents.upgrade() {
+          let now = Instant::now();
+          let mut to_remove = Vec::new();
+
+          for entry in documents.iter() {
+            let (doc_id, document_entry) = entry.pair();
+            if let Some(removal_time) = document_entry.removal_time() {
+              // Calculate dynamic timeout based on access patterns
+              let access_multiplier = (document_entry.access_count() as f64 / 10.0).min(2.0);
+              let timeout = Duration::from_secs(
+                (base_timeout.as_secs() as f64 * (1.0 + access_multiplier)) as u64,
+              )
+              .min(max_timeout);
+
+              if now.duration_since(removal_time) >= timeout {
+                to_remove.push(*doc_id);
+              }
+            }
+          }
+
+          // Remove expired entries
+          for doc_id in to_remove {
+            if let Some((_, entry)) = documents.remove(&doc_id) {
+              if entry.is_pending_removal() {
+                trace!("[Document]: Periodic cleanup removing document: {}", doc_id);
+
+                // Clean awareness state when removing
+                if let Some(document) = entry.get_document() {
+                  let mut lock = document.write().await;
+                  lock.clean_awareness_local_state();
+                }
+              } else {
+                // Entry was reactivated, put it back
+                documents.insert(doc_id, entry);
+              }
+            }
+          }
+
+          // Safety cleanup for entries that have been pending for too long
+          let max_age = Duration::from_secs(600); // 10 minutes absolute max
+          let initial_count = documents.len();
+          documents.retain(|doc_id, entry| {
+            if let Some(removal_time) = entry.removal_time() {
+              let should_retain = now.duration_since(removal_time) < max_age;
+              if !should_retain {
+                trace!("[Document]: Safety cleanup removing old entry: {}", doc_id);
+              }
+              should_retain
+            } else {
+              // Keep active entries
+              true
+            }
+          });
+
+          let removed_count = initial_count - documents.len();
+          if removed_count > 0 {
+            trace!(
+              "[Document]: Periodic cleanup removed {} entries",
+              removed_count
+            );
+          }
+        } else {
+          // DocumentManager has been dropped, exit the cleanup task
+          break;
+        }
+      }
+    });
   }
 }
 

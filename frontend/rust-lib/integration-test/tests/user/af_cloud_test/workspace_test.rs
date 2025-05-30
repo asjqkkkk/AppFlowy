@@ -14,6 +14,7 @@ use flowy_user_pub::entities::{AuthType, WorkspaceType};
 use std::time::Duration;
 use tokio::task::LocalSet;
 use tokio::time::sleep;
+use uuid::Uuid;
 
 #[tokio::test]
 async fn af_cloud_workspace_delete() {
@@ -167,9 +168,10 @@ async fn af_cloud_open_workspace_test() {
   let test = EventIntegrationTest::new().await;
   let _ = test.af_cloud_sign_up().await;
   let default_document_name = "General";
+  let workspace_id = test.get_workspace_id().await;
 
-  test.create_document("A").await;
-  test.create_document("B").await;
+  test.create_document("A", workspace_id).await;
+  test.create_document("B", workspace_id).await;
   let first_workspace = test.get_current_workspace().await;
   let first_workspace = test.get_user_workspace(&first_workspace.id).await;
   let views = test.get_all_workspace_views().await;
@@ -187,8 +189,8 @@ async fn af_cloud_open_workspace_test() {
     .await;
   let second_workspace = test.get_current_workspace().await;
   let second_workspace = test.get_user_workspace(&second_workspace.id).await;
-  test.create_document("C").await;
-  test.create_document("D").await;
+  test.create_document("C", workspace_id).await;
+  test.create_document("D", workspace_id).await;
 
   let views = test.get_all_workspace_views().await;
   assert_eq!(views.len(), 4);
@@ -196,6 +198,9 @@ async fn af_cloud_open_workspace_test() {
   assert_eq!(views[1].name, "Shared");
   assert_eq!(views[2].name, "C");
   assert_eq!(views[3].name, "D");
+
+  let first_workspace_uuid = Uuid::parse_str(&first_workspace.workspace_id).unwrap();
+  let second_workspace_uuid = Uuid::parse_str(&second_workspace.workspace_id).unwrap();
 
   // simulate open workspace and check if the views are correct
   for i in 0..10 {
@@ -208,7 +213,7 @@ async fn af_cloud_open_workspace_test() {
         .await;
       sleep(Duration::from_millis(300)).await;
       test
-        .create_document(&uuid::Uuid::new_v4().to_string())
+        .create_document(&uuid::Uuid::new_v4().to_string(), first_workspace_uuid)
         .await;
     } else {
       test
@@ -219,7 +224,7 @@ async fn af_cloud_open_workspace_test() {
         .await;
       sleep(Duration::from_millis(200)).await;
       test
-        .create_document(&uuid::Uuid::new_v4().to_string())
+        .create_document(&uuid::Uuid::new_v4().to_string(), second_workspace_uuid)
         .await;
     }
   }
@@ -429,7 +434,7 @@ async fn af_cloud_create_local_workspace_test() {
 
   // Verify: Can access all views
   for view in views {
-    test.get_view(&view.id).await;
+    test.get_view_or_panic(&view.id).await;
   }
 
   // Verify: Local workspace members

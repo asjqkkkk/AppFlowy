@@ -252,7 +252,7 @@ impl Default for RetryConfig {
   fn default() -> Self {
     Self {
       timeout: Duration::from_secs(30),
-      poll_interval: Duration::from_secs(2),
+      poll_interval: Duration::from_secs(3),
       max_retries: 10,
     }
   }

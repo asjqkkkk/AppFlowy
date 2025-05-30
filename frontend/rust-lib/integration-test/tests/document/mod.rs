@@ -1,6 +1,6 @@
 mod local_test;
 
-mod af_cloud_test;
+mod af_cloud;
 
 use rand::{distributions::Alphanumeric, thread_rng, Rng};
 

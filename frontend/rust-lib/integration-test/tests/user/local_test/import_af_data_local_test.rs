@@ -44,7 +44,7 @@ async fn import_appflowy_data_folder_into_new_view_test() {
   assert_eq!(views[0].child_views.len(), 2);
 
   for (index, view) in views[0].child_views.iter().enumerate() {
-    let view = test.get_view(&view.id).await;
+    let view = test.get_view_or_panic(&view.id).await;
     if index == 1 {
       assert_eq!(view.name, import_container_name);
     }

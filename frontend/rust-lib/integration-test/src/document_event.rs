@@ -1,3 +1,6 @@
+use crate::document::document_event::{DocumentEventTest, OpenDocumentData};
+use crate::event_builder::EventBuilder;
+use crate::EventIntegrationTest;
 use collab::core::collab::{default_client_id, CollabOptions};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::updates::decoder::Decode;
@@ -5,22 +8,34 @@ use collab::preclude::{Collab, Update};
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_entity::CollabType;
-
 use flowy_document::entities::{DocumentDataPB, DocumentTextPB, OpenDocumentPayloadPB};
 use flowy_document::event_map::DocumentEvent;
+use flowy_error::FlowyResult;
 use flowy_folder::entities::{CreateViewPayloadPB, ViewLayoutPB, ViewPB};
 use flowy_folder::event_map::FolderEvent;
-
-use crate::document::document_event::{DocumentEventTest, OpenDocumentData};
-use crate::event_builder::EventBuilder;
-use crate::EventIntegrationTest;
+use uuid::Uuid;
 
 impl EventIntegrationTest {
-  pub async fn create_document(&self, name: &str) -> ViewPB {
-    let current_workspace = self.get_current_workspace().await;
-    self
-      .create_and_open_document(&current_workspace.id, name.to_string(), vec![])
+  pub async fn create_document(&self, name: &str, parent_id: Uuid) -> ViewPB {
+    let payload = CreateViewPayloadPB {
+      parent_view_id: parent_id.to_string(),
+      name: name.to_string(),
+      thumbnail: None,
+      layout: ViewLayoutPB::Document,
+      initial_data: vec![],
+      meta: Default::default(),
+      set_as_current: true,
+      index: None,
+      section: None,
+      view_id: None,
+      extra: None,
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateView)
+      .payload(payload)
+      .async_send()
       .await
+      .parse_or_panic::<ViewPB>()
   }
 
   pub async fn create_and_open_document(
@@ -95,7 +110,7 @@ impl EventIntegrationTest {
     DocumentData::from(pb)
   }
 
-  pub async fn get_document_text(&self, view_id: &str) -> DocumentTextPB {
+  pub async fn get_document_text_or_panic(&self, view_id: &str) -> DocumentTextPB {
     EventBuilder::new(self.clone())
       .event(DocumentEvent::GetDocumentText)
       .payload(OpenDocumentPayloadPB {
@@ -104,6 +119,17 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse_or_panic::<DocumentTextPB>()
+  }
+
+  pub async fn get_document_text(&self, view_id: &str) -> FlowyResult<DocumentTextPB> {
+    EventBuilder::new(self.clone())
+      .event(DocumentEvent::GetDocumentText)
+      .payload(OpenDocumentPayloadPB {
+        document_id: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<DocumentTextPB>()
   }
 
   pub async fn get_document_doc_state(&self, document_id: &str) -> Vec<u8> {

@@ -1,6 +1,5 @@
 use crate::deps_resolve::folder_deps::get_encoded_collab_v1_from_disk;
 use bytes::Bytes;
-use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use collab_folder::hierarchy_builder::NestedViewBuilder;
 use collab_folder::ViewLayout;
@@ -21,6 +20,7 @@ use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
+use tracing::info;
 use uuid::Uuid;
 
 pub struct DocumentFolderOperation(pub Weak<DocumentManager>);
@@ -92,6 +92,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
   }
 
   async fn duplicate_view(&self, view_id: &Uuid) -> Result<Bytes, FlowyError> {
+    info!("Duplicate document view: {}", view_id);
     let data: DocumentDataPB = self
       .document_manager()?
       .get_document_data(view_id)
@@ -123,18 +124,18 @@ impl FolderOperationHandler for DocumentFolderOperation {
     &self,
     user_id: i64,
     params: CreateViewParams,
-  ) -> Result<Option<EncodedCollab>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     debug_assert_eq!(params.layout, ViewLayoutPB::Document);
     let data = match params.initial_data {
       ViewData::DuplicateData(data) => Some(DocumentDataPB::try_from(data)?),
       ViewData::Data(data) => Some(DocumentDataPB::try_from(data)?),
       ViewData::Empty => None,
     };
-    let encoded_collab = self
+    self
       .document_manager()?
       .create_document(user_id, &params.view_id, data.map(|d| d.into()))
       .await?;
-    Ok(Some(encoded_collab))
+    Ok(())
   }
 
   /// Create a view with built-in data.
@@ -172,15 +173,11 @@ impl FolderOperationHandler for DocumentFolderOperation {
     bytes: Vec<u8>,
   ) -> Result<Vec<ImportedData>, FlowyError> {
     let data = DocumentDataPB::try_from(Bytes::from(bytes))?;
-    let encoded_collab = self
+    self
       .document_manager()?
       .create_document(uid, view_id, Some(data.into()))
       .await?;
-    Ok(vec![(
-      view_id.to_string(),
-      CollabType::Document,
-      encoded_collab,
-    )])
+    Ok(vec![(view_id.to_string(), CollabType::Document)])
   }
 
   async fn import_from_file_path(

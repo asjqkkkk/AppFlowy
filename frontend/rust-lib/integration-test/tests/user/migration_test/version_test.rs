@@ -20,7 +20,7 @@ async fn migrate_036_fav_v1_workspace_array_test() {
   assert_eq!(views[0].name, "root page");
   assert_eq!(views[1].name, "⭐\u{fe0f} Getting started");
 
-  let views = test.get_view(&views[1].id).await;
+  let views = test.get_view_or_panic(&views[1].id).await;
   assert_eq!(views.child_views.len(), 3);
   assert!(views.child_views[2].is_favorite);
 }
@@ -45,11 +45,11 @@ async fn migrate_038_trash_test() {
   assert_eq!(views[0].name, "Getting started");
   assert_eq!(views[1].name, "Documents");
 
-  let get_started_child_views = test.get_view(&views[0].id).await.child_views;
+  let get_started_child_views = test.get_view_or_panic(&views[0].id).await.child_views;
   assert_eq!(get_started_child_views.len(), 1);
   assert_eq!(get_started_child_views[0].name, "Document1");
 
-  let get_started_child_views = test.get_view(&views[1].id).await.child_views;
+  let get_started_child_views = test.get_view_or_panic(&views[1].id).await.child_views;
   assert_eq!(get_started_child_views.len(), 1);
   assert_eq!(get_started_child_views[0].name, "Document5");
 
@@ -76,13 +76,13 @@ async fn migrate_038_trash_test2() {
   assert_eq!(views.len(), 1);
   assert_eq!(views[0].name, "Getting started");
 
-  let views = test.get_view(&views[0].id).await.child_views;
+  let views = test.get_view_or_panic(&views[0].id).await.child_views;
   assert_eq!(views[0].name, "document");
 
-  let views = test.get_view(&views[0].id).await.child_views;
+  let views = test.get_view_or_panic(&views[0].id).await.child_views;
   assert_eq!(views[0].name, "grid");
 
-  let views = test.get_view(&views[0].id).await.child_views;
+  let views = test.get_view_or_panic(&views[0].id).await.child_views;
   assert_eq!(views[0].name, "board");
 }
 

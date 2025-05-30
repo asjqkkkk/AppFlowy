@@ -416,7 +416,7 @@ impl DatabaseManager {
     &self,
     new_database_view_id: &str,
     data: Vec<u8>,
-  ) -> FlowyResult<EncodedCollab> {
+  ) -> FlowyResult<()> {
     let database_data = DatabaseData::from_json_bytes(data)?;
     if database_data.views.is_empty() {
       return Err(FlowyError::invalid_data().with_context("The database data is empty"));
@@ -432,15 +432,10 @@ impl DatabaseManager {
 
     let lock = self.workspace_database()?;
     let mut wdb = lock.write().await;
-    let database = wdb.create_database(create_database_params).await?;
+    let _ = wdb.create_database(create_database_params).await?;
     drop(wdb);
 
-    let encoded_collab = database
-      .read()
-      .await
-      .encode_collab_v1(|collab| CollabType::Database.validate_require_data(collab))
-      .map_err(|err| FlowyError::internal().with_context(err))?;
-    Ok(encoded_collab)
+    Ok(())
   }
 
   /// When duplicating a database view, it will duplicate all the database views and replace the duplicated
@@ -450,20 +445,14 @@ impl DatabaseManager {
     &self,
     database_view_id: &str,
     new_database_view_id: &str,
-  ) -> FlowyResult<EncodedCollab> {
+  ) -> FlowyResult<()> {
     let lock = self.workspace_database()?;
     let mut wdb = lock.write().await;
-    let database = wdb
+    let _ = wdb
       .duplicate_database(database_view_id, new_database_view_id)
       .await?;
     drop(wdb);
-
-    let encoded_collab = database
-      .read()
-      .await
-      .encode_collab_v1(|collab| CollabType::Database.validate_require_data(collab))
-      .map_err(|err| FlowyError::internal().with_context(err))?;
-    Ok(encoded_collab)
+    Ok(())
   }
 
   pub async fn import_database(

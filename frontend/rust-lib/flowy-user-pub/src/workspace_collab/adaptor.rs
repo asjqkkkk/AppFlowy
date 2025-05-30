@@ -7,13 +7,11 @@ use client_api::v2::WorkspaceController;
 use collab::core::collab::{CollabOptions, DataSource, default_client_id};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
-use collab::entity::EncodedCollab;
 use collab::error::CollabError;
 use collab::preclude::{ClientID, Collab, Transact};
 use collab_database::workspace_database::{
   CollabRef, DatabaseCollabService, WorkspaceDatabaseManager,
 };
-use collab_document::blocks::DocumentData;
 use collab_document::document::{Document, DocumentBody};
 use collab_entity::{CollabObject, CollabType};
 use collab_folder::{Folder, FolderData, FolderNotify};
@@ -136,23 +134,19 @@ impl WorkspaceCollabAdaptor {
     // TODO(nathan): new syncing protocol
   }
 
-  #[instrument(level = "trace", skip(self, data_source, data))]
+  #[instrument(level = "trace", skip(self, data_source,))]
   pub async fn create_document(
     &self,
     workspace_id: Uuid,
     object_id: Uuid,
     data_source: DataSource,
-    data: Option<DocumentData>,
   ) -> Result<Arc<RwLock<Document>>, Error> {
     let collab_type = CollabType::Document;
     let mut collab = self
       .build_collab_with_source(object_id, collab_type, data_source)
       .await?;
     collab.enable_undo_redo();
-    let document = match data {
-      None => Document::open(collab)?,
-      Some(data) => Document::create_with_data(collab, data)?,
-    };
+    let document = Document::open(collab)?;
     let document = Arc::new(RwLock::new(document));
     self
       .finalize_arc_collab(workspace_id, object_id, collab_type, document)
@@ -317,32 +311,6 @@ impl WorkspaceCollabAdaptor {
     controller
       .cache_collab_ref(object_id, &collab, collab_type)
       .await?;
-    Ok(())
-  }
-
-  pub fn save_collab_to_disk(
-    &self,
-    object_id: &Uuid,
-    encoded_collab: EncodedCollab,
-  ) -> FlowyResult<()> {
-    let uid = self.user.uid()?;
-    let workspace_id = self.user.workspace_id()?;
-    let db = self
-      .user
-      .collab_db()?
-      .upgrade()
-      .ok_or_else(FlowyError::ref_drop)?;
-
-    let write = db.write_txn();
-    write.flush_doc(
-      uid,
-      &workspace_id.to_string(),
-      &object_id.to_string(),
-      encoded_collab.state_vector.to_vec(),
-      encoded_collab.doc_state.to_vec(),
-    )?;
-    write.commit_transaction()?;
-
     Ok(())
   }
 }

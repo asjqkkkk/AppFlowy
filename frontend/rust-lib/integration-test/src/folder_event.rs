@@ -2,7 +2,7 @@ use flowy_folder::view_operation::{GatherEncodedCollab, ViewData};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use collab_folder::{FolderData, View};
+use collab_folder::{FolderData, SpaceInfo, View};
 use flowy_folder::entities::icon::UpdateViewIconPayloadPB;
 use flowy_folder::event_map::FolderEvent;
 use flowy_folder::event_map::FolderEvent::*;
@@ -316,6 +316,28 @@ impl EventIntegrationTest {
       .await
   }
 
+  pub async fn create_space(&self, parent_id: Uuid, name: String) -> ViewPB {
+    let payload = CreateViewPayloadPB {
+      parent_view_id: parent_id.to_string(),
+      name,
+      thumbnail: None,
+      layout: ViewLayoutPB::Document,
+      initial_data: vec![],
+      meta: Default::default(),
+      set_as_current: false,
+      index: None,
+      section: None,
+      view_id: None,
+      extra: Some(serde_json::to_string(&SpaceInfo::default()).unwrap()),
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateView)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
   pub async fn create_view_with_layout(
     &self,
     parent_id: &str,
@@ -343,7 +365,7 @@ impl EventIntegrationTest {
       .parse_or_panic::<ViewPB>()
   }
 
-  pub async fn get_view(&self, view_id: &str) -> ViewPB {
+  pub async fn get_view_or_panic(&self, view_id: &str) -> ViewPB {
     EventBuilder::new(self.clone())
       .event(FolderEvent::GetView)
       .payload(ViewIdPB {
@@ -352,6 +374,32 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn duplicate_view_or_panic(&self, view_id: Uuid, include_children: bool) -> ViewPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::DuplicateView)
+      .payload(DuplicateViewPayloadPB {
+        view_id: view_id.to_string(),
+        open_after_duplicate: false,
+        include_children,
+        parent_view_id: None,
+        suffix: None,
+      })
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn get_view(&self, view_id: &str) -> FlowyResult<ViewPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetView)
+      .payload(ViewIdPB {
+        value: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<ViewPB>()
   }
 
   pub async fn import_data(&self, data: ImportPayloadPB) -> FlowyResult<RepeatedViewPB> {

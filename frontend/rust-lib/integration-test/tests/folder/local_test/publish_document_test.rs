@@ -70,7 +70,7 @@ async fn mock_nested_document_view_publish_payload(
   };
 
   let child_view_id = &view.child_views[0].id;
-  let child_view = test.get_view(child_view_id).await;
+  let child_view = test.get_view_or_panic(child_view_id).await;
   let child_layout: ViewLayout = child_view.layout.clone().into();
   let child_view_encoded_collab = test
     .gather_encode_collab_from_disk(child_view_id, child_layout)
@@ -144,7 +144,7 @@ async fn single_document_get_publish_view_payload_test() {
   let view_id = Uuid::new_v4().to_string();
   let name = "Orphan View";
   create_single_document(&test, &view_id, name).await;
-  let view = test.get_view(&view_id).await;
+  let view = test.get_view_or_panic(&view_id).await;
   let payload = test.get_publish_payload(&view_id, true).await;
 
   let expect_payload = mock_single_document_view_publish_payload(
@@ -163,7 +163,7 @@ async fn nested_document_get_publish_view_payload_test() {
   let name = "Orphan View";
   let view_id = Uuid::new_v4().to_string();
   create_nested_document(&test, &view_id, name).await;
-  let view = test.get_view(&view_id).await;
+  let view = test.get_view_or_panic(&view_id).await;
   let payload = test.get_publish_payload(&view_id, true).await;
 
   let expect_payload = mock_nested_document_view_publish_payload(
@@ -183,7 +183,7 @@ async fn no_children_publish_view_payload_test() {
   let name = "Orphan View";
   let view_id = Uuid::new_v4().to_string();
   create_nested_document(&test, &view_id, name).await;
-  let view = test.get_view(&view_id).await;
+  let view = test.get_view_or_panic(&view_id).await;
   let payload = test.get_publish_payload(&view_id, false).await;
 
   let data = mock_single_document_view_publish_payload(

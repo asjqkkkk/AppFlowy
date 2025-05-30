@@ -1,7 +1,7 @@
 use crate::util::receive_with_timeout;
 use event_integration_test::document_event::assert_document_data_equal;
 use event_integration_test::user_event::use_localhost_af_cloud;
-use event_integration_test::EventIntegrationTest;
+use event_integration_test::{retry_with_backoff, EventIntegrationTest};
 use flowy_document::entities::{DocumentSyncState, DocumentSyncStatePB};
 use std::time::Duration;
 use uuid::Uuid;
@@ -46,8 +46,20 @@ async fn af_cloud_multiple_user_edit_document_test() {
 
   let test_2 = EventIntegrationTest::new().await;
   test_2.af_cloud_sign_up_with_email(&profile.email).await;
-  let views = test_2.get_all_workspace_views().await;
-  assert_eq!(views.len(), 2);
+
+  // Verify initial views count with retry
+  retry_with_backoff(|| async {
+    let views = test_2.get_all_workspace_views().await;
+    if views.len() != 2 {
+      return Err(anyhow::anyhow!(
+        "Expected 2 initial views, got {}",
+        views.len()
+      ));
+    }
+    Ok(())
+  })
+  .await
+  .unwrap();
 
   // create document and then insert content
   let current_workspace = test_1.get_current_workspace().await;
@@ -70,15 +82,34 @@ async fn af_cloud_multiple_user_edit_document_test() {
     });
   let _ = receive_with_timeout(rx, Duration::from_secs(30)).await;
 
-  tokio::time::sleep(Duration::from_secs(10)).await;
-  let mut views = test_2.get_all_workspace_views().await;
-  views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
-  dbg!(&views.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
-  assert_eq!(views.len(), 3);
-  assert_eq!(views[2].name, "my shared document");
+  // Retry until the new document appears on test_2 and has correct content
+  retry_with_backoff(|| async {
+    let mut views = test_2.get_all_workspace_views().await;
+    views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
 
-  let document_data = test_2.get_document_text(&view.id).await;
-  assert_eq!(document_data.text, "hello world".to_string());
+    if views.len() != 3 {
+      return Err(anyhow::anyhow!("Expected 3 views, got {}", views.len()));
+    }
+
+    if views[2].name != "my shared document" {
+      return Err(anyhow::anyhow!(
+        "Expected document name 'my shared document', got '{}'",
+        views[2].name
+      ));
+    }
+
+    let document_data = test_2.get_document_text_or_panic(&view.id).await;
+    if document_data.text != "hello world" {
+      return Err(anyhow::anyhow!(
+        "Expected document text 'hello world', got '{}'",
+        document_data.text
+      ));
+    }
+
+    Ok(())
+  })
+  .await
+  .unwrap();
 }
 
 #[tokio::test]
@@ -101,8 +132,20 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
 
   let test_2 = EventIntegrationTest::new().await;
   test_2.af_cloud_sign_up_with_email(&profile.email).await;
-  let views = test_2.get_all_workspace_views().await;
-  assert_eq!(views.len(), 2);
+
+  // Verify initial views count with retry
+  retry_with_backoff(|| async {
+    let views = test_2.get_all_workspace_views().await;
+    if views.len() != 2 {
+      return Err(anyhow::anyhow!(
+        "Expected 2 initial views, got {}",
+        views.len()
+      ));
+    }
+    Ok(())
+  })
+  .await
+  .unwrap();
 
   // create document and then insert content
   let current_workspace = test_1.get_current_workspace().await;
@@ -129,14 +172,33 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
       pb.value == DocumentSyncState::SyncFinished
     });
   let _ = receive_with_timeout(rx, Duration::from_secs(30)).await;
-  tokio::time::sleep(Duration::from_secs(10)).await;
 
-  let mut views = test_2.get_all_workspace_views().await;
-  views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
-  dbg!(&views.iter().map(|v| v.name.clone()).collect::<Vec<_>>());
-  assert_eq!(views.len(), 3);
-  assert_eq!(views[2].name, "my shared document");
+  // Retry until the new document appears on test_2 and has correct content
+  retry_with_backoff(|| async {
+    let mut views = test_2.get_all_workspace_views().await;
+    views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
 
-  let document_data = test_2.get_document_text(&view.id).await;
-  assert_eq!(document_data.text, "hello world".to_string());
+    if views.len() != 3 {
+      return Err(anyhow::anyhow!("Expected 3 views, got {}", views.len()));
+    }
+
+    if views[2].name != "my shared document" {
+      return Err(anyhow::anyhow!(
+        "Expected document name 'my shared document', got '{}'",
+        views[2].name
+      ));
+    }
+
+    let document_data = test_2.get_document_text_or_panic(&view.id).await;
+    if document_data.text != "hello world" {
+      return Err(anyhow::anyhow!(
+        "Expected document text 'hello world', got '{}'",
+        document_data.text
+      ));
+    }
+
+    Ok(())
+  })
+  .await
+  .unwrap();
 }

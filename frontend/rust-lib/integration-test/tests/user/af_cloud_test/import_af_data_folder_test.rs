@@ -31,13 +31,13 @@ async fn import_appflowy_data_with_ref_views_test() {
     .await
     .unwrap();
 
-  let general_space = test.get_view(&shared_space_id).await;
+  let general_space = test.get_view_or_panic(&shared_space_id).await;
   let shared_sub_views = &general_space.child_views;
   assert_eq!(shared_sub_views.len(), 1);
   assert_eq!(shared_sub_views[0].name, import_container_name);
 
   let imported_view_id = shared_sub_views[0].id.clone();
-  let imported_sub_views = test.get_view(&imported_view_id).await.child_views;
+  let imported_sub_views = test.get_view_or_panic(&imported_view_id).await.child_views;
   assert_eq!(imported_sub_views.len(), 1);
 
   let imported_get_started_view_id = imported_sub_views[0].id.clone();
@@ -79,7 +79,7 @@ async fn import_appflowy_data_with_ref_views_test() {
 
   assert_eq!(page_ids.len(), 1);
   for page_id in page_ids {
-    let view = test.get_view(&page_id).await;
+    let view = test.get_view_or_panic(&page_id).await;
     assert_eq!(view.name, "1");
     let data = serde_json::to_string(&test.get_document_data(&view.id).await).unwrap();
     assert!(data.contains("hello world"));
@@ -87,7 +87,7 @@ async fn import_appflowy_data_with_ref_views_test() {
 
   assert_eq!(link_ids.len(), 1);
   for link_id in link_ids {
-    let database_view = test.get_view(&link_id).await;
+    let database_view = test.get_view_or_panic(&link_id).await;
     assert_eq!(database_view.layout, ViewLayoutPB::Grid);
     assert_eq!(database_view.name, "Untitled");
   }
@@ -110,7 +110,7 @@ async fn import_appflowy_data_folder_into_new_view_test() {
   assert_eq!(views[1].name, "Shared");
   assert_eq!(views.len(), 2);
   let shared_space_id = views[1].id.clone();
-  let shared_space = test.get_view(&shared_space_id).await;
+  let shared_space = test.get_view_or_panic(&shared_space_id).await;
 
   // by default, shared space is empty
   assert!(shared_space.child_views.is_empty());
@@ -135,7 +135,7 @@ async fn import_appflowy_data_folder_into_new_view_test() {
   //     template_document
   //     040_local
   //   Shared
-  let general_space = test.get_view(&shared_space_id).await;
+  let general_space = test.get_view_or_panic(&shared_space_id).await;
   let shared_sub_views = &general_space.child_views;
   assert_eq!(shared_sub_views.len(), 1);
   assert_eq!(shared_sub_views[0].name, import_container_name);
@@ -143,18 +143,21 @@ async fn import_appflowy_data_folder_into_new_view_test() {
   // the 040_local should be an empty document, so try to get the document data
   let _ = test.get_document_data(&shared_sub_views[0].id).await;
 
-  let t_040_local_child_views = test.get_view(&shared_sub_views[0].id).await.child_views;
+  let t_040_local_child_views = test
+    .get_view_or_panic(&shared_sub_views[0].id)
+    .await
+    .child_views;
   assert_eq!(t_040_local_child_views[0].name, "Document1");
 
   let document1_child_views = test
-    .get_view(&t_040_local_child_views[0].id)
+    .get_view_or_panic(&t_040_local_child_views[0].id)
     .await
     .child_views;
   assert_eq!(document1_child_views.len(), 1);
   assert_eq!(document1_child_views[0].name, "Document2");
 
   let document2_child_views = test
-    .get_view(&document1_child_views[0].id)
+    .get_view_or_panic(&document1_child_views[0].id)
     .await
     .child_views;
   assert_eq!(document2_child_views.len(), 2);
@@ -169,7 +172,7 @@ async fn import_appflowy_data_folder_into_new_view_test() {
 
   // In the 040_local, only the first row has a document with content
   let row_document_id = database_row_document_id_from_row_id(&rows[0].id);
-  let row_document_view = test.get_view(&row_document_id).await;
+  let row_document_view = test.get_view_or_panic(&row_document_id).await;
   assert_eq!(row_document_view.id, row_document_view.parent_view_id);
 
   let row_document_data = test.get_document_data(&row_document_id).await;
@@ -201,7 +204,7 @@ async fn import_appflowy_data_folder_into_current_workspace_test() {
   assert_eq!(views[1].name, "Shared");
   assert_eq!(views.len(), 2);
   let shared_space_id = views[1].id.clone();
-  let shared_space_child_views = test.get_view(&shared_space_id).await.child_views;
+  let shared_space_child_views = test.get_view_or_panic(&shared_space_id).await.child_views;
   assert_eq!(shared_space_child_views.len(), 1);
 
   // after import, the structure is:
@@ -212,13 +215,15 @@ async fn import_appflowy_data_folder_into_current_workspace_test() {
   //        Document2
   //           Grid1
   //           Grid2
-  let document_1 = test.get_view(&shared_space_child_views[0].id).await;
+  let document_1 = test
+    .get_view_or_panic(&shared_space_child_views[0].id)
+    .await;
   assert_eq!(document_1.name, "Document1");
-  let document_1_child_views = test.get_view(&document_1.id).await.child_views;
+  let document_1_child_views = test.get_view_or_panic(&document_1.id).await.child_views;
   assert_eq!(document_1_child_views[0].name, "Document2");
 
   let document2_child_views = test
-    .get_view(&document_1_child_views[0].id)
+    .get_view_or_panic(&document_1_child_views[0].id)
     .await
     .child_views;
   assert_eq!(document2_child_views.len(), 2);
@@ -263,7 +268,7 @@ async fn import_appflowy_data_folder_multiple_times_test() {
   assert_eq!(views[1].name, "Shared");
   assert_eq!(views.len(), 2);
   let shared_space_id = views[1].id.clone();
-  let shared_space = test.get_view(&shared_space_id).await;
+  let shared_space = test.get_view_or_panic(&shared_space_id).await;
   // by default, shared space is empty
   assert!(shared_space.child_views.is_empty());
 
@@ -287,10 +292,10 @@ async fn import_appflowy_data_folder_multiple_times_test() {
   //              Doc3_grid_2
   //              Doc3_calendar_1
 
-  let shared_space_children_views = test.get_view(&shared_space_id).await.child_views;
+  let shared_space_children_views = test.get_view_or_panic(&shared_space_id).await.child_views;
   assert_eq!(shared_space_children_views.len(), 1);
   let _040_local_view_id = shared_space_children_views[0].id.clone();
-  let _040_local_view = test.get_view(&_040_local_view_id).await;
+  let _040_local_view = test.get_view_or_panic(&_040_local_view_id).await;
   assert_eq!(_040_local_view.name, import_container_name);
   assert_040_local_2_import_content(&test, &_040_local_view_id).await;
 
@@ -306,7 +311,7 @@ async fn import_appflowy_data_folder_multiple_times_test() {
   //   Shared
   //     040_local_2
   //     040_local_2
-  let shared_space_children_views = test.get_view(&shared_space_id).await.child_views;
+  let shared_space_children_views = test.get_view_or_panic(&shared_space_id).await.child_views;
   assert_eq!(shared_space_children_views.len(), 2);
   for view in shared_space_children_views {
     assert_040_local_2_import_content(&test, &view.id).await;
@@ -323,12 +328,14 @@ async fn assert_040_local_2_import_content(test: &EventIntegrationTest, view_id:
   //            Doc3_grid_1
   //            Doc3_grid_2
   //            Doc3_calendar_1
-  let _local_2_child_views = test.get_view(view_id).await.child_views;
+  let _local_2_child_views = test.get_view_or_panic(view_id).await.child_views;
   assert_eq!(_local_2_child_views.len(), 1);
   assert_eq!(_local_2_child_views[0].name, "Getting started");
 
-  let local_2_getting_started_child_views =
-    test.get_view(&_local_2_child_views[0].id).await.child_views;
+  let local_2_getting_started_child_views = test
+    .get_view_or_panic(&_local_2_child_views[0].id)
+    .await
+    .child_views;
 
   // Check doc 1 local content
   let doc_1 = local_2_getting_started_child_views[0].clone();
@@ -366,7 +373,7 @@ async fn assert_040_local_2_import_content(test: &EventIntegrationTest, view_id:
   assert_eq!(local_2_getting_started_child_views[3].name, "Doc3");
 
   let doc_3_child_views = test
-    .get_view(&local_2_getting_started_child_views[3].id)
+    .get_view_or_panic(&local_2_getting_started_child_views[3].id)
     .await
     .child_views;
   assert_eq!(doc_3_child_views.len(), 3);

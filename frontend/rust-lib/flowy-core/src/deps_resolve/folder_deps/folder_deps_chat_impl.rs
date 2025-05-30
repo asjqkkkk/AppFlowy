@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use collab::entity::EncodedCollab;
 use collab_folder::ViewLayout;
 use flowy_ai::ai_manager::AIManager;
 use flowy_error::FlowyError;
@@ -44,7 +43,7 @@ impl FolderOperationHandler for ChatFolderOperation {
     &self,
     _user_id: i64,
     _params: CreateViewParams,
-  ) -> Result<Option<EncodedCollab>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     Err(FlowyError::not_support().with_context("Can't create view"))
   }
 

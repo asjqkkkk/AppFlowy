@@ -2,7 +2,7 @@ use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::{AFAccessLevel, AFRole};
-use collab_folder::{View, ViewIcon, ViewLayout};
+use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
 use flowy_folder_pub::cloud::gen_view_id;
@@ -10,6 +10,7 @@ use lib_infra::validator_fn::required_not_empty_str;
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::convert::TryInto;
+use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
 use std::str::FromStr;
 use std::sync::Arc;
@@ -366,7 +367,7 @@ pub struct CreateOrphanViewPayloadPB {
   pub initial_data: Vec<u8>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct CreateViewParams {
   pub parent_view_id: Uuid,
   pub name: String,
@@ -385,6 +386,28 @@ pub struct CreateViewParams {
   pub icon: Option<ViewIcon>,
   // The extra data of the view.
   pub extra: Option<String>,
+}
+
+impl Debug for CreateViewParams {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let space_info = match &self.extra {
+      None => None,
+      Some(extra) => serde_json::from_str::<SpaceInfo>(extra).ok(),
+    };
+    f.debug_struct("CreateViewParams")
+      .field("parent_view_id", &self.parent_view_id)
+      .field("name", &self.name)
+      .field("layout", &self.layout)
+      .field("view_id", &self.view_id)
+      .field("initial_data", &self.initial_data)
+      .field("meta", &self.meta)
+      .field("set_as_current", &self.set_as_current)
+      .field("index", &self.index)
+      .field("section", &self.section)
+      .field("icon", &self.icon)
+      .field("extra", &space_info)
+      .finish()
+  }
 }
 
 impl TryInto<CreateViewParams> for CreateViewPayloadPB {
@@ -686,9 +709,6 @@ pub struct DuplicateViewPayloadPB {
   // If the suffix is None, the duplicated view will have the same name with (copy) suffix.
   #[pb(index = 5, one_of)]
   pub suffix: Option<String>,
-
-  #[pb(index = 6)]
-  pub sync_after_create: bool,
 }
 
 #[derive(Debug)]
@@ -702,8 +722,6 @@ pub struct DuplicateViewParams {
   pub parent_view_id: Option<String>,
 
   pub suffix: Option<String>,
-
-  pub sync_after_create: bool,
 }
 
 impl TryInto<DuplicateViewParams> for DuplicateViewPayloadPB {
@@ -717,7 +735,6 @@ impl TryInto<DuplicateViewParams> for DuplicateViewPayloadPB {
       include_children: self.include_children,
       parent_view_id: self.parent_view_id,
       suffix: self.suffix,
-      sync_after_create: self.sync_after_create,
     })
   }
 }

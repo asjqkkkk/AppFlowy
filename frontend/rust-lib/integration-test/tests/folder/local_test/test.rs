@@ -63,7 +63,7 @@ async fn update_view_event_with_name_test() {
     .await;
   assert!(error.is_none());
 
-  let view = test.get_view(&view.id).await;
+  let view = test.get_view_or_panic(&view.id).await;
   assert_eq!(view.name, "My second view");
 }
 
@@ -87,7 +87,7 @@ async fn update_view_icon_event_test() {
     .await;
   assert!(error.is_none());
 
-  let view = test.get_view(&view.id).await;
+  let view = test.get_view_or_panic(&view.id).await;
   assert_eq!(view.icon, Some(new_icon));
 }
 
@@ -318,7 +318,7 @@ async fn multiple_hierarchy_view_test() {
 
       for (k, _child_view) in child_view.child_views.into_iter().enumerate() {
         // Get the last level view
-        let sub_child = test.get_view(&child.id).await;
+        let sub_child = test.get_view_or_panic(&child.id).await;
         assert_eq!(child.name, format!("My {}-{}-{} view", i + 1, j + 1, k + 1));
         assert!(sub_child.child_views.is_empty());
       }
@@ -420,7 +420,7 @@ async fn move_view_event_after_delete_view_test2() {
       .await;
   }
 
-  let views = test.get_view(&parent.id).await.child_views;
+  let views = test.get_view_or_panic(&parent.id).await.child_views;
   assert_eq!(views.len(), 5);
   assert_eq!(views[0].name, "My 1-1 view");
   assert_eq!(views[1].name, "My 1-2 view");
@@ -440,7 +440,7 @@ async fn move_view_event_after_delete_view_test2() {
     .async_send()
     .await;
 
-  let views = test.get_view(&parent.id).await.child_views;
+  let views = test.get_view_or_panic(&parent.id).await.child_views;
   assert_eq!(views[0].name, "My 1-2 view");
   assert_eq!(views[1].name, "My 1-4 view");
   assert_eq!(views[2].name, "My 1-1 view");
@@ -464,14 +464,14 @@ async fn move_view_across_parent_test() {
       .await;
   }
 
-  let views = test.get_view(&parent_1.id).await.child_views;
+  let views = test.get_view_or_panic(&parent_1.id).await.child_views;
   // Move `My 1-1 view 1` to `My view 2`
   let move_view_id = views[0].id.clone();
   let new_parent_id = parent_2.id.clone();
   let prev_id = None;
   move_folder_nested_view(test.clone(), move_view_id, new_parent_id, prev_id).await;
-  let parent1_views = test.get_view(&parent_1.id).await.child_views;
-  let parent2_views = test.get_view(&parent_2.id).await.child_views;
+  let parent1_views = test.get_view_or_panic(&parent_1.id).await.child_views;
+  let parent2_views = test.get_view_or_panic(&parent_2.id).await.child_views;
   assert_eq!(parent2_views.len(), 1);
   assert_eq!(parent2_views[0].name, "My 1-1 view 1");
   assert_eq!(parent1_views[0].name, "My 1-2 view 1");
@@ -481,7 +481,7 @@ async fn move_view_across_parent_test() {
   let new_parent_id = current_workspace.id.clone();
   let prev_id = Some(parent_1.id.clone());
   move_folder_nested_view(test.clone(), move_view_id, new_parent_id, prev_id).await;
-  let parent1_views = test.get_view(&parent_1.id).await.child_views;
+  let parent1_views = test.get_view_or_panic(&parent_1.id).await.child_views;
   let workspace_views = test.get_all_workspace_views().await;
   let workspace_views_len = workspace_views.len();
   assert_eq!(parent1_views[0].name, "My 1-3 view 1");
