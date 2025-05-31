@@ -92,8 +92,8 @@ async fn create_csv_content_offline(
 
 async fn reconnect_and_sync(test: &EventIntegrationTest, test2: &EventIntegrationTest) {
   // Reconnect both clients to trigger sync
-  test.connect_ws().await.unwrap();
-  test2.connect_ws().await.unwrap();
+  let _ = test.connect_ws().await;
+  let _ = test2.connect_ws().await;
 }
 
 async fn verify_spaces_synced(

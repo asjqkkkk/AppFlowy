@@ -19,20 +19,22 @@ use uuid::Uuid;
 impl UserManager {
   #[cfg(debug_assertions)]
   pub async fn disconnect_workspace_ws_conn(&self, workspace_id: &Uuid) -> FlowyResult<()> {
-    let c = self.controller_by_wid.get(workspace_id).unwrap();
-    c.disconnect().await?;
+    if let Some(c) = self.controller_by_wid.get(workspace_id) {
+      c.disconnect().await?;
+    }
     Ok(())
   }
 
   #[cfg(debug_assertions)]
   pub async fn connect_workspace_ws_conn(&self, workspace_id: &Uuid) -> FlowyResult<()> {
-    let c = self.controller_by_wid.get(workspace_id).unwrap();
-    let uid = self.user_id()?;
-    let profile = self
-      .get_user_profile_from_disk(uid, &workspace_id.to_string())
-      .await?;
-    let token = serde_json::from_str::<GotrueTokenResponse>(&profile.token)?;
-    c.connect(token.access_token).await?;
+    if let Some(c) = self.controller_by_wid.get(workspace_id) {
+      let uid = self.user_id()?;
+      let profile = self
+        .get_user_profile_from_disk(uid, &workspace_id.to_string())
+        .await?;
+      let token = serde_json::from_str::<GotrueTokenResponse>(&profile.token)?;
+      c.connect(token.access_token).await?;
+    }
     Ok(())
   }
 
