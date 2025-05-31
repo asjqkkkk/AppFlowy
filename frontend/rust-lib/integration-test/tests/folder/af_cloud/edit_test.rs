@@ -6,7 +6,7 @@ use flowy_folder::entities::ViewPB;
 use uuid::Uuid;
 
 #[tokio::test]
-async fn af_cloud_offline_sync_space_test() {
+async fn af_cloud_two_client_offline_edit_then_sync_space_test() {
   use_localhost_af_cloud().await;
   // Phase 1: Setup two test clients
   let (test, test2, _) = setup_two_clients().await;
@@ -31,8 +31,6 @@ async fn af_cloud_offline_sync_space_test() {
     &original_csv_data,
   )
   .await;
-
-  println!("✅ All content verified successfully after sync!");
 }
 
 async fn setup_two_clients() -> (EventIntegrationTest, EventIntegrationTest, String) {

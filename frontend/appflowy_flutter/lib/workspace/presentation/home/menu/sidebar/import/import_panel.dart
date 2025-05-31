@@ -2,8 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/plugins/document/application/document_data_pb_extension.dart';
-import 'package:appflowy/shared/markdown_to_document.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/settings/share/import_service.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/import/import_type.dart';
@@ -159,16 +157,6 @@ class _ImportPanelState extends State<ImportPanel> {
       final name = p.basenameWithoutExtension(path);
 
       switch (importType) {
-        case ImportType.historyDatabase:
-          final data = await File(path).readAsString();
-          importValues.add(
-            ImportItemPayloadPB.create()
-              ..name = name
-              ..data = utf8.encode(data)
-              ..viewLayout = ViewLayoutPB.Grid
-              ..importType = ImportTypePB.HistoryDatabase,
-          );
-          break;
         case ImportType.markdownOrText:
           importValues.add(
             ImportItemPayloadPB.create()
@@ -210,16 +198,5 @@ class _ImportPanelState extends State<ImportPanel> {
 
     showLoading.value = false;
     widget.importCallback(importType, '', null);
-  }
-}
-
-Uint8List? _documentDataFrom(ImportType importType, String data) {
-  switch (importType) {
-    case ImportType.markdownOrText:
-      final document = customMarkdownToDocument(data);
-      return DocumentDataPBFromTo.fromDocument(document)?.writeToBuffer();
-    default:
-      assert(false, 'Unsupported Type $importType');
-      return null;
   }
 }
