@@ -121,8 +121,8 @@ pub trait FolderOperationHandler: Send + Sync {
   /// Create a view by importing data from a file
   async fn import_from_file_path(
     &self,
-    view_id: &str,
-    name: &str,
+    uid: i64,
+    view_id: Uuid,
     path: String,
   ) -> Result<(), FlowyError>;
 

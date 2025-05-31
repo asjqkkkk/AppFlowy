@@ -207,7 +207,7 @@ async fn af_cloud_sync_database_without_open_it_test() {
 
   // we don't open the grid_view in test2, but the update should still be synced
   retry_with_backoff(|| async {
-    let collab = test2.get_local_collab(&database_id).await?;
+    let collab = test2.get_disk_collab(&database_id).await?;
     let rows = get_database_row_ids(&collab).ok_or_else(|| anyhow::anyhow!("No rows"))?;
     if rows.len() != 4 {
       return Err(anyhow::anyhow!("Expected 4 rows, got {}", rows.len()));
@@ -250,7 +250,7 @@ async fn af_cloud_sync_database_row_document_test() {
     let database = test2.get_database(&grid_view.id).await?;
     for (index, row) in database.rows.iter().enumerate() {
       let row_document_id = test2.get_row_document_id(&grid_view.id, &row.id).await?;
-      let collab = test.get_local_collab(&row_document_id).await?;
+      let collab = test.get_disk_collab(&row_document_id).await?;
 
       let txn = collab.transact();
       let document = DocumentBody::from_collab(&collab).unwrap();

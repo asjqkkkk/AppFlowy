@@ -75,8 +75,8 @@ impl FolderOperationHandler for ChatFolderOperation {
 
   async fn import_from_file_path(
     &self,
-    _view_id: &str,
-    _name: &str,
+    _uid: i64,
+    _view_id: Uuid,
     _path: String,
   ) -> Result<(), FlowyError> {
     Err(FlowyError::not_support().with_context("import file from path"))

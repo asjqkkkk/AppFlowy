@@ -298,8 +298,8 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 
   async fn import_from_file_path(
     &self,
-    view_id: &str,
-    _name: &str,
+    uid: i64,
+    view_id: Uuid,
     path: String,
   ) -> Result<(), FlowyError> {
     let file_path = Path::new(&path);

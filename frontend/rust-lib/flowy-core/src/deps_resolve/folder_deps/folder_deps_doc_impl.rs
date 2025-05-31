@@ -1,5 +1,6 @@
 use crate::deps_resolve::folder_deps::get_encoded_collab_v1_from_disk;
 use bytes::Bytes;
+use collab_document::importer::md_importer::MDImporter;
 use collab_entity::CollabType;
 use collab_folder::hierarchy_builder::NestedViewBuilder;
 use collab_folder::ViewLayout;
@@ -19,6 +20,7 @@ use lib_infra::async_trait::async_trait;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use tokio::fs::read_to_string;
 use tokio::sync::RwLock;
 use tracing::{info, instrument};
 use uuid::Uuid;
@@ -174,21 +176,32 @@ impl FolderOperationHandler for DocumentFolderOperation {
     _import_type: ImportType,
     bytes: Vec<u8>,
   ) -> Result<Vec<ImportedData>, FlowyError> {
-    let data = DocumentDataPB::try_from(Bytes::from(bytes))?;
+    let content = String::from_utf8(bytes).map_err(|_| FlowyError::invalid_data())?;
+    let data = MDImporter::new(None)
+      .import(&view_id.to_string(), content)
+      .map_err(|err| FlowyError::internal().with_context(err))?;
     self
       .document_manager()?
-      .create_document(uid, view_id, Some(data.into()))
+      .create_document(uid, view_id, Some(data))
       .await?;
     Ok(vec![(view_id.to_string(), CollabType::Document)])
   }
 
   async fn import_from_file_path(
     &self,
-    _view_id: &str,
-    _name: &str,
-    _path: String,
+    uid: i64,
+    view_id: Uuid,
+    path: String,
   ) -> Result<(), FlowyError> {
-    // TODO(lucas): import file from local markdown file
+    let content = read_to_string(&path).await?;
+    let data = MDImporter::new(None)
+      .import(&view_id.to_string(), content)
+      .map_err(|err| FlowyError::internal().with_context(err))?;
+
+    self
+      .document_manager()?
+      .create_document(uid, &view_id, Some(data))
+      .await?;
     Ok(())
   }
 }

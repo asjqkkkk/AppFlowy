@@ -3,7 +3,6 @@ import 'dart:io';
 
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_data_pb_extension.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/migration/editor_migration.dart';
 import 'package:appflowy/shared/markdown_to_document.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/settings/share/import_service.dart';
@@ -170,19 +169,14 @@ class _ImportPanelState extends State<ImportPanel> {
               ..importType = ImportTypePB.HistoryDatabase,
           );
           break;
-        case ImportType.historyDocument:
         case ImportType.markdownOrText:
-          final data = await File(path).readAsString();
-          final bytes = _documentDataFrom(importType, data);
-          if (bytes != null) {
-            importValues.add(
-              ImportItemPayloadPB.create()
-                ..name = name
-                ..data = bytes
-                ..viewLayout = ViewLayoutPB.Document
-                ..importType = ImportTypePB.Markdown,
-            );
-          }
+          importValues.add(
+            ImportItemPayloadPB.create()
+              ..name = name
+              ..filePath = path
+              ..viewLayout = ViewLayoutPB.Document
+              ..importType = ImportTypePB.Markdown,
+          );
           break;
         case ImportType.csv:
           final data = await File(path).readAsString();
@@ -221,9 +215,6 @@ class _ImportPanelState extends State<ImportPanel> {
 
 Uint8List? _documentDataFrom(ImportType importType, String data) {
   switch (importType) {
-    case ImportType.historyDocument:
-      final document = EditorMigration.migrateDocument(data);
-      return DocumentDataPBFromTo.fromDocument(document)?.writeToBuffer();
     case ImportType.markdownOrText:
       final document = customMarkdownToDocument(data);
       return DocumentDataPBFromTo.fromDocument(document)?.writeToBuffer();

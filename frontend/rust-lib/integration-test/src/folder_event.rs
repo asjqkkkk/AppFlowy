@@ -423,6 +423,92 @@ impl EventIntegrationTest {
       .parse_or_panic::<RepeatedViewPB>()
       .items
   }
+
+  pub async fn import_csv_content(
+    &self,
+    file_name: &str,
+    csv_content: &str,
+    parent_id: uuid::Uuid,
+  ) -> ViewPB {
+    let import_data = gen_database_import_data(
+      file_name.to_string(),
+      csv_content.to_string(),
+      parent_id.to_string(),
+    );
+
+    self
+      .import_data(import_data)
+      .await
+      .unwrap()
+      .items
+      .into_iter()
+      .next()
+      .expect("Expected at least one imported view")
+  }
+
+  pub async fn import_csv_from_test_asset<F>(
+    &self,
+    csv_file_name: &str,
+    parent_id: uuid::Uuid,
+    unzip_fn: F,
+  ) -> (ViewPB, String)
+  where
+    F: FnOnce(&str, &str) -> Result<std::path::PathBuf, std::io::Error>,
+  {
+    let file_name = format!("{}.csv", csv_file_name);
+    let csv_file_path = unzip_fn("./tests/asset", &file_name).unwrap();
+    let csv_string = std::fs::read_to_string(csv_file_path).unwrap();
+
+    (
+      self
+        .import_csv_content(&file_name, &csv_string, parent_id)
+        .await,
+      csv_string,
+    )
+  }
+
+  pub async fn import_md_content(
+    &self,
+    file_name: &str,
+    md_content: &str,
+    parent_id: uuid::Uuid,
+  ) -> ViewPB {
+    let import_data = gen_md_import_data(
+      file_name.to_string(),
+      md_content.to_string(),
+      parent_id.to_string(),
+    );
+
+    self
+      .import_data(import_data)
+      .await
+      .unwrap()
+      .items
+      .into_iter()
+      .next()
+      .expect("Expected at least one imported view")
+  }
+
+  pub async fn import_md_from_test_asset<F>(
+    &self,
+    md_file_name: &str,
+    parent_id: uuid::Uuid,
+    unzip_fn: F,
+  ) -> (ViewPB, String)
+  where
+    F: FnOnce(&str, &str) -> Result<std::path::PathBuf, std::io::Error>,
+  {
+    let file_name = format!("{}.md", md_file_name);
+    let md_file_path = unzip_fn("./tests/asset", &file_name).unwrap();
+    let md_string = std::fs::read_to_string(md_file_path).unwrap();
+
+    (
+      self
+        .import_md_content(&file_name, &md_string, parent_id)
+        .await,
+      md_string,
+    )
+  }
 }
 
 pub struct ViewTest {
@@ -491,7 +577,7 @@ pub fn parse_csv_string(csv_content: &str) -> Result<Vec<Vec<String>>, anyhow::E
   Ok(records)
 }
 
-pub fn gen_import_data(
+pub fn gen_database_import_data(
   file_name: String,
   csv_string: String,
   parent_view_id: String,
@@ -504,6 +590,23 @@ pub fn gen_import_data(
       file_path: None,
       view_layout: ViewLayoutPB::Grid,
       import_type: ImportTypePB::CSV,
+    }],
+  }
+}
+
+pub fn gen_md_import_data(
+  file_name: String,
+  md_string: String,
+  parent_view_id: String,
+) -> ImportPayloadPB {
+  ImportPayloadPB {
+    parent_view_id,
+    items: vec![ImportItemPayloadPB {
+      name: file_name,
+      data: Some(md_string.as_bytes().to_vec()),
+      file_path: None,
+      view_layout: ViewLayoutPB::Document,
+      import_type: ImportTypePB::Markdown,
     }],
   }
 }

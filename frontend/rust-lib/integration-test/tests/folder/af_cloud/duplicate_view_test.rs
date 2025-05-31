@@ -1,6 +1,6 @@
 use crate::util::unzip;
 use anyhow::anyhow;
-use event_integration_test::folder_event::{gen_import_data, parse_csv_string};
+use event_integration_test::folder_event::parse_csv_string;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::{retry_with_backoff, EventIntegrationTest};
 use uuid::Uuid;
@@ -109,17 +109,9 @@ async fn af_cloud_folder_sync_duplicated_database_test() {
   assert!(space.extra.is_some());
 
   let parent_id = Uuid::parse_str(&space.id).unwrap();
-  let file_name = "csv_49r_17c.csv".to_string();
-  let csv_file_path = unzip("./tests/asset", &file_name).unwrap();
-  let csv_string = std::fs::read_to_string(csv_file_path).unwrap();
-  let import_data = gen_import_data(file_name, csv_string.clone(), parent_id.to_string());
-  let database_view = test
-    .import_data(import_data)
-    .await
-    .unwrap()
-    .items
-    .pop()
-    .unwrap();
+  let (database_view, csv_string) = test
+    .import_csv_from_test_asset("csv_49r_17c", parent_id, unzip)
+    .await;
 
   let database = test.get_database(&database_view.id).await.unwrap();
   assert_eq!(database.rows.len(), 49);

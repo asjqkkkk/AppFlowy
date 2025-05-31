@@ -35,6 +35,7 @@ pub mod event_builder;
 pub mod folder_event;
 pub mod user_event;
 
+const LOG_LEVEL: &str = "debug";
 #[derive(Clone)]
 pub struct EventIntegrationTest {
   pub authenticator: Arc<AtomicU8>,
@@ -55,7 +56,11 @@ impl EventIntegrationTest {
   pub async fn new_with_name<T: ToString>(name: T) -> Self {
     let temp_dir = temp_dir().join(nanoid!(6));
     std::fs::create_dir_all(&temp_dir).unwrap();
-    Self::new_with_user_data_path(temp_dir, name.to_string()).await
+    let mut this = Self::new_with_user_data_path(temp_dir, name.to_string()).await;
+
+    // For temp directories, we skip auto removal to avoid cleaning up during tests.
+    this.skip_auto_remove_temp_dir();
+    this
   }
 
   pub async fn new_with_config(config: AppFlowyCoreConfig) -> Self {
@@ -89,7 +94,7 @@ impl EventIntegrationTest {
       name,
     )
     .log_filter(
-      "trace",
+      LOG_LEVEL,
       vec![
         "flowy_test".to_string(),
         "tokio".to_string(),
@@ -116,8 +121,6 @@ impl EventIntegrationTest {
   }
 
   pub async fn disconnect_ws(&self) -> FlowyResult<()> {
-    self.wait_ws_connected().await?;
-
     let workspace_id = self.get_workspace_id().await;
     self
       .user_manager
@@ -172,7 +175,7 @@ impl EventIntegrationTest {
     Ok(())
   }
 
-  pub async fn get_local_collab(&self, oid: &str) -> FlowyResult<Collab> {
+  pub async fn get_disk_collab(&self, oid: &str) -> FlowyResult<Collab> {
     let uid = self.user_manager.get_session()?.user_id;
     let db = self.user_manager.get_collab_db(uid)?.upgrade().unwrap();
     let workspace_id = self.get_current_workspace().await.id;
@@ -302,6 +305,7 @@ where
   let mut attempt = 0;
   let mut delay = config.poll_interval;
   let max_delay = config.poll_interval * 10; // Cap maximum delay
+  let mut latest_error: Option<anyhow::Error> = None;
 
   let result = timeout(config.timeout, async {
     loop {
@@ -324,6 +328,7 @@ where
             delay
           );
 
+          latest_error = Some(e);
           tokio::time::sleep(delay).await;
           // Exponential backoff with jitter
           delay = std::cmp::min(delay * 2, max_delay);
@@ -335,9 +340,19 @@ where
 
   match result {
     Ok(value) => value,
-    Err(_) => Err(anyhow::anyhow!(
-      "Operation timed out after {:?}",
-      config.timeout
-    )),
+    Err(_) => {
+      let timeout_msg = format!("Operation timed out after {:?}", config.timeout);
+      if let Some(last_err) = latest_error {
+        tracing::error!("{}, latest error: {}", timeout_msg, last_err);
+        Err(anyhow::anyhow!(
+          "{}, latest error: {}",
+          timeout_msg,
+          last_err
+        ))
+      } else {
+        tracing::error!("{}", timeout_msg);
+        Err(anyhow::anyhow!("{}", timeout_msg))
+      }
+    },
   }
 }

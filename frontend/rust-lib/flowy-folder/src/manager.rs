@@ -1816,7 +1816,7 @@ impl FolderManager {
     match import_data.data {
       ImportData::FilePath { file_path } => {
         handler
-          .import_from_file_path(&view_id.to_string(), &import_data.name, file_path)
+          .import_from_file_path(uid, view_id, file_path)
           .await?;
       },
       ImportData::Bytes { bytes } => {
