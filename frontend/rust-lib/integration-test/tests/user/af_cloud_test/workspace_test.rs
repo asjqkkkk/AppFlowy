@@ -184,13 +184,15 @@ async fn af_cloud_open_workspace_test() {
 }
 
 /// Sets up the first workspace with spaces A and B
-async fn setup_first_workspace(test: &EventIntegrationTest) -> flowy_user::entities::UserWorkspacePB {
+async fn setup_first_workspace(
+  test: &EventIntegrationTest,
+) -> flowy_user::entities::UserWorkspacePB {
   let workspace_id = test.get_workspace_id().await;
-  
+
   // Create spaces in the first workspace
   test.create_space(workspace_id, "A").await;
   test.create_space(workspace_id, "B").await;
-  
+
   let current_workspace = test.get_current_workspace().await;
   test.get_user_workspace(&current_workspace.id).await
 }
@@ -206,22 +208,24 @@ async fn verify_first_workspace_views(test: &EventIntegrationTest) {
 }
 
 /// Creates and sets up the second workspace with spaces C and D
-async fn setup_second_workspace(test: &EventIntegrationTest) -> flowy_user::entities::UserWorkspacePB {
+async fn setup_second_workspace(
+  test: &EventIntegrationTest,
+) -> flowy_user::entities::UserWorkspacePB {
   // Create second workspace
   let user_workspace = test
     .create_workspace("second workspace", WorkspaceType::Server)
     .await;
-  
+
   // Switch to second workspace
   test
     .open_workspace(&user_workspace.workspace_id, user_workspace.workspace_type)
     .await;
-  
+
   // Create spaces in the second workspace
   let workspace_id = test.get_workspace_id().await;
   test.create_space(workspace_id, "C").await;
   test.create_space(workspace_id, "D").await;
-  
+
   let current_workspace = test.get_current_workspace().await;
   test.get_user_workspace(&current_workspace.id).await
 }
@@ -244,13 +248,16 @@ async fn simulate_workspace_switching(
 ) {
   let first_workspace_uuid = Uuid::parse_str(&first_workspace.workspace_id).unwrap();
   let second_workspace_uuid = Uuid::parse_str(&second_workspace.workspace_id).unwrap();
-  
+
   // Switch between workspaces 10 times, creating documents in each
   for i in 0..10 {
     if i % 2 == 0 {
       // Switch to first workspace and create a document
       test
-        .open_workspace(&first_workspace.workspace_id, first_workspace.workspace_type)
+        .open_workspace(
+          &first_workspace.workspace_id,
+          first_workspace.workspace_type,
+        )
         .await;
       sleep(Duration::from_millis(300)).await;
       test
@@ -259,7 +266,10 @@ async fn simulate_workspace_switching(
     } else {
       // Switch to second workspace and create a document
       test
-        .open_workspace(&second_workspace.workspace_id, second_workspace.workspace_type)
+        .open_workspace(
+          &second_workspace.workspace_id,
+          second_workspace.workspace_type,
+        )
         .await;
       sleep(Duration::from_millis(200)).await;
       test
@@ -277,23 +287,53 @@ async fn verify_workspace_isolation(
 ) {
   // Verify first workspace still has its original views
   test
-    .open_workspace(&first_workspace.workspace_id, first_workspace.workspace_type)
+    .open_workspace(
+      &first_workspace.workspace_id,
+      first_workspace.workspace_type,
+    )
     .await;
   let views_1 = test.get_all_workspace_views().await;
-  assert_eq!(views_1[0].name, "General", "First workspace should still have General view");
-  assert_eq!(views_1[1].name, "Shared", "First workspace should still have Shared view");
-  assert_eq!(views_1[2].name, "A", "First workspace should still have space A");
-  assert_eq!(views_1[3].name, "B", "First workspace should still have space B");
+  assert_eq!(
+    views_1[0].name, "General",
+    "First workspace should still have General view"
+  );
+  assert_eq!(
+    views_1[1].name, "Shared",
+    "First workspace should still have Shared view"
+  );
+  assert_eq!(
+    views_1[2].name, "A",
+    "First workspace should still have space A"
+  );
+  assert_eq!(
+    views_1[3].name, "B",
+    "First workspace should still have space B"
+  );
 
   // Verify second workspace still has its original views
   test
-    .open_workspace(&second_workspace.workspace_id, second_workspace.workspace_type)
+    .open_workspace(
+      &second_workspace.workspace_id,
+      second_workspace.workspace_type,
+    )
     .await;
   let views_2 = test.get_all_workspace_views().await;
-  assert_eq!(views_2[0].name, "General", "Second workspace should still have General view");
-  assert_eq!(views_2[1].name, "Shared", "Second workspace should still have Shared view");
-  assert_eq!(views_2[2].name, "C", "Second workspace should still have space C");
-  assert_eq!(views_2[3].name, "D", "Second workspace should still have space D");
+  assert_eq!(
+    views_2[0].name, "General",
+    "Second workspace should still have General view"
+  );
+  assert_eq!(
+    views_2[1].name, "Shared",
+    "Second workspace should still have Shared view"
+  );
+  assert_eq!(
+    views_2[2].name, "C",
+    "Second workspace should still have space C"
+  );
+  assert_eq!(
+    views_2[3].name, "D",
+    "Second workspace should still have space D"
+  );
 }
 
 #[tokio::test]

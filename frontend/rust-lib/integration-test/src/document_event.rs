@@ -2,17 +2,17 @@ use crate::event_builder::EventBuilder;
 use crate::EventIntegrationTest;
 use collab::core::collab::{default_client_id, CollabOptions};
 use collab::core::origin::CollabOrigin;
+use collab::entity::EncodedCollab;
 use collab::preclude::updates::decoder::Decode;
 use collab::preclude::{Collab, Update};
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_entity::CollabType;
-use collab::entity::EncodedCollab;
 use flowy_document::entities::{
-  ApplyActionPayloadPB, BlockActionPB, BlockActionPayloadPB, BlockActionTypePB, BlockPB, 
-  DocumentDataPB, DocumentTextPB, OpenDocumentPayloadPB, TextDeltaPayloadPB,
-  EncodedCollabPB, DocumentRedoUndoPayloadPB, DocumentRedoUndoResponsePB,
-  DocumentSnapshotMetaPB, RepeatedDocumentSnapshotMetaPB, DocumentSnapshotPB
+  ApplyActionPayloadPB, BlockActionPB, BlockActionPayloadPB, BlockActionTypePB, BlockPB,
+  DocumentDataPB, DocumentRedoUndoPayloadPB, DocumentRedoUndoResponsePB, DocumentSnapshotMetaPB,
+  DocumentSnapshotPB, DocumentTextPB, EncodedCollabPB, OpenDocumentPayloadPB,
+  RepeatedDocumentSnapshotMetaPB, TextDeltaPayloadPB,
 };
 use flowy_document::event_map::DocumentEvent;
 use flowy_document::parser::parser_entities::{
@@ -74,7 +74,7 @@ impl EventIntegrationTest {
   pub async fn create_document_simple(&self) -> ViewPB {
     let current_workspace = self.get_current_workspace().await;
     let parent_id = Uuid::parse_str(&current_workspace.id).unwrap();
-    
+
     let payload = CreateViewPayloadPB {
       parent_view_id: parent_id.to_string(),
       name: "document".to_string(),
