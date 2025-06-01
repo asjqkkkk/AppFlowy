@@ -260,7 +260,7 @@ Future<AppFlowyCloudConfiguration> configurationFromUri(
   if (authenticatorType == AuthenticatorType.appflowyCloudDevelop) {
     return AppFlowyCloudConfiguration(
       base_url: "$baseUrl:8000",
-      ws_base_url: "ws://${baseUri.host}:8000/ws/v1",
+      ws_base_url: "ws://${baseUri.host}:8000/ws/v2",
       gotrue_url: "$baseUrl:9999",
       enable_sync_trace: true,
       base_web_domain: ShareConstants.testBaseWebDomain,
@@ -335,7 +335,7 @@ Future<String> _getAppFlowyCloudWSUrl(String baseURL) async {
     // Construct the WebSocket URL directly from the parsed URI.
     final wsScheme = uri.isScheme('HTTPS') ? 'wss' : 'ws';
     final wsUrl =
-        Uri(scheme: wsScheme, host: uri.host, port: uri.port, path: '/ws/v1');
+        Uri(scheme: wsScheme, host: uri.host, port: uri.port, path: '/ws/v2');
 
     return wsUrl.toString();
   } catch (e) {

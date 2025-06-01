@@ -172,7 +172,6 @@ class ChildPageTransactionHandler extends MentionTransactionHandler {
       view: view,
       openAfterDuplicate: false,
       includeChildren: true,
-      syncAfterDuplicate: true,
       parentViewId: parentViewId,
     );
 

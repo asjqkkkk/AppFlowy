@@ -279,7 +279,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
                 );
               }
             }
-             afterOpen?.call();
+            afterOpen?.call();
           },
           expand: (space, isExpanded) async {
             await _setSpaceExpandStatus(space, isExpanded);
@@ -719,7 +719,6 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
       await ViewBackendService.duplicate(
         view: view,
         openAfterDuplicate: true,
-        syncAfterDuplicate: true,
         includeChildren: true,
         parentViewId: newSpace.id,
         suffix: '',

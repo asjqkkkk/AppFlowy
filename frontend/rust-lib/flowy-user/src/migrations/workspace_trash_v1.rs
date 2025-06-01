@@ -1,12 +1,13 @@
 use std::sync::{Arc, Weak};
 
 use collab_folder::Folder;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
 use semver::Version;
 use tracing::instrument;
 
-use collab_integrate::{CollabKVAction, CollabKVDB};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::AuthType;

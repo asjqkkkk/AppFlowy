@@ -93,12 +93,11 @@ where
     let try_get_client = self.inner.try_get_client();
     let params = objects
       .into_iter()
-      .map(|object| {
-        CollabParams::new(
-          object.object_id,
-          object.collab_type,
-          object.encoded_collab_v1,
-        )
+      .map(|object| CollabParams {
+        object_id: object.object_id,
+        collab_type: object.collab_type,
+        encoded_collab_v1: object.encoded_collab_v1.into(),
+        updated_at: None,
       })
       .collect::<Vec<_>>();
     try_get_client?

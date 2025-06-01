@@ -1,24 +1,22 @@
-use std::ops::Deref;
-use std::sync::{Arc, OnceLock};
-
+use collab::core::collab::default_client_id;
 use collab::entity::EncodedCollab;
-use collab::preclude::CollabPlugin;
+use collab::preclude::ClientID;
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_document::document_data::default_document_data;
-use collab_integrate::CollabKVDB;
-use collab_integrate::collab_builder::{
-  AppFlowyCollabBuilder, CollabCloudPluginProvider, CollabPluginProviderContext,
-  CollabPluginProviderType, WorkspaceCollabIntegrate,
-};
+use collab_plugins::CollabKVDB;
 use flowy_document::entities::{DocumentSnapshotData, DocumentSnapshotMeta};
 use flowy_document::manager::{DocumentManager, DocumentSnapshotService, DocumentUserService};
 use flowy_document_pub::cloud::*;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_storage_pub::storage::{CreatedUpload, FileProgressReceiver, StorageService};
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use flowy_user_pub::workspace_collab::adaptor_trait::WorkspaceCollabUser;
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;
 use nanoid::nanoid;
+use std::ops::Deref;
+use std::sync::{Arc, OnceLock, Weak};
 use tempfile::TempDir;
 use tokio::sync::RwLock;
 use tracing_subscriber::{EnvFilter, fmt::Subscriber, util::SubscriberInitExt};
@@ -26,7 +24,7 @@ use uuid::Uuid;
 
 pub struct DocumentTest {
   #[allow(dead_code)]
-  builder: Arc<AppFlowyCollabBuilder>,
+  builder: Arc<WorkspaceCollabAdaptor>,
   inner: DocumentManager,
 }
 
@@ -37,8 +35,7 @@ impl DocumentTest {
     let file_storage = Arc::new(DocumentTestFileStorageService) as Arc<dyn StorageService>;
     let document_snapshot = Arc::new(DocumentTestSnapshot);
 
-    let builder = Arc::new(AppFlowyCollabBuilder::new(
-      DefaultCollabStorageProvider(),
+    let builder = Arc::new(WorkspaceCollabAdaptor::new(
       WorkspaceCollabIntegrateImpl {
         workspace_id: user.workspace_id,
       },
@@ -103,6 +100,10 @@ impl DocumentUserService for FakeUser {
 
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok("".to_string())
+  }
+
+  fn collab_client_id(&self, _workspace_id: &Uuid) -> ClientID {
+    default_client_id()
   }
 }
 
@@ -231,23 +232,6 @@ impl StorageService for DocumentTestFileStorageService {
   }
 }
 
-struct DefaultCollabStorageProvider();
-
-#[async_trait]
-impl CollabCloudPluginProvider for DefaultCollabStorageProvider {
-  fn provider_type(&self) -> CollabPluginProviderType {
-    CollabPluginProviderType::Local
-  }
-
-  fn get_plugins(&self, _context: CollabPluginProviderContext) -> Vec<Box<dyn CollabPlugin>> {
-    vec![]
-  }
-
-  fn is_sync_enabled(&self) -> bool {
-    false
-  }
-}
-
 struct DocumentTestSnapshot;
 impl DocumentSnapshotService for DocumentTestSnapshot {
   fn get_document_snapshot_metas(
@@ -265,12 +249,20 @@ impl DocumentSnapshotService for DocumentTestSnapshot {
 struct WorkspaceCollabIntegrateImpl {
   workspace_id: Uuid,
 }
-impl WorkspaceCollabIntegrate for WorkspaceCollabIntegrateImpl {
+impl WorkspaceCollabUser for WorkspaceCollabIntegrateImpl {
   fn workspace_id(&self) -> Result<Uuid, FlowyError> {
     Ok(self.workspace_id)
   }
 
+  fn uid(&self) -> Result<i64, FlowyError> {
+    Ok(0)
+  }
+
   fn device_id(&self) -> Result<String, FlowyError> {
     Ok("fake_device_id".to_string())
+  }
+
+  fn collab_db(&self) -> FlowyResult<Weak<CollabKVDB>> {
+    todo!()
   }
 }

@@ -5,6 +5,7 @@ use crate::af_cloud::define::LoggedUser;
 use crate::local_server::util::default_encode_collab_for_collab_type;
 use client_api::entity::PublishInfo;
 use client_api::entity::workspace_dto::PublishInfoView;
+use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::Collab;
 use collab_entity::CollabType;
@@ -47,13 +48,20 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     object_id: &Uuid,
   ) -> Result<Vec<u8>, FlowyError> {
     let object_id = object_id.to_string();
-    let workspace_id = workspace_id.to_string();
-    let collab_db = self.logged_user.get_collab_db(uid)?.upgrade().unwrap();
+    let collab_db = self
+      .logged_user
+      .get_collab_db(uid)?
+      .upgrade()
+      .ok_or_else(|| FlowyError::ref_drop().with_context("collab db is dropped"))?;
+    let client_id = self.logged_user.collab_client_id(workspace_id);
     let read_txn = collab_db.read_txn();
-    let is_exist = read_txn.is_exist(uid, &workspace_id.to_string(), &object_id.to_string());
+
+    let workspace_id = workspace_id.to_string();
+    let is_exist = read_txn.is_exist(uid, &workspace_id, &object_id.to_string());
     if is_exist {
       // load doc
-      let collab = Collab::new_with_origin(CollabOrigin::Empty, &object_id, vec![], false);
+      let options = CollabOptions::new(object_id.clone(), client_id);
+      let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
       read_txn.load_doc(uid, &workspace_id, &object_id, collab.doc())?;
       let data = collab.encode_collab_v1(|c| {
         collab_type
@@ -63,7 +71,8 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
       })?;
       Ok(data.doc_state.to_vec())
     } else {
-      let data = default_encode_collab_for_collab_type(uid, &object_id, collab_type).await?;
+      let data =
+        default_encode_collab_for_collab_type(uid, &object_id, collab_type, client_id).await?;
       drop(read_txn);
       Ok(data.doc_state.to_vec())
     }

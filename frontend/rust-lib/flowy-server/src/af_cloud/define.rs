@@ -1,3 +1,5 @@
+use client_api::v2::ConnectState;
+use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};
@@ -6,12 +8,19 @@ use flowy_user_pub::entities::WorkspaceType;
 use lib_infra::async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
+use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 pub const USER_SIGN_IN_URL: &str = "sign_in_url";
 pub const USER_UUID: &str = "uuid";
 pub const USER_EMAIL: &str = "email";
 pub const USER_DEVICE_ID: &str = "device_id";
+
+pub trait LoggedWorkspace: Send + Sync {
+  fn subscribe_ws_state(&self) -> FlowyResult<Receiver<ConnectState>>;
+
+  fn ws_state(&self) -> FlowyResult<ConnectState>;
+}
 
 /// Represents a user that is currently using the server.
 #[async_trait]
@@ -28,6 +37,8 @@ pub trait LoggedUser: Send + Sync {
   fn get_collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
 
   fn application_root_dir(&self) -> Result<PathBuf, FlowyError>;
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }
 
 //
@@ -54,10 +65,6 @@ impl AIUserService for AIUserServiceImpl {
 
   fn workspace_id(&self) -> Result<Uuid, FlowyError> {
     self.logged_user()?.workspace_id()
-  }
-
-  fn workspace_type(&self) -> FlowyResult<WorkspaceType> {
-    self.logged_user()?.workspace_type()
   }
 
   fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError> {

@@ -22,7 +22,6 @@ use crate::services::sort::Sort;
 use crate::utils::cache::AnyTypeCache;
 use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
-use collab::core::collab_plugin::CollabPluginType;
 use collab::lock::RwLock;
 use collab_database::database::Database;
 use collab_database::entity::DatabaseView;
@@ -34,10 +33,9 @@ use collab_database::template::timestamp_parse::TimestampCellData;
 use collab_database::views::{
   DatabaseLayout, FilterMap, LayoutSetting, OrderObjectPosition, RowOrder,
 };
-use collab_entity::CollabType;
-use collab_integrate::collab_builder::{AppFlowyCollabBuilder, CollabBuilderConfig};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_notification::DebounceNotificationSender;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use futures::future::join_all;
 use futures::{StreamExt, pin_mut};
 use lib_infra::box_any::BoxAny;
@@ -47,7 +45,6 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use tokio::select;
 use tokio::sync::RwLock as TokioRwLock;
 use tokio::sync::oneshot::Sender;
 use tokio::sync::{broadcast, oneshot};
@@ -65,13 +62,11 @@ pub struct DatabaseEditor {
   pub(crate) database_views: Arc<DatabaseViews>,
   #[allow(dead_code)]
   user: Arc<dyn DatabaseUser>,
-  collab_builder: Weak<AppFlowyCollabBuilder>,
+  collab_builder: Weak<WorkspaceCollabAdaptor>,
   is_loading_rows: ArcSwapOption<broadcast::Sender<()>>,
   opening_ret_txs: Arc<RwLock<Vec<OpenDatabaseResult>>>,
   #[allow(dead_code)]
   database_cancellation: Arc<RwLock<Option<CancellationToken>>>,
-  un_finalized_rows_cancellation: Arc<ArcSwapOption<CancellationToken>>,
-  finalized_rows: Arc<moka::future::Cache<String, Weak<RwLock<DatabaseRow>>>>,
 }
 
 impl DatabaseEditor {
@@ -79,17 +74,8 @@ impl DatabaseEditor {
     user: Arc<dyn DatabaseUser>,
     database: Arc<RwLock<Database>>,
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
-    collab_builder: Arc<AppFlowyCollabBuilder>,
+    collab_builder: Arc<WorkspaceCollabAdaptor>,
   ) -> FlowyResult<Arc<Self>> {
-    let finalized_rows: moka::future::Cache<String, Weak<RwLock<DatabaseRow>>> =
-      moka::future::Cache::builder()
-        .max_capacity(50)
-        .async_eviction_listener(|key, value, _| {
-          Box::pin(async move {
-            database_row_evict_listener(key, value).await;
-          })
-        })
-        .build();
     let notification_sender = Arc::new(DebounceNotificationSender::new(200));
     let cell_cache = AnyTypeCache::<u64>::new();
     let database_id = database.read().await.get_database_id();
@@ -120,18 +106,6 @@ impl DatabaseEditor {
     );
 
     let database_id = Uuid::from_str(&database_id)?;
-    let collab_object = collab_builder.collab_object(
-      &user.workspace_id()?,
-      user.user_id()?,
-      &database_id,
-      CollabType::Database,
-    )?;
-
-    let database = collab_builder.finalize(
-      collab_object,
-      CollabBuilderConfig::default(),
-      database.clone(),
-    )?;
     let this = Arc::new(Self {
       database_id,
       user,
@@ -142,15 +116,13 @@ impl DatabaseEditor {
       is_loading_rows: Default::default(),
       opening_ret_txs: Arc::new(Default::default()),
       database_cancellation,
-      un_finalized_rows_cancellation: Arc::new(Default::default()),
-      finalized_rows: Arc::new(finalized_rows),
     });
     observe_block_event(&database_id, &this).await;
     observe_view_change(&database_id, &this).await;
     Ok(this)
   }
 
-  pub fn collab_builder(&self) -> FlowyResult<Arc<AppFlowyCollabBuilder>> {
+  pub fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
     self
       .collab_builder
       .upgrade()
@@ -535,7 +507,6 @@ impl DatabaseEditor {
       }
 
       let database = self.database.read().await;
-
       notify_did_update_database_field(&database, field_id)?;
     }
 
@@ -798,7 +769,6 @@ impl DatabaseEditor {
     }
 
     debug!("[Database]: Init database row: {}", row_id);
-    let collab_builder = self.collab_builder()?;
     let database_row = self
       .database
       .read()
@@ -809,30 +779,6 @@ impl DatabaseEditor {
         FlowyError::record_not_found()
           .with_context(format!("The row:{} in database not found", row_id))
       })?;
-
-    let is_finalized = self.finalized_rows.get(row_id.as_str()).await.is_some();
-    if !is_finalized {
-      trace!("[Database]: finalize database row: {}", row_id);
-      let row_id = Uuid::from_str(row_id.as_str())?;
-      let collab_object = collab_builder.collab_object(
-        &self.user.workspace_id()?,
-        self.user.user_id()?,
-        &row_id,
-        CollabType::DatabaseRow,
-      )?;
-
-      if let Err(err) = collab_builder.finalize(
-        collab_object,
-        CollabBuilderConfig::default(),
-        database_row.clone(),
-      ) {
-        error!("Failed to init database row: {}", err);
-      }
-      self
-        .finalized_rows
-        .insert(row_id.to_string(), Arc::downgrade(&database_row))
-        .await;
-    }
 
     Ok(database_row)
   }
@@ -1023,13 +969,6 @@ impl DatabaseEditor {
   where
     F: FnOnce(RowUpdate),
   {
-    if self.finalized_rows.get(row_id.as_str()).await.is_none() {
-      info!(
-        "[Database Row]: row:{} is not finalized when editing, init it",
-        row_id
-      );
-      self.init_database_row(&row_id).await?;
-    }
     self.database.write().await.update_row(row_id, modify).await;
     Ok(())
   }
@@ -1148,7 +1087,7 @@ impl DatabaseEditor {
           .update_row_meta(
             row_id,
             UpdateRowMetaParams {
-              id: row_id.clone().into_inner(),
+              row_id: row_id.clone().into_inner(),
               view_id: view_id.to_string(),
               cover: None,
               icon_url: None,
@@ -1444,29 +1383,6 @@ impl DatabaseEditor {
 
   pub async fn close_database(&self) {
     info!("[Database]: {} close", self.database_id);
-    let token = CancellationToken::new();
-    let cloned_finalized_rows = self.finalized_rows.clone();
-    self
-      .un_finalized_rows_cancellation
-      .store(Some(Arc::new(token.clone())));
-    tokio::spawn(async move {
-      // Using select! to concurrently run two asynchronous futures:
-      // 1. Wait for 30 seconds, then invalidate all the finalized rows.
-      // 2. If the cancellation token (`token`) is triggered before the 30 seconds expire,
-      //    cancel the invalidation action and do nothing.
-      select! {
-        _ = tokio::time::sleep(Duration::from_secs(30)) => {
-          for (row_id, row) in cloned_finalized_rows.iter() {
-            remove_row_sync_plugin(row_id.as_str(), row).await;
-          }
-          cloned_finalized_rows.invalidate_all();
-        },
-        _ = token.cancelled() => {
-          trace!("Invalidate action cancelled");
-        }
-      }
-    });
-
     let cancellation = self.database_cancellation.read().await;
     if let Some(cancellation) = &*cancellation {
       info!("Cancel database operation");
@@ -1484,10 +1400,6 @@ impl DatabaseEditor {
     view_id: &str,
     notify_finish: Option<tokio::sync::oneshot::Sender<()>>,
   ) -> FlowyResult<DatabasePB> {
-    if let Some(un_finalized_rows_token) = self.un_finalized_rows_cancellation.load_full() {
-      un_finalized_rows_token.cancel();
-    }
-
     let (tx, rx) = oneshot::channel();
     self.opening_ret_txs.write().await.push(tx);
     // Check if the database is currently being opened
@@ -2444,21 +2356,4 @@ fn notify_did_update_database_field(database: &Database, field_id: &str) -> Flow
       .send();
   }
   Ok(())
-}
-
-async fn database_row_evict_listener(key: Arc<String>, row: Weak<RwLock<DatabaseRow>>) {
-  remove_row_sync_plugin(key.as_str(), row).await
-}
-
-async fn remove_row_sync_plugin(row_id: &str, row: Weak<RwLock<DatabaseRow>>) {
-  if let Some(row) = row.upgrade() {
-    let should_remove = row.read().await.has_cloud_plugin();
-    if should_remove {
-      trace!("[Database]: un-finalize row: {}", row_id);
-      row
-        .write()
-        .await
-        .remove_plugins_for_types(vec![CollabPluginType::CloudStorage]);
-    }
-  }
 }

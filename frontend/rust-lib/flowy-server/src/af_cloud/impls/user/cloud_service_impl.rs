@@ -3,7 +3,6 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use anyhow::anyhow;
-use arc_swap::ArcSwapOption;
 use client_api::entity::billing_dto::{
   RecurringInterval, SetSubscriptionRecurringInterval, SubscriptionCancelRequest, SubscriptionPlan,
   SubscriptionPlanDetail, WorkspaceSubscriptionStatus, WorkspaceUsageAndLimit,
@@ -18,6 +17,7 @@ use client_api::entity::{
 };
 use client_api::entity::{QueryCollab, QueryCollabParams};
 use client_api::{Client, ClientConfiguration};
+use collab::preclude::ClientID;
 use collab_entity::{CollabObject, CollabType};
 use tracing::{instrument, trace};
 
@@ -29,7 +29,7 @@ use crate::af_cloud::impls::user::util::encryption_type_from_profile;
 use crate::af_cloud::impls::util::check_request_workspace_id_is_match;
 use crate::af_cloud::{AFCloudClient, AFServer};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
-use flowy_user_pub::cloud::{UserCloudService, UserCollabParams, UserUpdate, UserUpdateReceiver};
+use flowy_user_pub::cloud::{UserCloudService, UserCollabParams};
 use flowy_user_pub::entities::{
   AFCloudOAuthParams, AuthResponse, AuthType, Role, UpdateUserProfileParams, UserProfile,
   UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
@@ -43,19 +43,13 @@ use super::dto::{from_af_workspace_invitation_status, to_workspace_invitation_st
 
 pub(crate) struct AFCloudUserAuthServiceImpl<T> {
   server: T,
-  user_change_recv: ArcSwapOption<tokio::sync::mpsc::Receiver<UserUpdate>>,
   logged_user: Weak<dyn LoggedUser>,
 }
 
 impl<T> AFCloudUserAuthServiceImpl<T> {
-  pub(crate) fn new(
-    server: T,
-    user_change_recv: tokio::sync::mpsc::Receiver<UserUpdate>,
-    logged_user: Weak<dyn LoggedUser>,
-  ) -> Self {
+  pub(crate) fn new(server: T, logged_user: Weak<dyn LoggedUser>) -> Self {
     Self {
       server,
-      user_change_recv: ArcSwapOption::new(Some(Arc::new(user_change_recv))),
       logged_user,
     }
   }
@@ -190,7 +184,7 @@ where
       .ok_or_else(FlowyError::user_not_login)?;
 
     let profile = client.get_profile().await?;
-    let token = client.get_token()?;
+    let token = client.get_token_str()?;
 
     let mut conn = logged_user.get_sqlite_db(uid)?;
     let workspace_auth_type = select_user_workspace(workspace_id, &mut conn)
@@ -352,6 +346,7 @@ where
     _uid: i64,
     workspace_id: &Uuid,
     object_id: &Uuid,
+    _client_id: ClientID,
   ) -> Result<Vec<u8>, FlowyError> {
     let try_get_client = self.server.try_get_client();
     let cloned_user = self.logged_user.clone();
@@ -362,11 +357,6 @@ where
     let resp = try_get_client?.get_collab(params).await?;
     check_request_workspace_id_is_match(workspace_id, &cloned_user, "get user awareness object")?;
     Ok(resp.encode_collab.doc_state.to_vec())
-  }
-
-  fn subscribe_user_update(&self) -> Option<UserUpdateReceiver> {
-    let rx = self.user_change_recv.swap(None)?;
-    Arc::into_inner(rx)
   }
 
   async fn create_collab_object(
@@ -400,12 +390,11 @@ where
       .into_iter()
       .flat_map(|object| {
         Uuid::from_str(&object.object_id)
-          .map(|object_id| {
-            CollabParams::new(
-              object_id,
-              u8::from(object.collab_type).into(),
-              object.encoded_collab,
-            )
+          .map(|object_id| CollabParams {
+            object_id,
+            collab_type: u8::from(object.collab_type).into(),
+            encoded_collab_v1: object.encoded_collab.into(),
+            updated_at: None,
           })
           .ok()
       })
@@ -639,7 +628,7 @@ pub async fn user_sign_in_with_url(
     latest_workspace,
     user_workspaces,
     email: user_profile.email,
-    token: Some(client.get_token()?),
+    token: Some(client.get_token_str()?),
     encryption_type,
     is_new_user,
     updated_at: user_profile.updated_at,

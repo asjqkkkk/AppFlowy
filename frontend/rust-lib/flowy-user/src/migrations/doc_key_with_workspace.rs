@@ -1,12 +1,11 @@
-use std::sync::{Arc, Weak};
-
 use collab_plugins::local_storage::kv::doc::migrate_old_keys;
 use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
 use semver::Version;
+use std::sync::{Arc, Weak};
 use tracing::{instrument, trace};
 
-use collab_integrate::CollabKVDB;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::AuthType;

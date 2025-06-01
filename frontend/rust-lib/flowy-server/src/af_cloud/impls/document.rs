@@ -1,6 +1,6 @@
 #![allow(unused_variables)]
 use client_api::entity::{CreateCollabParams, QueryCollab, QueryCollabParams};
-use collab::core::collab::DataSource;
+use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::preclude::Collab;
@@ -88,13 +88,14 @@ where
       &self.logged_user,
       format!("Get {} document", document_id),
     )?;
-    let collab = Collab::new_with_source(
-      CollabOrigin::Empty,
-      document_id.to_string().as_str(),
-      DataSource::DocStateV1(doc_state),
-      vec![],
-      false,
-    )?;
+    let client_id = self
+      .logged_user
+      .upgrade()
+      .ok_or_else(|| FlowyError::ref_drop().with_context("logged user is dropped"))?
+      .collab_client_id(workspace_id);
+    let options = CollabOptions::new(document_id.to_string(), client_id)
+      .with_data_source(DataSource::DocStateV1(doc_state));
+    let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
     let document = Document::open(collab)?;
     Ok(document.get_document_data().ok())
   }

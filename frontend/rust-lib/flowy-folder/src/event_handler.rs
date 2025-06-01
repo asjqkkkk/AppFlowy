@@ -78,6 +78,7 @@ pub(crate) async fn read_current_workspace_handler(
   data_result_ok(workspace)
 }
 
+#[instrument(level = "debug", skip_all)]
 pub(crate) async fn create_view_handler(
   data: AFPluginData<CreateViewPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -85,7 +86,7 @@ pub(crate) async fn create_view_handler(
   let folder = upgrade_folder(folder)?;
   let params: CreateViewParams = data.into_inner().try_into()?;
   let set_as_current = params.set_as_current;
-  let (view, _) = folder.create_view_with_params(params, true).await?;
+  let view = folder.create_view_with_params(params, true).await?;
   if set_as_current {
     let _ = folder.set_current_view(view.id.clone()).await;
   }

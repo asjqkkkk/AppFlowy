@@ -1,5 +1,6 @@
-use collab::preclude::Collab;
-use collab_integrate::{CollabKVAction, PersistenceError};
+use collab::preclude::{ClientID, Collab};
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::PersistenceError;
 use std::collections::HashMap;
 
 /// This function loads collab objects by their object_ids.
@@ -8,6 +9,7 @@ pub fn load_collab_by_object_ids<'a, R>(
   workspace_id: &str,
   collab_read_txn: &R,
   object_ids: &[String],
+  client_id: ClientID,
 ) -> (HashMap<String, Collab>, Vec<String>)
 where
   R: CollabKVAction<'a>,
@@ -16,7 +18,7 @@ where
   let mut invalid_object_ids = vec![];
   let mut collab_by_oid = HashMap::new();
   for object_id in object_ids {
-    match load_collab_by_object_id(uid, collab_read_txn, workspace_id, object_id) {
+    match load_collab_by_object_id(uid, collab_read_txn, workspace_id, object_id, client_id) {
       Ok(collab) => {
         collab_by_oid.insert(object_id.clone(), collab);
       },
@@ -36,12 +38,13 @@ pub fn load_collab_by_object_id<'a, R>(
   collab_read_txn: &R,
   workspace_id: &str,
   object_id: &str,
+  client_id: ClientID,
 ) -> Result<Collab, PersistenceError>
 where
   R: CollabKVAction<'a>,
   PersistenceError: From<R::Error>,
 {
-  let mut collab = Collab::new(uid, object_id, "phantom", vec![], false);
+  let mut collab = Collab::new(uid, object_id, "phantom", client_id);
   collab_read_txn.load_doc_with_txn(uid, workspace_id, object_id, &mut collab.transact_mut())?;
   Ok(collab)
 }

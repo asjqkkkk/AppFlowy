@@ -34,7 +34,7 @@ pub struct Builder {
   stream_log_sender: Option<Arc<dyn StreamLogSender>>,
 }
 
-const SYNC_TARGET: &str = "sync_trace_log";
+const SYNC_TARGET: &str = "sync_log";
 impl Builder {
   pub fn new(
     name: &str,
@@ -45,7 +45,7 @@ impl Builder {
     let app_log_appender = RollingFileAppender::builder()
       .rotation(Rotation::DAILY)
       .filename_prefix(name)
-      .max_log_files(6)
+      .max_log_files(5)
       .build(directory)
       .unwrap_or(tracing_appender::rolling::daily(directory, name));
 
@@ -53,7 +53,7 @@ impl Builder {
     let sync_log_appender = RollingFileAppender::builder()
       .rotation(Rotation::HOURLY)
       .filename_prefix(sync_log_name)
-      .max_log_files(24)
+      .max_log_files(3)
       .build(directory)
       .unwrap_or(tracing_appender::rolling::hourly(directory, sync_log_name));
 
@@ -91,7 +91,7 @@ impl Builder {
       let subscriber = tracing_subscriber::fmt()
         .with_timer(CustomTime)
         .with_max_level(tracing::Level::TRACE)
-        .with_ansi(self.platform.is_not_ios())
+        .with_ansi(self.platform.is_desktop())
         .with_writer(StreamLog {
           sender: stream_log_sender.clone(),
         })

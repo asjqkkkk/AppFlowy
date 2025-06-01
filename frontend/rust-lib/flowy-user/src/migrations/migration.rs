@@ -1,7 +1,7 @@
 use std::sync::{Arc, Weak};
 
 use chrono::NaiveDateTime;
-use collab_integrate::CollabKVDB;
+use collab_plugins::CollabKVDB;
 use diesel::{RunQueryDsl, SqliteConnection};
 use flowy_error::FlowyResult;
 use flowy_sqlite::kv::KVStorePreferences;

@@ -20,11 +20,12 @@ impl DatabaseCloudService for LocalServerDatabaseCloudServiceImpl {
     &self,
     object_id: &Uuid,
     collab_type: CollabType,
-    _workspace_id: &Uuid, // underscore to silence “unused” warning
+    workspace_id: &Uuid,
   ) -> Result<Option<EncodedCollab>, FlowyError> {
     let uid = self.logged_user.user_id()?;
     let object_id = object_id.to_string();
-    default_encode_collab_for_collab_type(uid, &object_id, collab_type)
+    let client_id = self.logged_user.collab_client_id(workspace_id);
+    default_encode_collab_for_collab_type(uid, &object_id, collab_type, client_id)
       .await
       .map(Some)
       .or_else(|err| {

@@ -170,7 +170,6 @@ class SubPageTransactionHandler extends BlockTransactionHandler {
               view: view,
               openAfterDuplicate: false,
               includeChildren: true,
-              syncAfterDuplicate: true,
               parentViewId: parentViewId,
             );
 

@@ -232,7 +232,7 @@ pub struct UpdateRowMetaChangesetPB {
 
 #[derive(Debug, Default)]
 pub struct UpdateRowMetaParams {
-  pub id: String,
+  pub row_id: String,
   pub view_id: String,
   pub icon_url: Option<String>,
   pub cover: Option<RowCover>,
@@ -252,7 +252,7 @@ impl TryInto<UpdateRowMetaParams> for UpdateRowMetaChangesetPB {
       .map_err(|_| ErrorCode::ViewIdIsInvalid)?
       .0;
     Ok(UpdateRowMetaParams {
-      id: row_id,
+      row_id,
       view_id,
       icon_url: self.icon_url,
       cover: self.cover.map(|cover| cover.into()),

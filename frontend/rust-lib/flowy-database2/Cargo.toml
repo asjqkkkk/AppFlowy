@@ -10,8 +10,8 @@ collab = { workspace = true }
 collab-database = { workspace = true }
 collab-entity = { workspace = true }
 collab-plugins = { workspace = true }
-collab-integrate = { workspace = true }
 flowy-database-pub = { workspace = true }
+flowy-user-pub = { workspace = true }
 
 flowy-derive.workspace = true
 flowy-notification = { workspace = true }
@@ -54,7 +54,7 @@ moka = { version = "0.12.8", features = ["future"] }
 uuid.workspace = true
 
 [dev-dependencies]
-event-integration-test = { path = "../event-integration-test", default-features = false }
+event-integration-test = { path = "../integration-test", default-features = false }
 flowy-database2 = { path = ".", features = ["verbose_log"] }
 
 [build-dependencies]

@@ -1,11 +1,14 @@
 use crate::migrations::session_migration::migrate_session;
 use crate::services::db::UserDB;
 use crate::services::entities::{UserConfig, UserPaths};
-use collab_integrate::CollabKVDB;
 
 use arc_swap::ArcSwapOption;
+use client_api::v2::CollabKVActionExt;
+use collab::core::collab::default_client_id;
+use collab::preclude::ClientID;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::CollabKVDB;
 use flowy_error::{internal_error, ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::DBConnection;
@@ -14,6 +17,7 @@ use flowy_user_pub::session::Session;
 use flowy_user_pub::sql::{select_user_workspace, select_user_workspace_type};
 use std::path::PathBuf;
 use std::str::FromStr;
+use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Weak};
 use tracing::info;
 use uuid::Uuid;
@@ -24,6 +28,7 @@ pub struct AuthenticateUser {
   pub(crate) user_paths: UserPaths,
   store_preferences: Arc<KVStorePreferences>,
   session: ArcSwapOption<Session>,
+  refresh_user_profile_since: AtomicI64,
 }
 
 impl Drop for AuthenticateUser {
@@ -40,13 +45,24 @@ impl AuthenticateUser {
     let user_paths = UserPaths::new(user_config.storage_path.clone());
     let database = Arc::new(UserDB::new(user_paths.clone()));
     let session = migrate_session(&user_config.session_cache_key, &store_preferences).map(Arc::new);
+    let refresh_user_profile_since = AtomicI64::new(0);
     Self {
       user_config,
       database,
       user_paths,
       store_preferences,
       session: ArcSwapOption::from(session),
+      refresh_user_profile_since,
     }
+  }
+
+  pub fn should_load_user_profile(&self) -> bool {
+    let now = chrono::Utc::now().timestamp();
+    if now - self.refresh_user_profile_since.load(Ordering::SeqCst) < 5 {
+      return false;
+    }
+    self.refresh_user_profile_since.store(now, Ordering::SeqCst);
+    true
   }
 
   pub fn user_id(&self) -> FlowyResult<i64> {
@@ -63,6 +79,21 @@ impl AuthenticateUser {
 
   pub fn device_id(&self) -> FlowyResult<String> {
     Ok(self.user_config.device_id.to_string())
+  }
+
+  pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    let get_client_id = || {
+      let uid = self.user_id()?;
+      let db = self
+        .get_collab_db(uid)?
+        .upgrade()
+        .ok_or_else(|| FlowyError::internal().with_context("Unexpected error: CollabDB is None"))?;
+
+      let client_id = db.read_txn().client_id(workspace_id)?;
+      Ok::<_, FlowyError>(client_id)
+    };
+
+    get_client_id().unwrap_or_else(|_| default_client_id())
   }
 
   pub fn workspace_id(&self) -> FlowyResult<Uuid> {
@@ -86,8 +117,13 @@ impl AuthenticateUser {
     Ok(id)
   }
 
+  pub fn get_current_user_collab_db(&self) -> FlowyResult<Weak<CollabKVDB>> {
+    let session = self.get_session()?;
+    self.database.get_weak_collab_db(session.user_id)
+  }
+
   pub fn get_collab_db(&self, uid: i64) -> FlowyResult<Weak<CollabKVDB>> {
-    self.database.get_collab_db(uid)
+    self.database.get_weak_collab_db(uid)
   }
 
   pub fn get_sqlite_connection(&self, uid: i64) -> FlowyResult<DBConnection> {
@@ -119,7 +155,7 @@ impl AuthenticateUser {
     let session = self.get_session()?;
     let collab_db = self
       .database
-      .get_collab_db(uid)?
+      .get_weak_collab_db(uid)?
       .upgrade()
       .ok_or_else(|| FlowyError::internal().with_context("Collab db is not initialized"))?;
     let read_txn = collab_db.read_txn();

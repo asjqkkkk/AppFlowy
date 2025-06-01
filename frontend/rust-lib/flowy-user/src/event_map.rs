@@ -1,4 +1,5 @@
 use client_api::entity::billing_dto::SubscriptionPlan;
+use client_api::v2::WorkspaceController;
 use flowy_derive::{Flowy_Event, ProtoBuf_Enum};
 use flowy_error::FlowyResult;
 use flowy_user_pub::cloud::UserCloudConfig;
@@ -277,6 +278,7 @@ pub enum UserEvent {
 }
 
 #[async_trait]
+#[allow(clippy::too_many_arguments)]
 pub trait AppLifeCycle: Send + Sync + 'static {
   /// Fires on app launch, but only if the user is already signed in.
   async fn on_launch_if_authenticated(
@@ -287,6 +289,7 @@ pub trait AppLifeCycle: Send + Sync + 'static {
     _user_config: &UserConfig,
     _user_path: &UserPaths,
     _workspace_type: &WorkspaceType,
+    _workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
     Ok(())
   }
@@ -296,6 +299,7 @@ pub trait AppLifeCycle: Send + Sync + 'static {
   }
 
   /// Fires right after the user successfully signs in.
+  #[allow(clippy::too_many_arguments)]
   async fn on_sign_in(
     &self,
     _user_id: i64,
@@ -303,11 +307,13 @@ pub trait AppLifeCycle: Send + Sync + 'static {
     _user_config: &UserConfig,
     _user_path: &UserPaths,
     _workspace_type: &WorkspaceType,
+    _workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
     Ok(())
   }
 
   /// Fires right after the user successfully signs up.
+  #[allow(clippy::too_many_arguments)]
   async fn on_sign_up(
     &self,
     _is_new_user: bool,
@@ -316,6 +322,7 @@ pub trait AppLifeCycle: Send + Sync + 'static {
     _user_config: &UserConfig,
     _user_path: &UserPaths,
     _workspace_type: &WorkspaceType,
+    _workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
     Ok(())
   }
@@ -338,6 +345,7 @@ pub trait AppLifeCycle: Send + Sync + 'static {
     _workspace_type: &WorkspaceType,
     _user_config: &UserConfig,
     _user_path: &UserPaths,
+    _workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
     Ok(())
   }

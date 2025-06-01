@@ -50,6 +50,7 @@ pub fn create_log_filter(
   filters.push(format!("collab_integrate={}", level));
   filters.push(format!("collab={}", level));
   filters.push(format!("flowy_user={}", level));
+  filters.push(format!("flowy_user_pub={}", level));
   filters.push(format!("flowy_document={}", level));
   filters.push(format!("flowy_database2={}", level));
   filters.push(format!("flowy_server={}", level));
@@ -63,6 +64,7 @@ pub fn create_log_filter(
   filters.push(format!("flowy_ai_pub={}", level));
   filters.push(format!("flowy_storage={}", level));
   filters.push(format!("flowy_sqlite_vec={}", level));
+  filters.push(format!("sync_log={}", level));
   // Enable the frontend logs. DO NOT DISABLE.
   // These logs are essential for debugging and verifying frontend behavior.
   filters.push(format!("dart_ffi={}", level));

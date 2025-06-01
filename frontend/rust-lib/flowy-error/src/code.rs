@@ -401,6 +401,9 @@ pub enum ErrorCode {
 
   #[error("New password is too short")]
   NewPasswordTooShort = 137,
+
+  #[error("Retry later")]
+  RetryLater = 138,
 }
 
 impl ErrorCode {

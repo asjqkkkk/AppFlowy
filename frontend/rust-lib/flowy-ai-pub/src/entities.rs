@@ -24,8 +24,14 @@ pub struct UnindexedCollab {
   pub workspace_id: Uuid,
   pub object_id: Uuid,
   pub collab_type: CollabType,
-  pub data: UnindexedData,
+  pub data: Option<UnindexedData>,
   pub metadata: UnindexedCollabMetadata,
+}
+
+impl UnindexedCollab {
+  pub fn is_empty(&self) -> bool {
+    self.data.is_none() || self.data.as_ref().unwrap().is_empty()
+  }
 }
 
 #[derive(Debug, Clone)]
