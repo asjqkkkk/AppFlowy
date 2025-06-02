@@ -5,12 +5,10 @@ import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart'
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
-import 'package:appflowy/workspace/presentation/home/menu/sidebar/_sidebar_create_workspace.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_actions.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
@@ -25,6 +23,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 import '_sidebar_import_notion.dart';
+import 'create_workspace_dialog.dart';
 
 @visibleForTesting
 const createWorkspaceButtonKey = ValueKey('createWorkspaceButton');
@@ -345,26 +344,6 @@ class _WorkspaceInfo extends StatelessWidget {
   }
 }
 
-class CreateWorkspaceDialog extends StatelessWidget {
-  const CreateWorkspaceDialog({
-    super.key,
-    required this.onConfirm,
-  });
-
-  final void Function(String name) onConfirm;
-
-  @override
-  Widget build(BuildContext context) {
-    return NavigatorTextFieldDialog(
-      title: LocaleKeys.workspace_create.tr(),
-      value: '',
-      hintText: '',
-      autoSelectAllText: true,
-      onConfirm: (name, _) => onConfirm(name),
-    );
-  }
-}
-
 class _CreateWorkspaceButton extends StatelessWidget {
   const _CreateWorkspaceButton();
 
@@ -409,43 +388,20 @@ class _CreateWorkspaceButton extends StatelessWidget {
   }
 
   Future<void> _showCreateWorkspaceDialog(BuildContext context) async {
-    final workspaceBloc = context.read<UserWorkspaceBloc>();
-    final subscriptionInfo = workspaceBloc.state.workspaceSubscriptionInfo;
-    if (context.mounted) {
-      final isProPlan = subscriptionInfo != null &&
-          subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value;
-      if (isProPlan || FeatureFlag.createVaultWorkspace.isOn) {
-        // User can create vault workspace when user plan above or equal to Pro plan
-        unawaited(
-          showDialog(
-            context: context,
-            builder: (_) {
-              return Dialog(
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12.0),
-                ),
-                child: BlocProvider.value(
-                  value: workspaceBloc,
-                  child: const CreateWorkspacePopup(),
-                ),
-              );
-            },
-          ),
-        );
-      } else {
-        final workspaceBloc = context.read<UserWorkspaceBloc>();
-        await CreateWorkspaceDialog(
-          onConfirm: (name) {
-            workspaceBloc.add(
+    return showCreateWorkspaceDialog(
+      context,
+      createWorkspaceCallback: (name, icon, type) {
+        context.read<UserWorkspaceBloc>().add(
               UserWorkspaceEvent.createWorkspace(
                 name: name,
-                workspaceType: WorkspaceTypePB.ServerW,
+                workspaceType: type == WorkspaceType.cloud
+                    ? WorkspaceTypePB.ServerW
+                    : WorkspaceTypePB.LocalW,
+                // icon: icon,
               ),
             );
-          },
-        ).show(context);
-      }
-    }
+      },
+    );
   }
 }
 
