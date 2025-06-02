@@ -9,20 +9,21 @@ use crate::server_layer::ServerProvider;
 use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use collab_entity::{CollabType, EncodedCollab};
-use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::CollabKVDB;
+use collab_plugins::local_storage::kv::KVTransactionDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
-use flowy_error::{internal_error, FlowyError, FlowyResult};
+use flowy_error::{FlowyError, FlowyResult, internal_error};
+use flowy_folder::ViewLayout;
 use flowy_folder::entities::UpdateViewParams;
 use flowy_folder::manager::{FolderManager, FolderUser};
-use flowy_folder::ViewLayout;
 use flowy_folder_pub::query::{FolderQueryService, FolderService, FolderViewEdit, QueryCollab};
-use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::DBConnection;
+use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user::services::data_import::load_collab_by_object_id;
+use flowy_user_pub::entities::UserWorkspace;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use lib_infra::async_trait::async_trait;
 use std::str::FromStr;
@@ -114,6 +115,10 @@ impl FolderUser for FolderUserImpl {
 
   fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError> {
     self.upgrade_user()?.get_sqlite_connection(uid)
+  }
+
+  fn get_active_user_workspace(&self) -> FlowyResult<UserWorkspace> {
+    self.upgrade_user()?.get_active_user_workspace()
   }
 }
 
@@ -241,7 +246,7 @@ impl FolderQueryService for FolderServiceImpl {
       None => {
         return Err(
           FlowyError::internal().with_context("folder manager is None when getting client id"),
-        )
+        );
       },
     };
     folder_manager.client_id()
