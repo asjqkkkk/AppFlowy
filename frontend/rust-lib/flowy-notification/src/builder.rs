@@ -39,6 +39,16 @@ impl NotificationBuilder {
     self
   }
 
+  pub fn serde(mut self, payload: &impl serde::Serialize) -> Self {
+    match serde_json::to_vec(payload) {
+      Ok(bytes) => self.payload = Some(Bytes::from(bytes)),
+      Err(e) => {
+        tracing::error!("Set observable payload failed: {:?}", e);
+      },
+    }
+    self
+  }
+
   pub fn error<T>(mut self, error: T) -> Self
   where
     T: ToBytes,

@@ -18,9 +18,9 @@ pub(crate) enum UserNotification {
   DidUpdateUserWorkspace = 5,
   DidUpdateWorkspaceSetting = 6,
   DidLoadUserAwareness = 7,
-  // TODO: implement reminder observer
   DidUpdateReminder = 8,
   DidOpenWorkspace = 9,
+  ServerNotification = 10,
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

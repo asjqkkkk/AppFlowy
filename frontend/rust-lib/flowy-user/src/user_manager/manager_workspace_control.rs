@@ -1,3 +1,4 @@
+use crate::notification::{send_notification, UserNotification};
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
@@ -230,6 +231,7 @@ impl WorkspaceControllerLifeCycle {
   pub fn spawn_observe_workspace_notification(&self) {
     let weak_interceptors = self.interceptors.clone();
     let mut rx = self.controller.subscribe_notification();
+    let workspace_id = self.controller.workspace_id().to_string();
     tokio::spawn(async move {
       while let Ok(notification) = rx.recv().await {
         match weak_interceptors.upgrade() {
@@ -238,6 +240,10 @@ impl WorkspaceControllerLifeCycle {
             break;
           },
           Some(v) => {
+            send_notification(&workspace_id, UserNotification::ServerNotification)
+              .serde(&notification)
+              .send();
+
             if let Some(v) = v.load_full() {
               v.notification.receive_notification(notification).await;
             }
