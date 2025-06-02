@@ -60,8 +60,8 @@ class _CreateWorkspacePopupState extends State<CreateWorkspacePopup> {
   void _createWorkspace() {
     context.read<UserWorkspaceBloc>().add(
           UserWorkspaceEvent.createWorkspace(
-            workspaceName,
-            workspaceType,
+            name: workspaceName,
+            workspaceType: workspaceType,
           ),
         );
 
