@@ -49,7 +49,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     let params = params.unbox_or_error::<SignUpParams>()?;
     let uid = ID_GEN.lock().await.next_id();
     let workspace_id = Uuid::new_v4().to_string();
-    let user_workspace = UserWorkspace::new_local(workspace_id, "My Workspace");
+    let user_workspace = UserWorkspace::new_local(workspace_id, "My Workspace", "");
     let user_name = if params.name.is_empty() {
       DEFAULT_USER_NAME()
     } else {
@@ -76,7 +76,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     let uid = ID_GEN.lock().await.next_id();
 
     let workspace_id = Uuid::new_v4();
-    let user_workspace = UserWorkspace::new_local(workspace_id.to_string(), "My Workspace");
+    let user_workspace = UserWorkspace::new_local(workspace_id.to_string(), "My Workspace", "");
     Ok(AuthResponse {
       user_id: uid,
       user_uuid: Uuid::new_v4(),
@@ -167,7 +167,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(workspaces)
   }
 
-  async fn create_workspace(&self, workspace_name: &str) -> Result<UserWorkspace, FlowyError> {
+  async fn create_workspace(&self, workspace_name: &str, workspace_icon: &str) -> Result<UserWorkspace, FlowyError> {
     let workspace_id = Uuid::new_v4();
     let uid = self.logged_user.user_id()?;
 
@@ -182,7 +182,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
 
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
     let user_workspace =
-      insert_local_workspace(uid, &workspace_id.to_string(), workspace_name, &mut conn)?;
+      insert_local_workspace(uid, &workspace_id.to_string(), workspace_name, workspace_icon, &mut conn)?;
     Ok(user_workspace)
   }
 

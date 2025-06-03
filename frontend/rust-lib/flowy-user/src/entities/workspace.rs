@@ -244,6 +244,9 @@ pub struct CreateWorkspacePB {
   pub name: String,
 
   #[pb(index = 2)]
+  pub icon: String,
+
+  #[pb(index = 3)]
   pub workspace_type: WorkspaceTypePB,
 }
 

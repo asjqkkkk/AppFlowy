@@ -394,10 +394,10 @@ class _CreateWorkspaceButton extends StatelessWidget {
         context.read<UserWorkspaceBloc>().add(
               UserWorkspaceEvent.createWorkspace(
                 name: name,
+                icon: icon,
                 workspaceType: type == WorkspaceType.cloud
                     ? WorkspaceTypePB.ServerW
                     : WorkspaceTypePB.LocalW,
-                // icon: icon,
               ),
             );
       },

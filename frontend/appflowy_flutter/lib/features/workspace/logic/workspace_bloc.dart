@@ -126,6 +126,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
 
     final result = await _repository.createWorkspace(
       name: event.name,
+      icon: event.icon,
       workspaceType: event.workspaceType,
     );
 
