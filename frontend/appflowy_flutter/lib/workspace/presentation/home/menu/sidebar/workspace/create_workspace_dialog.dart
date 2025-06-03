@@ -14,7 +14,7 @@ import '_sidebar_workspace_icon.dart';
 
 typedef CreateWorkspaceCallback = void Function(
   String workspaceName,
-  String icon,
+  String workspaceIcon,
   WorkspaceType workspaceType,
 );
 
@@ -23,11 +23,9 @@ enum WorkspaceType {
   vault,
 }
 
-Future<void> showCreateWorkspaceDialog(
-  BuildContext context, {
-  required CreateWorkspaceCallback? createWorkspaceCallback,
-}) {
-  final state = context.read<UserWorkspaceBloc>().state;
+Future<void> showCreateWorkspaceDialog(BuildContext context) {
+  final bloc = context.read<UserWorkspaceBloc>();
+  final state = bloc.state;
   final userName = state.userProfile.name;
 
   final subscriptionInfo = state.workspaceSubscriptionInfo;
@@ -41,7 +39,17 @@ Future<void> showCreateWorkspaceDialog(
       return CreateWorkspaceDialog(
         userName: userName,
         allowCreateVault: allowCreateVault,
-        createWorkspaceCallback: createWorkspaceCallback,
+        createWorkspaceCallback: (workspaceName, workspaceIcon, workspaceType) {
+          bloc.add(
+            UserWorkspaceEvent.createWorkspace(
+              name: workspaceName,
+              icon: workspaceIcon,
+              workspaceType: workspaceType == WorkspaceType.cloud
+                  ? WorkspaceTypePB.ServerW
+                  : WorkspaceTypePB.LocalW,
+            ),
+          );
+        },
       );
     },
   );
@@ -193,6 +201,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
     }
 
     widget.createWorkspaceCallback?.call(name, icon, workspaceType);
+    Navigator.of(context).pop();
   }
 }
 

@@ -354,7 +354,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
       child: FlowyButton(
         key: createWorkspaceButtonKey,
         onTap: () {
-          _showCreateWorkspaceDialog(context);
+          showCreateWorkspaceDialog(context);
           PopoverContainer.of(context).closeAll();
         },
         margin: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -384,23 +384,6 @@ class _CreateWorkspaceButton extends StatelessWidget {
         ),
       ),
       child: const FlowySvg(FlowySvgs.add_workspace_s),
-    );
-  }
-
-  Future<void> _showCreateWorkspaceDialog(BuildContext context) async {
-    return showCreateWorkspaceDialog(
-      context,
-      createWorkspaceCallback: (name, icon, type) {
-        context.read<UserWorkspaceBloc>().add(
-              UserWorkspaceEvent.createWorkspace(
-                name: name,
-                icon: icon,
-                workspaceType: type == WorkspaceType.cloud
-                    ? WorkspaceTypePB.ServerW
-                    : WorkspaceTypePB.LocalW,
-              ),
-            );
-      },
     );
   }
 }
