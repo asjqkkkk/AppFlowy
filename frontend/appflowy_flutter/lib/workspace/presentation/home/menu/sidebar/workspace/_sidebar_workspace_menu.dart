@@ -315,10 +315,10 @@ class _WorkspaceInfo extends StatelessWidget {
             GuestTag(),
           ],
           if (workspace.workspaceType == WorkspaceTypePB.LocalW)
-            FlowyText.regular(
-              LocaleKeys.workspace_vaultIndicator.tr(),
-              fontSize: 10.0,
-              figmaLineHeight: 12.0,
+            FlowySvg(
+              FlowySvgs.vault_indicator_m,
+              blendMode: null,
+              size: const Size.square(20.0),
             ),
         ],
       ),
