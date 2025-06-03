@@ -116,7 +116,7 @@
     "new": "New workspace",
     "workspaceType": "Workspace type",
     "cloudWorkspace": "Cloud",
-    "cloudWorkspaceDescription": "Real-time collaboration cloud and local AI",
+    "cloudWorkspaceDescription": "Real-time collaboration with cloud and local AI",
     "vaultWorkspace": "Vault",
     "vaultIndicator": "Vault",
     "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
