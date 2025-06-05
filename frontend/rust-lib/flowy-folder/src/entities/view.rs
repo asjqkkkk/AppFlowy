@@ -850,7 +850,7 @@ impl TryInto<ShareViewWithGuestRequest> for SharePageWithUserPayloadPB {
       view_id,
       emails: self.emails,
       access_level: self.access_level.into(),
-      auto_confirm: false,
+      auto_confirm: self.auto_confirm,
     })
   }
 }
