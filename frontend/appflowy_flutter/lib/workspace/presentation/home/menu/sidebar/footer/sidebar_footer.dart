@@ -5,12 +5,16 @@ import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/plugin/plugin.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
+import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_toast.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/setting_appflowy_cloud.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'sidebar_footer_button.dart';
 
@@ -27,13 +31,20 @@ class SidebarFooter extends StatelessWidget {
               return const SidebarToast();
             },
           ),
-        Row(
-          // mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            const Expanded(child: SidebarTemplateButton()),
-            _buildVerticalDivider(context),
-            const Expanded(child: SidebarTrashButton()),
-          ],
+        BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+          builder: (context, state) {
+            if (state.currentWorkspace?.workspaceType ==
+                WorkspaceTypePB.LocalW) {
+              return SidebarTrashButton();
+            }
+            return Row(
+              children: [
+                const Expanded(child: SidebarTemplateButton()),
+                _buildVerticalDivider(context),
+                const Expanded(child: SidebarTrashButton()),
+              ],
+            );
+          },
         ),
       ],
     );
@@ -55,9 +66,10 @@ class SidebarTemplateButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SidebarFooterButton(
-      leftIconSize: const Size.square(16.0),
-      leftIcon: const FlowySvg(
+      leftIcon: FlowySvg(
         FlowySvgs.icon_template_s,
+        color: AppFlowyTheme.of(context).iconColorScheme.secondary,
+        size: Size.square(16.0),
       ),
       text: LocaleKeys.template_label.tr(),
       onTap: () => afLaunchUrlString('https://appflowy.com/templates'),
@@ -74,9 +86,10 @@ class SidebarTrashButton extends StatelessWidget {
       valueListenable: getIt<MenuSharedState>().notifier,
       builder: (context, value, child) {
         return SidebarFooterButton(
-          leftIconSize: const Size.square(18.0),
-          leftIcon: const FlowySvg(
+          leftIcon:  FlowySvg(
             FlowySvgs.icon_delete_s,
+            color: AppFlowyTheme.of(context).iconColorScheme.secondary,
+            size: Size.square(18.0),
           ),
           text: LocaleKeys.trash_text.tr(),
           onTap: () {
