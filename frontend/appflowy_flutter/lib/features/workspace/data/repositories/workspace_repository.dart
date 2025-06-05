@@ -17,6 +17,7 @@ abstract class WorkspaceRepository {
   /// Creates a new workspace.
   Future<FlowyResult<UserWorkspacePB, FlowyError>> createWorkspace({
     required String name,
+    required String icon,
     required WorkspaceTypePB workspaceType,
   });
 

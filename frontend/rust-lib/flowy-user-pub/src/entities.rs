@@ -128,13 +128,13 @@ impl UserWorkspace {
     Ok(id)
   }
 
-  pub fn new_local(workspace_id: String, name: &str) -> Self {
+  pub fn new_local(workspace_id: String, name: &str, icon: &str) -> Self {
     Self {
       id: workspace_id,
       name: name.to_string(),
       created_at: Utc::now(),
       workspace_database_id: Uuid::new_v4().to_string(),
-      icon: "".to_string(),
+      icon: icon.to_string(),
       member_count: 1,
       role: Some(Role::Owner),
       workspace_type: WorkspaceType::Local,

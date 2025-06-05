@@ -623,7 +623,7 @@ pub async fn create_workspace_handler(
   let data = data.try_into_inner()?;
   let workspace_type = WorkspaceType::from(data.workspace_type);
   let manager = upgrade_manager(manager)?;
-  let new_workspace = manager.create_workspace(&data.name, workspace_type).await?;
+  let new_workspace = manager.create_workspace(&data.name, &data.icon, workspace_type).await?;
   data_result_ok(UserWorkspacePB::from(new_workspace))
 }
 
