@@ -103,7 +103,7 @@ class SettingsDialog extends StatelessWidget {
                       ),
                       Expanded(
                         child: getSettingsView(
-                          userWorkspaceState.currentWorkspace!.workspaceId,
+                          userWorkspaceState.currentWorkspace!,
                           context.read<SettingsDialogBloc>().state.page,
                           state.userProfile,
                           userWorkspaceState.currentWorkspace?.role,
@@ -121,7 +121,7 @@ class SettingsDialog extends StatelessWidget {
   }
 
   Widget getSettingsView(
-    String workspaceId,
+    UserWorkspacePB workspace,
     SettingsPage page,
     UserProfilePB user,
     AFRolePB? currentWorkspaceMemberRole,
@@ -139,7 +139,10 @@ class SettingsDialog extends StatelessWidget {
           currentWorkspaceMemberRole: currentWorkspaceMemberRole,
         );
       case SettingsPage.manageData:
-        return SettingsManageDataView(userProfile: user);
+        return SettingsManageDataView(
+          userProfile: user,
+          workspace: workspace,
+        );
       case SettingsPage.notifications:
         return const SettingsNotificationsView();
       case SettingsPage.cloud:
@@ -149,36 +152,36 @@ class SettingsDialog extends StatelessWidget {
       case SettingsPage.ai:
         if (user.workspaceType == WorkspaceTypePB.ServerW) {
           return SettingsAIView(
-            key: ValueKey(workspaceId),
+            key: ValueKey(workspace.workspaceId),
             userProfile: user,
             currentWorkspaceMemberRole: currentWorkspaceMemberRole,
-            workspaceId: workspaceId,
+            workspaceId: workspace.workspaceId,
           );
         } else {
           return LocalSettingsAIView(
-            key: ValueKey(workspaceId),
+            key: ValueKey(workspace.workspaceId),
             userProfile: user,
-            workspaceId: workspaceId,
+            workspaceId: workspace.workspaceId,
           );
         }
       case SettingsPage.member:
         return WorkspaceMembersPage(
           userProfile: user,
-          workspaceId: workspaceId,
+          workspaceId: workspace.workspaceId,
         );
       case SettingsPage.plan:
         return SettingsPlanView(
-          workspaceId: workspaceId,
+          workspaceId: workspace.workspaceId,
           user: user,
         );
       case SettingsPage.billing:
         return SettingsBillingView(
-          workspaceId: workspaceId,
+          workspaceId: workspace.workspaceId,
           user: user,
         );
       case SettingsPage.sites:
         return SettingsSitesPage(
-          workspaceId: workspaceId,
+          workspaceId: workspace.workspaceId,
           user: user,
         );
       case SettingsPage.featureFlags:
