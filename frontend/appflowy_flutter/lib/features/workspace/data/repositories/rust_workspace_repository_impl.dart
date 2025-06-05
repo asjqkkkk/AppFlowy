@@ -29,9 +29,10 @@ class RustWorkspaceRepositoryImpl implements WorkspaceRepository {
   @override
   Future<FlowyResult<UserWorkspacePB, FlowyError>> createWorkspace({
     required String name,
+    required String icon,
     required WorkspaceTypePB workspaceType,
   }) async {
-    return _userService.createUserWorkspace(name, workspaceType);
+    return _userService.createUserWorkspace(name, icon, workspaceType);
   }
 
   @override

@@ -13,9 +13,10 @@ sealed class UserWorkspaceEvent {
 
   factory UserWorkspaceEvent.createWorkspace({
     required String name,
+    String icon = '',
     required WorkspaceTypePB workspaceType,
   }) =>
-      WorkspaceEventCreateWorkspace(name: name, workspaceType: workspaceType);
+      WorkspaceEventCreateWorkspace(name: name, icon: icon, workspaceType: workspaceType);
 
   factory UserWorkspaceEvent.deleteWorkspace({
     required String workspaceId,
@@ -84,10 +85,12 @@ class WorkspaceEventFetchWorkspaces extends UserWorkspaceEvent {
 class WorkspaceEventCreateWorkspace extends UserWorkspaceEvent {
   WorkspaceEventCreateWorkspace({
     required this.name,
+    this.icon = '',
     required this.workspaceType,
   });
 
   final String name;
+  final String icon;
   final WorkspaceTypePB workspaceType;
 }
 

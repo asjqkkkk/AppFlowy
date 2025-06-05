@@ -356,6 +356,7 @@ impl EventIntegrationTest {
   ) -> UserWorkspacePB {
     let payload = CreateWorkspacePB {
       name: name.to_string(),
+      icon: "".to_string(),
       workspace_type: WorkspaceTypePB::from(workspace_type),
     };
     EventBuilder::new(self.clone())

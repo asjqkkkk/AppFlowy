@@ -267,6 +267,7 @@ impl UserManager {
   pub async fn create_workspace(
     &self,
     workspace_name: &str,
+    workspace_icon: &str,
     workspace_type: WorkspaceType,
   ) -> FlowyResult<UserWorkspace> {
     let auth_type = AuthType::from(workspace_type);
@@ -277,7 +278,7 @@ impl UserManager {
     let new_workspace = self
       .cloud_service()?
       .get_user_service()?
-      .create_workspace(workspace_name)
+      .create_workspace(workspace_name, workspace_icon)
       .await?;
 
     info!(

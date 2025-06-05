@@ -300,6 +300,7 @@ void main() {
           when(
             () => mockRepository.createWorkspace(
               name: 'New Workspace',
+              icon: '',
               workspaceType: WorkspaceTypePB.LocalW,
             ),
           ).thenAnswer(
@@ -371,6 +372,7 @@ void main() {
           when(
             () => mockRepository.createWorkspace(
               name: any(named: 'name'),
+              icon: any(named: 'icon'),
               workspaceType: any(named: 'workspaceType'),
             ),
           ).thenAnswer(
