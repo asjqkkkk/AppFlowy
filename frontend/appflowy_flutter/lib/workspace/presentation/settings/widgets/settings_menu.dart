@@ -17,6 +17,7 @@ class SettingsMenu extends StatelessWidget {
     required this.currentPage,
     required this.userProfile,
     required this.isBillingEnabled,
+    required this.workspaceType,
     required this.currentUserRole,
   });
 
@@ -24,6 +25,7 @@ class SettingsMenu extends StatelessWidget {
   final SettingsPage currentPage;
   final UserProfilePB userProfile;
   final bool isBillingEnabled;
+  final WorkspaceTypePB? workspaceType;
   final AFRolePB? currentUserRole;
 
   @override
@@ -86,13 +88,14 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_bell_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            SettingsMenuElement(
-              page: SettingsPage.cloud,
-              selectedPage: currentPage,
-              label: LocaleKeys.settings_menu_cloudSettings.tr(),
-              icon: const FlowySvg(FlowySvgs.settings_page_cloud_m),
-              changeSelectedPage: changeSelectedPage,
-            ),
+            if (workspaceType == WorkspaceTypePB.ServerW || userProfile.userAuthType == AuthTypePB.Local)
+              SettingsMenuElement(
+                page: SettingsPage.cloud,
+                selectedPage: currentPage,
+                label: LocaleKeys.settings_menu_cloudSettings.tr(),
+                icon: const FlowySvg(FlowySvgs.settings_page_cloud_m),
+                changeSelectedPage: changeSelectedPage,
+              ),
             SettingsMenuElement(
               page: SettingsPage.shortcuts,
               selectedPage: currentPage,

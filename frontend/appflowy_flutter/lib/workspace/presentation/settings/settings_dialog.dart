@@ -77,39 +77,41 @@ class SettingsDialog extends StatelessWidget {
           child: ScaffoldMessenger(
             child: Scaffold(
               backgroundColor: theme.backgroundColorScheme.primary,
-              body: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  SizedBox(
-                    width: 204,
-                    child: SettingsMenu(
-                      userProfile: user,
-                      changeSelectedPage: (index) => context
-                          .read<SettingsDialogBloc>()
-                          .add(SettingsDialogEvent.setSelectedPage(index)),
-                      currentPage:
-                          context.read<SettingsDialogBloc>().state.page,
-                      currentUserRole: currentWorkspaceMemberRole,
-                      isBillingEnabled: state.isBillingEnabled,
-                    ),
-                  ),
-                  AFDivider(
-                    axis: Axis.vertical,
-                    color: theme.borderColorScheme.primary,
-                  ),
-                  BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
-                    builder: (context, state) {
-                      return Expanded(
+              body: BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+                builder: (context, userWorkspaceState) {
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      SizedBox(
+                        width: 204,
+                        child: SettingsMenu(
+                          userProfile: user,
+                          changeSelectedPage: (index) => context
+                              .read<SettingsDialogBloc>()
+                              .add(SettingsDialogEvent.setSelectedPage(index)),
+                          currentPage:
+                              context.read<SettingsDialogBloc>().state.page,
+                          currentUserRole: currentWorkspaceMemberRole,
+                          workspaceType: userWorkspaceState
+                              .currentWorkspace?.workspaceType,
+                          isBillingEnabled: state.isBillingEnabled,
+                        ),
+                      ),
+                      AFDivider(
+                        axis: Axis.vertical,
+                        color: theme.borderColorScheme.primary,
+                      ),
+                      Expanded(
                         child: getSettingsView(
-                          state.currentWorkspace!.workspaceId,
+                          userWorkspaceState.currentWorkspace!.workspaceId,
                           context.read<SettingsDialogBloc>().state.page,
                           state.userProfile,
-                          state.currentWorkspace?.role,
+                          userWorkspaceState.currentWorkspace?.role,
                         ),
-                      );
-                    },
-                  ),
-                ],
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
           ),
