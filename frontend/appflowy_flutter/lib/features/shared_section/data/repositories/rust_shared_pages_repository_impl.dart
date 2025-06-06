@@ -14,14 +14,10 @@ class RustSharePagesRepositoryImpl implements SharedPagesRepository {
     return result.fold(
       (success) {
         final sharedPages = success.sharedPages;
-
-        Log.debug('get shared pages success, len: ${sharedPages.length}');
-
         return FlowyResult.success(sharedPages);
       },
       (error) {
         Log.error('failed to get shared pages, error: $error');
-
         return FlowyResult.failure(error);
       },
     );
@@ -47,15 +43,12 @@ class RustSharePagesRepositoryImpl implements SharedPagesRepository {
 
     return result.fold(
       (success) {
-        Log.debug('remove user($userEmail) from shared page($pageId)');
-
         return FlowySuccess(success);
       },
       (failure) {
         Log.error(
           'remove user($userEmail) from shared page($pageId): $failure',
         );
-
         return FlowyFailure(failure);
       },
     );
