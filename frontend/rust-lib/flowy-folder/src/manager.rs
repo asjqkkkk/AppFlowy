@@ -2353,7 +2353,7 @@ impl FolderManager {
             view: view_pb_with_all_child_views(view.clone(), &|parent_id| {
               all_views
                 .iter()
-                .filter(|v| v.parent_view_id == *parent_id)
+                .filter(|v| v.parent_view_id == *parent_id && !no_access_view_ids.contains(&v.id))
                 .cloned()
                 .collect()
             }),
@@ -2422,7 +2422,10 @@ impl FolderManager {
                       view: view_pb_with_all_child_views(view.clone(), &|parent_id| {
                         all_views
                           .iter()
-                          .filter(|v| v.parent_view_id == *parent_id)
+                          .filter(|v| {
+                            v.parent_view_id == *parent_id
+                              && !cloud_no_access_view_ids_string.contains(&v.id)
+                          })
                           .cloned()
                           .collect()
                       }),

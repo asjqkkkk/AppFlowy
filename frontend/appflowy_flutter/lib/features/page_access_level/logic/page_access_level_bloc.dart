@@ -75,6 +75,7 @@ class PageAccessLevelBloc
           isLoadingLockStatus: false,
           accessLevel: ShareAccessLevel.fullAccess,
           sectionType: sectionType,
+          isInitializing: false,
         ),
       );
       return;
@@ -96,6 +97,7 @@ class PageAccessLevelBloc
           (_) => ShareAccessLevel.readOnly,
         ),
         sectionType: sectionType,
+        isInitializing: false,
       ),
     );
   }
