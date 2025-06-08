@@ -13,7 +13,8 @@ import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/folder/folder_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
+    hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -108,14 +109,25 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
               return const SizedBox.shrink();
             }
 
-            _initTabController(state);
+            final role =
+                context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;
+            final isGuest = role == AFRolePB.Guest;
+            final tabs = isGuest
+                ? [
+                    MobileSpaceTabType.shared,
+                    MobileSpaceTabType.recent,
+                    MobileSpaceTabType.favorites,
+                  ]
+                : state.tabsOrder;
+
+            _initTabController(state, tabs);
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 MobileSpaceTabBar(
                   tabController: tabController!,
-                  tabs: state.tabsOrder,
+                  tabs: tabs,
                   onReorder: (from, to) {
                     context.read<SpaceOrderBloc>().add(
                           SpaceOrderEvent.reorder(from, to),
@@ -126,7 +138,7 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
                 Expanded(
                   child: TabBarView(
                     controller: tabController,
-                    children: _buildTabs(state),
+                    children: _buildTabs(state, tabs),
                   ),
                 ),
               ],
@@ -137,14 +149,17 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
     );
   }
 
-  void _initTabController(SpaceOrderState state) {
+  void _initTabController(
+    SpaceOrderState state,
+    List<MobileSpaceTabType> tabs,
+  ) {
     if (tabController != null) {
       return;
     }
     tabController = TabController(
-      length: state.tabsOrder.length,
+      length: tabs.length,
       vsync: this,
-      initialIndex: state.tabsOrder.indexOf(state.defaultTab),
+      initialIndex: tabs.indexOf(state.defaultTab).clamp(0, tabs.length - 1),
     );
     tabController?.addListener(_onTabChange);
   }
@@ -158,8 +173,11 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
         .add(SpaceOrderEvent.open(tabController!.index));
   }
 
-  List<Widget> _buildTabs(SpaceOrderState state) {
-    return state.tabsOrder.map((tab) {
+  List<Widget> _buildTabs(
+    SpaceOrderState state,
+    List<MobileSpaceTabType> tabs,
+  ) {
+    return tabs.map((tab) {
       switch (tab) {
         case MobileSpaceTabType.recent:
           return const MobileRecentSpace();
