@@ -288,147 +288,155 @@ class _BoardContentState extends State<_BoardContent> {
     final horizontalPadding =
         context.read<DatabasePluginWidgetBuilderSize?>()?.horizontalPadding ??
             0.0;
-    return MultiBlocListener(
-      listeners: [
-        BlocListener<BoardBloc, BoardState>(
-          listener: (context, state) {
-            state.maybeMap(
-              ready: (value) {
-                widget.onEditStateChanged?.call();
-              },
-              openRowDetail: (value) {
-                _openCard(
-                  context: context,
-                  databaseController:
-                      context.read<BoardBloc>().databaseController,
-                  rowMeta: value.rowMeta,
-                );
-              },
-              orElse: () {},
-            );
-          },
-        ),
-        BlocListener<BoardActionsCubit, BoardActionsState>(
-          listener: (context, state) {
-            state.maybeMap(
-              openCard: (value) {
-                _openCard(
-                  context: context,
-                  databaseController:
-                      context.read<BoardBloc>().databaseController,
-                  rowMeta: value.rowMeta,
-                );
-              },
-              setFocus: (value) {
-                widget.focusScope.focusedGroupedRows = value.groupedRowIds;
-              },
-              startEditingRow: (value) {
-                widget.boardController.enableGroupDragging(false);
-                widget.focusScope.clear();
-              },
-              endEditingRow: (value) {
-                widget.boardController.enableGroupDragging(true);
-              },
-              orElse: () {},
-            );
-          },
-        ),
-      ],
-      child: FocusScope(
-        autofocus: true,
-        child: BoardShortcutContainer(
-          focusScope: widget.focusScope,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 8.0),
-            child: ValueListenableBuilder(
-              valueListenable: databaseController.compactModeNotifier,
-              builder: (context, compactMode, _) {
-                return AppFlowyBoard(
-                  boardScrollController: scrollManager,
-                  scrollController: scrollController,
-                  shrinkWrap: widget.shrinkWrap,
-                  controller: context.read<BoardBloc>().boardController,
-                  groupConstraints:
-                      BoxConstraints.tightFor(width: compactMode ? 196 : 256),
-                  config: config,
-                  leading: HiddenGroupsColumn(
+    return BlocProvider(
+      create: (_) => PageAccessLevelBloc(view: widget.view)
+        ..add(const PageAccessLevelEvent.initial()),
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<BoardBloc, BoardState>(
+            listener: (context, state) {
+              state.maybeMap(
+                ready: (value) {
+                  widget.onEditStateChanged?.call();
+                },
+                openRowDetail: (value) {
+                  _openCard(
+                    context: context,
+                    databaseController:
+                        context.read<BoardBloc>().databaseController,
+                    rowMeta: value.rowMeta,
+                  );
+                },
+                orElse: () {},
+              );
+            },
+          ),
+          BlocListener<BoardActionsCubit, BoardActionsState>(
+            listener: (context, state) {
+              state.maybeMap(
+                openCard: (value) {
+                  _openCard(
+                    context: context,
+                    databaseController:
+                        context.read<BoardBloc>().databaseController,
+                    rowMeta: value.rowMeta,
+                  );
+                },
+                setFocus: (value) {
+                  widget.focusScope.focusedGroupedRows = value.groupedRowIds;
+                },
+                startEditingRow: (value) {
+                  widget.boardController.enableGroupDragging(false);
+                  widget.focusScope.clear();
+                },
+                endEditingRow: (value) {
+                  widget.boardController.enableGroupDragging(true);
+                },
+                orElse: () {},
+              );
+            },
+          ),
+        ],
+        child: FocusScope(
+          autofocus: true,
+          child: BoardShortcutContainer(
+            focusScope: widget.focusScope,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: ValueListenableBuilder(
+                valueListenable: databaseController.compactModeNotifier,
+                builder: (context, compactMode, _) {
+                  bool canCreateNewGroup =
+                      context.read<PageAccessLevelBloc>().state.isEditable;
+                  if (canCreateNewGroup) {
+                    canCreateNewGroup = context
+                            .read<BoardBloc>()
+                            .groupingFieldType
+                            ?.canCreateNewGroup ??
+                        false;
+                  }
+
+                  return AppFlowyBoard(
+                    boardScrollController: scrollManager,
+                    scrollController: scrollController,
                     shrinkWrap: widget.shrinkWrap,
-                    margin: config.groupHeaderPadding +
-                        EdgeInsets.only(
-                          left: widget.shrinkWrap ? horizontalPadding : 0.0,
-                        ),
-                  ),
-                  trailing: context
-                              .read<BoardBloc>()
-                              .groupingFieldType
-                              ?.canCreateNewGroup ??
-                          false
-                      ? BoardTrailing(scrollController: scrollController)
-                      : const HSpace(40),
-                  headerBuilder: (_, groupData) => BlocProvider.value(
-                    value: context.read<BoardBloc>(),
-                    child: BoardColumnHeader(
-                      databaseController: databaseController,
-                      groupData: groupData,
-                      margin: config.groupHeaderPadding,
-                    ),
-                  ),
-                  footerBuilder: (_, groupData) => MultiBlocProvider(
-                    providers: [
-                      BlocProvider.value(value: context.read<BoardBloc>()),
-                      BlocProvider.value(
-                        value: context.read<BoardActionsCubit>(),
-                      ),
-                    ],
-                    child: BoardColumnFooter(
-                      columnData: groupData,
-                      boardConfig: config,
-                      scrollManager: scrollManager,
-                    ),
-                  ),
-                  cardBuilder: (cardContext, column, columnItem) =>
-                      MultiBlocProvider(
-                    key: ValueKey("board_card_${column.id}_${columnItem.id}"),
-                    providers: [
-                      BlocProvider<BoardBloc>.value(
-                        value: cardContext.read<BoardBloc>(),
-                      ),
-                      BlocProvider.value(
-                        value: cardContext.read<BoardActionsCubit>(),
-                      ),
-                      BlocProvider(
-                        create: (_) => PageAccessLevelBloc(
-                          view: widget.view,
-                          ignorePageAccessLevel: true,
-                        )..add(PageAccessLevelEvent.initial()),
-                      ),
-                    ],
-                    child:
-                        BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
-                      builder: (lockStatusContext, state) {
-                        return IgnorePointer(
-                          ignoring: !state.isEditable,
-                          child: _BoardCard(
-                            afGroupData: column,
-                            groupItem: columnItem as GroupItem,
-                            boardConfig: config,
-                            notifier: widget.focusScope,
-                            cellBuilder: cellBuilder,
-                            compactMode: compactMode,
-                            onOpenCard: (rowMeta) => _openCard(
-                              context: context,
-                              databaseController: lockStatusContext
-                                  .read<BoardBloc>()
-                                  .databaseController,
-                              rowMeta: rowMeta,
-                            ),
+                    controller: context.read<BoardBloc>().boardController,
+                    groupConstraints:
+                        BoxConstraints.tightFor(width: compactMode ? 196 : 256),
+                    config: config,
+                    leading: HiddenGroupsColumn(
+                      shrinkWrap: widget.shrinkWrap,
+                      margin: config.groupHeaderPadding +
+                          EdgeInsets.only(
+                            left: widget.shrinkWrap ? horizontalPadding : 0.0,
                           ),
-                        );
-                      },
                     ),
-                  ),
-                );
-              },
+                    trailing: canCreateNewGroup
+                        ? BoardTrailing(scrollController: scrollController)
+                        : const HSpace(40),
+                    headerBuilder: (_, groupData) => IgnorePointer(
+                      ignoring:
+                          !context.read<PageAccessLevelBloc>().state.isEditable,
+                      child: BlocProvider.value(
+                        value: context.read<BoardBloc>(),
+                        child: BoardColumnHeader(
+                          databaseController: databaseController,
+                          groupData: groupData,
+                          margin: config.groupHeaderPadding,
+                        ),
+                      ),
+                    ),
+                    footerBuilder: (_, groupData) => MultiBlocProvider(
+                      providers: [
+                        BlocProvider.value(value: context.read<BoardBloc>()),
+                        BlocProvider.value(
+                          value: context.read<BoardActionsCubit>(),
+                        ),
+                      ],
+                      child: BoardColumnFooter(
+                        columnData: groupData,
+                        boardConfig: config,
+                        scrollManager: scrollManager,
+                      ),
+                    ),
+                    cardBuilder: (cardContext, column, columnItem) =>
+                        MultiBlocProvider(
+                      key: ValueKey("board_card_${column.id}_${columnItem.id}"),
+                      providers: [
+                        BlocProvider<BoardBloc>.value(
+                          value: cardContext.read<BoardBloc>(),
+                        ),
+                        BlocProvider.value(
+                          value: cardContext.read<BoardActionsCubit>(),
+                        ),
+                      ],
+                      child: BlocBuilder<PageAccessLevelBloc,
+                          PageAccessLevelState>(
+                        builder: (lockStatusContext, state) {
+                          return IgnorePointer(
+                            ignoring: !state.isEditable,
+                            child: _BoardCard(
+                              afGroupData: column,
+                              groupItem: columnItem as GroupItem,
+                              boardConfig: config,
+                              notifier: widget.focusScope,
+                              cellBuilder: cellBuilder,
+                              compactMode: compactMode,
+                              onOpenCard: (rowMeta) => _openCard(
+                                context: context,
+                                databaseController: lockStatusContext
+                                    .read<BoardBloc>()
+                                    .databaseController,
+                                rowMeta: rowMeta,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
             ),
           ),
         ),

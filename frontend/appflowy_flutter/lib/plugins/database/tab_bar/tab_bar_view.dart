@@ -155,6 +155,10 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                   const ViewEvent.initial(),
                 ),
             ),
+            BlocProvider<PageAccessLevelBloc>(
+              create: (_) => PageAccessLevelBloc(view: widget.view)
+                ..add(const PageAccessLevelEvent.initial()),
+            ),
           ],
           child: BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
             builder: (innerContext, state) {
@@ -185,7 +189,10 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                           ? const TabBarHeader()
                           : const MobileTabBarHeader();
 
-                      if (innerContext.watch<ViewBloc>().state.view.isLocked) {
+                      if (!innerContext
+                          .watch<PageAccessLevelBloc>()
+                          .state
+                          .isEditable) {
                         child = IgnorePointer(
                           child: child,
                         );
