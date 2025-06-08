@@ -47,7 +47,8 @@ use flowy_folder_pub::sql::workspace_shared_user_sql::{
   select_all_workspace_shared_users,
 };
 use flowy_folder_pub::sql::workspace_shared_view_sql::{
-  WorkspaceSharedViewTable, replace_all_workspace_shared_views, select_all_workspace_shared_views,
+  WorkspaceSharedViewTable, replace_all_workspace_shared_views,
+  select_all_no_access_workspace_shared_views, select_all_workspace_shared_views,
 };
 use flowy_sqlite::DBConnection;
 use flowy_sqlite::kv::KVStorePreferences;
@@ -680,6 +681,7 @@ impl FolderManager {
 
     // trash views and other private views should not be accessed
     let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
+    let no_access_view_ids = self.get_no_access_view_ids().await?;
 
     if view_ids_should_be_filtered.contains(&view_id) {
       return Err(FlowyError::new(
@@ -694,11 +696,12 @@ impl FolderManager {
         Err(FlowyError::record_not_found())
       },
       Some(view) => {
-        let child_views = folder
+        let mut child_views = folder
           .get_views_belong_to(&view.id)
           .into_iter()
           .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
           .collect::<Vec<_>>();
+        child_views.retain(|view| !no_access_view_ids.contains(&view.id));
         let view_pb = view_pb_with_child_views(view, child_views);
         Ok(view_pb)
       },
@@ -2468,7 +2471,26 @@ impl FolderManager {
       Self::flatten_child_views(&child_views, &mut flattened_views);
     }
 
+    let no_access_view_ids = self.get_no_access_view_ids().await?;
+    flattened_views.retain(|view| !no_access_view_ids.contains(&view.id));
+
     Ok(flattened_views)
+  }
+
+  /// Get all the no_access_view_ids of the workspace.
+  pub async fn get_no_access_view_ids(&self) -> FlowyResult<Vec<String>> {
+    let user = self.user.clone();
+    let uid = user.user_id()?;
+    let conn = user.sqlite_connection(uid)?;
+    let workspace_id = user.workspace_id()?;
+    let shared_views =
+      select_all_no_access_workspace_shared_views(conn, &workspace_id.to_string(), uid)?;
+    Ok(
+      shared_views
+        .into_iter()
+        .map(|shared_view| shared_view.view_id)
+        .collect(),
+    )
   }
 
   pub async fn get_shared_view_section(&self, view_id: &str) -> FlowyResult<SharedViewSectionPB> {
