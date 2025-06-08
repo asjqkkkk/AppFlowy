@@ -1073,11 +1073,9 @@ impl FolderManager {
     let workspace = self.user.get_active_user_workspace()?;
     let role = workspace.role;
 
-    // If the user is a Guest, check their access level for this specific view
     if let Some(Role::Guest) = role {
       let shared_pages = self.get_shared_pages(false).await?;
 
-      // Find the specific view in shared pages to check access level
       let view_access = shared_pages.shared_views.iter().find_map(|shared_view| {
         if shared_view.view.id == view_id {
           Some(shared_view.access_level.clone())
@@ -1088,26 +1086,17 @@ impl FolderManager {
       });
 
       match view_access {
-        Some(access_level) => {
-          // Check if the access level allows editing
-          match access_level {
-            AFAccessLevelPB::ReadAndWrite | AFAccessLevelPB::FullAccess => {
-              // Guest has edit permissions for this view
-              Ok(())
-            },
-            AFAccessLevelPB::ReadOnly | AFAccessLevelPB::ReadAndComment => Err(FlowyError::new(
-              ErrorCode::NotEnoughPermissions,
-              format!("Guest user has read-only access to view: {}", view_id),
-            )),
-          }
-        },
-        None => {
-          // Guest doesn't have access to this view at all
-          Err(FlowyError::new(
+        Some(access_level) => match access_level {
+          AFAccessLevelPB::ReadAndWrite | AFAccessLevelPB::FullAccess => Ok(()),
+          AFAccessLevelPB::ReadOnly | AFAccessLevelPB::ReadAndComment => Err(FlowyError::new(
             ErrorCode::NotEnoughPermissions,
-            format!("Guest user does not have access to view: {}", view_id),
-          ))
+            format!("Guest user has read-only access to view: {}", view_id),
+          )),
         },
+        None => Err(FlowyError::new(
+          ErrorCode::NotEnoughPermissions,
+          format!("Guest user does not have access to view: {}", view_id),
+        )),
       }
     } else {
       // Non-guest users have full permissions
@@ -1122,9 +1111,7 @@ impl FolderManager {
   ) -> Option<AFAccessLevelPB> {
     for child_view in child_views {
       if child_view.id == view_id {
-        // Note: Child views inherit access level from parent shared view
-        // This is a simplification - you might need to adjust based on your access model
-        return Some(AFAccessLevelPB::ReadAndWrite); // or get from parent
+        return Some(AFAccessLevelPB::ReadAndWrite);
       }
       if let Some(access_level) =
         Self::find_view_access_level_in_children(&child_view.child_views, view_id)
@@ -2384,10 +2371,8 @@ impl FolderManager {
           .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
           .collect::<Vec<_>>();
 
-        // Additional filtering for guest users - they can only see views they have access to through shared views
         if let Ok(workspace) = self.user.get_active_user_workspace() {
           if let Some(Role::Guest) = workspace.role {
-            // Drop the folder lock before calling get_flatten_shared_pages to avoid deadlock
             drop(folder);
 
             if let Ok(flatten_shared_views) = self.get_flatten_shared_pages().await {
@@ -2395,10 +2380,8 @@ impl FolderManager {
                 .into_iter()
                 .map(|view| view.id)
                 .collect();
-
               filtered_views.retain(|view| accessible_view_ids.contains(&view.id));
             } else {
-              // If we can't get shared views, guest users get empty list for safety
               filtered_views.clear();
             }
           }
