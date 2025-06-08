@@ -8,7 +8,6 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_p
 import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:bloc/bloc.dart';
@@ -407,7 +406,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
             },
             (error) => null,
           );
-          Log.debug('update shared users: $response');
+
           if (response != null) {
             add(
               ShareTabEvent.updateSharedUsers(

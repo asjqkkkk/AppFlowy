@@ -19,7 +19,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
     final result = await ViewBackendService.getView(pageId);
     return result.fold(
       (view) {
-        Log.debug('get view(${view.id}) success');
         return FlowyResult.success(view);
       },
       (error) {
@@ -34,7 +33,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
     final result = await ViewBackendService.lockView(pageId);
     return result.fold(
       (_) {
-        Log.debug('lock view($pageId) success');
         return FlowyResult.success(null);
       },
       (error) {
@@ -49,7 +47,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
     final result = await ViewBackendService.unlockView(pageId);
     return result.fold(
       (_) {
-        Log.debug('unlock view($pageId) success');
         return FlowyResult.success(null);
       },
       (error) {
@@ -143,8 +140,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
                 ?.accessLevel
                 .shareAccessLevel ??
             ShareAccessLevel.readOnly;
-
-        Log.debug('current user access level: $accessLevel, in page: $pageId');
 
         return FlowyResult.success(accessLevel);
       },
