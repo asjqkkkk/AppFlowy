@@ -168,6 +168,7 @@ diesel::table! {
         permission_id -> Integer,
         created_at -> Nullable<Timestamp>,
         no_access -> Bool,
+        order -> Integer,
     }
 }
 

@@ -14,6 +14,7 @@ pub struct WorkspaceSharedViewTable {
   pub permission_id: i32,
   pub created_at: Option<chrono::NaiveDateTime>,
   pub no_access: bool,
+  pub order: i32,
 }
 
 pub fn upsert_workspace_shared_view<T: Into<WorkspaceSharedViewTable>>(
@@ -59,6 +60,7 @@ pub fn select_all_workspace_shared_views(
   let shared_views = dsl::workspace_shared_view
     .filter(workspace_shared_view::workspace_id.eq(workspace_id))
     .filter(workspace_shared_view::uid.eq(uid))
+    .order(workspace_shared_view::order.asc())
     .load::<WorkspaceSharedViewTable>(&mut conn)?;
   Ok(shared_views)
 }
@@ -72,6 +74,7 @@ pub fn select_all_no_access_workspace_shared_views(
     .filter(workspace_shared_view::workspace_id.eq(workspace_id))
     .filter(workspace_shared_view::uid.eq(uid))
     .filter(workspace_shared_view::no_access.eq(true))
+    .order(workspace_shared_view::order.asc())
     .load::<WorkspaceSharedViewTable>(&mut conn)?;
   Ok(shared_views)
 }

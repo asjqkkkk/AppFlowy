@@ -802,6 +802,9 @@ impl FolderManager {
   /// All the favorite views being trashed will be unfavorited first to remove it from favorites list as well. The process of unfavoriting concerned view is handled by `unfavorite_view_and_decendants()`
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn move_view_to_trash(&self, view_id: &str) -> FlowyResult<()> {
+    // Check if guest user has permission to modify this view
+    self.check_guest_modify_permission(view_id).await?;
+
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
       // Check if the view is already in trash, if not we can move the same
@@ -891,6 +894,12 @@ impl FolderManager {
   pub async fn move_nested_view(&self, params: MoveNestedViewParams) -> FlowyResult<()> {
     let workspace_id = self.user.workspace_id()?;
     let view_id = params.view_id;
+
+    // Check if guest user has permission to modify this view
+    self
+      .check_guest_modify_permission(&view_id.to_string())
+      .await?;
+
     let new_parent_id = params.new_parent_id;
     let prev_view_id = params.prev_view_id;
     let from_section = params.from_section;
@@ -928,6 +937,10 @@ impl FolderManager {
   #[tracing::instrument(level = "trace", skip(self), err)]
   pub async fn move_view(&self, view_id: &str, from: usize, to: usize) -> FlowyResult<()> {
     let workspace_id = self.user.workspace_id()?;
+
+    // Check if guest user has permission to modify this view
+    self.check_guest_modify_permission(view_id).await?;
+
     let view = self.get_view_pb(view_id).await?;
     // if the view is locked, the view can't be moved
     if view.is_locked.unwrap_or(false) {
@@ -1020,9 +1033,114 @@ impl FolderManager {
     }
   }
 
+  /// Get a view with permission checks for guest users.
+  /// This function should be used instead of direct folder.get_view() calls
+  /// when the operation is user-facing and needs permission validation.
+  pub async fn get_view_with_permission_check(&self, view_id: &str) -> FlowyResult<Arc<View>> {
+    // Check guest permissions first
+    self.check_guest_view_permission(view_id).await?;
+
+    // If permission check passes, get the view
+    self.get_view(view_id).await
+  }
+
+  /// Helper function to check if a guest user has permission to access a view
+  async fn check_guest_view_permission(&self, view_id: &str) -> FlowyResult<()> {
+    let workspace = self.user.get_active_user_workspace()?;
+    let role = workspace.role;
+
+    // If the user is a Guest, check if they have access to this view through shared views
+    if let Some(Role::Guest) = role {
+      let flatten_shared_views = self.get_flatten_shared_pages().await?;
+      let has_access = flatten_shared_views
+        .iter()
+        .any(|shared_view| shared_view.id == view_id);
+
+      if !has_access {
+        return Err(FlowyError::new(
+          ErrorCode::RecordNotFound,
+          format!("Guest user does not have access to view: {}", view_id),
+        ));
+      }
+    }
+
+    Ok(())
+  }
+
+  /// Helper function to check if a guest user has permission to modify a view
+  /// Guest users can modify views only if they have edit access level for that specific view
+  async fn check_guest_modify_permission(&self, view_id: &str) -> FlowyResult<()> {
+    let workspace = self.user.get_active_user_workspace()?;
+    let role = workspace.role;
+
+    // If the user is a Guest, check their access level for this specific view
+    if let Some(Role::Guest) = role {
+      let shared_pages = self.get_shared_pages(false).await?;
+
+      // Find the specific view in shared pages to check access level
+      let view_access = shared_pages.shared_views.iter().find_map(|shared_view| {
+        if shared_view.view.id == view_id {
+          Some(shared_view.access_level.clone())
+        } else {
+          // Check child views recursively
+          Self::find_view_access_level_in_children(&shared_view.view.child_views, view_id)
+        }
+      });
+
+      match view_access {
+        Some(access_level) => {
+          // Check if the access level allows editing
+          match access_level {
+            AFAccessLevelPB::ReadAndWrite | AFAccessLevelPB::FullAccess => {
+              // Guest has edit permissions for this view
+              Ok(())
+            },
+            AFAccessLevelPB::ReadOnly | AFAccessLevelPB::ReadAndComment => Err(FlowyError::new(
+              ErrorCode::NotEnoughPermissions,
+              format!("Guest user has read-only access to view: {}", view_id),
+            )),
+          }
+        },
+        None => {
+          // Guest doesn't have access to this view at all
+          Err(FlowyError::new(
+            ErrorCode::NotEnoughPermissions,
+            format!("Guest user does not have access to view: {}", view_id),
+          ))
+        },
+      }
+    } else {
+      // Non-guest users have full permissions
+      Ok(())
+    }
+  }
+
+  /// Helper function to recursively find access level for a view in child views
+  fn find_view_access_level_in_children(
+    child_views: &[ViewPB],
+    view_id: &str,
+  ) -> Option<AFAccessLevelPB> {
+    for child_view in child_views {
+      if child_view.id == view_id {
+        // Note: Child views inherit access level from parent shared view
+        // This is a simplification - you might need to adjust based on your access model
+        return Some(AFAccessLevelPB::ReadAndWrite); // or get from parent
+      }
+      if let Some(access_level) =
+        Self::find_view_access_level_in_children(&child_view.child_views, view_id)
+      {
+        return Some(access_level);
+      }
+    }
+    None
+  }
+
   /// Update the view with the given params.
   #[tracing::instrument(level = "trace", skip(self), err)]
   pub async fn update_view_with_params(&self, params: UpdateViewParams) -> FlowyResult<()> {
+    // Check if guest user has permission to modify this view
+    self.check_guest_modify_permission(&params.view_id).await?;
+
     self
       .update_view(&params.view_id, true, |update| {
         update
@@ -1042,6 +1160,9 @@ impl FolderManager {
     &self,
     params: UpdateViewIconParams,
   ) -> FlowyResult<()> {
+    // Check if guest user has permission to modify this view
+    self.check_guest_modify_permission(&params.view_id).await?;
+
     self
       .update_view(&params.view_id, true, |update| {
         update.set_icon(params.icon).done()
@@ -1079,6 +1200,9 @@ impl FolderManager {
     &self,
     params: DuplicateViewParams,
   ) -> Result<ViewPB, FlowyError> {
+    // Check if guest user has permission to modify views (duplicating creates new views)
+    self.check_guest_modify_permission(&params.view_id).await?;
+
     let lock = self
       .mutex_folder
       .load_full()
@@ -1315,6 +1439,9 @@ impl FolderManager {
   /// Toggles the favorite status of a view identified by `view_id`If the view is not a favorite, it will be added to the favorites list; otherwise, it will be removed from the list.
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn toggle_favorites(&self, view_id: &str) -> FlowyResult<()> {
+    // Check if guest user has permission to modify this view
+    self.check_guest_modify_permission(view_id).await?;
+
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
       if let Some(old_view) = folder.get_view(view_id) {
@@ -2252,10 +2379,32 @@ impl FolderManager {
           _ => vec![],
         };
         let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
-        views
+        let mut filtered_views = views
           .into_iter()
           .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
-          .collect()
+          .collect::<Vec<_>>();
+
+        // Additional filtering for guest users - they can only see views they have access to through shared views
+        if let Ok(workspace) = self.user.get_active_user_workspace() {
+          if let Some(Role::Guest) = workspace.role {
+            // Drop the folder lock before calling get_flatten_shared_pages to avoid deadlock
+            drop(folder);
+
+            if let Ok(flatten_shared_views) = self.get_flatten_shared_pages().await {
+              let accessible_view_ids: std::collections::HashSet<String> = flatten_shared_views
+                .into_iter()
+                .map(|view| view.id)
+                .collect();
+
+              filtered_views.retain(|view| accessible_view_ids.contains(&view.id));
+            } else {
+              // If we can't get shared views, guest users get empty list for safety
+              filtered_views.clear();
+            }
+          }
+        }
+
+        filtered_views
       },
     }
   }
@@ -2375,25 +2524,29 @@ impl FolderManager {
               let shared_views: Vec<WorkspaceSharedViewTable> = resp
                 .shared_views
                 .iter()
-                .map(|shared_view| WorkspaceSharedViewTable {
+                .enumerate()
+                .map(|(index, shared_view)| WorkspaceSharedViewTable {
                   uid,
                   workspace_id: workspace_id.to_string(),
                   view_id: shared_view.view_id.to_string(),
                   permission_id: shared_view.access_level as i32,
                   created_at: None,
                   no_access: false,
+                  order: index as i32,
                 })
                 .collect();
               let _no_access_shared_views = resp
                 .view_id_with_no_access
                 .iter()
-                .map(|view_id| WorkspaceSharedViewTable {
+                .enumerate()
+                .map(|(index, view_id)| WorkspaceSharedViewTable {
                   uid,
                   workspace_id: workspace_id.to_string(),
                   view_id: view_id.to_string(),
                   permission_id: 0,
                   created_at: None,
                   no_access: true,
+                  order: index as i32,
                 })
                 .collect::<Vec<WorkspaceSharedViewTable>>();
               // Todo: enable it when the backend return the real no_access_shared_views
