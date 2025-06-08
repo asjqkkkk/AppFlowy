@@ -2384,7 +2384,7 @@ impl FolderManager {
                   no_access: false,
                 })
                 .collect();
-              let no_access_shared_views = resp
+              let _no_access_shared_views = resp
                 .view_id_with_no_access
                 .iter()
                 .map(|view_id| WorkspaceSharedViewTable {
@@ -2396,7 +2396,9 @@ impl FolderManager {
                   no_access: true,
                 })
                 .collect::<Vec<WorkspaceSharedViewTable>>();
-              let concat_shared_views = [shared_views, no_access_shared_views].concat();
+              // Todo: enable it when the backend return the real no_access_shared_views
+              // let concat_shared_views = [shared_views, no_access_shared_views].concat();
+              let concat_shared_views = shared_views;
 
               let _ = replace_all_workspace_shared_views(
                 &mut conn,
