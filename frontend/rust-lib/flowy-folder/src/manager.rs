@@ -2372,7 +2372,6 @@ impl FolderManager {
         if let Some(cloud_service) = cloud_service.upgrade() {
           if let Ok(resp) = cloud_service.get_shared_views(&cloud_workspace_id).await {
             if let Ok(mut conn) = user.sqlite_connection(uid) {
-              let cloud_no_access_view_ids = resp.view_id_with_no_access.clone();
               let shared_views: Vec<WorkspaceSharedViewTable> = resp
                 .shared_views
                 .iter()
@@ -2385,7 +2384,8 @@ impl FolderManager {
                   no_access: false,
                 })
                 .collect();
-              let no_access_shared_views = cloud_no_access_view_ids
+              let no_access_shared_views = resp
+                .view_id_with_no_access
                 .iter()
                 .map(|view_id| WorkspaceSharedViewTable {
                   uid,
@@ -2396,12 +2396,13 @@ impl FolderManager {
                   no_access: true,
                 })
                 .collect::<Vec<WorkspaceSharedViewTable>>();
+              let concat_shared_views = [shared_views, no_access_shared_views].concat();
 
               let _ = replace_all_workspace_shared_views(
                 &mut conn,
                 &cloud_workspace_id.to_string(),
                 uid,
-                &[shared_views, no_access_shared_views].concat(),
+                &concat_shared_views,
               );
 
               let cloud_no_access_view_ids_string: Vec<String> = resp

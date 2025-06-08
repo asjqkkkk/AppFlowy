@@ -5,6 +5,7 @@ import 'package:appflowy/features/shared_section/data/repositories/shared_pages_
 import 'package:appflowy/features/shared_section/logic/shared_section_event.dart';
 import 'package:appflowy/features/shared_section/logic/shared_section_state.dart';
 import 'package:appflowy/features/util/extensions.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -145,6 +146,9 @@ class SharedSectionBloc extends Bloc<SharedSectionEvent, SharedSectionState> {
             (error) => null,
           );
           if (response != null) {
+            Log.debug(
+              'shared section bloc received shared views update, response: $response',
+            );
             add(
               SharedSectionEvent.updateSharedPages(
                 sharedPages: response.sharedPages,
