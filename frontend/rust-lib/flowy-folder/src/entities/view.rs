@@ -954,6 +954,9 @@ pub struct SharedViewPB {
 pub struct RepeatedSharedViewResponsePB {
   #[pb(index = 1)]
   pub shared_views: Vec<SharedViewPB>,
+
+  #[pb(index = 2)]
+  pub no_access_view_ids: Vec<String>,
 }
 
 #[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default)]

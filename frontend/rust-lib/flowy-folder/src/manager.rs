@@ -1473,9 +1473,6 @@ impl FolderManager {
       .send();
     }
 
-
-
-
     Ok(())
   }
 
@@ -2314,6 +2311,7 @@ impl FolderManager {
     let conn = self.user.sqlite_connection(uid)?;
     let workspace_id = self.user.workspace_id()?;
     let mut local_shared_views = vec![];
+    let mut no_access_view_ids: Vec<String> = vec![];
 
     let all_views: Vec<Arc<View>> = self.get_all_views().await?;
     let lock = self
@@ -2332,9 +2330,19 @@ impl FolderManager {
     if let Ok(shared_views) =
       select_all_workspace_shared_views(conn, &workspace_id.to_string(), uid)
     {
+      no_access_view_ids = shared_views
+        .iter()
+        .filter(|shared_view| shared_view.no_access)
+        .map(|shared_view| shared_view.view_id.clone())
+        .collect::<Vec<String>>();
+
       local_shared_views = shared_views
         .into_iter()
         .filter_map(|shared_view| {
+          if no_access_view_ids.contains(&shared_view.view_id) {
+            return None;
+          }
+
           let view = all_views
             .iter()
             .find(|view| view.id == shared_view.view_id)?;
@@ -2361,6 +2369,7 @@ impl FolderManager {
         if let Some(cloud_service) = cloud_service.upgrade() {
           if let Ok(resp) = cloud_service.get_shared_views(&cloud_workspace_id).await {
             if let Ok(mut conn) = user.sqlite_connection(uid) {
+              let cloud_no_access_view_ids = resp.view_id_with_no_access.clone();
               let shared_views: Vec<WorkspaceSharedViewTable> = resp
                 .shared_views
                 .iter()
@@ -2370,14 +2379,33 @@ impl FolderManager {
                   view_id: shared_view.view_id.to_string(),
                   permission_id: shared_view.access_level as i32,
                   created_at: None,
+                  no_access: false,
                 })
                 .collect();
+              let no_access_shared_views = cloud_no_access_view_ids
+                .iter()
+                .map(|view_id| WorkspaceSharedViewTable {
+                  uid,
+                  workspace_id: workspace_id.to_string(),
+                  view_id: view_id.to_string(),
+                  permission_id: 0,
+                  created_at: None,
+                  no_access: true,
+                })
+                .collect::<Vec<WorkspaceSharedViewTable>>();
+
               let _ = replace_all_workspace_shared_views(
                 &mut conn,
                 &cloud_workspace_id.to_string(),
                 uid,
-                &shared_views,
+                &[shared_views, no_access_shared_views].concat(),
               );
+
+              let cloud_no_access_view_ids_string: Vec<String> = resp
+                .view_id_with_no_access
+                .into_iter()
+                .map(|uuid| uuid.to_string())
+                .collect();
 
               let repeated_shared_view_response = RepeatedSharedViewResponsePB {
                 shared_views: resp
@@ -2399,6 +2427,7 @@ impl FolderManager {
                     })
                   })
                   .collect(),
+                no_access_view_ids: cloud_no_access_view_ids_string,
               };
 
               // Notify UI to refresh the shared views
@@ -2413,6 +2442,7 @@ impl FolderManager {
 
     let local_result = RepeatedSharedViewResponsePB {
       shared_views: local_shared_views.clone(),
+      no_access_view_ids,
     };
 
     Ok(local_result)

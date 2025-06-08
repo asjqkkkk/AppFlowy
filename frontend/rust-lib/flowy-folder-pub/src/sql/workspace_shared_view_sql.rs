@@ -13,6 +13,7 @@ pub struct WorkspaceSharedViewTable {
   pub view_id: String,
   pub permission_id: i32,
   pub created_at: Option<chrono::NaiveDateTime>,
+  pub no_access: bool,
 }
 
 pub fn upsert_workspace_shared_view<T: Into<WorkspaceSharedViewTable>>(
