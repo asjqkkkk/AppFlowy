@@ -103,7 +103,8 @@ pub fn insert_local_workspace(
   workspace_icon: &str,
   conn: &mut SqliteConnection,
 ) -> FlowyResult<UserWorkspace> {
-  let user_workspace = UserWorkspace::new_local(workspace_id.to_string(), workspace_name, workspace_icon);
+  let user_workspace =
+    UserWorkspace::new_local(workspace_id.to_string(), workspace_name, workspace_icon);
   conn.immediate_transaction(|conn| {
     let row = select_user_table_row(uid, conn)?;
     let row = WorkspaceMemberTable {
