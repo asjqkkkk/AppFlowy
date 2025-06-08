@@ -155,7 +155,7 @@ impl FolderManager {
         workspace_id,
         collab_db,
         Some(folder_notifier),
-        Some(folder_data),
+        folder_data,
       )
       .await?;
     Ok(folder)
