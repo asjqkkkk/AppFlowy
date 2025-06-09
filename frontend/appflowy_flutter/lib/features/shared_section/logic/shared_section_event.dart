@@ -14,6 +14,7 @@ sealed class SharedSectionEvent {
   /// Update the shared pages in the state.
   const factory SharedSectionEvent.updateSharedPages({
     required SharedPages sharedPages,
+    required List<String> noAccessViewIds,
   }) = SharedSectionUpdateSharedPagesEvent;
 
   /// Toggle the expanded status of the shared section.
@@ -37,8 +38,10 @@ class SharedSectionRefreshEvent extends SharedSectionEvent {
 class SharedSectionUpdateSharedPagesEvent extends SharedSectionEvent {
   const SharedSectionUpdateSharedPagesEvent({
     required this.sharedPages,
+    required this.noAccessViewIds,
   });
 
+  final List<String> noAccessViewIds;
   final SharedPages sharedPages;
 }
 

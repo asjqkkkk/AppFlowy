@@ -5,7 +5,6 @@ import 'package:appflowy/features/shared_section/data/repositories/shared_pages_
 import 'package:appflowy/features/shared_section/logic/shared_section_event.dart';
 import 'package:appflowy/features/shared_section/logic/shared_section_state.dart';
 import 'package:appflowy/features/util/extensions.dart';
-import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -67,10 +66,11 @@ class SharedSectionBloc extends Bloc<SharedSectionEvent, SharedSectionState> {
     );
     final result = await repository.getSharedPages();
     result.fold(
-      (pages) {
+      (success) {
         emit(
           state.copyWith(
-            sharedPages: pages,
+            sharedPages: success.sharedPages,
+            noAccessViewIds: success.noAccessViewIds,
             isLoading: false,
           ),
         );
@@ -93,10 +93,11 @@ class SharedSectionBloc extends Bloc<SharedSectionEvent, SharedSectionState> {
     final result = await repository.getSharedPages();
 
     result.fold(
-      (pages) {
+      (success) {
         emit(
           state.copyWith(
-            sharedPages: pages,
+            sharedPages: success.sharedPages,
+            noAccessViewIds: success.noAccessViewIds,
           ),
         );
       },
@@ -117,6 +118,7 @@ class SharedSectionBloc extends Bloc<SharedSectionEvent, SharedSectionState> {
     emit(
       state.copyWith(
         sharedPages: event.sharedPages,
+        noAccessViewIds: event.noAccessViewIds,
       ),
     );
   }
@@ -146,12 +148,10 @@ class SharedSectionBloc extends Bloc<SharedSectionEvent, SharedSectionState> {
             (error) => null,
           );
           if (response != null) {
-            Log.debug(
-              'shared section bloc received shared views update, response: $response',
-            );
             add(
               SharedSectionEvent.updateSharedPages(
                 sharedPages: response.sharedPages,
+                noAccessViewIds: response.noAccessViewIds,
               ),
             );
           }

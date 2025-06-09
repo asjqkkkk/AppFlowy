@@ -9,12 +9,15 @@ import 'package:appflowy_result/appflowy_result.dart';
 
 class RustSharePagesRepositoryImpl implements SharedPagesRepository {
   @override
-  Future<FlowyResult<SharedPages, FlowyError>> getSharedPages() async {
+  Future<FlowyResult<SharedPageResponse, FlowyError>> getSharedPages() async {
     final result = await FolderEventGetSharedViews().send();
     return result.fold(
       (success) {
         final sharedPages = success.sharedPages;
-        return FlowyResult.success(sharedPages);
+        return FlowyResult.success(SharedPageResponse(
+          sharedPages: sharedPages,
+          noAccessViewIds: success.noAccessViewIds,
+        ));
       },
       (error) {
         Log.error('failed to get shared pages, error: $error');

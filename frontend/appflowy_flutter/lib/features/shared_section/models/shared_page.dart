@@ -12,3 +12,13 @@ class SharedPage {
   final ViewPB view;
   final ShareAccessLevel accessLevel;
 }
+
+class SharedPageResponse {
+  SharedPageResponse({
+    required this.sharedPages,
+    required this.noAccessViewIds,
+  });
+
+  final SharedPages sharedPages;
+  final List<String> noAccessViewIds;
+}

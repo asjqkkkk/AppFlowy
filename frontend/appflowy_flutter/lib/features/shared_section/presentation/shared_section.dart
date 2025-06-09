@@ -66,6 +66,7 @@ class SharedSection extends StatelessWidget {
               if (state.isExpanded)
                 SharedPageList(
                   sharedPages: state.sharedPages,
+                  noAccessViewIds: state.noAccessViewIds,
                   onSetEditing: (context, value) {
                     context.read<ViewBloc>().add(ViewEvent.setIsEditing(value));
                   },

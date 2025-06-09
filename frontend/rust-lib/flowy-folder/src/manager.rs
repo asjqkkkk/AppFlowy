@@ -2645,14 +2645,15 @@ impl FolderManager {
 
     let flattened_shared_views = self.get_flatten_shared_pages().await?;
 
-    // if the view is in the flattened_shared_views, return the section
     if flattened_shared_views.iter().any(|view| view.id == view_id) {
       return Ok(SharedViewSectionPB::SharedSection);
     }
 
+    let mut is_public_section = true;
+
     loop {
       if loop_count >= MAX_LOOP_COUNT {
-        return Ok(SharedViewSectionPB::PublicSection);
+        break;
       }
       loop_count += 1;
 
@@ -2661,20 +2662,55 @@ impl FolderManager {
         .ok_or_else(|| FlowyError::record_not_found().with_context("View not found"))?;
 
       if let Some(space_info) = view.space_info() {
-        return match space_info.space_permission {
-          SpacePermission::PublicToAll => Ok(SharedViewSectionPB::PublicSection),
-          _ => Ok(SharedViewSectionPB::PrivateSection),
-        };
+        is_public_section = space_info.space_permission == SpacePermission::PublicToAll;
+        break;
       }
 
       let parent_view_id = view.parent_view_id.clone();
 
-      // If parent_view_id is the same as current view id, return public to avoid infinite loop
+      // If parent_view_id is the same as current view id, break to avoid infinite loop
       if parent_view_id == current_view_id {
-        return Ok(SharedViewSectionPB::PublicSection);
+        break;
       }
 
       current_view_id = parent_view_id;
+    }
+
+    // Now check shared users and apply the correct logic
+    let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
+    if let Ok(conn) = self.user.sqlite_connection(uid) {
+      if let Ok(shared_users) =
+        select_all_workspace_shared_users(conn, &workspace_id.to_string(), view_id)
+      {
+        let shared_users_pb: Vec<SharedUserPB> =
+          shared_users.into_iter().map(|user| user.into()).collect();
+        if is_public_section {
+          if shared_users_pb
+            .iter()
+            .any(|user| user.role == AFRolePB::Guest)
+          {
+            return Ok(SharedViewSectionPB::SharedSection);
+          } else {
+            return Ok(SharedViewSectionPB::PublicSection);
+          }
+        } else {
+          // If section is private and shared users count > 1, then it's shared
+          // Otherwise, it's private
+          if shared_users_pb.len() > 1 {
+            return Ok(SharedViewSectionPB::SharedSection);
+          } else {
+            return Ok(SharedViewSectionPB::PrivateSection);
+          }
+        }
+      }
+    }
+
+    // Fallback based on determined section type
+    if is_public_section {
+      Ok(SharedViewSectionPB::PublicSection)
+    } else {
+      Ok(SharedViewSectionPB::PrivateSection)
     }
   }
 
