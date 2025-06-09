@@ -22,5 +22,5 @@ jobs:
               "event_type": "${{ github.event_name == 'pull_request' && 'pr_opened' || 'push' }}",
               "pr_number": "${{ github.event.number }}",
               "pr_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}",
-              "workflows": "rust,flutter,rust_coverage,ios"
+              "workflows": "rust,flutter,ios"
             }
