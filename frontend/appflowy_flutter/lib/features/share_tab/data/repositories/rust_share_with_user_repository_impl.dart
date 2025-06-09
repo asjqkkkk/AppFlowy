@@ -53,6 +53,8 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
     return result.fold(
       (success) {
+        Log.info('remove users($emails) from shared page($pageId) success');
+
         return FlowySuccess(success);
       },
       (failure) {

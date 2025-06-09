@@ -114,6 +114,13 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
 
               /// Fetch the shared users when the popover is shown
               context.read<ShareTabBloc>().add(ShareTabEvent.loadSharedUsers());
+
+              /// Fetch the subscription info
+              context.read<UserWorkspaceBloc>().add(
+                    UserWorkspaceEvent.fetchWorkspaceSubscriptionInfo(
+                      workspaceId: state.workspaceId,
+                    ),
+                  );
             },
           ),
         );
