@@ -1634,14 +1634,12 @@ impl FolderManager {
     let cloud_page_id = *page_id;
     let user = self.user.clone();
     let cloud_service = self.cloud_service.clone();
-    let parent_view_ids_backup = self
+    let parent_view_ids = self
       .get_view_ancestors_pb(&page_id.to_string())
       .await?
       .into_iter()
       .map(|view| Uuid::from_str(&view.id).unwrap_or_default())
       .collect::<Vec<_>>();
-    println!("parent_view_ids: {:?}", parent_view_ids_backup);
-    let parent_view_ids = vec![];
     tokio::spawn(async move {
       if let Some(cloud_service) = cloud_service.upgrade() {
         let result = cloud_service
@@ -2532,12 +2530,6 @@ impl FolderManager {
                   order: index as i32,
                 })
                 .collect::<Vec<WorkspaceSharedViewTable>>();
-
-              println!("shared_views: {:?}", shared_views.clone());
-              println!(
-                "no_access_shared_views: {:?}",
-                no_access_shared_views.clone()
-              );
 
               let concat_shared_views = [shared_views, no_access_shared_views].concat();
 

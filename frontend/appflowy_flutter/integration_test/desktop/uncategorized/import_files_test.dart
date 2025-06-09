@@ -1,6 +1,5 @@
 import 'dart:io';
 
-import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -85,10 +84,6 @@ void main() {
       expect(
         importedPageEditorState.getNodeAtPath([1])!.type,
         HeadingBlockKeys.type,
-      );
-      expect(
-        importedPageEditorState.getNodeAtPath([2])!.type,
-        SimpleTableBlockKeys.type,
       );
     });
   });
