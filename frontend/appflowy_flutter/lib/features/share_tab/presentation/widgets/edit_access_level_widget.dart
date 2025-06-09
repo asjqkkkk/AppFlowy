@@ -92,11 +92,13 @@ class _EditAccessLevelWidgetState extends State<EditAccessLevelWidget> {
                       : theme.textColorScheme.primary,
                 ),
               ),
-              HSpace(theme.spacing.xs),
-              FlowySvg(
-                FlowySvgs.arrow_down_s,
-                color: theme.textColorScheme.secondary,
-              ),
+              if (!widget.disabled) ...[
+                HSpace(theme.spacing.xs),
+                FlowySvg(
+                  FlowySvgs.arrow_down_s,
+                  color: theme.textColorScheme.secondary,
+                ),
+              ],
             ],
           );
         },

@@ -1,6 +1,12 @@
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
+typedef AFMenuItemBuilder = Widget? Function(
+  BuildContext context,
+  bool isHovering,
+  bool disabled,
+);
+
 /// Menu item widget
 class AFMenuItem extends StatelessWidget {
   /// Creates a menu item.
@@ -16,6 +22,7 @@ class AFMenuItem extends StatelessWidget {
     this.trailing,
     this.padding,
     this.showSelectedBackground = true,
+    this.cursor,
   });
 
   /// Widget to display before the title (e.g., an icon or avatar).
@@ -37,10 +44,13 @@ class AFMenuItem extends StatelessWidget {
   final VoidCallback? onTap;
 
   /// Widget to display after the title (e.g., a trailing icon).
-  final Widget? trailing;
+  final AFMenuItemBuilder? trailing;
 
   /// Padding of the menu item.
   final EdgeInsets? padding;
+
+  /// Cursor of the menu item.
+  final MouseCursor? cursor;
 
   @override
   Widget build(BuildContext context) {
@@ -54,6 +64,7 @@ class AFMenuItem extends StatelessWidget {
 
     return AFBaseButton(
       onTap: onTap,
+      cursor: cursor,
       padding: effectivePadding,
       borderRadius: theme.borderRadius.m,
       borderColor: (context, isHovering, disabled, isFocused) {
@@ -93,7 +104,9 @@ class AFMenuItem extends StatelessWidget {
               ),
             ),
             // Trailing widget (e.g., icon), if provided
-            if (trailing != null) trailing!,
+            if (trailing != null)
+              trailing!(context, isHovering, disabled) ??
+                  const SizedBox.shrink(),
           ],
         );
       },

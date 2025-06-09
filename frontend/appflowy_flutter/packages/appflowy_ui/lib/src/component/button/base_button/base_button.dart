@@ -27,6 +27,7 @@ class AFBaseButton extends StatefulWidget {
     this.disabled = false,
     this.autofocus = false,
     this.showFocusRing = true,
+    this.cursor,
   });
 
   final VoidCallback? onTap;
@@ -40,6 +41,8 @@ class AFBaseButton extends StatefulWidget {
   final bool disabled;
   final bool autofocus;
   final bool showFocusRing;
+
+  final MouseCursor? cursor;
 
   final Widget Function(
     BuildContext context,
@@ -68,6 +71,12 @@ class _AFBaseButtonState extends State<AFBaseButton> {
     final Color borderColor = _buildBorderColor(context);
     final Color backgroundColor = _buildBackgroundColor(context);
     final Color ringColor = _buildRingColor(context);
+    final MouseCursor cursor = widget.cursor ??
+        (widget.onTap == null
+            ? SystemMouseCursors.basic
+            : widget.disabled
+                ? SystemMouseCursors.basic
+                : SystemMouseCursors.click);
 
     return Actions(
       actions: {
@@ -87,11 +96,7 @@ class _AFBaseButtonState extends State<AFBaseButton> {
         },
         autofocus: widget.autofocus,
         child: MouseRegion(
-          cursor: widget.onTap == null
-              ? SystemMouseCursors.basic
-              : widget.disabled
-                  ? SystemMouseCursors.basic
-                  : SystemMouseCursors.click,
+          cursor: cursor,
           onEnter: (_) => setState(() => isHovering = true),
           onExit: (_) => setState(() => isHovering = false),
           child: GestureDetector(
