@@ -52,6 +52,7 @@ use flowy_folder_pub::sql::workspace_shared_view_sql::{
 };
 use flowy_sqlite::DBConnection;
 use flowy_sqlite::kv::KVStorePreferences;
+use flowy_user_pub::entities::WorkspaceType;
 use flowy_user_pub::entities::{Role, UserWorkspace};
 use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
 use futures::future;
@@ -564,6 +565,13 @@ impl FolderManager {
     let handler = self.get_handler(&view_layout)?;
     let user_id = self.user.user_id()?;
 
+    self
+      .check_guest_permission(
+        &params.parent_view_id.to_string(),
+        AFAccessLevelPB::FullAccess,
+      )
+      .await?;
+
     info!("{} create view {:#?}", handler.name(), params);
     if params.meta.is_empty() && params.initial_data.is_empty() {
       handler
@@ -803,7 +811,9 @@ impl FolderManager {
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn move_view_to_trash(&self, view_id: &str) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
-    self.check_guest_modify_permission(view_id).await?;
+    self
+      .check_guest_permission(view_id, AFAccessLevelPB::FullAccess)
+      .await?;
 
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
@@ -897,7 +907,7 @@ impl FolderManager {
 
     // Check if guest user has permission to modify this view
     self
-      .check_guest_modify_permission(&view_id.to_string())
+      .check_guest_permission(&view_id.to_string(), AFAccessLevelPB::FullAccess)
       .await?;
 
     let new_parent_id = params.new_parent_id;
@@ -939,7 +949,9 @@ impl FolderManager {
     let workspace_id = self.user.workspace_id()?;
 
     // Check if guest user has permission to modify this view
-    self.check_guest_modify_permission(view_id).await?;
+    self
+      .check_guest_permission(view_id, AFAccessLevelPB::FullAccess)
+      .await?;
 
     let view = self.get_view_pb(view_id).await?;
     // if the view is locked, the view can't be moved
@@ -1069,7 +1081,11 @@ impl FolderManager {
 
   /// Helper function to check if a guest user has permission to modify a view
   /// Guest users can modify views only if they have edit access level for that specific view
-  async fn check_guest_modify_permission(&self, view_id: &str) -> FlowyResult<()> {
+  async fn check_guest_permission(
+    &self,
+    view_id: &str,
+    minimum_required_access_level: AFAccessLevelPB,
+  ) -> FlowyResult<()> {
     let workspace = self.user.get_active_user_workspace()?;
     let role = workspace.role;
 
@@ -1086,12 +1102,15 @@ impl FolderManager {
       });
 
       match view_access {
-        Some(access_level) => match access_level {
-          AFAccessLevelPB::ReadAndWrite | AFAccessLevelPB::FullAccess => Ok(()),
-          AFAccessLevelPB::ReadOnly | AFAccessLevelPB::ReadAndComment => Err(FlowyError::new(
-            ErrorCode::NotEnoughPermissions,
-            format!("Guest user has read-only access to view: {}", view_id),
-          )),
+        Some(access_level) => {
+          if access_level >= minimum_required_access_level {
+            Ok(())
+          } else {
+            Err(FlowyError::new(
+              ErrorCode::NotEnoughPermissions,
+              format!("Guest user has read-only access to view: {}", view_id),
+            ))
+          }
         },
         None => Err(FlowyError::new(
           ErrorCode::NotEnoughPermissions,
@@ -1126,7 +1145,9 @@ impl FolderManager {
   #[tracing::instrument(level = "trace", skip(self), err)]
   pub async fn update_view_with_params(&self, params: UpdateViewParams) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
-    self.check_guest_modify_permission(&params.view_id).await?;
+    self
+      .check_guest_permission(&params.view_id, AFAccessLevelPB::ReadAndWrite)
+      .await?;
 
     self
       .update_view(&params.view_id, true, |update| {
@@ -1148,7 +1169,9 @@ impl FolderManager {
     params: UpdateViewIconParams,
   ) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
-    self.check_guest_modify_permission(&params.view_id).await?;
+    self
+      .check_guest_permission(&params.view_id, AFAccessLevelPB::ReadAndWrite)
+      .await?;
 
     self
       .update_view(&params.view_id, true, |update| {
@@ -1188,7 +1211,9 @@ impl FolderManager {
     params: DuplicateViewParams,
   ) -> Result<ViewPB, FlowyError> {
     // Check if guest user has permission to modify views (duplicating creates new views)
-    self.check_guest_modify_permission(&params.view_id).await?;
+    self
+      .check_guest_permission(&params.view_id, AFAccessLevelPB::FullAccess)
+      .await?;
 
     let lock = self
       .mutex_folder
@@ -1427,7 +1452,9 @@ impl FolderManager {
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn toggle_favorites(&self, view_id: &str) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
-    self.check_guest_modify_permission(view_id).await?;
+    self
+      .check_guest_permission(view_id, AFAccessLevelPB::FullAccess)
+      .await?;
 
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
@@ -1666,19 +1693,12 @@ impl FolderManager {
                 })
                 .collect::<Vec<_>>();
 
-              for shared_user in shared_users.clone() {
-                println!("shared_user: {:?}", shared_user);
-              }
-
-              let result = replace_all_workspace_shared_users(
+              let _ = replace_all_workspace_shared_users(
                 &mut conn,
                 &cloud_workspace_id.to_string(),
                 &cloud_page_id.to_string(),
                 &shared_users,
               );
-              if let Err(e) = result {
-                println!("Failed to replace all workspace shared users: {:?}", e);
-              }
 
               // Notify UI to refresh the shared page details
               folder_notification_builder(
@@ -2704,6 +2724,69 @@ impl FolderManager {
       if !child_views.is_empty() {
         Self::flatten_child_views(&child_views, flattened_views);
       }
+    }
+  }
+
+  /// Get the access level for a page based on the current user's permissions.
+  ///
+  /// Access level determination follows this priority:
+  /// 1. Local users / Local workspace have full access
+  /// 2. Local workspace users have full access
+  /// 3. Page creator has full access
+  /// 4. Owner and members in public page have full access
+  /// 5. Check the shared users list
+  #[tracing::instrument(level = "debug", skip(self), err)]
+  pub async fn get_access_level(&self, page_id: &str) -> FlowyResult<AFAccessLevelPB> {
+    // Get current user workspace to check user info
+    let workspace = self.user.get_active_user_workspace()?;
+    let user_id = self.user.user_id()?;
+
+    // 1. Local users have full access
+    if workspace.workspace_type == WorkspaceType::Local {
+      return Ok(AFAccessLevelPB::FullAccess);
+    }
+
+    // 2. Check if user is the creator of the page
+    if let Ok(view) = self.get_view(page_id).await {
+      if let Some(created_by) = view.created_by {
+        if created_by == user_id {
+          return Ok(AFAccessLevelPB::FullAccess);
+        }
+      }
+    }
+
+    // 3. If the page is in public space, owner and members have full access
+    let shared_view_section = self.get_shared_view_section(page_id).await?;
+    if shared_view_section == SharedViewSectionPB::PublicSection {
+      // Check if user is not a guest
+      if workspace.role != Some(Role::Guest) {
+        return Ok(AFAccessLevelPB::FullAccess);
+      }
+    }
+
+    // 4. Check the shared users list
+    match self
+      .get_shared_page_details(&Uuid::from_str(page_id)?)
+      .await
+    {
+      Ok(shared_details) => {
+        for shared_user in shared_details.shared_with {
+          // todo: use user id instead when backend return uid
+          if shared_user.email == *"" {
+            return Ok(shared_user.access_level.into());
+          }
+        }
+
+        Ok(AFAccessLevelPB::ReadOnly)
+      },
+      Err(err) => {
+        error!(
+          "Failed to get shared page details for page {}: {:?}",
+          page_id, err
+        );
+
+        Ok(AFAccessLevelPB::ReadOnly)
+      },
     }
   }
 }

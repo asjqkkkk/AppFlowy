@@ -740,7 +740,7 @@ impl TryInto<DuplicateViewParams> for DuplicateViewPayloadPB {
   }
 }
 
-#[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default)]
+#[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default, Ord, PartialOrd)]
 pub enum AFAccessLevelPB {
   #[default]
   ReadOnly = 0,
@@ -971,6 +971,12 @@ pub enum SharedViewSectionPB {
 pub struct GetSharedViewSectionResponsePB {
   #[pb(index = 1)]
   pub section: SharedViewSectionPB,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetAccessLevelResponsePB {
+  #[pb(index = 1)]
+  pub access_level: AFAccessLevelPB,
 }
 
 // impl<'de> Deserialize<'de> for ViewDataType {

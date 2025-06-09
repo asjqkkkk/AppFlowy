@@ -27,7 +27,6 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
     return result.fold(
       (success) {
-        Log.debug('get shared users of page($pageId): $success');
         return FlowySuccess(success.sharedUsers);
       },
       (failure) {
