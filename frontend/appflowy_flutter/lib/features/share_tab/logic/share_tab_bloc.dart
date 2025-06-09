@@ -194,9 +194,10 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     await result.fold(
       (_) async {
         final users = await _getSharedUsers();
+        final isRemovingSelf = event.emails.contains(state.currentUser?.email);
         emit(
           state.copyWith(
-            removeResult: FlowySuccess(null),
+            removeResult: FlowySuccess(isRemovingSelf),
             users: users,
           ),
         );
