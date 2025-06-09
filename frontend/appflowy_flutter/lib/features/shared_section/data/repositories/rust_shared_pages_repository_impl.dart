@@ -14,10 +14,12 @@ class RustSharePagesRepositoryImpl implements SharedPagesRepository {
     return result.fold(
       (success) {
         final sharedPages = success.sharedPages;
-        return FlowyResult.success(SharedPageResponse(
-          sharedPages: sharedPages,
-          noAccessViewIds: success.noAccessViewIds,
-        ));
+        return FlowyResult.success(
+          SharedPageResponse(
+            sharedPages: sharedPages,
+            noAccessViewIds: success.noAccessViewIds,
+          ),
+        );
       },
       (error) {
         Log.error('failed to get shared pages, error: $error');
