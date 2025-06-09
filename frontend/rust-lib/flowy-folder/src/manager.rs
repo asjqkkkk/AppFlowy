@@ -1,10 +1,10 @@
 use crate::entities::icon::UpdateViewIconParams;
 use crate::entities::{
-  AFAccessLevelPB, AFRolePB, CreateViewParams, DeletedViewPB, DuplicateViewParams,
-  FolderSnapshotPB, MoveNestedViewParams, RepeatedSharedUserPB, RepeatedSharedViewResponsePB,
-  RepeatedTrashPB, RepeatedViewIdPB, RepeatedViewPB, SharedUserPB, SharedViewPB,
-  SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB,
-  WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
+  AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, FolderSnapshotPB,
+  MoveNestedViewParams, RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB,
+  RepeatedViewIdPB, RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB,
+  UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB,
+  view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
   view_pb_without_child_views_from_arc,
 };
 use crate::manager_observer::{
@@ -19,11 +19,11 @@ use crate::view_operation::{
   FolderOperationHandler, FolderOperationHandlers, GatherEncodedCollab, ViewData, create_view,
 };
 use arc_swap::ArcSwapOption;
+use client_api::entity::PublishInfo;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::workspace_dto::PublishInfoView;
-use client_api::entity::{AFAccessLevel, AFRole, PublishInfo};
 use collab::core::collab::{DataSource, IndexContentReceiver};
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
@@ -1613,8 +1613,8 @@ impl FolderManager {
         .map(|user| SharedUser {
           email: user.email,
           name: user.name,
-          access_level: AFAccessLevel::from(AFAccessLevelPB::from(user.access_level)),
-          role: AFRole::from(AFRolePB::from(user.role)),
+          access_level: user.access_level.into(),
+          role: user.role.into(),
           avatar_url: if user.avatar_url.is_empty() {
             None
           } else {
@@ -1666,12 +1666,19 @@ impl FolderManager {
                 })
                 .collect::<Vec<_>>();
 
-              let _ = replace_all_workspace_shared_users(
+              for shared_user in shared_users.clone() {
+                println!("shared_user: {:?}", shared_user);
+              }
+
+              let result = replace_all_workspace_shared_users(
                 &mut conn,
                 &cloud_workspace_id.to_string(),
                 &cloud_page_id.to_string(),
                 &shared_users,
               );
+              if let Err(e) = result {
+                println!("Failed to replace all workspace shared users: {:?}", e);
+              }
 
               // Notify UI to refresh the shared page details
               folder_notification_builder(
@@ -2643,13 +2650,8 @@ impl FolderManager {
       .ok_or_else(folder_not_init_error)?;
     let folder = lock.read().await;
 
-    let flattened_shared_views = self.get_flatten_shared_pages().await?;
-
-    if flattened_shared_views.iter().any(|view| view.id == view_id) {
-      return Ok(SharedViewSectionPB::SharedSection);
-    }
-
-    let mut is_public_section = true;
+    // Determine if the view is in a public or private space
+    let mut is_public_space = true;
 
     loop {
       if loop_count >= MAX_LOOP_COUNT {
@@ -2662,7 +2664,7 @@ impl FolderManager {
         .ok_or_else(|| FlowyError::record_not_found().with_context("View not found"))?;
 
       if let Some(space_info) = view.space_info() {
-        is_public_section = space_info.space_permission == SpacePermission::PublicToAll;
+        is_public_space = space_info.space_permission == SpacePermission::PublicToAll;
         break;
       }
 
@@ -2676,42 +2678,19 @@ impl FolderManager {
       current_view_id = parent_view_id;
     }
 
-    // Now check shared users and apply the correct logic
-    let workspace_id = self.user.workspace_id()?;
-    let uid = self.user.user_id()?;
-    if let Ok(conn) = self.user.sqlite_connection(uid) {
-      if let Ok(shared_users) =
-        select_all_workspace_shared_users(conn, &workspace_id.to_string(), view_id)
-      {
-        let shared_users_pb: Vec<SharedUserPB> =
-          shared_users.into_iter().map(|user| user.into()).collect();
-        if is_public_section {
-          if shared_users_pb
-            .iter()
-            .any(|user| user.role == AFRolePB::Guest)
-          {
-            return Ok(SharedViewSectionPB::SharedSection);
-          } else {
-            return Ok(SharedViewSectionPB::PublicSection);
-          }
-        } else {
-          // If section is private and shared users count > 1, then it's shared
-          // Otherwise, it's private
-          if shared_users_pb.len() > 1 {
-            return Ok(SharedViewSectionPB::SharedSection);
-          } else {
-            return Ok(SharedViewSectionPB::PrivateSection);
-          }
-        }
-      }
+    // If the page is in public space, always return PublicSection
+    if is_public_space {
+      return Ok(SharedViewSectionPB::PublicSection);
     }
 
-    // Fallback based on determined section type
-    if is_public_section {
-      Ok(SharedViewSectionPB::PublicSection)
-    } else {
-      Ok(SharedViewSectionPB::PrivateSection)
+    // If the page is in private space, check if it's in the flattened shared views
+    let flattened_shared_views = self.get_flatten_shared_pages().await?;
+    if flattened_shared_views.iter().any(|view| view.id == view_id) {
+      return Ok(SharedViewSectionPB::SharedSection);
     }
+
+    // Default to PrivateSection for private space
+    Ok(SharedViewSectionPB::PrivateSection)
   }
 
   fn flatten_child_views(views: &[ViewPB], flattened_views: &mut Vec<ViewPB>) {

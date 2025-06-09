@@ -12,3 +12,4 @@ pub(crate) fn workspace_data_not_sync_error(uid: i64, workspace_id: &Uuid) -> Fl
     workspace_id: workspace_id.to_string(),
   })
 }
+

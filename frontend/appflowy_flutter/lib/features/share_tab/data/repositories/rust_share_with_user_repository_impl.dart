@@ -3,8 +3,6 @@ import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/util/extensions.dart';
 import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
-import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
@@ -12,7 +10,6 @@ import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
-import 'package:collection/collection.dart';
 
 import 'share_with_user_repository.dart';
 
@@ -30,6 +27,7 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
     return result.fold(
       (success) {
+        Log.debug('get shared users of page($pageId): $success');
         return FlowySuccess(success.sharedUsers);
       },
       (failure) {
@@ -134,24 +132,16 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
   Future<FlowyResult<SharedSectionType, FlowyError>> getCurrentPageSectionType({
     required String pageId,
   }) async {
-    final request = ViewIdPB.create()..value = pageId;
-    final result = await FolderEventGetViewAncestors(request).send();
-    final ancestors = result.fold(
-      (s) => s.items,
-      (f) => <ViewPB>[],
+    final request = ViewIdPB()..value = pageId;
+    final result = await FolderEventGetSharedViewSection(request).send();
+    return result.fold(
+      (success) {
+        return FlowySuccess(success.section.shareSectionType);
+      },
+      (failure) {
+        return FlowyFailure(failure);
+      },
     );
-    final space = ancestors.firstWhereOrNull((e) => e.isSpace);
-
-    if (space == null) {
-      return FlowySuccess(SharedSectionType.unknown);
-    }
-
-    final sectionType = switch (space.spacePermission) {
-      SpacePermission.publicToAll => SharedSectionType.public,
-      SpacePermission.private => SharedSectionType.private,
-    };
-
-    return FlowySuccess(sectionType);
   }
 
   @override
