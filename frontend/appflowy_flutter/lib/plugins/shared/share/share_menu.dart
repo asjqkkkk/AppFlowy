@@ -17,7 +17,6 @@ import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -157,7 +156,7 @@ class _ShareMenuState extends State<ShareMenu>
             pageId: pageId,
             workspaceName: workspace?.name ?? '',
             workspaceIcon: workspace?.icon ?? '',
-            isInProPlan: isInProPlan || kDebugMode,
+            isInProPlan: isInProPlan,
             onUpgradeToPro: () {
               widget.onClose();
 

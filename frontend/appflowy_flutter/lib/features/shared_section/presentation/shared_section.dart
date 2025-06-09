@@ -4,6 +4,7 @@ import 'package:appflowy/features/shared_section/presentation/widgets/shared_pag
 import 'package:appflowy/features/shared_section/presentation/widgets/shared_section_header.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
+import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
@@ -18,6 +19,8 @@ import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+
+ValueNotifier<bool> openFirstSharedPage = ValueNotifier(false);
 
 class SharedSection extends StatelessWidget {
   const SharedSection({
@@ -38,7 +41,18 @@ class SharedSection extends StatelessWidget {
         repository: repository,
         enablePolling: true,
       )..add(const SharedSectionInitEvent()),
-      child: BlocBuilder<SharedSectionBloc, SharedSectionState>(
+      child: BlocConsumer<SharedSectionBloc, SharedSectionState>(
+        listener: (context, state) {
+          if (!openFirstSharedPage.value) {
+            return;
+          }
+          openFirstSharedPage.value = false;
+
+          final view = state.sharedPages.firstOrNull?.view;
+          if (view != null) {
+            getIt<TabsBloc>().openPlugin(view);
+          }
+        },
         builder: (context, state) {
           if (state.isLoading) {
             return const SizedBox.shrink();
