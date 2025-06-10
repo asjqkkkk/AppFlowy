@@ -4,6 +4,7 @@ import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/tab_bar_bloc.dart';
+import 'package:appflowy/plugins/document/presentation/editor_notification.dart';
 import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/plugins/shared/share/share_menu.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -114,6 +115,15 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
 
               /// Fetch the shared users when the popover is shown
               context.read<ShareTabBloc>().add(ShareTabEvent.loadSharedUsers());
+
+              /// Fetch the subscription info
+              context.read<UserWorkspaceBloc>().add(
+                    UserWorkspaceEvent.fetchWorkspaceSubscriptionInfo(
+                      workspaceId: state.workspaceId,
+                    ),
+                  );
+
+              EditorNotification.exitEditing().post();
             },
           ),
         );

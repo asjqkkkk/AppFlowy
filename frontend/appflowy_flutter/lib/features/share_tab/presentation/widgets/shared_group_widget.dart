@@ -21,6 +21,7 @@ class SharedGroupWidget extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return AFMenuItem(
+      cursor: SystemMouseCursors.basic,
       padding: EdgeInsets.symmetric(
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
@@ -28,7 +29,8 @@ class SharedGroupWidget extends StatelessWidget {
       leading: _buildLeading(context),
       title: _buildTitle(context),
       subtitle: _buildSubtitle(context),
-      trailing: _buildTrailing(context),
+      trailing: (context, isHovering, disabled) =>
+          _buildTrailing(context, isHovering, disabled,),
       onTap: () {},
     );
   }
@@ -65,11 +67,6 @@ class SharedGroupWidget extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        // HSpace(theme.spacing.xs),
-        // FlowySvg(
-        //   FlowySvgs.arrow_down_s,
-        //   color: theme.textColorScheme.secondary,
-        // ),
       ],
     );
   }
@@ -85,7 +82,11 @@ class SharedGroupWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTrailing(BuildContext context) {
+  Widget _buildTrailing(
+    BuildContext context,
+    bool isHovering,
+    bool disabled,
+  ) {
     return EditAccessLevelWidget(
       disabled: true,
       supportedAccessLevels: ShareAccessLevel.values,

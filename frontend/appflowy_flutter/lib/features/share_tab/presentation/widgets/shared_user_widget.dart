@@ -29,6 +29,7 @@ class SharedUserWidget extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return AFMenuItem(
+      cursor: SystemMouseCursors.basic,
       padding: EdgeInsets.symmetric(
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
@@ -39,7 +40,11 @@ class SharedUserWidget extends StatelessWidget {
       ),
       title: _buildTitle(context),
       subtitle: _buildSubtitle(context),
-      trailing: _buildTrailing(context),
+      trailing: (context, isHovering, disabled) => _buildTrailing(
+        context,
+        isHovering,
+        disabled,
+      ),
       onTap: () {
         // callbacks?.onSelectAccessLevel.call(user, user.accessLevel);
       },
@@ -98,7 +103,11 @@ class SharedUserWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTrailing(BuildContext context) {
+  Widget _buildTrailing(BuildContext context, bool isHovering, bool disabled) {
+    if (!isHovering) {
+      return const SizedBox.shrink();
+    }
+
     final isCurrentUser = user.email == currentUser.email;
     final theme = AppFlowyTheme.of(context);
     final currentAccessLevel = currentUser.accessLevel;

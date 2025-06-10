@@ -167,6 +167,8 @@ diesel::table! {
         view_id -> Text,
         permission_id -> Integer,
         created_at -> Nullable<Timestamp>,
+        no_access -> Bool,
+        order -> Integer,
     }
 }
 

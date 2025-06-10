@@ -3,6 +3,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/home/mobile_home_page_header.dart';
 import 'package:appflowy/mobile/presentation/home/tab/mobile_space_tab.dart';
 import 'package:appflowy/mobile/presentation/home/tab/space_order_bloc.dart';
+import 'package:appflowy/mobile/presentation/mobile_bottom_navigation_bar.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/loading.dart';
 import 'package:appflowy/startup/startup.dart';
@@ -20,7 +21,8 @@ import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
+    hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-folder/workspace.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -179,6 +181,15 @@ class _HomePageState extends State<_HomePage> {
                 ),
               );
         }
+
+        mobileBottomNavigationBarItems.value = [
+          BottomNavigationBarItemType.home,
+          BottomNavigationBarItemType.search,
+          if (state.currentWorkspace?.role != AFRolePB.Guest)
+            BottomNavigationBarItemType.add,
+          BottomNavigationBarItemType.notification,
+        ];
+
         Debounce.debounce(
           'workspace_action_result',
           const Duration(milliseconds: 150),

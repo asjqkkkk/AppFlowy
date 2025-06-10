@@ -8,7 +8,7 @@ import 'package:appflowy_result/appflowy_result.dart';
 // Move this file to test folder
 class LocalSharedPagesRepositoryImpl implements SharedPagesRepository {
   @override
-  Future<FlowyResult<SharedPages, FlowyError>> getSharedPages() async {
+  Future<FlowyResult<SharedPageResponse, FlowyError>> getSharedPages() async {
     final pages = [
       SharedPage(
         view: ViewPB()
@@ -29,7 +29,12 @@ class LocalSharedPagesRepositoryImpl implements SharedPagesRepository {
         accessLevel: ShareAccessLevel.readOnly,
       ),
     ];
-    return FlowyResult.success(pages);
+    return FlowyResult.success(
+      SharedPageResponse(
+        sharedPages: pages,
+        noAccessViewIds: [],
+      ),
+    );
   }
 
   @override

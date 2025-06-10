@@ -133,7 +133,7 @@ class _SharedPageActionsButtonState extends State<SharedPageActionsButton> {
               titleColor: actionType == ViewMoreActionType.delete
                   ? Theme.of(context).colorScheme.error
                   : null,
-              trailing: actionType.rightIcon,
+              trailing: (context, isHovering, disabled) => actionType.rightIcon,
               onTap: () {
                 changeIconController.show();
               },
@@ -154,7 +154,7 @@ class _SharedPageActionsButtonState extends State<SharedPageActionsButton> {
             titleColor: actionType == ViewMoreActionType.delete
                 ? Theme.of(context).colorScheme.error
                 : null,
-            trailing: actionType.rightIcon,
+            trailing: (context, isHovering, disabled) => actionType.rightIcon,
             onTap: () {
               widget.onAction(actionType, widget.view, null);
               controller.hide();

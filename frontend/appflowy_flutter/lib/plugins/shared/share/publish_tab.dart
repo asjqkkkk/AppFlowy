@@ -17,6 +17,7 @@ import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
@@ -267,6 +268,7 @@ class _PublishWidgetState extends State<_PublishWidget> {
     final accessLevel = context.read<PageAccessLevelBloc>().state.accessLevel;
 
     Widget publishButton = PublishButton(
+      disabled: accessLevel == ShareAccessLevel.readOnly,
       onPublish: () {
         if (context.read<ShareBloc>().view.layout.isDatabaseView) {
           // check if any database is selected
@@ -285,7 +287,8 @@ class _PublishWidgetState extends State<_PublishWidget> {
     if (accessLevel == ShareAccessLevel.readOnly) {
       // readonly user can't publish a page.
       publishButton = FlowyTooltip(
-        message: 'You are a readonly user, you can\'t publish a page.',
+        message:
+            'You don’t have permission to publish this page. Contact the page owner for access.',
         child: AbsorbPointer(
           child: publishButton,
         ),
@@ -319,20 +322,24 @@ class PublishButton extends StatelessWidget {
   const PublishButton({
     super.key,
     required this.onPublish,
+    required this.disabled,
   });
 
   final VoidCallback onPublish;
+  final bool disabled;
 
   @override
   Widget build(BuildContext context) {
-    return PrimaryRoundedButton(
-      text: LocaleKeys.shareAction_publish.tr(),
-      useIntrinsicWidth: false,
-      margin: const EdgeInsets.symmetric(vertical: 9.0),
-      fontSize: 14.0,
-      figmaLineHeight: 18.0,
-      onTap: onPublish,
-    );
+    return disabled
+        ? AFFilledTextButton.disabled(
+            text: LocaleKeys.shareAction_publish.tr(),
+            alignment: Alignment.center,
+          )
+        : AFFilledTextButton.primary(
+            text: LocaleKeys.shareAction_publish.tr(),
+            onTap: onPublish,
+            alignment: Alignment.center,
+          );
   }
 }
 

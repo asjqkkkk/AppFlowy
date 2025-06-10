@@ -256,12 +256,20 @@ class _DocumentPageState extends State<DocumentPage>
     }
 
     if (UniversalPlatform.isMobile) {
-      return DocumentImmersiveCover(
+      Widget child = DocumentImmersiveCover(
         fixedTitle: widget.fixedTitle,
         view: widget.view,
         tabs: widget.tabs,
         userProfilePB: userProfilePB,
       );
+
+      if (!context.read<PageAccessLevelBloc>().state.isEditable) {
+        child = IgnorePointer(
+          child: child,
+        );
+      }
+
+      return child;
     }
 
     final page = editorState.document.root;

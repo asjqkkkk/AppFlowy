@@ -1,4 +1,5 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/base/mobile_view_page_bloc.dart';
@@ -114,19 +115,24 @@ class MobileViewBottomSheetBody extends StatelessWidget {
     final isFavorite = view.isFavorite;
     final isEditable =
         context.watch<PageAccessLevelBloc?>()?.state.isEditable ?? false;
+    final hasFullAccess =
+        context.watch<PageAccessLevelBloc>().state.accessLevel ==
+            ShareAccessLevel.fullAccess;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        MobileQuickActionButton(
-          text: LocaleKeys.button_rename.tr(),
-          icon: FlowySvgs.view_item_rename_s,
-          iconSize: const Size.square(18),
-          enable: isEditable,
-          onTap: () => onAction(
-            MobileViewBottomSheetBodyAction.rename,
+        if (isEditable) ...[
+          MobileQuickActionButton(
+            text: LocaleKeys.button_rename.tr(),
+            icon: FlowySvgs.view_item_rename_s,
+            iconSize: const Size.square(18),
+            enable: isEditable,
+            onTap: () => onAction(
+              MobileViewBottomSheetBodyAction.rename,
+            ),
           ),
-        ),
-        _divider(),
+          _divider(),
+        ],
         MobileQuickActionButton(
           text: isFavorite
               ? LocaleKeys.button_removeFromFavorites.tr()
@@ -140,7 +146,8 @@ class MobileViewBottomSheetBody extends StatelessWidget {
           ),
         ),
         _divider(),
-        if (view.layout.isDatabaseView || view.layout.isDocumentView) ...[
+        if ((view.layout.isDatabaseView || view.layout.isDocumentView) &&
+            hasFullAccess) ...[
           MobileQuickActionButton(
             text: LocaleKeys.disclosureAction_lockPage.tr(),
             icon: FlowySvgs.lock_page_s,
@@ -162,14 +169,16 @@ class MobileViewBottomSheetBody extends StatelessWidget {
           ),
           _divider(),
         ],
-        MobileQuickActionButton(
-          text: LocaleKeys.button_duplicate.tr(),
-          icon: FlowySvgs.duplicate_s,
-          iconSize: const Size.square(18),
-          onTap: () => onAction(
-            MobileViewBottomSheetBodyAction.duplicate,
+        if (hasFullAccess) ...[
+          MobileQuickActionButton(
+            text: LocaleKeys.button_duplicate.tr(),
+            icon: FlowySvgs.duplicate_s,
+            iconSize: const Size.square(18),
+            onTap: () => onAction(
+              MobileViewBottomSheetBodyAction.duplicate,
+            ),
           ),
-        ),
+        ],
         // copy link
         _divider(),
         MobileQuickActionButton(
@@ -181,20 +190,23 @@ class MobileViewBottomSheetBody extends StatelessWidget {
           ),
         ),
         _divider(),
-        ..._buildPublishActions(context),
-
-        MobileQuickActionButton(
-          text: LocaleKeys.button_delete.tr(),
-          textColor: Theme.of(context).colorScheme.error,
-          icon: FlowySvgs.trash_s,
-          iconColor: Theme.of(context).colorScheme.error,
-          iconSize: const Size.square(18),
-          enable: isEditable,
-          onTap: () => onAction(
-            MobileViewBottomSheetBodyAction.delete,
+        if (hasFullAccess) ...[
+          ..._buildPublishActions(context),
+        ],
+        if (hasFullAccess) ...[
+          MobileQuickActionButton(
+            text: LocaleKeys.button_delete.tr(),
+            textColor: Theme.of(context).colorScheme.error,
+            icon: FlowySvgs.trash_s,
+            iconColor: Theme.of(context).colorScheme.error,
+            iconSize: const Size.square(18),
+            enable: isEditable,
+            onTap: () => onAction(
+              MobileViewBottomSheetBodyAction.delete,
+            ),
           ),
-        ),
-        _divider(),
+          _divider(),
+        ],
       ],
     );
   }
@@ -265,7 +277,7 @@ class _LockPageRightIconBuilder extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isEditable =
-        context.watch<PageAccessLevelBloc?>()?.state.isEditable ?? false;
+        context.watch<PageAccessLevelBloc?>()?.state.isLocked ?? false;
     return SizedBox(
       width: 46,
       height: 30,

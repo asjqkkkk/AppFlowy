@@ -217,10 +217,14 @@ where
     to_user_workspaces(workspaces)
   }
 
-  async fn create_workspace(&self, workspace_name: &str, workspace_icon: &str) -> Result<UserWorkspace, FlowyError> {
+  async fn create_workspace(
+    &self,
+    workspace_name: &str,
+    workspace_icon: &str,
+  ) -> Result<UserWorkspace, FlowyError> {
     let workspace_name = Some(workspace_name.to_string());
     let workspace_icon = Some(workspace_icon.to_string());
-    
+
     let new_workspace = self
       .server
       .try_get_client()?

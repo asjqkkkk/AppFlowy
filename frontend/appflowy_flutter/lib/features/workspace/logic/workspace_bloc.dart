@@ -462,9 +462,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
 
     unawaited(
       repository
-          .getWorkspaceSubscriptionInfo(
-        workspaceId: event.workspaceId,
-      )
+          .getWorkspaceSubscriptionInfo(workspaceId: event.workspaceId)
           .fold(
         (workspaceSubscriptionInfo) {
           if (isClosed) {
@@ -474,10 +472,6 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
           if (state.currentWorkspace?.workspaceId != event.workspaceId) {
             return;
           }
-
-          Log.debug(
-            'fetch workspace subscription info: ${event.workspaceId}, $workspaceSubscriptionInfo',
-          );
 
           add(
             UserWorkspaceEvent.updateWorkspaceSubscriptionInfo(

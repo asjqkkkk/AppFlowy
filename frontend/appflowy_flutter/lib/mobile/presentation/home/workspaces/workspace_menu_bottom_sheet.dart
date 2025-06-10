@@ -1,3 +1,4 @@
+import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -238,25 +239,36 @@ class _WorkspaceMenuItemContent extends StatelessWidget {
     final memberCount = workspace.memberCount.toInt();
     return Padding(
       padding: const EdgeInsets.only(left: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.center,
+      child: Row(
         children: [
-          FlowyText(
-            workspace.name,
-            fontSize: 14,
-            fontWeight: FontWeight.w500,
-            overflow: TextOverflow.ellipsis,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              FlowyText(
+                workspace.name,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (workspace.role != AFRolePB.Guest)
+                FlowyText(
+                  memberCount == 0
+                      ? ''
+                      : LocaleKeys.settings_appearance_members_membersCount
+                          .plural(
+                          memberCount,
+                        ),
+                  fontSize: 10.0,
+                  color: Theme.of(context).hintColor,
+                ),
+            ],
           ),
-          FlowyText(
-            memberCount == 0
-                ? ''
-                : LocaleKeys.settings_appearance_members_membersCount.plural(
-                    memberCount,
-                  ),
-            fontSize: 10.0,
-            color: Theme.of(context).hintColor,
-          ),
+          if (workspace.role == AFRolePB.Guest) ...[
+            const HSpace(6.0),
+            const GuestTag(),
+            const HSpace(24.0),
+          ],
         ],
       ),
     );

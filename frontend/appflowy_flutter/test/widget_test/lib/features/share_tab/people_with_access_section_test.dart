@@ -1,5 +1,7 @@
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/people_with_access_section.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../widget_test_wrapper.dart';
@@ -11,8 +13,8 @@ void main() {
       final user = SharedUser(
         name: 'Test User',
         email: 'test@user.com',
-        accessLevel: ShareAccessLevel.readOnly,
-        role: ShareRole.member,
+        accessLevel: ShareAccessLevel.fullAccess,
+        role: ShareRole.owner,
       );
 
       await tester.pumpWidget(
@@ -29,7 +31,10 @@ void main() {
           ),
         ),
       );
-      expect(find.text('People with access'), findsOneWidget);
+      expect(
+        find.text(LocaleKeys.shareTab_peopleWithAccess.tr()),
+        findsOneWidget,
+      );
       expect(find.text('Test User'), findsOneWidget);
     });
   });
