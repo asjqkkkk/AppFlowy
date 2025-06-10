@@ -18,7 +18,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  CLOUD_VERSION: 0.9.53-amd64
+  CLOUD_VERSION: 0.9.58-premium
   RUST_TOOLCHAIN: "1.85.0"
 
 jobs:
@@ -58,19 +58,19 @@ jobs:
       - name: Checkout appflowy cloud code
         uses: actions/checkout@v4
         with:
-          repository: AppFlowy-IO/AppFlowy-Cloud
-          path: AppFlowy-Cloud
+          repository: AppFlowy-IO/AppFlowy-Cloud-Premium
+          path: AppFlowy-Cloud-Premium
 
       - name: Prepare appflowy cloud env
-        working-directory: AppFlowy-Cloud
+        working-directory: AppFlowy-Cloud-Premium
         run: |
           cp deploy.env .env
           sed -i 's|RUST_LOG=.*|RUST_LOG=trace|' .env
           sed -i 's|GOTRUE_MAILER_AUTOCONFIRM=.*|GOTRUE_MAILER_AUTOCONFIRM=true|' .env
           sed -i 's|API_EXTERNAL_URL=.*|API_EXTERNAL_URL=http://localhost|' .env
 
-      - name: Ensure AppFlowy-Cloud is Running with Correct Version
-        working-directory: AppFlowy-Cloud
+      - name: Ensure AppFlowy-Cloud-Premium is Running with Correct Version
+        working-directory: AppFlowy-Cloud-Premium
         env:
           APPFLOWY_CLOUD_VERSION: ${{ env.CLOUD_VERSION }}
           APPFLOWY_HISTORY_VERSION: ${{ env.CLOUD_VERSION }}
@@ -120,7 +120,7 @@ jobs:
         if: failure()
         working-directory: AppFlowy-Cloud
         run: |
-          docker compose logs appflowy_cloud
+          docker compose logs appflowy_cloud_premium
 
       - name: Clean up Docker images
         run: |
