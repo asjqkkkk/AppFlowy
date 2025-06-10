@@ -1,4 +1,5 @@
 import 'package:appflowy/features/shared_section/models/shared_page.dart';
+import 'package:collection/collection.dart';
 
 class SharedSectionState {
   factory SharedSectionState.initial() => const SharedSectionState();
@@ -37,11 +38,11 @@ class SharedSectionState {
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
     return other is SharedSectionState &&
-        other.sharedPages == sharedPages &&
+        DeepCollectionEquality().equals(other.sharedPages, sharedPages) &&
         other.isLoading == isLoading &&
         other.errorMessage == errorMessage &&
         other.isExpanded == isExpanded &&
-        other.noAccessViewIds == noAccessViewIds;
+        DeepCollectionEquality().equals(other.noAccessViewIds, noAccessViewIds);
   }
 
   @override
