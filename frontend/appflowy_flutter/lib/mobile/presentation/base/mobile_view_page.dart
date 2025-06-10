@@ -245,7 +245,7 @@ class _MobileViewPageState extends State<MobileViewPage> {
         context.read<MobileViewPageBloc>().state.isImmersiveMode;
     final isLocked =
         context.read<PageAccessLevelBloc?>()?.state.isLocked ?? false;
-    final accessLevel = context.read<PageAccessLevelBloc>().state.accessLevel;
+    final accessLevel = context.watch<PageAccessLevelBloc>().state.accessLevel;
     final actions = <Widget>[];
 
     if (FeatureFlag.syncDocument.isOn) {
@@ -264,7 +264,9 @@ class _MobileViewPageState extends State<MobileViewPage> {
       }
     }
 
-    if (view.layout.isDocumentView && !isLocked) {
+    if (view.layout.isDocumentView &&
+        !isLocked &&
+        accessLevel != ShareAccessLevel.readOnly) {
       actions.addAll([
         MobileViewPageLayoutButton(
           view: view,
@@ -275,7 +277,7 @@ class _MobileViewPageState extends State<MobileViewPage> {
       ]);
     }
 
-    if (widget.showMoreButton && accessLevel != ShareAccessLevel.readOnly) {
+    if (widget.showMoreButton) {
       actions.addAll([
         MobileViewPageMoreButton(
           view: view,

@@ -247,6 +247,10 @@ class ViewTitleBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    if (pageAccessLevelState.isInitializing) {
+      return const SizedBox.shrink();
+    }
+
     final iconName = switch (pageAccessLevelState.sectionType) {
       SharedSectionType.public => FlowySvgs.public_section_icon_m,
       SharedSectionType.private => FlowySvgs.private_section_icon_m,

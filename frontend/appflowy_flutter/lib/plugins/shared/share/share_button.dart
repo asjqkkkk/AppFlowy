@@ -1,5 +1,6 @@
 import 'package:appflowy/features/share_tab/data/repositories/rust_share_with_user_repository_impl.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
+import 'package:appflowy/features/shared_section/presentation/shared_section.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/tab_bar_bloc.dart';
@@ -60,28 +61,33 @@ class ShareButton extends StatelessWidget {
           },
         ),
       ],
-      child: BlocListener<ShareBloc, ShareState>(
+      child: BlocListener<ShareTabBloc, ShareTabState>(
         listener: (context, state) {
-          if (!state.isLoading && state.exportResult != null) {
-            state.exportResult!.fold(
-              (data) => _handleExportSuccess(context, data),
-              (error) => _handleExportError(context, error),
-            );
-          }
+          _onListenShareWithUserState(context, state);
         },
-        child: BlocBuilder<ShareBloc, ShareState>(
-          builder: (context, state) {
-            final tabs = [
-              if (state.enablePublish) ...[
-                // share the same permission with publish
-                ShareMenuTab.share,
-                ShareMenuTab.publish,
-              ],
-              ShareMenuTab.exportAs,
-            ];
-
-            return ShareMenuButton(tabs: tabs);
+        child: BlocListener<ShareBloc, ShareState>(
+          listener: (context, state) {
+            if (!state.isLoading && state.exportResult != null) {
+              state.exportResult!.fold(
+                (data) => _handleExportSuccess(context, data),
+                (error) => _handleExportError(context, error),
+              );
+            }
           },
+          child: BlocBuilder<ShareBloc, ShareState>(
+            builder: (context, state) {
+              final tabs = [
+                if (state.enablePublish) ...[
+                  // share the same permission with publish
+                  ShareMenuTab.share,
+                  ShareMenuTab.publish,
+                ],
+                ShareMenuTab.exportAs,
+              ];
+
+              return ShareMenuButton(tabs: tabs);
+            },
+          ),
         ),
       ),
     );
@@ -106,5 +112,26 @@ class ShareButton extends StatelessWidget {
       message:
           '${LocaleKeys.settings_files_exportFileFail.tr()}: ${error.code}',
     );
+  }
+
+  void _onListenShareWithUserState(
+    BuildContext context,
+    ShareTabState state,
+  ) {
+    final removeResult = state.removeResult;
+    if (removeResult != null) {
+      removeResult.fold((success) {
+        openFirstSharedPage.value = success;
+
+        showToastNotification(
+          message: LocaleKeys.shareTab_removedGuestSuccessfully.tr(),
+        );
+      }, (error) {
+        showToastNotification(
+          message: error.msg,
+          type: ToastificationType.error,
+        );
+      });
+    }
   }
 }

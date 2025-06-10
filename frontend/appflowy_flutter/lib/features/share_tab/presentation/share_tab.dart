@@ -247,19 +247,19 @@ class _ShareTabState extends State<ShareTab> {
       });
     }
 
-    final removeResult = state.removeResult;
-    if (removeResult != null) {
-      removeResult.fold((success) {
-        showToastNotification(
-          message: LocaleKeys.shareTab_removedGuestSuccessfully.tr(),
-        );
-      }, (error) {
-        showToastNotification(
-          message: error.msg,
-          type: ToastificationType.error,
-        );
-      });
-    }
+    // final removeResult = state.removeResult;
+    // if (removeResult != null) {
+    //   removeResult.fold((success) {
+    //     showToastNotification(
+    //       message: LocaleKeys.shareTab_removedGuestSuccessfully.tr(),
+    //     );
+    //   }, (error) {
+    //     showToastNotification(
+    //       message: error.msg,
+    //       type: ToastificationType.error,
+    //     );
+    //   });
+    // }
 
     final updateAccessLevelResult = state.updateAccessLevelResult;
     if (updateAccessLevelResult != null) {

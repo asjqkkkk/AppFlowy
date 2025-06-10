@@ -49,6 +49,7 @@ void main() {
           child: SingleChildScrollView(
             child: SharedPageList(
               sharedPages: sharedPages,
+              noAccessViewIds: [],
               onAction: (action, view, data) {},
               onSelected: (context, view) {},
               onTertiarySelected: (context, view) {},

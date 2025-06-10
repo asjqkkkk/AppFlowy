@@ -27,8 +27,14 @@ void main() {
 
   setUp(() {
     repository = MockSharePagesRepository();
-    when(() => repository.getSharedPages())
-        .thenAnswer((_) async => FlowyResult.success(initialPages));
+    when(() => repository.getSharedPages()).thenAnswer(
+      (_) async => FlowyResult.success(
+        SharedPageResponse(
+          sharedPages: initialPages,
+          noAccessViewIds: [],
+        ),
+      ),
+    );
     bloc = SharedSectionBloc(
       workspaceId: workspaceId,
       repository: repository,
@@ -45,6 +51,7 @@ void main() {
     act: (bloc) => bloc.add(
       SharedSectionEvent.updateSharedPages(
         sharedPages: updatedPages,
+        noAccessViewIds: [],
       ),
     ),
     wait: const Duration(milliseconds: 100),

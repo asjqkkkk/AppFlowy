@@ -41,7 +41,7 @@ void main() {
 
       // click the copy link button
       final copyLinkButton = find.textContaining(
-        LocaleKeys.button_copyLink.tr(),
+        LocaleKeys.button_copy.tr(),
       );
       await tester.tapButton(copyLinkButton);
 

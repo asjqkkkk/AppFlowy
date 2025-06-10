@@ -35,7 +35,7 @@ class ShareTabState {
   final SharedSectionType sectionType;
   final FlowyResult<void, FlowyError>? initialResult;
   final FlowyResult<void, FlowyError>? shareResult;
-  final FlowyResult<void, FlowyError>? removeResult;
+  final FlowyResult<bool, FlowyError>? removeResult;
   final FlowyResult<void, FlowyError>? updateAccessLevelResult;
   final FlowyResult<void, FlowyError>? turnIntoMemberResult;
   final bool hasClickedUpgradeToPro;
@@ -52,7 +52,7 @@ class ShareTabState {
     SharedSectionType? sectionType,
     FlowyResult<void, FlowyError>? initialResult,
     FlowyResult<void, FlowyError>? shareResult,
-    FlowyResult<void, FlowyError>? removeResult,
+    FlowyResult<bool, FlowyError>? removeResult,
     FlowyResult<void, FlowyError>? updateAccessLevelResult,
     FlowyResult<void, FlowyError>? turnIntoMemberResult,
     bool? hasClickedUpgradeToPro,

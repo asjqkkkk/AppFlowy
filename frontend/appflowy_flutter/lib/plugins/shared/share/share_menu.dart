@@ -145,7 +145,7 @@ class _ShareMenuState extends State<ShareMenu>
               context.read<ShareBloc>().state.workspaceId;
           final pageId = context.read<ShareBloc>().state.viewId;
           final isInProPlan = context
-                  .read<UserWorkspaceBloc>()
+                  .watch<UserWorkspaceBloc>()
                   .state
                   .workspaceSubscriptionInfo
                   ?.plan ==

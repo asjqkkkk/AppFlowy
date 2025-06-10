@@ -167,7 +167,11 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(workspaces)
   }
 
-  async fn create_workspace(&self, workspace_name: &str, workspace_icon: &str) -> Result<UserWorkspace, FlowyError> {
+  async fn create_workspace(
+    &self,
+    workspace_name: &str,
+    workspace_icon: &str,
+  ) -> Result<UserWorkspace, FlowyError> {
     let workspace_id = Uuid::new_v4();
     let uid = self.logged_user.user_id()?;
 
@@ -181,8 +185,13 @@ impl UserCloudService for LocalServerUserServiceImpl {
     // insert collab
 
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
-    let user_workspace =
-      insert_local_workspace(uid, &workspace_id.to_string(), workspace_name, workspace_icon, &mut conn)?;
+    let user_workspace = insert_local_workspace(
+      uid,
+      &workspace_id.to_string(),
+      workspace_name,
+      workspace_icon,
+      &mut conn,
+    )?;
     Ok(user_workspace)
   }
 

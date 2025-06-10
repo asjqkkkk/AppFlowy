@@ -5,8 +5,7 @@ use client_api::entity::{
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
 use flowy_server_pub::guest_dto::{
-  ListSharedViewResponse, RevokeSharedViewAccessRequest, ShareViewWithGuestRequest,
-  SharedViewDetails,
+  RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
 use serde_json::to_vec;
 use std::path::PathBuf;
@@ -302,20 +301,17 @@ where
     &self,
     workspace_id: &Uuid,
     view_id: &Uuid,
-    _parent_view_ids: Vec<Uuid>,
+    parent_view_ids: Vec<Uuid>,
   ) -> Result<SharedViewDetails, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let details = try_get_client?
-      .get_shared_view_details(workspace_id, view_id)
+      .get_shared_view_details(workspace_id, view_id, &parent_view_ids)
       .await
       .map_err(FlowyError::from)?;
     Ok(details)
   }
 
-  async fn get_shared_views(
-    &self,
-    workspace_id: &Uuid,
-  ) -> Result<ListSharedViewResponse, FlowyError> {
+  async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let resp = try_get_client?
       .get_shared_views(workspace_id)

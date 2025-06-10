@@ -188,7 +188,11 @@ pub trait UserCloudService: Send + Sync + 'static {
 
   /// Creates a new workspace for the user.
   /// Returns the new workspace if successful
-  async fn create_workspace(&self, workspace_name: &str, workspace_icon: &str) -> Result<UserWorkspace, FlowyError>;
+  async fn create_workspace(
+    &self,
+    workspace_name: &str,
+    workspace_icon: &str,
+  ) -> Result<UserWorkspace, FlowyError>;
 
   // Updates the workspace name and icon
   async fn patch_workspace(
