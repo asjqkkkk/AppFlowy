@@ -234,7 +234,7 @@ impl FolderManager {
     });
 
     let result = collab_builder
-      .create_folder(*workspace_id, data_source, folder_notifier, None)
+      .open_folder(*workspace_id, data_source, folder_notifier)
       .await;
 
     // If opening the folder fails due to missing required data (indicated by a `FolderError::NoRequiredData`),
@@ -264,16 +264,16 @@ impl FolderManager {
     workspace_id: &Uuid,
     collab_db: Weak<CollabKVDB>,
     notifier: Option<FolderNotify>,
-    folder_data: Option<FolderData>,
+    folder_data: FolderData,
   ) -> Result<Arc<RwLock<Folder>>, FlowyError> {
     let collab_builder = self.collab_builder.upgrade().ok_or_else(|| {
       FlowyError::internal().with_context("The folder builder is not initialized")
     })?;
 
-    let doc_state =
+    let data_source =
       CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
     let folder = collab_builder
-      .create_folder(*workspace_id, doc_state, notifier, folder_data)
+      .create_folder_with_folder_data(*workspace_id, notifier, data_source, folder_data)
       .await?;
     Ok(folder)
   }

@@ -155,29 +155,39 @@ impl WorkspaceCollabAdaptor {
 
   #[allow(clippy::too_many_arguments)]
   #[instrument(level = "trace", skip(self, doc_state, folder_notifier))]
-  pub async fn create_folder(
+  pub async fn open_folder(
     &self,
     workspace_id: Uuid,
     doc_state: DataSource,
     folder_notifier: Option<FolderNotify>,
-    folder_data: Option<FolderData>,
   ) -> Result<Arc<RwLock<Folder>>, Error> {
     let uid = self.user.uid()?;
     let collab_type = CollabType::Folder;
-    let folder = match folder_data {
-      None => {
-        let collab = self
-          .build_collab_with_source(workspace_id, collab_type, doc_state)
-          .await?;
-        Folder::open(uid, collab, folder_notifier)?
-      },
-      Some(data) => {
-        let collab = self
-          .build_collab_with_source(workspace_id, collab_type, doc_state)
-          .await?;
-        Folder::create(uid, collab, folder_notifier, data)
-      },
-    };
+    let collab = self
+      .build_collab_with_source(workspace_id, collab_type, doc_state)
+      .await?;
+    let folder = Folder::open(uid, collab, folder_notifier)?;
+    let folder = Arc::new(RwLock::new(folder));
+    self
+      .finalize_arc_collab(workspace_id, workspace_id, collab_type, folder)
+      .await
+  }
+
+  #[allow(clippy::too_many_arguments)]
+  #[instrument(level = "trace", skip(self, folder_notifier))]
+  pub async fn create_folder_with_folder_data(
+    &self,
+    workspace_id: Uuid,
+    folder_notifier: Option<FolderNotify>,
+    data_source: DataSource,
+    folder_data: FolderData,
+  ) -> Result<Arc<RwLock<Folder>>, Error> {
+    let uid = self.user.uid()?;
+    let collab_type = CollabType::Folder;
+    let collab = self
+      .build_collab_with_source(workspace_id, collab_type, data_source)
+      .await?;
+    let folder = Folder::create(uid, collab, folder_notifier, folder_data);
     let folder = Arc::new(RwLock::new(folder));
     self
       .finalize_arc_collab(workspace_id, workspace_id, collab_type, folder)
