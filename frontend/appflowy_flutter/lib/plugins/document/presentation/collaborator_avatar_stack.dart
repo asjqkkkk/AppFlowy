@@ -43,7 +43,7 @@ class CollaboratorAvatarStack extends StatelessWidget {
 
     return SizedBox(
       height: height,
-      width: width,
+      width: width, 
       child: WidgetStack(
         positions: settings,
         buildInfoWidget: (value, _) => plusWidgetBuilder(value, border),

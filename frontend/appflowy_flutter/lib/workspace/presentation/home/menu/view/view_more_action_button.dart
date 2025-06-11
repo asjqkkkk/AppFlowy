@@ -1,3 +1,5 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
@@ -38,7 +40,7 @@ class ViewMoreActionPopover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final wrappers = _buildActionTypeWrappers();
+    final wrappers = _buildActionTypeWrappers(context);
     return PopoverActionList<ViewMoreActionTypeWrapper>(
       controller: controller,
       direction: PopoverDirection.bottomWithLeftAligned,
@@ -53,8 +55,10 @@ class ViewMoreActionPopover extends StatelessWidget {
     );
   }
 
-  List<ViewMoreActionTypeWrapper> _buildActionTypeWrappers() {
-    final actionTypes = _buildActionTypes();
+  List<ViewMoreActionTypeWrapper> _buildActionTypeWrappers(
+    BuildContext context,
+  ) {
+    final actionTypes = _buildActionTypes(context);
     return actionTypes.map(
       (e) {
         final actionWrapper =
@@ -73,14 +77,16 @@ class ViewMoreActionPopover extends StatelessWidget {
     ).toList();
   }
 
-  List<ViewMoreActionType> _buildActionTypes() {
+  List<ViewMoreActionType> _buildActionTypes(BuildContext context) {
+    final accessLevel = context.read<PageAccessLevelBloc>().state.accessLevel;
     final List<ViewMoreActionType> actionTypes = [];
 
     if (spaceType == FolderSpaceType.favorite) {
       actionTypes.addAll([
         ViewMoreActionType.unFavorite,
         ViewMoreActionType.divider,
-        ViewMoreActionType.rename,
+        if (accessLevel >= ShareAccessLevel.readAndWrite)
+          ViewMoreActionType.rename,
         ViewMoreActionType.openInNewTab,
       ]);
     } else {
@@ -90,24 +96,29 @@ class ViewMoreActionPopover extends StatelessWidget {
             : ViewMoreActionType.favorite,
       );
 
-      actionTypes.addAll([
-        ViewMoreActionType.divider,
-        ViewMoreActionType.rename,
-      ]);
+      if (accessLevel >= ShareAccessLevel.readAndWrite) {
+        actionTypes.addAll([
+          ViewMoreActionType.divider,
+          ViewMoreActionType.rename,
+        ]);
+      }
 
       // Chat doesn't change icon and duplicate
-      if (view.layout != ViewLayoutPB.Chat) {
+      if (view.layout != ViewLayoutPB.Chat &&
+          accessLevel >= ShareAccessLevel.fullAccess) {
         actionTypes.addAll([
           ViewMoreActionType.changeIcon,
           ViewMoreActionType.duplicate,
         ]);
       }
 
-      actionTypes.addAll([
-        ViewMoreActionType.moveTo,
-        ViewMoreActionType.delete,
-        ViewMoreActionType.divider,
-      ]);
+      if (accessLevel >= ShareAccessLevel.fullAccess) {
+        actionTypes.addAll([
+          ViewMoreActionType.moveTo,
+          ViewMoreActionType.delete,
+          ViewMoreActionType.divider,
+        ]);
+      }
 
       // Chat doesn't change collapse
       // Only show collapse all pages if the view has child views
