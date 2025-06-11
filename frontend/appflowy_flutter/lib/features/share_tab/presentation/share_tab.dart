@@ -101,7 +101,7 @@ class _ShareTabState extends State<ShareTab> {
             VSpace(theme.spacing.l),
             ShareWithUserWidget(
               controller: controller,
-              disabled: !isFullAccess || !widget.isInProPlan,
+              disabled: !isFullAccess,
               tooltip: tooltip,
               onInvite: (emails) => _onSharePageWithUser(
                 context,

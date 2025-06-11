@@ -104,10 +104,6 @@ class SharedUserWidget extends StatelessWidget {
   }
 
   Widget _buildTrailing(BuildContext context, bool isHovering, bool disabled) {
-    if (!isHovering) {
-      return const SizedBox.shrink();
-    }
-
     final isCurrentUser = user.email == currentUser.email;
     final theme = AppFlowyTheme.of(context);
     final currentAccessLevel = currentUser.accessLevel;
@@ -140,9 +136,10 @@ class SharedUserWidget extends StatelessWidget {
         currentAccessLevel == ShareAccessLevel.fullAccess) {
       return Row(
         children: [
-          TurnIntoMemberWidget(
-            onTap: () => callbacks?.onTurnIntoMember.call(),
-          ),
+          if (isHovering)
+            TurnIntoMemberWidget(
+              onTap: () => callbacks?.onTurnIntoMember.call(),
+            ),
           editAccessWidget([
             ShareAccessLevel.readOnly,
             ShareAccessLevel.readAndWrite,
