@@ -81,8 +81,15 @@ class PageAccessLevelBloc
       return;
     }
 
+    final userProfileResult = await repository.getCurrentUserProfile();
+    final email = userProfileResult.fold(
+          (userProfile) => userProfile.email,
+          (_) => null,
+        ) ??
+        '';
+
     final result = await repository.getView(view.id);
-    final accessLevel = await repository.getAccessLevel(view.id);
+    final accessLevel = await repository.getAccessLevel(view.id, email);
     final latestView = result.fold(
       (view) => view,
       (_) => view,
@@ -98,6 +105,7 @@ class PageAccessLevelBloc
         ),
         sectionType: sectionType,
         isInitializing: false,
+        email: email,
       ),
     );
   }

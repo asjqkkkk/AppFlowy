@@ -21,6 +21,7 @@ abstract class PageAccessLevelRepository {
   /// Gets the access level of the current user.
   Future<FlowyResult<ShareAccessLevel, FlowyError>> getAccessLevel(
     String pageId,
+    String email,
   );
 
   /// Gets the section type of the shared section.
@@ -30,4 +31,7 @@ abstract class PageAccessLevelRepository {
 
   /// Get current workspace
   Future<FlowyResult<UserWorkspacePB, FlowyError>> getCurrentWorkspace();
+
+  /// Get current user profile.
+  Future<FlowyResult<UserProfilePB, FlowyError>> getCurrentUserProfile();
 }

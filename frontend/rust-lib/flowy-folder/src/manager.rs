@@ -2736,7 +2736,11 @@ impl FolderManager {
   /// 4. Owner and members in public page have full access
   /// 5. Check the shared users list
   #[tracing::instrument(level = "debug", skip(self), err)]
-  pub async fn get_access_level(&self, page_id: &str) -> FlowyResult<AFAccessLevelPB> {
+  pub async fn get_access_level(
+    &self,
+    page_id: &str,
+    user_email: &str,
+  ) -> FlowyResult<AFAccessLevelPB> {
     // Get current user workspace to check user info
     let workspace = self.user.get_active_user_workspace()?;
     let user_id = self.user.user_id()?;
@@ -2771,8 +2775,7 @@ impl FolderManager {
     {
       Ok(shared_details) => {
         for shared_user in shared_details.shared_with {
-          // todo: use user id instead when backend return uid
-          if shared_user.email == *"" {
+          if shared_user.email == user_email {
             return Ok(shared_user.access_level.into());
           }
         }

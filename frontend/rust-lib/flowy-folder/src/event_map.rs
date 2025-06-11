@@ -248,6 +248,6 @@ pub enum FolderEvent {
   #[event(input = "ViewIdPB", output = "GetSharedViewSectionResponsePB")]
   GetSharedViewSection = 60,
 
-  #[event(input = "ViewIdPB", output = "GetAccessLevelResponsePB")]
+  #[event(input = "GetAccessLevelPayloadPB", output = "GetAccessLevelResponsePB")]
   GetAccessLevel = 61,
 }

@@ -604,11 +604,13 @@ pub(crate) async fn get_shared_view_section_handler(
 
 #[tracing::instrument(level = "debug", skip(data, folder))]
 pub(crate) async fn get_access_level_handler(
-  data: AFPluginData<ViewIdPB>,
+  data: AFPluginData<GetAccessLevelPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<GetAccessLevelResponsePB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let view_id = data.into_inner().value;
-  let access_level = folder.get_access_level(&view_id).await?;
+  let payload = data.into_inner();
+  let access_level = folder
+    .get_access_level(&payload.view_id, &payload.user_email)
+    .await?;
   data_result_ok(GetAccessLevelResponsePB { access_level })
 }
