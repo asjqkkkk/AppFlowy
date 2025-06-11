@@ -239,6 +239,17 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             }
           },
           open: (space, afterOpen) async {
+            // check if the user has space permission
+            final result = await ViewBackendService.getView(space.id);
+            final hasPermission = result.fold(
+              (view) => true,
+              (error) => false,
+            );
+
+            if (!hasPermission) {
+              return;
+            }
+
             await _openSpace(space);
             final isExpanded = await _getSpaceExpandStatus(space);
             final views = await ViewBackendService.getChildViews(

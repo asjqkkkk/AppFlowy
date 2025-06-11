@@ -59,7 +59,7 @@ class SidebarSpace extends StatelessWidget {
                 }
 
                 return Padding(
-                  padding: const EdgeInsets.only(bottom: 16.0),
+                  padding: const EdgeInsets.only(bottom: 14.0),
                   child: FavoriteFolder(
                     views: state.views.map((e) => e.item).toList(),
                   ),
