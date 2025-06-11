@@ -1453,7 +1453,7 @@ impl FolderManager {
   pub async fn toggle_favorites(&self, view_id: &str) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(view_id, AFAccessLevelPB::FullAccess)
+      .check_guest_permission(view_id, AFAccessLevelPB::ReadOnly)
       .await?;
 
     if let Some(lock) = self.mutex_folder.load_full() {
