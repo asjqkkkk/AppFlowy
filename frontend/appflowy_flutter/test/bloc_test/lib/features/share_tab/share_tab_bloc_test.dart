@@ -122,7 +122,7 @@ void main() {
           ),
         )
         ..add(
-          ShareTabEvent.convertToMember(
+          ShareTabEvent.turnIntoMember(
             email: guestEmail,
           ),
         ),

@@ -3,6 +3,18 @@ import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 
+class TurnIntoMemberResult {
+  TurnIntoMemberResult({
+    required this.email,
+    required this.name,
+    required this.result,
+  });
+
+  final String email;
+  final String name;
+  final FlowyResult<void, FlowyError> result;
+}
+
 class ShareTabState {
   factory ShareTabState.initial() => const ShareTabState();
 
@@ -37,7 +49,7 @@ class ShareTabState {
   final FlowyResult<void, FlowyError>? shareResult;
   final FlowyResult<bool, FlowyError>? removeResult;
   final FlowyResult<void, FlowyError>? updateAccessLevelResult;
-  final FlowyResult<void, FlowyError>? turnIntoMemberResult;
+  final TurnIntoMemberResult? turnIntoMemberResult;
   final bool hasClickedUpgradeToPro;
 
   ShareTabState copyWith({
@@ -54,7 +66,7 @@ class ShareTabState {
     FlowyResult<void, FlowyError>? shareResult,
     FlowyResult<bool, FlowyError>? removeResult,
     FlowyResult<void, FlowyError>? updateAccessLevelResult,
-    FlowyResult<void, FlowyError>? turnIntoMemberResult,
+    TurnIntoMemberResult? turnIntoMemberResult,
     bool? hasClickedUpgradeToPro,
   }) {
     return ShareTabState(

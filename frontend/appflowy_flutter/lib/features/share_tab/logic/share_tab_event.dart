@@ -44,10 +44,11 @@ sealed class ShareTabEvent {
   }) =>
       ShareTabEventSearchAvailableUsers(query: query);
 
-  factory ShareTabEvent.convertToMember({
+  factory ShareTabEvent.turnIntoMember({
     required String email,
+    required String name,
   }) =>
-      ShareTabEventConvertToMember(email: email);
+      ShareTabEventTurnIntoMember(email: email, name: name);
 
   factory ShareTabEvent.clearState() => const ShareTabEventClearState();
 
@@ -129,12 +130,14 @@ class ShareTabEventSearchAvailableUsers extends ShareTabEvent {
 }
 
 /// Converts a user into a member.
-class ShareTabEventConvertToMember extends ShareTabEvent {
-  const ShareTabEventConvertToMember({
+class ShareTabEventTurnIntoMember extends ShareTabEvent {
+  const ShareTabEventTurnIntoMember({
     required this.email,
+    required this.name,
   });
 
   final String email;
+  final String name;
 }
 
 class ShareTabEventClearState extends ShareTabEvent {
