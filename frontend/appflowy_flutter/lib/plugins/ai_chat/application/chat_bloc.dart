@@ -186,19 +186,21 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
 
   void _handlePreviousMessages(List<Message> messages, bool hasMore) {
     for (final message in messages) {
-      chatController.insert(message, index: 0);
+      _handleReceiveMessage(message, index: 0);
     }
 
     isLoadingPreviousMessages = false;
     hasMorePreviousMessages = hasMore;
   }
 
-  // Message handling
-  void _handleReceiveMessage(Message message) {
-    final oldMessage =
-        chatController.messages.firstWhereOrNull((m) => m.id == message.id);
+  /// Insert the message at the given index. If the index is not provided,
+  /// the message will be inserted at the end of the list.
+  void _handleReceiveMessage(Message message, {int? index}) {
+    final oldMessage = chatController.messages.firstWhereOrNull(
+      (m) => m.id == message.id,
+    );
     if (oldMessage == null) {
-      chatController.insert(message);
+      chatController.insert(message, index: index);
     } else {
       chatController.update(oldMessage, message);
     }
