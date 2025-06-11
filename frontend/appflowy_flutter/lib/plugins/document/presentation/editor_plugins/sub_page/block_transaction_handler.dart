@@ -7,6 +7,7 @@ import 'package:appflowy/plugins/trash/application/trash_service.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -169,9 +170,10 @@ class SubPageBlockTransactionHandler extends BlockTransactionHandler {
         },
         (error) async {
           Log.error(error);
-          showSnapBar(
-            context,
-            LocaleKeys.document_plugins_subPage_errors_failedCreatePage.tr(),
+          showToastNotification(
+            message: LocaleKeys.document_plugins_subPage_errors_failedCreatePage
+                .tr(),
+            type: ToastificationType.error,
           );
 
           // Remove the node because it failed

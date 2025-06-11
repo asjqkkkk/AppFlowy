@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import 'package:appflowy/plugins/database/application/field/field_controller.dart';
 import 'package:appflowy/plugins/database/application/row/row_service.dart';
 import 'package:appflowy/plugins/database/domain/field_service.dart';

@@ -1,17 +1,17 @@
-import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
-import 'package:flutter/widgets.dart';
-
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/sub_page/sub_page_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/transaction_handler/block_transaction_handler.dart';
 import 'package:appflowy/plugins/trash/application/trash_service.dart';
+import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/style_widget/snap_bar.dart';
+import 'package:flutter/widgets.dart';
 
 class SubPageTransactionHandler extends BlockTransactionHandler {
   SubPageTransactionHandler() : super(type: SubPageBlockKeys.type);
@@ -121,9 +121,10 @@ class SubPageTransactionHandler extends BlockTransactionHandler {
         },
         (error) async {
           Log.error(error);
-          showSnapBar(
-            context,
-            LocaleKeys.document_plugins_subPage_errors_failedCreatePage.tr(),
+          showToastNotification(
+            message: LocaleKeys.document_plugins_subPage_errors_failedCreatePage
+                .tr(),
+            type: ToastificationType.error,
           );
 
           // Remove the node because it failed
