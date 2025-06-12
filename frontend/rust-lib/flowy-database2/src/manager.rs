@@ -17,7 +17,6 @@ use collab_database::views::DatabaseLayout;
 use collab_database::workspace_database::{
   CollabPersistenceImpl, DatabaseCollabPersistenceService, DatabaseCollabService,
   DatabaseDataVariant, DatabaseMeta, DatabaseRowDataVariant, EncodeCollabByOid,
-  WorkspaceDatabaseManager,
 };
 use collab_entity::{CollabType, EncodedCollab};
 use collab_plugins::CollabKVDB;
@@ -45,6 +44,7 @@ use crate::services::database::DatabaseEditor;
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
+use crate::workspace_database_manager::WorkspaceDatabaseManager;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use tokio::sync::RwLock as TokioRwLock;
 use uuid::Uuid;
@@ -270,12 +270,10 @@ impl DatabaseManager {
     self.get_or_init_database_editor(&database_id).await
   }
 
-  #[instrument(level = "trace", skip_all, err)]
   pub async fn get_or_init_database_editor(
     &self,
     database_id: &str,
   ) -> FlowyResult<Arc<DatabaseEditor>> {
-    let workspace_database = self.workspace_database()?;
     {
       let mut editors = self.database_editors.lock().await;
       if let Some(editor_entry) = editors.get_mut(database_id) {
@@ -285,6 +283,7 @@ impl DatabaseManager {
     }
 
     trace!("[Database]: Creating new database editor: {}", database_id);
+    let workspace_database = self.workspace_database()?;
     // When the user opens the database from the left-side bar, it may fail because the workspace database
     // hasn't finished syncing yet. In such cases, get_or_create_database will return None.
     // The workaround is to add a retry mechanism to attempt fetching the database again.
@@ -334,6 +333,10 @@ impl DatabaseManager {
         editor_entry.editor.close_database().await;
         let num_views = editor_entry.editor.num_of_opening_views().await;
         if num_views == 0 {
+          trace!(
+            "[Database]: mark database editor for removal: {}",
+            database_id
+          );
           editor_entry.mark_for_removal();
         }
       }
@@ -708,51 +711,21 @@ impl DatabaseManager {
 
           // Remove expired entries and close databases
           for database_id in to_remove {
-            if let Some(entry) = editors.remove(&database_id) {
-              if entry.is_pending_removal() {
-                trace!(
-                  "[Database]: Periodic cleanup removing database: {}",
-                  database_id
-                );
+            if editors.remove(&database_id).is_some() {
+              trace!(
+                "[Database]: Periodic cleanup removing database: {}",
+                database_id
+              );
 
-                // Close the database in the workspace
-                if let Some(workspace_manager) = weak_workspace_database.upgrade() {
-                  if let Some(workspace) = workspace_manager.load_full() {
-                    let wdb = workspace.write().await;
-                    wdb.close_database(&database_id);
-                  }
+              // Close the database in the workspace
+              if let Some(workspace_manager) = weak_workspace_database.upgrade() {
+                if let Some(workspace) = workspace_manager.load_full() {
+                  let wdb = workspace.write().await;
+                  trace!("[Database]: Closing database: {}", database_id);
+                  wdb.close_database(&database_id);
                 }
-              } else {
-                editors.insert(database_id, entry);
               }
             }
-          }
-
-          // Also remove entries that have been pending for too long (safety cleanup)
-          let max_age = Duration::from_secs(600); // 10 minutes absolute max
-          let initial_count = editors.len();
-          editors.retain(|database_id, entry| {
-            if let Some(removal_time) = entry.removal_time() {
-              let should_retain = now.duration_since(removal_time) < max_age;
-              if !should_retain {
-                trace!(
-                  "[Database]: Safety cleanup removing old entry: {}",
-                  database_id
-                );
-              }
-              should_retain
-            } else {
-              // Keep active entries
-              true
-            }
-          });
-
-          let removed_count = initial_count - editors.len();
-          if removed_count > 0 {
-            trace!(
-              "[Database]: Periodic cleanup removed {} entries",
-              removed_count
-            );
           }
         } else {
           break;
@@ -909,24 +882,6 @@ impl WorkspaceDatabaseCollabServiceImpl {
           object_id,
           encoded_collab.doc_state.len()
         );
-
-        // TODO(nathan): cover database rows and other database collab type
-        if matches!(collab_type, CollabType::Database) {
-          if let Ok(workspace_id) = self.user.workspace_id() {
-            let cloned_encoded_collab = encoded_collab.clone();
-            let cloud_service = self.cloud_service.clone();
-            tokio::spawn(async move {
-              let _ = cloud_service
-                .create_database_encode_collab(
-                  &object_id,
-                  collab_type,
-                  &workspace_id,
-                  cloned_encoded_collab,
-                )
-                .await;
-            });
-          }
-        }
         Ok(encoded_collab.into())
       },
     }

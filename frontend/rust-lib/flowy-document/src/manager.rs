@@ -540,16 +540,10 @@ impl DocumentManager {
           // Remove expired entries
           for doc_id in to_remove {
             if let Some((_, entry)) = documents.remove(&doc_id) {
-              if entry.is_pending_removal() {
-                trace!("[Document]: Periodic cleanup removing document: {}", doc_id);
-                // Clean awareness state when removing
-                if let Some(document) = entry.get_document() {
-                  let mut lock = document.write().await;
-                  lock.clean_awareness_local_state();
-                }
-              } else {
-                // Entry was reactivated, put it back
-                documents.insert(doc_id, entry);
+              trace!("[Document]: Periodic cleanup removing document: {}", doc_id);
+              if let Some(document) = entry.get_document() {
+                let mut lock = document.write().await;
+                lock.clean_awareness_local_state();
               }
             }
           }

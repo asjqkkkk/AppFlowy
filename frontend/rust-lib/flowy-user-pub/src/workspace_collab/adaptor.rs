@@ -214,23 +214,6 @@ impl WorkspaceCollabAdaptor {
       .await
   }
 
-  #[allow(clippy::too_many_arguments)]
-  #[instrument(level = "trace", skip_all)]
-  pub async fn create_workspace_database_manager(
-    &self,
-    workspace_id: Uuid,
-    object_id: Uuid,
-    collab: Collab,
-    collab_service: impl DatabaseCollabService,
-  ) -> Result<Arc<RwLock<WorkspaceDatabaseManager>>, Error> {
-    let collab_type = CollabType::WorkspaceDatabase;
-    let workspace = WorkspaceDatabaseManager::open(&object_id.to_string(), collab, collab_service)?;
-    let workspace = Arc::new(RwLock::new(workspace));
-    self
-      .finalize_arc_collab(workspace_id, object_id, collab_type, workspace)
-      .await
-  }
-
   pub async fn build_collab_with_source(
     &self,
     object_id: Uuid,
