@@ -552,7 +552,7 @@ pub(crate) async fn get_shared_users_handler(
   let folder = upgrade_folder(folder)?;
   let params = data.into_inner();
   let view_id = Uuid::from_str(&params.view_id)?;
-  let shared_users = folder.get_shared_page_details(&view_id).await?;
+  let shared_users = folder.get_shared_page_details(&view_id, true).await?;
   data_result_ok(shared_users.into())
 }
 
@@ -604,11 +604,13 @@ pub(crate) async fn get_shared_view_section_handler(
 
 #[tracing::instrument(level = "debug", skip(data, folder))]
 pub(crate) async fn get_access_level_handler(
-  data: AFPluginData<ViewIdPB>,
+  data: AFPluginData<GetAccessLevelPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<GetAccessLevelResponsePB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let view_id = data.into_inner().value;
-  let access_level = folder.get_access_level(&view_id).await?;
+  let payload = data.into_inner();
+  let access_level = folder
+    .get_access_level(&payload.view_id, &payload.user_email)
+    .await?;
   data_result_ok(GetAccessLevelResponsePB { access_level })
 }

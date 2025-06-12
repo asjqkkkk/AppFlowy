@@ -122,8 +122,9 @@ void main() {
           ),
         )
         ..add(
-          ShareTabEvent.convertToMember(
+          ShareTabEvent.turnIntoMember(
             email: guestEmail,
+            name: 'Guest',
           ),
         ),
       wait: const Duration(milliseconds: 100),

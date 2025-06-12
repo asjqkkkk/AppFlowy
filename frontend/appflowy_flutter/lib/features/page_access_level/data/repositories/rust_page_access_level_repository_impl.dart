@@ -55,12 +55,15 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
     );
   }
 
-
   @override
   Future<FlowyResult<ShareAccessLevel, FlowyError>> getAccessLevel(
     String pageId,
+    String email,
   ) async {
-    final request = ViewIdPB(value: pageId);
+    final request = GetAccessLevelPayloadPB(
+      viewId: pageId,
+      userEmail: email,
+    );
     final result = await FolderEventGetAccessLevel(request).send();
     return result.fold(
       (success) {
@@ -115,5 +118,11 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
       currentWorkspaceId,
     );
     return workspaceResult;
+  }
+
+  @override
+  Future<FlowyResult<UserProfilePB, FlowyError>> getCurrentUserProfile() async {
+    final result = await UserEventGetUserProfile().send();
+    return result;
   }
 }

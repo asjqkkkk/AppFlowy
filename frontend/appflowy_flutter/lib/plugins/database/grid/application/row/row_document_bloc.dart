@@ -1,5 +1,3 @@
-import 'package:flutter/foundation.dart';
-
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/log.dart';

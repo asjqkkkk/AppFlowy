@@ -21,6 +21,7 @@ class PageAccessLevelState {
     required this.isInitializing,
     this.myRole,
     this.isLoadingLockStatus = true,
+    this.email = '',
   });
 
   final ViewPB view;
@@ -31,6 +32,7 @@ class PageAccessLevelState {
   final SharedSectionType sectionType;
   final ShareRole? myRole;
   final bool isInitializing;
+  final String email;
 
   bool get isPublic => sectionType == SharedSectionType.public;
   bool get isPrivate => sectionType == SharedSectionType.private;
@@ -56,6 +58,7 @@ class PageAccessLevelState {
     SharedSectionType? sectionType,
     ShareRole? myRole,
     bool? isInitializing,
+    String? email,
   }) {
     return PageAccessLevelState(
       view: view ?? this.view,
@@ -66,6 +69,7 @@ class PageAccessLevelState {
       sectionType: sectionType ?? this.sectionType,
       myRole: myRole ?? this.myRole,
       isInitializing: isInitializing ?? this.isInitializing,
+      email: email ?? this.email,
     );
   }
 
@@ -80,7 +84,8 @@ class PageAccessLevelState {
         other.accessLevel == accessLevel &&
         other.sectionType == sectionType &&
         other.myRole == myRole &&
-        other.isInitializing == isInitializing;
+        other.isInitializing == isInitializing &&
+        other.email == email;
   }
 
   @override
@@ -93,6 +98,7 @@ class PageAccessLevelState {
       accessLevel,
       sectionType,
       myRole,
+      email,
     );
   }
 

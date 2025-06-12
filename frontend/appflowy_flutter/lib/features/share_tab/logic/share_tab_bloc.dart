@@ -29,7 +29,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     on<ShareTabEventUpdateGeneralAccessLevel>(_onUpdateGeneralAccess);
     on<ShareTabEventCopyShareLink>(_onCopyLink);
     on<ShareTabEventSearchAvailableUsers>(_onSearchAvailableUsers);
-    on<ShareTabEventConvertToMember>(_onTurnIntoMember);
+    on<ShareTabEventTurnIntoMember>(_onTurnIntoMember);
     on<ShareTabEventClearState>(_onClearState);
     on<ShareTabEventUpdateSharedUsers>(_onUpdateSharedUsers);
     on<ShareTabEventUpgradeToProClicked>(_onUpgradeToProClicked);
@@ -312,7 +312,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
   }
 
   Future<void> _onTurnIntoMember(
-    ShareTabEventConvertToMember event,
+    ShareTabEventTurnIntoMember event,
     Emitter<ShareTabState> emit,
   ) async {
     emit(
@@ -332,7 +332,11 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         final users = await _getSharedUsers();
         emit(
           state.copyWith(
-            turnIntoMemberResult: FlowySuccess(null),
+            turnIntoMemberResult: TurnIntoMemberResult(
+              email: event.email,
+              name: event.name,
+              result: FlowySuccess(null),
+            ),
             users: users,
           ),
         );
@@ -341,7 +345,11 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         emit(
           state.copyWith(
             errorMessage: error.msg,
-            turnIntoMemberResult: FlowyFailure(error),
+            turnIntoMemberResult: TurnIntoMemberResult(
+              email: event.email,
+              name: event.name,
+              result: FlowyFailure(error),
+            ),
           ),
         );
       },

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:appflowy/core/notification/folder_notification.dart';
 import 'package:appflowy/features/page_access_level/data/repositories/page_access_level_repository.dart';
 import 'package:appflowy/features/page_access_level/data/repositories/rust_page_access_level_repository_impl.dart';
 import 'package:appflowy/features/page_access_level/logic/page_access_level_event.dart';
@@ -7,7 +8,7 @@ import 'package:appflowy/features/page_access_level/logic/page_access_level_stat
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/workspace/application/view/view_listener.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:bloc/bloc.dart';
 import 'package:protobuf/protobuf.dart';
 
@@ -21,13 +22,14 @@ class PageAccessLevelBloc
     this.ignorePageAccessLevel = false,
     PageAccessLevelRepository? repository,
   })  : repository = repository ?? RustPageAccessLevelRepositoryImpl(),
-        listener = ViewListener(viewId: view.id),
+        _viewListener = ViewListener(viewId: view.id),
         super(PageAccessLevelState.initial(view)) {
     on<PageAccessLevelInitialEvent>(_onInitial);
     on<PageAccessLevelLockEvent>(_onLock);
     on<PageAccessLevelUnlockEvent>(_onUnlock);
     on<PageAccessLevelUpdateLockStatusEvent>(_onUpdateLockStatus);
     on<PageAccessLevelUpdateSectionTypeEvent>(_onUpdateSectionType);
+    on<PageAccessLevelRefreshAccessLevelEvent>(_onRefreshAccessLevel);
   }
 
   final ViewPB view;
@@ -37,7 +39,10 @@ class PageAccessLevelBloc
   final PageAccessLevelRepository repository;
 
   // Used to listen for view updates.
-  late final ViewListener listener;
+  late final ViewListener _viewListener;
+
+  // Used to listen for folder notification.
+  late final FolderNotificationListener _folderNotificationListener;
 
   // should ignore the page access level
   // in the row details page, we don't need to check the page access level
@@ -45,7 +50,8 @@ class PageAccessLevelBloc
 
   @override
   Future<void> close() async {
-    await listener.stop();
+    await _viewListener.stop();
+    await _folderNotificationListener.stop();
     return super.close();
   }
 
@@ -53,12 +59,7 @@ class PageAccessLevelBloc
     PageAccessLevelInitialEvent event,
     Emitter<PageAccessLevelState> emit,
   ) async {
-    // lock status
-    listener.start(
-      onViewUpdated: (view) async {
-        add(PageAccessLevelEvent.updateLockStatus(view.isLocked));
-      },
-    );
+    _initListeners();
 
     // section type
     final sectionTypeResult = await repository.getSectionType(view.id);
@@ -81,8 +82,15 @@ class PageAccessLevelBloc
       return;
     }
 
+    final userProfileResult = await repository.getCurrentUserProfile();
+    final email = userProfileResult.fold(
+          (userProfile) => userProfile.email,
+          (_) => null,
+        ) ??
+        '';
+
     final result = await repository.getView(view.id);
-    final accessLevel = await repository.getAccessLevel(view.id);
+    final accessLevel = await repository.getAccessLevel(view.id, email);
     final latestView = result.fold(
       (view) => view,
       (_) => view,
@@ -98,6 +106,7 @@ class PageAccessLevelBloc
         ),
         sectionType: sectionType,
         isInitializing: false,
+        email: email,
       ),
     );
   }
@@ -160,6 +169,51 @@ class PageAccessLevelBloc
       state.copyWith(
         sectionType: event.sectionType,
       ),
+    );
+  }
+
+  Future<void> _onRefreshAccessLevel(
+    PageAccessLevelRefreshAccessLevelEvent event,
+    Emitter<PageAccessLevelState> emit,
+  ) async {
+    final sectionTypeResult = await repository.getSectionType(view.id);
+    final sectionType = sectionTypeResult.fold(
+      (sectionType) => sectionType,
+      (_) => SharedSectionType.public,
+    );
+    final accessLevel = await repository.getAccessLevel(view.id, state.email);
+    emit(
+      state.copyWith(
+        accessLevel: accessLevel.fold(
+          (accessLevel) => accessLevel,
+          (_) => ShareAccessLevel.readOnly,
+        ),
+        sectionType: sectionType,
+      ),
+    );
+  }
+
+  void _initListeners() {
+    // lock status
+    _viewListener.start(
+      onViewUpdated: (view) async {
+        add(PageAccessLevelEvent.updateLockStatus(view.isLocked));
+      },
+    );
+
+    _folderNotificationListener = FolderNotificationListener(
+      objectId: view.id,
+      handler: (notification, result) {
+        if (notification == FolderNotification.DidUpdateSharedUsers) {
+          result.fold(
+            (payload) {
+              // refresh the access level
+              add(PageAccessLevelEvent.refreshAccessLevel());
+            },
+            (error) => null,
+          );
+        }
+      },
     );
   }
 }

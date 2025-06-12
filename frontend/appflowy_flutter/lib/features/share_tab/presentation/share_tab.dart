@@ -178,7 +178,10 @@ class _ShareTabState extends State<ShareTab> {
       },
       onTurnIntoMember: (user) {
         context.read<ShareTabBloc>().add(
-              ShareTabEvent.convertToMember(email: user.email),
+              ShareTabEvent.turnIntoMember(
+                email: user.email,
+                name: user.name,
+              ),
             );
       },
       onRemoveAccess: (user) {
@@ -190,13 +193,13 @@ class _ShareTabState extends State<ShareTab> {
         if (removingSelf) {
           showConfirmDialog(
             context: context,
-            title: 'Remove your own access',
+            title: LocaleKeys.shareTab_removeYourOwnAccess.tr(),
             titleStyle: theme.textStyle.body.standard(
               color: theme.textColorScheme.primary,
             ),
             description: '',
             style: ConfirmPopupStyle.cancelAndOk,
-            confirmLabel: 'Remove',
+            confirmLabel: LocaleKeys.button_remove.tr(),
             onConfirm: (_) {
               shareTabBloc.add(
                 ShareTabEvent.removeUsers(emails: [user.email]),
@@ -216,6 +219,8 @@ class _ShareTabState extends State<ShareTab> {
     BuildContext context,
     ShareTabState state,
   ) {
+    final theme = AppFlowyTheme.of(context);
+
     final shareResult = state.shareResult;
     if (shareResult != null) {
       shareResult.fold((success) {
@@ -247,20 +252,6 @@ class _ShareTabState extends State<ShareTab> {
       });
     }
 
-    // final removeResult = state.removeResult;
-    // if (removeResult != null) {
-    //   removeResult.fold((success) {
-    //     showToastNotification(
-    //       message: LocaleKeys.shareTab_removedGuestSuccessfully.tr(),
-    //     );
-    //   }, (error) {
-    //     showToastNotification(
-    //       message: error.msg,
-    //       type: ToastificationType.error,
-    //     );
-    //   });
-    // }
-
     final updateAccessLevelResult = state.updateAccessLevelResult;
     if (updateAccessLevelResult != null) {
       updateAccessLevelResult.fold((success) {
@@ -277,15 +268,37 @@ class _ShareTabState extends State<ShareTab> {
 
     final turnIntoMemberResult = state.turnIntoMemberResult;
     if (turnIntoMemberResult != null) {
-      turnIntoMemberResult.fold((success) {
+      final result = turnIntoMemberResult.result;
+      result.fold((success) {
         showToastNotification(
           message: LocaleKeys.shareTab_turnedIntoMemberSuccessfully.tr(),
         );
       }, (error) {
-        showToastNotification(
-          message: error.msg,
-          type: ToastificationType.error,
-        );
+        final name = turnIntoMemberResult.name;
+
+        if (error.code == ErrorCode.NotEnoughPermissions) {
+          // ask the owner to upgrade the user
+          showConfirmDialog(
+            context: context,
+            title: 'Send the request to workspace owner',
+            description:
+                'Only the workspace owner can do this. Send them a request to upgrade $name to a member.',
+            style: ConfirmPopupStyle.cancelAndOk,
+            confirmLabel: 'Send',
+            confirmButtonColor: theme.fillColorScheme.themeThick,
+            onConfirm: (_) {
+              // todo: implement it when backend support email notification
+              showToastNotification(
+                message: 'Request sent to the workspace owner',
+              );
+            },
+          );
+        } else {
+          showToastNotification(
+            message: error.msg,
+            type: ToastificationType.error,
+          );
+        }
       });
     }
   }

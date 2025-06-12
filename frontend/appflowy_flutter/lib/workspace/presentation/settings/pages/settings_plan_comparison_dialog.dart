@@ -706,7 +706,7 @@ final List<_CellItem> _freeLabels = [
     icon: FlowySvgs.check_m,
   ),
   _CellItem(
-    label: LocaleKeys.settings_comparePlanDialog_freeLabels_itemFive.tr(),
+    label: '',
   ),
   _CellItem(
     label:

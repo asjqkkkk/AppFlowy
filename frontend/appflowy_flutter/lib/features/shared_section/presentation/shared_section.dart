@@ -52,6 +52,11 @@ class SharedSection extends StatelessWidget {
           if (view != null) {
             getIt<TabsBloc>().openPlugin(view);
           }
+
+          // When shared views change, refresh favorites to ensure consistency
+          context
+              .read<FavoriteBloc>()
+              .add(const FavoriteEvent.fetchFavorites());
         },
         builder: (context, state) {
           if (state.isLoading) {

@@ -974,6 +974,15 @@ pub struct GetSharedViewSectionResponsePB {
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetAccessLevelPayloadPB {
+  #[pb(index = 1)]
+  pub view_id: String,
+
+  #[pb(index = 2)]
+  pub user_email: String,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
 pub struct GetAccessLevelResponsePB {
   #[pb(index = 1)]
   pub access_level: AFAccessLevelPB,

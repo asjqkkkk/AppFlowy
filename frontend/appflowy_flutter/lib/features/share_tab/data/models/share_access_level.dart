@@ -3,7 +3,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:easy_localization/easy_localization.dart';
 
 /// The access level a user can have on a shared page.
-enum ShareAccessLevel {
+enum ShareAccessLevel implements Comparable<ShareAccessLevel> {
   /// Can view the page only.
   readOnly,
 
@@ -15,6 +15,19 @@ enum ShareAccessLevel {
 
   /// Full access (edit, share, remove, etc.) and can add new users.
   fullAccess;
+
+  @override
+  int compareTo(ShareAccessLevel other) {
+    return index.compareTo(other.index);
+  }
+
+  bool operator <(ShareAccessLevel other) => compareTo(other) < 0;
+
+  bool operator <=(ShareAccessLevel other) => compareTo(other) <= 0;
+
+  bool operator >(ShareAccessLevel other) => compareTo(other) > 0;
+
+  bool operator >=(ShareAccessLevel other) => compareTo(other) >= 0;
 
   String get title {
     switch (this) {

@@ -21,7 +21,7 @@ import 'package:universal_platform/universal_platform.dart';
 
 import 'setting_appflowy_cloud.dart';
 
-class SettingCloud extends StatelessWidget {
+class SettingCloud extends StatefulWidget {
   const SettingCloud({
     super.key,
     required this.restartAppFlowy,
@@ -30,9 +30,23 @@ class SettingCloud extends StatelessWidget {
   final VoidCallback restartAppFlowy;
 
   @override
+  State<SettingCloud> createState() => _SettingCloudState();
+}
+
+class _SettingCloudState extends State<SettingCloud> {
+  late Future<AuthenticatorType> authenticatorType;
+
+  @override
+  void initState() {
+    super.initState();
+
+    authenticatorType = getAuthenticatorType();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return FutureBuilder(
-      future: getAuthenticatorType(),
+      future: authenticatorType,
       builder:
           (BuildContext context, AsyncSnapshot<AuthenticatorType> snapshot) {
         if (snapshot.hasData) {
@@ -63,16 +77,18 @@ class SettingCloud extends StatelessWidget {
   Widget _viewFromCloudType(AuthenticatorType cloudType) {
     switch (cloudType) {
       case AuthenticatorType.local:
-        return SettingLocalCloud(restartAppFlowy: restartAppFlowy);
+        return SettingLocalCloud(restartAppFlowy: widget.restartAppFlowy);
       case AuthenticatorType.appflowyCloud:
-        return AppFlowyCloudViewSetting(restartAppFlowy: restartAppFlowy);
+        return AppFlowyCloudViewSetting(
+          restartAppFlowy: widget.restartAppFlowy,
+        );
       case AuthenticatorType.appflowyCloudSelfHost:
-        return CustomAppFlowyCloudView(restartAppFlowy: restartAppFlowy);
+        return CustomAppFlowyCloudView(restartAppFlowy: widget.restartAppFlowy);
       case AuthenticatorType.appflowyCloudDevelop:
         return AppFlowyCloudViewSetting(
           serverURL: "http://localhost",
           authenticatorType: AuthenticatorType.appflowyCloudDevelop,
-          restartAppFlowy: restartAppFlowy,
+          restartAppFlowy: widget.restartAppFlowy,
         );
     }
   }
