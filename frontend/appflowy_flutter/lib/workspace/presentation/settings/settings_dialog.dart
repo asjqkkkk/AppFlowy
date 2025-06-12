@@ -71,6 +71,14 @@ class SettingsDialog extends StatelessWidget {
         initPage: initPage,
       )..add(const SettingsDialogEvent.initial()),
       child: BlocBuilder<SettingsDialogBloc, SettingsDialogState>(
+        buildWhen: (previous, current) {
+          if (current.page == SettingsPage.cloud &&
+              previous.page == SettingsPage.cloud) {
+            return false;
+          }
+
+          return true;
+        },
         builder: (context, state) => FlowyDialog(
           width: width,
           constraints: const BoxConstraints(minWidth: 564),
@@ -146,7 +154,10 @@ class SettingsDialog extends StatelessWidget {
       case SettingsPage.notifications:
         return const SettingsNotificationsView();
       case SettingsPage.cloud:
-        return SettingCloud(restartAppFlowy: () => restartApp());
+        return SettingCloud(
+          key: ValueKey(workspace.workspaceId + user.id.toString()),
+          restartAppFlowy: () => restartApp(),
+        );
       case SettingsPage.shortcuts:
         return const SettingsShortcutsView();
       case SettingsPage.ai:
