@@ -767,7 +767,10 @@ extension CommonOperations on WidgetTester {
     );
     await enterText(workspaceNameInput, name);
 
-    await tapButtonWithName(LocaleKeys.workspace_create.tr(), pumpAndSettle: false);
+    await tapButtonWithName(
+      LocaleKeys.workspace_create.tr(),
+      pumpAndSettle: false,
+    );
     await pump(const Duration(seconds: 5));
   }
 

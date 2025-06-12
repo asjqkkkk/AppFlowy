@@ -34,8 +34,8 @@ class SettingsMenu extends StatelessWidget {
 
     final isCloudWorkspace = workspaceType == WorkspaceTypePB.ServerW;
     final isLocalAuth = userProfile.userAuthType == AuthTypePB.Local;
-    final isOwner = currentUserRole != null &&
-                currentUserRole != AFRolePB.Guest;
+    final isOwner =
+        currentUserRole != null && currentUserRole != AFRolePB.Guest;
 
     return Container(
       decoration: BoxDecoration(
@@ -68,8 +68,7 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_workspace_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (FeatureFlag.membersSettings.isOn && isCloudWorkspace &&
-                isOwner)
+            if (FeatureFlag.membersSettings.isOn && isCloudWorkspace && isOwner)
               SettingsMenuElement(
                 page: SettingsPage.member,
                 selectedPage: currentPage,

@@ -65,8 +65,11 @@ class WorkspaceBloc extends Bloc<WorkspaceEvent, WorkspaceState> {
     String desc,
     Emitter<WorkspaceState> emit,
   ) async {
-    final result =
-        await userService.createUserWorkspace(name, "", WorkspaceTypePB.ServerW);
+    final result = await userService.createUserWorkspace(
+      name,
+      "",
+      WorkspaceTypePB.ServerW,
+    );
     emit(
       result.fold(
         (workspace) {

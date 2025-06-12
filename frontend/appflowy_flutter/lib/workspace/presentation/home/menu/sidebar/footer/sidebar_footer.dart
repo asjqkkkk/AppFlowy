@@ -35,13 +35,19 @@ class SidebarFooter extends StatelessWidget {
           builder: (context, state) {
             if (state.currentWorkspace?.workspaceType ==
                 WorkspaceTypePB.LocalW) {
-              return SidebarTrashButton();
+              return SidebarTrashButton(
+                isSingle: true,
+              );
             }
             return Row(
               children: [
-                const Expanded(child: SidebarTemplateButton()),
+                Expanded(child: SidebarTemplateButton()),
                 _buildVerticalDivider(context),
-                const Expanded(child: SidebarTrashButton()),
+                const Expanded(
+                  child: SidebarTrashButton(
+                    isSingle: false,
+                  ),
+                ),
               ],
             );
           },
@@ -66,6 +72,7 @@ class SidebarTemplateButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SidebarFooterButton(
+      mainAxisAlignment: MainAxisAlignment.center,
       leftIcon: FlowySvg(
         FlowySvgs.icon_template_s,
         color: AppFlowyTheme.of(context).iconColorScheme.secondary,
@@ -78,7 +85,12 @@ class SidebarTemplateButton extends StatelessWidget {
 }
 
 class SidebarTrashButton extends StatelessWidget {
-  const SidebarTrashButton({super.key});
+  const SidebarTrashButton({
+    super.key,
+    required this.isSingle,
+  });
+
+  final bool isSingle;
 
   @override
   Widget build(BuildContext context) {
@@ -86,7 +98,9 @@ class SidebarTrashButton extends StatelessWidget {
       valueListenable: getIt<MenuSharedState>().notifier,
       builder: (context, value, child) {
         return SidebarFooterButton(
-          leftIcon:  FlowySvg(
+          mainAxisAlignment:
+              isSingle ? MainAxisAlignment.start : MainAxisAlignment.center,
+          leftIcon: FlowySvg(
             FlowySvgs.icon_delete_s,
             color: AppFlowyTheme.of(context).iconColorScheme.secondary,
             size: Size.square(18.0),

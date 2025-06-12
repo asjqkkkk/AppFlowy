@@ -16,7 +16,11 @@ sealed class UserWorkspaceEvent {
     String icon = '',
     required WorkspaceTypePB workspaceType,
   }) =>
-      WorkspaceEventCreateWorkspace(name: name, icon: icon, workspaceType: workspaceType);
+      WorkspaceEventCreateWorkspace(
+        name: name,
+        icon: icon,
+        workspaceType: workspaceType,
+      );
 
   factory UserWorkspaceEvent.deleteWorkspace({
     required String workspaceId,

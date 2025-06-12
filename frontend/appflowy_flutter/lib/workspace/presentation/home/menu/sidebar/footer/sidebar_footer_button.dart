@@ -7,11 +7,13 @@ import 'package:flutter/material.dart';
 class SidebarFooterButton extends StatelessWidget {
   const SidebarFooterButton({
     super.key,
+    required this.mainAxisAlignment,
     required this.leftIcon,
     required this.text,
     required this.onTap,
   });
 
+  final MainAxisAlignment mainAxisAlignment;
   final Widget leftIcon;
   final String text;
   final VoidCallback onTap;
@@ -27,7 +29,7 @@ class SidebarFooterButton extends StatelessWidget {
       ),
       builder: (context, isHovering, disabled) {
         return Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisAlignment: mainAxisAlignment,
           spacing: theme.spacing.m,
           children: [
             leftIcon,
