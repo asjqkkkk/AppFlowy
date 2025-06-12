@@ -1,7 +1,8 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
+import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -28,10 +29,11 @@ Future<void> showCreateWorkspaceDialog(BuildContext context) {
   final state = bloc.state;
   final userName = state.userProfile.name;
 
-  final subscriptionInfo = state.workspaceSubscriptionInfo;
-  final isProPlan = subscriptionInfo != null &&
-      subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value;
-  final allowCreateVault = isProPlan || FeatureFlag.createVaultWorkspace.isOn;
+  // final subscriptionInfo = state.workspaceSubscriptionInfo;
+  // final isProPlan = subscriptionInfo != null &&
+  //     subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value;
+  // final allowCreateVault = isProPlan || FeatureFlag.createVaultWorkspace.isOn;
+  final allowCreateVault = false;
 
   return showDialog<void>(
     context: context,
@@ -94,9 +96,9 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
         selection: TextSelection(baseOffset: 0, extentOffset: text.length),
       )
       ..addListener(() {
-        setState(() => isEmpty = textController.text.isEmpty);
+        setState(() => isEmpty = textController.text.trim().isEmpty);
       });
-    isEmpty = textController.text.isEmpty;
+    isEmpty = textController.text.trim().isEmpty;
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       focusNode.requestFocus();
@@ -205,7 +207,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
   }
 }
 
-class _IconAndDescription extends StatelessWidget {
+class _IconAndDescription extends StatefulWidget {
   const _IconAndDescription({
     required this.textController,
     required this.icon,
@@ -217,29 +219,54 @@ class _IconAndDescription extends StatelessWidget {
   final void Function(String newIcon) onChangeIcon;
 
   @override
+  State<_IconAndDescription> createState() => _IconAndDescriptionState();
+}
+
+class _IconAndDescriptionState extends State<_IconAndDescription> {
+  String name = '';
+  final debounce = Debounce(duration: const Duration(milliseconds: 500));
+
+  @override
+  void initState() {
+    super.initState();
+    widget.textController.addListener(debounceUpdate);
+    name = widget.textController.text;
+  }
+
+  @override
+  void dispose() {
+    widget.textController.removeListener(debounceUpdate);
+    debounce.dispose();
+    super.dispose();
+  }
+
+  void debounceUpdate() {
+    debounce.call(() {
+      setState(() {
+        name = widget.textController.text;
+      });
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
     return Row(
       children: [
-        ValueListenableBuilder(
-          valueListenable: textController,
-          builder: (context, value, _) {
-            return WorkspaceIcon(
-              workspaceName: value.text,
-              workspaceIcon: icon,
-              iconSize: 48,
-              fontSize: 18,
-              emojiSize: 24,
-              borderRadius: theme.borderRadius.l,
-              figmaLineHeight: 26,
-              isEditable: true,
-              onSelected: (newIcon) {
-                if (newIcon.type == FlowyIconType.emoji || newIcon.isEmpty) {
-                  onChangeIcon(newIcon.emoji);
-                }
-              },
-            );
+        WorkspaceIcon(
+          workspaceName: name,
+          workspaceIcon: widget.icon,
+          iconSize: 48,
+          fontSize: 18,
+          emojiSize: 24,
+          borderRadius: theme.borderRadius.l,
+          figmaLineHeight: 26,
+          isEditable: true,
+          onSelected: (newIcon) {
+            if (newIcon.type == FlowyIconType.emoji || newIcon.isEmpty) {
+              widget.onChangeIcon(newIcon.emoji);
+            }
           },
         ),
         HSpace(
@@ -313,11 +340,34 @@ class _WorkspaceType extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          LocaleKeys.workspace_workspaceType.tr(),
-          style: theme.textStyle.caption.enhanced(
-            color: theme.textColorScheme.secondary,
-          ),
+        Row(
+          children: [
+            Flexible(
+              child: Text(
+                LocaleKeys.workspace_workspaceType.tr(),
+                style: theme.textStyle.caption.enhanced(
+                  color: theme.textColorScheme.secondary,
+                ),
+              ),
+            ),
+            HSpace(
+              theme.spacing.xs,
+            ),
+            FlowyTooltip(
+              message: LocaleKeys.workspace_learnMore.tr(),
+              child: AFGhostButton.normal(
+                onTap: () => afLaunchUrlString(
+                  "https://appflowy.com/guide/vault-workspace",
+                ),
+                padding: EdgeInsets.zero,
+                builder: (context, isHovering, disabled) => FlowySvg(
+                  FlowySvgs.ai_explain_m,
+                  size: Size.square(20),
+                  color: theme.iconColorScheme.secondary,
+                ),
+              ),
+            ),
+          ],
         ),
         VSpace(
           theme.spacing.xs,
@@ -371,7 +421,8 @@ class _WorkspaceTypeCard extends StatelessWidget {
       verticalOffset: 30.0,
       preferBelow: false,
       message: isDisabled
-          ? LocaleKeys.workspace_createVaultWorkspaceDisabled.tr()
+          // ? LocaleKeys.workspace_createVaultWorkspaceDisabled.tr()
+          ? "Coming soon!"
           : null,
       child: GestureDetector(
         onTap: () {
@@ -389,11 +440,9 @@ class _WorkspaceTypeCard extends StatelessWidget {
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(theme.borderRadius.m),
               border: Border.all(
-                width: isSelected ? 2.0 : 1.0,
                 color: isSelected
                     ? theme.borderColorScheme.themeThick
                     : theme.borderColorScheme.primary,
-                strokeAlign: BorderSide.strokeAlignOutside,
               ),
             ),
             child: Row(

@@ -174,6 +174,11 @@ class _SpaceState extends State<_Space> {
 
   void _showCreateSpaceDialog(BuildContext context) {
     final spaceBloc = context.read<SpaceBloc>();
+    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
+    final isCloudWorkspace =
+        userWorkspaceState.currentWorkspace?.workspaceType ==
+            WorkspaceTypePB.ServerW;
+
     showDialog(
       context: context,
       builder: (_) => Dialog(
@@ -182,7 +187,9 @@ class _SpaceState extends State<_Space> {
         ),
         child: BlocProvider.value(
           value: spaceBloc,
-          child: const CreateSpacePopup(),
+          child: CreateSpacePopup(
+            allowEditPermission: isCloudWorkspace,
+          ),
         ),
       ),
     );

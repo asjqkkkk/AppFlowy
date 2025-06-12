@@ -300,7 +300,7 @@ class _SidebarSwitchWorkspaceButtonState
     return AppFlowyPopover(
       direction: PopoverDirection.bottomWithCenterAligned,
       offset: const Offset(0, 5),
-      constraints: const BoxConstraints(maxWidth: 300, maxHeight: 600),
+      constraints: const BoxConstraints(maxWidth: 340, maxHeight: 600),
       margin: EdgeInsets.zero,
       animationDuration: Durations.short3,
       beginScaleFactor: 1.0,

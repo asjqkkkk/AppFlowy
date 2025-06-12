@@ -32,6 +32,11 @@ class SettingsMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
+    final isCloudWorkspace = workspaceType == WorkspaceTypePB.ServerW;
+    final isLocalAuth = userProfile.userAuthType == AuthTypePB.Local;
+    final isOwner = currentUserRole != null &&
+                currentUserRole != AFRolePB.Guest;
+
     return Container(
       decoration: BoxDecoration(
         color: theme.surfaceContainerColorScheme.layer01,
@@ -63,10 +68,8 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_workspace_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (FeatureFlag.membersSettings.isOn &&
-                userProfile.workspaceType == WorkspaceTypePB.ServerW &&
-                currentUserRole != null &&
-                currentUserRole != AFRolePB.Guest)
+            if (FeatureFlag.membersSettings.isOn && isCloudWorkspace &&
+                isOwner)
               SettingsMenuElement(
                 page: SettingsPage.member,
                 selectedPage: currentPage,
@@ -88,7 +91,7 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_bell_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (workspaceType == WorkspaceTypePB.ServerW || userProfile.userAuthType == AuthTypePB.Local)
+            if (isCloudWorkspace || isLocalAuth)
               SettingsMenuElement(
                 page: SettingsPage.cloud,
                 selectedPage: currentPage,
@@ -112,9 +115,7 @@ class SettingsMenu extends StatelessWidget {
               ),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (userProfile.workspaceType == WorkspaceTypePB.ServerW &&
-                currentUserRole != null &&
-                currentUserRole != AFRolePB.Guest)
+            if (isCloudWorkspace && isOwner)
               SettingsMenuElement(
                 page: SettingsPage.sites,
                 selectedPage: currentPage,

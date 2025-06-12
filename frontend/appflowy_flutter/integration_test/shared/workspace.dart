@@ -31,17 +31,18 @@ extension AppFlowyWorkspace on WidgetTester {
   }
 
   Future<void> changeWorkspaceName(String name) async {
-    final moreButton = find.descendant(
-      of: find.byType(WorkspaceMenuItem),
-      matching: find.byType(WorkspaceMoreActionList),
-    );
-    expect(moreButton, findsOneWidget);
+    final menuItem = find.byType(WorkspaceMenuItem);
+    expect(menuItem, findsOneWidget);
     await hoverOnWidget(
-      moreButton,
+      menuItem,
       onHover: () async {
+        final moreButton = find.descendant(
+          of: menuItem,
+          matching: find.byType(WorkspaceMoreActionList),
+        );
         await tapButton(moreButton);
         // wait for the menu to open
-        final renameButton = find.findTextInFlowyText(
+        final renameButton = find.text(
           LocaleKeys.button_rename.tr(),
         );
         await pumpUntilFound(renameButton);

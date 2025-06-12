@@ -29,8 +29,11 @@ class SharedGroupWidget extends StatelessWidget {
       leading: _buildLeading(context),
       title: _buildTitle(context),
       subtitle: _buildSubtitle(context),
-      trailing: (context, isHovering, disabled) =>
-          _buildTrailing(context, isHovering, disabled,),
+      trailing: (context, isHovering, disabled) => _buildTrailing(
+        context,
+        isHovering,
+        disabled,
+      ),
       onTap: () {},
     );
   }

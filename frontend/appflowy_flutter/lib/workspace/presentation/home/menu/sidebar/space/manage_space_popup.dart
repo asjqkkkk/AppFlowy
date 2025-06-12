@@ -9,7 +9,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ManageSpacePopup extends StatefulWidget {
-  const ManageSpacePopup({super.key});
+  const ManageSpacePopup({
+    super.key,
+    required this.allowEditPermission,
+  });
+
+  final bool allowEditPermission;
 
   @override
   State<ManageSpacePopup> createState() => _ManageSpacePopupState();
@@ -42,12 +47,14 @@ class _ManageSpacePopupState extends State<ManageSpacePopup> {
             },
           ),
           const VSpace(16.0),
-          SpacePermissionSwitch(
-            spacePermission:
-                context.read<SpaceBloc>().state.currentSpace?.spacePermission,
-            onPermissionChanged: (value) => spacePermission = value,
-          ),
-          const VSpace(16.0),
+          if (widget.allowEditPermission) ...[
+            SpacePermissionSwitch(
+              spacePermission:
+                  context.read<SpaceBloc>().state.currentSpace?.spacePermission,
+              onPermissionChanged: (value) => spacePermission = value,
+            ),
+            const VSpace(16.0),
+          ],
           SpaceCancelOrConfirmButton(
             confirmButtonName: LocaleKeys.button_save.tr(),
             onCancel: () => Navigator.of(context).pop(),

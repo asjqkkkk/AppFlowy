@@ -36,6 +36,7 @@ class _SelectModelMenuState extends State<SelectModelMenu> {
             constraints: BoxConstraints(maxWidth: 250, maxHeight: 600),
             direction: PopoverDirection.topWithLeftAligned,
             margin: EdgeInsets.zero,
+            triggerActions: PopoverTriggerFlags.none,
             controller: popoverController,
             popupBuilder: (popoverContext) {
               return SelectModelPopoverContent(
@@ -54,7 +55,10 @@ class _SelectModelMenuState extends State<SelectModelMenu> {
             child: _CurrentModelButton(
               model: state.selectedModel,
               onTap: () {
-                if (state.selectedModel != null) {
+                if (state.selectedModel != null &&
+                    state.models
+                        .map((m) => m.name)
+                        .contains(state.selectedModel!.name)) {
                   popoverController.show();
                 }
               },
@@ -104,7 +108,7 @@ class SelectModelPopoverContent extends StatelessWidget {
             ...localModels.map(
               (model) => _ModelItem(
                 model: model,
-                isSelected: model == selectedModel,
+                isSelected: model.name == selectedModel?.name,
                 onTap: () => onSelectModel?.call(model),
               ),
             ),
@@ -118,7 +122,7 @@ class SelectModelPopoverContent extends StatelessWidget {
             ...cloudModels.map(
               (model) => _ModelItem(
                 model: model,
-                isSelected: model == selectedModel,
+                isSelected: model.name == selectedModel?.name,
                 onTap: () => onSelectModel?.call(model),
               ),
             ),

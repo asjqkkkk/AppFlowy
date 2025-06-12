@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
@@ -6,6 +7,7 @@ import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/create_space_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -125,6 +127,11 @@ class _CreateSpaceButton extends StatelessWidget {
 
   void _showCreateSpaceDialog(BuildContext context) {
     final spaceBloc = context.read<SpaceBloc>();
+    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
+    final isCloudWorkspace =
+        userWorkspaceState.currentWorkspace?.workspaceType ==
+            WorkspaceTypePB.ServerW;
+
     showDialog(
       context: context,
       builder: (_) {
@@ -134,7 +141,9 @@ class _CreateSpaceButton extends StatelessWidget {
           ),
           child: BlocProvider.value(
             value: spaceBloc,
-            child: const CreateSpacePopup(),
+            child: CreateSpacePopup(
+              allowEditPermission: isCloudWorkspace,
+            ),
           ),
         );
       },

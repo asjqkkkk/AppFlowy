@@ -7,6 +7,7 @@ import 'package:appflowy/plugins/database/application/tab_bar_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_notification.dart';
 import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/plugins/shared/share/share_menu.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -54,6 +55,12 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
     final shareWithUserBloc = context.read<ShareTabBloc>();
     final pageAccessLevelBloc = context.read<PageAccessLevelBloc>();
     // final animationDuration = const Duration(milliseconds: 120);
+
+    final buttonText =
+        userWorkspaceBloc.state.currentWorkspace?.workspaceType ==
+                WorkspaceTypePB.LocalW
+            ? LocaleKeys.shareAction_buttonTextLocal.tr()
+            : LocaleKeys.shareAction_buttonText.tr();
 
     return BlocBuilder<ShareBloc, ShareState>(
       builder: (context, state) {
@@ -109,7 +116,7 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
             );
           },
           child: AFFilledTextButton.primary(
-            text: LocaleKeys.shareAction_buttonText.tr(),
+            text: buttonText,
             onTap: () {
               popoverController.show();
 

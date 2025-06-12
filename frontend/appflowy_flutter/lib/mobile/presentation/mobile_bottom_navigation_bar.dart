@@ -83,7 +83,6 @@ enum BottomNavigationBarItemType {
   }
 }
 
-
 /// Builds the "shell" for the app by building a Scaffold with a
 /// BottomNavigationBar, where [child] is placed in the body of the Scaffold.
 class MobileBottomNavigationBar extends StatefulWidget {
@@ -268,7 +267,9 @@ class _HomePageNavigationBarState extends State<_HomePageNavigationBar> {
               enableFeedback: false,
               type: BottomNavigationBarType.fixed,
               elevation: 0,
-              items: mobileBottomNavigationBarItems.value.map((e) => e.navigationItem).toList(),
+              items: mobileBottomNavigationBarItems.value
+                  .map((e) => e.navigationItem)
+                  .toList(),
               backgroundColor: Colors.transparent,
               currentIndex: widget.navigationShell.currentIndex,
               onTap: (int bottomBarIndex) => _onTap(context, bottomBarIndex),
@@ -298,7 +299,10 @@ class _HomePageNavigationBarState extends State<_HomePageNavigationBar> {
     // close the popup menu
     closePopupMenu();
 
-    final label = mobileBottomNavigationBarItems.value.map((e) => e.navigationItem).toList()[bottomBarIndex].label;
+    final label = mobileBottomNavigationBarItems.value
+        .map((e) => e.navigationItem)
+        .toList()[bottomBarIndex]
+        .label;
     if (label == BottomNavigationBarItemType.add.label) {
       // show an add dialog
       mobileCreateNewPageNotifier.value = ViewLayoutPB.Document;

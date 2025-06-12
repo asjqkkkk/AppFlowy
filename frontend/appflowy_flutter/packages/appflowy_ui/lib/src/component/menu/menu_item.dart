@@ -23,6 +23,7 @@ class AFMenuItem extends StatelessWidget {
     this.padding,
     this.showSelectedBackground = true,
     this.cursor,
+    this.isDisabled = false,
   });
 
   /// Widget to display before the title (e.g., an icon or avatar).
@@ -52,6 +53,9 @@ class AFMenuItem extends StatelessWidget {
   /// Cursor of the menu item.
   final MouseCursor? cursor;
 
+  /// Whether the menu item is disabled.
+  final bool isDisabled;
+
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
@@ -67,6 +71,7 @@ class AFMenuItem extends StatelessWidget {
       cursor: cursor,
       padding: effectivePadding,
       borderRadius: theme.borderRadius.m,
+      disabled: isDisabled,
       borderColor: (context, isHovering, disabled, isFocused) {
         return Colors.transparent;
       },

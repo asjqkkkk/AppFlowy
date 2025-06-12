@@ -143,6 +143,7 @@
     },
     "menuTitle": "Workspaces",
     "deleteWorkspaceHintText": "Are you sure you want to delete the workspace? This action cannot be undone, and any pages you have published will be unpublished.",
+    "differentWorkspaceTypeTooltip": "Cannot perform this action on a different workspace type.",
     "createSuccess": "Workspace created successfully",
     "createFailed": "Failed to create workspace",
     "createLimitExceeded": "You've reached the maximum workspace limit allowed for your account. If you need additional workspaces to continue your work, please request on Github",
@@ -161,6 +162,7 @@
   },
   "shareAction": {
     "buttonText": "Share",
+    "buttonTextLocal": "Export",
     "workInProgress": "Coming soon",
     "markdown": "Markdown",
     "html": "HTML",
@@ -315,7 +317,10 @@
       "nSelected": "{} selected",
       "allSelected": "All selected"
     },
-    "stopTooltip": "Stop generating"
+    "stopTooltip": "Stop generating",
+    "localAiUnavailable": "Local AI is not available",
+    "localAiUnavailableDescription": "You need to enable Local AI in order to use this feature.",
+    "goToSettings": "Go to Settings"
   },
   "trash": {
     "text": "Trash",

@@ -13,19 +13,25 @@ typedef SimpleAFDialogAction = (String, void Function(BuildContext)?);
 Future<void> showSimpleAFDialog({
   required BuildContext context,
   required String title,
-  required String content,
+  String? content,
+  TextSpan? contentSpans,
   bool isDestructive = false,
   required SimpleAFDialogAction primaryAction,
   SimpleAFDialogAction? secondaryAction,
+  bool autoPopDialog = true,
   bool barrierDismissible = true,
 }) {
+  assert(
+    content != null || contentSpans != null,
+    'Either content or contentSpans must be provided',
+  );
   final theme = AppFlowyTheme.of(context);
 
   return showDialog(
     context: context,
     barrierColor: theme.surfaceColorScheme.overlay,
     barrierDismissible: barrierDismissible,
-    builder: (_) {
+    builder: (context) {
       return AFModal(
         constraints: BoxConstraints(
           maxWidth: AFModalDimension.S,
@@ -58,12 +64,19 @@ Future<void> showSimpleAFDialog({
                 // AFModalDimension.dialogHeight - header - footer
                 constraints: BoxConstraints(minHeight: 108.0),
                 child: AFModalBody(
-                  child: Text(
-                    content,
-                    style: theme.textStyle.body.standard(
-                      color: theme.textColorScheme.primary,
-                    ),
-                  ),
+                  child: content != null
+                      ? Text(
+                          content,
+                          style: theme.textStyle.body.standard(
+                            color: theme.textColorScheme.primary,
+                          ),
+                        )
+                      : Text.rich(
+                          contentSpans!,
+                          style: theme.textStyle.body.standard(
+                            color: theme.textColorScheme.primary,
+                          ),
+                        ),
                 ),
               ),
             ),
@@ -74,7 +87,9 @@ Future<void> showSimpleAFDialog({
                     text: secondaryAction.$1,
                     onTap: () {
                       secondaryAction.$2?.call(context);
-                      Navigator.of(context).pop();
+                      if (autoPopDialog) {
+                        Navigator.of(context).pop();
+                      }
                     },
                   ),
                 isDestructive
@@ -82,14 +97,18 @@ Future<void> showSimpleAFDialog({
                         text: primaryAction.$1,
                         onTap: () {
                           primaryAction.$2?.call(context);
-                          Navigator.of(context).pop();
+                          if (autoPopDialog) {
+                            Navigator.of(context).pop();
+                          }
                         },
                       )
                     : AFFilledTextButton.primary(
                         text: primaryAction.$1,
                         onTap: () {
                           primaryAction.$2?.call(context);
-                          Navigator.of(context).pop();
+                          if (autoPopDialog) {
+                            Navigator.of(context).pop();
+                          }
                         },
                       ),
               ],

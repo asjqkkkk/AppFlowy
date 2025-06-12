@@ -57,7 +57,7 @@ class _WorkspaceIconState extends State<WorkspaceIcon> {
         : FlowyText.semibold(
             widget.workspaceName.isEmpty
                 ? ''
-                : widget.workspaceName.substring(0, 1),
+                : widget.workspaceName.characters.first,
             fontSize: widget.fontSize,
             color: textColor,
           );
