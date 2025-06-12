@@ -408,7 +408,7 @@ pub fn unindexed_data_form_collab(
     CollabType::Document => {
       let txn = collab.doc().transact();
       let doc = DocumentBody::from_collab(collab)?;
-      let paras = doc.paragraphs(txn);
+      let paras = doc.to_plain_text(txn);
       Some(UnindexedData::Paragraphs(paras))
     },
     _ => None,

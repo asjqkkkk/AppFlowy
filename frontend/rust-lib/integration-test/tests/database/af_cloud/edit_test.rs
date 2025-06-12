@@ -254,7 +254,7 @@ async fn af_cloud_sync_database_row_document_test() {
 
       let txn = collab.transact();
       let document = DocumentBody::from_collab(&collab).unwrap();
-      let paragraphs = document.paragraphs(txn);
+      let paragraphs = document.to_plain_text(txn);
       dbg!(&paragraphs);
       if paragraphs.len() != 1
         || paragraphs[0] != format!("Hello database row document content {}", index)

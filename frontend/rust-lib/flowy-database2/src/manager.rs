@@ -66,7 +66,6 @@ pub struct DatabaseManager {
   cloud_service: Arc<dyn DatabaseCloudService>,
   ai_service: Arc<dyn DatabaseAIService>,
   base_removal_timeout: Duration,
-  max_removal_timeout: Duration,
 }
 
 impl Drop for DatabaseManager {
@@ -92,7 +91,6 @@ impl DatabaseManager {
       cloud_service,
       ai_service,
       base_removal_timeout: Duration::from_secs(120), // 2 minutes
-      max_removal_timeout: Duration::from_secs(300),  // 5 minutes
     };
 
     // Start periodic cleanup task
@@ -101,9 +99,8 @@ impl DatabaseManager {
   }
 
   /// Configure removal timeouts
-  pub fn configure_removal_timeouts(&mut self, base_timeout: Duration, max_timeout: Duration) {
+  pub fn configure_removal_timeouts(&mut self, base_timeout: Duration) {
     self.base_removal_timeout = base_timeout;
-    self.max_removal_timeout = max_timeout;
   }
 
   fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
@@ -273,38 +270,17 @@ impl DatabaseManager {
     self.get_or_init_database_editor(&database_id).await
   }
 
+  #[instrument(level = "trace", skip_all, err)]
   pub async fn get_or_init_database_editor(
     &self,
     database_id: &str,
   ) -> FlowyResult<Arc<DatabaseEditor>> {
-    // Check if we have an active editor
-    if let Some(editor_entry) = self.database_editors.lock().await.get(database_id).cloned() {
-      if editor_entry.is_active() {
-        return Ok(editor_entry.editor);
-      }
-    }
-    let editor = self.open_database(database_id).await?;
-    Ok(editor)
-  }
-
-  #[instrument(level = "trace", skip_all, err)]
-  pub async fn open_database(&self, database_id: &str) -> FlowyResult<Arc<DatabaseEditor>> {
     let workspace_database = self.workspace_database()?;
-    // Check if we have an existing editor (active or pending removal)
     {
       let mut editors = self.database_editors.lock().await;
-      if let Some(editor_entry) = editors.remove(database_id) {
-        let reactivated_entry = editor_entry.reactivate();
-        let editor = reactivated_entry.editor.clone();
-
-        trace!(
-          "[Database]: Reactivated database editor: {}, access_count: {}",
-          database_id,
-          reactivated_entry.access_count()
-        );
-
-        editors.insert(database_id.to_string(), reactivated_entry);
-        return Ok(editor);
+      if let Some(editor_entry) = editors.get_mut(database_id) {
+        editor_entry.reactivate();
+        return Ok(editor_entry.editor.clone());
       }
     }
 
@@ -339,17 +315,7 @@ impl DatabaseManager {
     drop(workspace_database);
 
     if let Some(database_id) = result {
-      let has_active_editor = self
-        .database_editors
-        .lock()
-        .await
-        .get(&database_id)
-        .map(|entry| entry.is_active())
-        .unwrap_or(false);
-
-      if !has_active_editor {
-        let _ = self.open_database(&database_id).await?;
-      }
+      let _ = self.get_or_init_database_editor(&database_id).await?;
     }
     Ok(())
   }
@@ -363,27 +329,15 @@ impl DatabaseManager {
 
     if let Some(database_id) = database_id {
       let mut editors = self.database_editors.lock().await;
-      if let Some(editor_entry) = editors.get(&database_id) {
-        if editor_entry.is_active() {
-          editor_entry.editor.close_view(view_id).await;
-          // when there is no opening views, mark the database for removal
-          let num_views = editor_entry.editor.num_of_opening_views().await;
-          trace!(
-            "[Database]: {} has {} opening views",
-            database_id, num_views
-          );
-
-          if num_views == 0 {
-            // Simply mark for removal and let periodic cleanup handle it
-            if let Some(editor_entry) = editors.remove(&database_id) {
-              editor_entry.editor.close_database().await;
-              let pending_entry = editor_entry.mark_for_removal();
-              editors.insert(database_id.to_string(), pending_entry);
-              trace!("[Database]: Marked {} for removal", database_id);
-            }
-          }
+      if let Some(editor_entry) = editors.get_mut(&database_id) {
+        editor_entry.editor.close_view(view_id).await;
+        editor_entry.editor.close_database().await;
+        let num_views = editor_entry.editor.num_of_opening_views().await;
+        if num_views == 0 {
+          editor_entry.mark_for_removal();
         }
       }
+      drop(editors);
     }
 
     Ok(())
@@ -484,6 +438,11 @@ impl DatabaseManager {
     database_view_id: String,
     database_parent_view_id: String,
   ) -> FlowyResult<()> {
+    trace!(
+      "[database] create linked view: {}, layout: {:?}, database_id: {}, database_view_id: {}",
+      name, layout, database_id, database_view_id
+    );
+
     let workspace_database = self.workspace_database()?;
     let mut wdb = workspace_database.write().await;
     let mut params = CreateViewParams::new(database_id.clone(), database_view_id, name, layout);
@@ -726,26 +685,21 @@ impl DatabaseManager {
     let weak_workspace_database = Arc::downgrade(&self.workspace_database_manager);
     let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
     let base_timeout = self.base_removal_timeout;
-    let max_timeout = self.max_removal_timeout;
 
     tokio::spawn(async move {
       let mut interval = tokio::time::interval(cleanup_interval);
+      interval.tick().await;
+
       loop {
         interval.tick().await;
-
         if let Some(database_editors) = weak_database_editors.upgrade() {
           let mut editors = database_editors.lock().await;
           let now = Instant::now();
           let mut to_remove = Vec::new();
+          let timeout = base_timeout;
+
           for (database_id, entry) in editors.iter() {
             if let Some(removal_time) = entry.removal_time() {
-              // Calculate dynamic timeout based on access patterns
-              let access_multiplier = (entry.access_count() as f64 / 10.0).min(2.0);
-              let timeout = Duration::from_secs(
-                (base_timeout.as_secs() as f64 * (1.0 + access_multiplier)) as u64,
-              )
-              .min(max_timeout);
-
               if now.duration_since(removal_time) >= timeout {
                 to_remove.push(database_id.clone());
               }
@@ -805,37 +759,6 @@ impl DatabaseManager {
         }
       }
     });
-  }
-
-  /// Get statistics about the removing_editor cache
-  pub async fn get_removing_editor_stats(&self) -> (usize, Vec<(String, u32, Duration)>) {
-    let database_editors = self.database_editors.lock().await;
-    let now = Instant::now();
-
-    let pending_removal_entries: Vec<_> = database_editors
-      .iter()
-      .filter_map(|(id, entry)| {
-        if let Some(removal_time) = entry.removal_time() {
-          let age = now.duration_since(removal_time);
-          Some((id.clone(), entry.access_count(), age))
-        } else {
-          None
-        }
-      })
-      .collect();
-
-    let count = pending_removal_entries.len();
-    (count, pending_removal_entries)
-  }
-
-  pub async fn get_pending_removal_editors_count(&self) -> usize {
-    self
-      .database_editors
-      .lock()
-      .await
-      .values()
-      .filter(|entry| entry.is_pending_removal())
-      .count()
   }
 
   /// Get total editors count (active + pending removal)
@@ -1009,6 +932,7 @@ impl WorkspaceDatabaseCollabServiceImpl {
     }
   }
 
+  #[instrument(level = "trace", skip_all, err)]
   async fn build_collab<T: Into<DataSourceOrCollab>>(
     &self,
     object_id: &str,
@@ -1073,6 +997,7 @@ impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
     }
   }
 
+  #[instrument(level = "trace", skip_all, err)]
   async fn build_arc_database(
     &self,
     object_id: &str,
@@ -1090,6 +1015,7 @@ impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
     Ok(database)
   }
 
+  #[instrument(level = "trace", skip_all, err)]
   async fn build_database(
     &self,
     object_id: &str,
@@ -1404,12 +1330,9 @@ async fn open_database_with_retry(
 
 #[derive(Clone, Debug)]
 enum DatabaseEditorState {
-  Active {
-    access_count: u32,
-  },
+  Active,
   PendingRemoval {
     removal_time: Instant,
-    access_count: u32,
     last_access: Instant,
   },
 }
@@ -1424,69 +1347,42 @@ impl DatabaseEditorEntry {
   fn new_active(editor: Arc<DatabaseEditor>) -> Self {
     Self {
       editor,
-      state: DatabaseEditorState::Active { access_count: 1 },
+      state: DatabaseEditorState::Active,
     }
   }
 
-  fn mark_for_removal(mut self) -> Self {
+  fn mark_for_removal(&mut self) {
     match self.state {
-      DatabaseEditorState::Active { access_count, .. } => {
+      DatabaseEditorState::Active => {
         self.state = DatabaseEditorState::PendingRemoval {
           removal_time: Instant::now(),
-          access_count,
           last_access: Instant::now(),
         };
       },
       DatabaseEditorState::PendingRemoval { .. } => {
-        // Already pending removal, update removal time
-        if let DatabaseEditorState::PendingRemoval {
-          access_count,
-          last_access,
-          ..
-        } = self.state
-        {
+        if let DatabaseEditorState::PendingRemoval { last_access, .. } = self.state {
           self.state = DatabaseEditorState::PendingRemoval {
             removal_time: Instant::now(),
-            access_count,
             last_access,
           };
         }
       },
     }
-    self
   }
 
-  fn reactivate(mut self) -> Self {
+  fn reactivate(&mut self) {
     match self.state {
-      DatabaseEditorState::Active {
-        mut access_count, ..
-      } => {
-        access_count += 1;
-        self.state = DatabaseEditorState::Active { access_count };
+      DatabaseEditorState::Active => {
+        self.state = DatabaseEditorState::Active;
       },
-      DatabaseEditorState::PendingRemoval {
-        mut access_count, ..
-      } => {
-        access_count += 1;
-        self.state = DatabaseEditorState::Active { access_count };
+      DatabaseEditorState::PendingRemoval { .. } => {
+        self.state = DatabaseEditorState::Active;
       },
     }
-    self
-  }
-
-  fn is_active(&self) -> bool {
-    matches!(self.state, DatabaseEditorState::Active { .. })
   }
 
   fn is_pending_removal(&self) -> bool {
     matches!(self.state, DatabaseEditorState::PendingRemoval { .. })
-  }
-
-  fn access_count(&self) -> u32 {
-    match self.state {
-      DatabaseEditorState::Active { access_count, .. } => access_count,
-      DatabaseEditorState::PendingRemoval { access_count, .. } => access_count,
-    }
   }
 
   fn removal_time(&self) -> Option<Instant> {

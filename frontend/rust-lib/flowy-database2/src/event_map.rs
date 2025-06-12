@@ -74,7 +74,6 @@ pub fn init(database_manager: Weak<DatabaseManager>) -> AFPlugin {
          // Layout setting
          .event(DatabaseEvent::SetLayoutSetting, set_layout_setting_handler)
          .event(DatabaseEvent::GetLayoutSetting, get_layout_setting_handler)
-         .event(DatabaseEvent::CreateDatabaseView, create_database_view)
          // Export
          .event(DatabaseEvent::ExportCSV, export_csv_handler)
          .event(DatabaseEvent::ExportRawDatabaseData, export_raw_database_data_handler)
@@ -334,9 +333,6 @@ pub enum DatabaseEvent {
 
   #[event(input = "MoveCalendarEventPB")]
   MoveCalendarEvent = 126,
-
-  #[event(input = "CreateDatabaseViewPayloadPB")]
-  CreateDatabaseView = 130,
 
   #[event(input = "DatabaseViewIdPB", output = "DatabaseExportDataPB")]
   ExportCSV = 141,
