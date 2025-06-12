@@ -3475,7 +3475,20 @@
     "upgradeToProToInviteGuests": "Please upgrade to Pro plan to invite guests",
     "removeYourOwnAccess": "Remove your own access",
     "nothingSharedWithYou": "Nothing shared with you",
-    "pagesSharedWithYouWillShowHere": "Pages shared with you will show here"
+    "pagesSharedWithYouWillShowHere": "Pages shared with you will show here",
+    "section": {
+      "public": "Team space",
+      "private": "Private",
+      "shared": "Shared"
+    },
+    "sectionTooltip": {
+      "public": "Everyone at {workspace} has access",
+      "private": "Only you have access",
+      "shared": {
+        "withMe": "Pages shared with me",
+        "byMe": "Pages you shared"
+      }
+    }
   },
   "shareSection": {
     "shared": "Shared with me"

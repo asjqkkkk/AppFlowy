@@ -552,7 +552,7 @@ pub(crate) async fn get_shared_users_handler(
   let folder = upgrade_folder(folder)?;
   let params = data.into_inner();
   let view_id = Uuid::from_str(&params.view_id)?;
-  let shared_users = folder.get_shared_page_details(&view_id).await?;
+  let shared_users = folder.get_shared_page_details(&view_id, true).await?;
   data_result_ok(shared_users.into())
 }
 

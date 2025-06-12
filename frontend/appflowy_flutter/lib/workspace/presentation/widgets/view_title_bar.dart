@@ -1,4 +1,5 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/features/share_tab/data/models/share_section_type.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
@@ -266,18 +267,26 @@ class ViewTitleBar extends StatelessWidget {
     );
 
     final text = switch (pageAccessLevelState.sectionType) {
-      SharedSectionType.public => 'Team space',
-      SharedSectionType.private => 'Private',
-      SharedSectionType.shared => 'Shared',
+      SharedSectionType.public => LocaleKeys.shareTab_section_public.tr(),
+      SharedSectionType.private => LocaleKeys.shareTab_section_private.tr(),
+      SharedSectionType.shared => LocaleKeys.shareTab_section_shared.tr(),
       SharedSectionType.unknown =>
         throw UnsupportedError('Unknown section type'),
     };
 
     final workspaceName = state.currentWorkspace?.name;
     final tooltipText = switch (pageAccessLevelState.sectionType) {
-      SharedSectionType.public => 'Everyone at $workspaceName has access',
-      SharedSectionType.private => 'Only you have access',
-      SharedSectionType.shared => '',
+      SharedSectionType.public => LocaleKeys.shareTab_sectionTooltip_public.tr(
+          namedArgs: {
+            'workspace': workspaceName ?? '',
+          },
+        ),
+      SharedSectionType.private =>
+        LocaleKeys.shareTab_sectionTooltip_private.tr(),
+      SharedSectionType.shared =>
+        pageAccessLevelState.accessLevel != ShareAccessLevel.fullAccess
+            ? LocaleKeys.shareTab_sectionTooltip_shared_withMe.tr()
+            : LocaleKeys.shareTab_sectionTooltip_shared_byMe.tr(),
       SharedSectionType.unknown =>
         throw UnsupportedError('Unknown section type'),
     };

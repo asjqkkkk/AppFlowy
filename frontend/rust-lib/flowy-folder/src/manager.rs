@@ -1624,6 +1624,7 @@ impl FolderManager {
   pub async fn get_shared_page_details(
     &self,
     page_id: &Uuid,
+    is_fetch_from_cloud: bool,
   ) -> Result<SharedViewDetails, FlowyError> {
     let workspace_id = self.user.workspace_id()?;
     let uid = self.user.user_id()?;
@@ -1657,70 +1658,72 @@ impl FolderManager {
     }
 
     // 2. Fetch the data from the cloud service and persist to the local database
-    let cloud_workspace_id = workspace_id;
-    let cloud_page_id = *page_id;
-    let user = self.user.clone();
-    let cloud_service = self.cloud_service.clone();
-    let parent_view_ids = self
-      .get_view_ancestors_pb(&page_id.to_string())
-      .await?
-      .into_iter()
-      .map(|view| Uuid::from_str(&view.id).unwrap_or_default())
-      .collect::<Vec<_>>();
-    tokio::spawn(async move {
-      if let Some(cloud_service) = cloud_service.upgrade() {
-        let result = cloud_service
-          .get_shared_page_details(&cloud_workspace_id, &cloud_page_id, parent_view_ids)
-          .await;
-        match result {
-          Ok(details) => {
-            if let Ok(mut conn) = user.sqlite_connection(uid) {
-              let shared_users = details
-                .shared_with
-                .iter()
-                .enumerate()
-                .map(|(order, user)| {
-                  WorkspaceSharedUserTable::new(
-                    cloud_workspace_id.to_string(),
-                    cloud_page_id.to_string(),
-                    user.email.clone(),
-                    user.name.clone(),
-                    user.avatar_url.clone().unwrap_or_default(),
-                    user.role.clone() as i32,
-                    user.access_level as i32,
-                    order as i32,
-                  )
-                })
-                .collect::<Vec<_>>();
-
-              let _ = replace_all_workspace_shared_users(
-                &mut conn,
-                &cloud_workspace_id.to_string(),
-                &cloud_page_id.to_string(),
-                &shared_users,
-              );
-
-              // Notify UI to refresh the shared page details
-              folder_notification_builder(
-                cloud_page_id.to_string(),
-                FolderNotification::DidUpdateSharedUsers,
-              )
-              .payload(RepeatedSharedUserPB {
-                items: details
+    if is_fetch_from_cloud {
+      let cloud_workspace_id = workspace_id;
+      let cloud_page_id = *page_id;
+      let user = self.user.clone();
+      let cloud_service = self.cloud_service.clone();
+      let parent_view_ids = self
+        .get_view_ancestors_pb(&page_id.to_string())
+        .await?
+        .into_iter()
+        .map(|view| Uuid::from_str(&view.id).unwrap_or_default())
+        .collect::<Vec<_>>();
+      tokio::spawn(async move {
+        if let Some(cloud_service) = cloud_service.upgrade() {
+          let result = cloud_service
+            .get_shared_page_details(&cloud_workspace_id, &cloud_page_id, parent_view_ids)
+            .await;
+          match result {
+            Ok(details) => {
+              if let Ok(mut conn) = user.sqlite_connection(uid) {
+                let shared_users = details
                   .shared_with
-                  .into_iter()
-                  .map(|user| user.into())
-                  .collect(),
-              })
-              .send();
-            }
-          },
-          Err(e) => {
-            error!("Failed to get shared page details: {:?}", e);
-          },
+                  .iter()
+                  .enumerate()
+                  .map(|(order, user)| {
+                    WorkspaceSharedUserTable::new(
+                      cloud_workspace_id.to_string(),
+                      cloud_page_id.to_string(),
+                      user.email.clone(),
+                      user.name.clone(),
+                      user.avatar_url.clone().unwrap_or_default(),
+                      user.role.clone() as i32,
+                      user.access_level as i32,
+                      order as i32,
+                    )
+                  })
+                  .collect::<Vec<_>>();
+
+                let _ = replace_all_workspace_shared_users(
+                  &mut conn,
+                  &cloud_workspace_id.to_string(),
+                  &cloud_page_id.to_string(),
+                  &shared_users,
+                );
+
+                // Notify UI to refresh the shared page details
+                folder_notification_builder(
+                  cloud_page_id.to_string(),
+                  FolderNotification::DidUpdateSharedUsers,
+                )
+                .payload(RepeatedSharedUserPB {
+                  items: details
+                    .shared_with
+                    .into_iter()
+                    .map(|user| user.into())
+                    .collect(),
+                })
+                .send();
+              }
+            },
+            Err(e) => {
+              error!("Failed to get shared page details: {:?}", e);
+            },
+          }
         }
-      }
-    });
+      });
+    }
 
     if let Some(local_shared_details) = local_shared_details {
       Ok(local_shared_details)
@@ -2703,9 +2706,11 @@ impl FolderManager {
       return Ok(SharedViewSectionPB::PublicSection);
     }
 
-    // If the page is in private space, check if it's in the flattened shared views
-    let flattened_shared_views = self.get_flatten_shared_pages().await?;
-    if flattened_shared_views.iter().any(|view| view.id == view_id) {
+    // If the page is in private space, check if it contains any users
+    let shared_users = self
+      .get_shared_page_details(&Uuid::from_str(view_id)?, false)
+      .await?;
+    if shared_users.shared_with.len() > 1 {
       return Ok(SharedViewSectionPB::SharedSection);
     }
 
@@ -2730,11 +2735,10 @@ impl FolderManager {
   /// Get the access level for a page based on the current user's permissions.
   ///
   /// Access level determination follows this priority:
-  /// 1. Local users / Local workspace have full access
-  /// 2. Local workspace users have full access
-  /// 3. Page creator has full access
-  /// 4. Owner and members in public page have full access
-  /// 5. Check the shared users list
+  /// 1. Local users / Local workspaces have full access
+  /// 2. Page creator has full access
+  /// 3. Owner and members in public page have full access
+  /// 4. Check the shared users list
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn get_access_level(
     &self,
@@ -2770,7 +2774,7 @@ impl FolderManager {
 
     // 4. Check the shared users list
     match self
-      .get_shared_page_details(&Uuid::from_str(page_id)?)
+      .get_shared_page_details(&Uuid::from_str(page_id)?, false)
       .await
     {
       Ok(shared_details) => {
