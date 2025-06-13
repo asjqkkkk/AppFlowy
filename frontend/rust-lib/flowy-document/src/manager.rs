@@ -28,8 +28,9 @@ use flowy_document_pub::cloud::DocumentCloudService;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_storage_pub::storage::{CreatedUpload, StorageService};
 use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
+use lib_infra::async_entry::AsyncEntry;
 use lib_infra::util::timestamp;
-use tracing::{debug, event, instrument};
+use tracing::{event, instrument};
 use tracing::{info, trace};
 use uuid::Uuid;
 
@@ -215,11 +216,19 @@ impl DocumentManager {
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    if let Some(mut entry) = self.documents.get_mut(doc_id) {
+    if let Some(entry) = self.documents.get(doc_id) {
       Self::clean_document_awareness(&entry).await;
-      entry.mark_for_removal();
+      entry.mark_for_removal().await;
     }
     Ok(())
+  }
+
+  /// Helper function to clean document awareness state
+  async fn clean_document_awareness(entry: &DocumentEntry) {
+    if let Some(document) = entry.get_resource().await {
+      let mut lock = document.write().await;
+      lock.clean_awareness_local_state();
+    }
   }
 
   pub async fn delete_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
@@ -233,17 +242,9 @@ impl DocumentManager {
     Ok(())
   }
 
-  /// Helper function to clean document awareness state
-  async fn clean_document_awareness(entry: &DocumentEntry) {
-    if let Some(document) = entry.get_document() {
-      let mut lock = document.write().await;
-      lock.clean_awareness_local_state();
-    }
-  }
-
   async fn cache_and_initialize_document(&self, doc_id: Uuid, document: Arc<RwLock<Document>>) {
-    let mut document_entry = DocumentEntry::new_initializing(doc_id);
-    document_entry.set_document(document.clone());
+    let document_entry = DocumentEntry::new_initializing(doc_id);
+    document_entry.set_resource(document.clone()).await;
     self.documents.insert(doc_id, document_entry);
     self.setup_document_subscriptions(&doc_id, &document).await;
   }
@@ -256,10 +257,12 @@ impl DocumentManager {
   }
 
   async fn get_document_internal(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    let entry = self.documents.get(doc_id).map(|e| e.value().clone());
     // Check if we have an active document
-    if let Some(mut entry) = self.documents.get_mut(doc_id) {
-      entry.reactivate();
-      if let Some(doc) = entry.get_document() {
+    if let Some(entry) = entry {
+      entry.reactivate().await;
+
+      if let Some(doc) = entry.get_resource().await {
         return Ok(doc);
       }
     }
@@ -401,7 +404,7 @@ impl DocumentManager {
   /// If the document exists, open the document and cache it
   #[tracing::instrument(level = "info", skip(self), err)]
   async fn create_document_instance(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    let should_initialize = self.try_start_document_initialization(doc_id);
+    let should_initialize = self.try_start_document_initialization(doc_id).await;
     if !should_initialize {
       return self.wait_for_document_initialization(doc_id).await;
     }
@@ -410,8 +413,8 @@ impl DocumentManager {
     match self.initialize_document(doc_id).await {
       Ok(document) => {
         // Store the document in the entry
-        if let Some(mut entry) = self.documents.get_mut(doc_id) {
-          entry.set_document(document.clone());
+        if let Some(entry) = self.documents.get(doc_id) {
+          entry.set_resource(document.clone()).await;
           Ok(document)
         } else {
           // This shouldn't happen since we inserted it earlier
@@ -421,8 +424,8 @@ impl DocumentManager {
         }
       },
       Err(err) => {
-        if let Some(mut entry) = self.documents.get_mut(doc_id) {
-          entry.mark_initialization_failed();
+        if let Some(entry) = self.documents.get(doc_id) {
+          entry.mark_initialization_failed(err.msg.clone()).await;
         }
 
         if err.is_invalid_data() {
@@ -434,19 +437,13 @@ impl DocumentManager {
   }
 
   /// Try to start document initialization, returns true if this task should proceed
-  fn try_start_document_initialization(&self, doc_id: &Uuid) -> bool {
+  async fn try_start_document_initialization(&self, doc_id: &Uuid) -> bool {
     let entry = self.documents.entry(*doc_id);
     match entry {
-      dashmap::mapref::entry::Entry::Occupied(mut entry) => {
-        let document_entry = entry.get_mut();
-        document_entry.reactivate();
-
-        // If document already exists, no need to initialize
-        if document_entry.get_document().is_some() {
-          return false;
-        }
-
-        document_entry.try_start_initialize()
+      dashmap::mapref::entry::Entry::Occupied(entry) => {
+        let document_entry = entry.get();
+        document_entry.reactivate().await;
+        document_entry.try_mark_initialization_start().await
       },
       dashmap::mapref::entry::Entry::Vacant(entry) => {
         let holder = DocumentEntry::new_initializing(*doc_id);
@@ -460,13 +457,15 @@ impl DocumentManager {
     &self,
     doc_id: &Uuid,
   ) -> FlowyResult<Arc<RwLock<Document>>> {
-    tokio::time::sleep(Duration::from_secs(5)).await;
-    if let Some(entry) = self.documents.get(doc_id) {
-      if let Some(doc) = entry.get_document() {
-        return Ok(doc);
-      }
+    let entry = self.documents.get(doc_id).map(|v| v.value().clone());
+    if let Some(entry) = entry {
+      entry
+        .wait_for_initialization(Duration::from_secs(5))
+        .await
+        .map_err(|err| FlowyError::internal().with_context(err))
+    } else {
+      Err(FlowyError::internal().with_context("Document entry not found"))
     }
-    Err(FlowyError::internal().with_context("Document initialization failed"))
   }
 
   // Helper method to create the document data and initialize subscriptions
@@ -530,10 +529,17 @@ impl DocumentManager {
 
           for entry in documents.iter() {
             let (doc_id, document_entry) = entry.pair();
-            if let Some(removal_time) = document_entry.removal_time() {
-              if now.duration_since(removal_time) >= timeout {
-                to_remove.push(*doc_id);
-              }
+            let should_remove = match document_entry.removal_time().await {
+              Some(removal_time) => now.duration_since(removal_time) >= timeout,
+              None => {
+                // Also remove failed entries that are old enough
+                document_entry.can_be_removed().await
+                  && now.duration_since(document_entry.last_access().await) >= timeout
+              },
+            };
+
+            if should_remove {
+              to_remove.push(*doc_id);
             }
           }
 
@@ -541,7 +547,7 @@ impl DocumentManager {
           for doc_id in to_remove {
             if let Some((_, entry)) = documents.remove(&doc_id) {
               trace!("[Document]: Periodic cleanup removing document: {}", doc_id);
-              if let Some(document) = entry.get_document() {
+              if let Some(document) = entry.get_resource().await {
                 let mut lock = document.write().await;
                 lock.clean_awareness_local_state();
               }
@@ -580,95 +586,5 @@ async fn doc_state_from_document_data(
   Ok(encoded_collab)
 }
 
-#[derive(Clone, Debug)]
-enum DocumentState {
-  Initializing,
-  Active,
-  PendingRemoval {
-    removal_time: Instant,
-    last_access: Instant,
-  },
-}
-
-#[derive(Clone)]
-struct DocumentEntry {
-  id: Uuid,
-  document: Option<Arc<RwLock<Document>>>,
-  state: DocumentState,
-}
-
-impl DocumentEntry {
-  fn new_initializing(id: Uuid) -> Self {
-    Self {
-      id,
-      document: None,
-      state: DocumentState::Initializing,
-    }
-  }
-
-  fn mark_for_removal(&mut self) {
-    debug!("[Document]: mark document as removal {}", self.id);
-    let now = Instant::now();
-
-    // Preserve last_access if already pending removal, otherwise use current time
-    let last_access = match self.state {
-      DocumentState::PendingRemoval { last_access, .. } => last_access,
-      _ => now,
-    };
-
-    self.state = DocumentState::PendingRemoval {
-      removal_time: now,
-      last_access,
-    };
-  }
-
-  fn reactivate(&mut self) {
-    debug!("[Document]: Reactivating document {}", self.id);
-    match self.state {
-      DocumentState::PendingRemoval { .. } => {
-        self.state = DocumentState::Active;
-      },
-      DocumentState::Initializing | DocumentState::Active => {
-        // Keep current state
-      },
-    }
-  }
-
-  fn removal_time(&self) -> Option<Instant> {
-    match self.state {
-      DocumentState::Initializing => None,
-      DocumentState::Active => None,
-      DocumentState::PendingRemoval { removal_time, .. } => Some(removal_time),
-    }
-  }
-
-  fn get_document(&self) -> Option<Arc<RwLock<Document>>> {
-    self.document.clone()
-  }
-
-  fn set_document(&mut self, document: Arc<RwLock<Document>>) {
-    self.document = Some(document);
-    self.state = DocumentState::Active;
-  }
-
-  /// Try to mark as initializing. Returns true if successful (was not already initializing)
-  fn try_start_initialize(&mut self) -> bool {
-    match self.state {
-      DocumentState::Initializing => false, // Already initializing
-      DocumentState::Active => {
-        self.state = DocumentState::Initializing;
-        true
-      },
-      DocumentState::PendingRemoval { .. } => {
-        self.state = DocumentState::Initializing;
-        true
-      },
-    }
-  }
-
-  fn mark_initialization_failed(&mut self) {
-    if let DocumentState::Initializing = self.state {
-      self.state = DocumentState::Active;
-    }
-  }
-}
+// Type alias for document-specific usage
+type DocumentEntry = AsyncEntry<Arc<RwLock<Document>>, Uuid>;

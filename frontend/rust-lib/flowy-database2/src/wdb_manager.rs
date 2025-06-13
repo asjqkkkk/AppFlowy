@@ -3,31 +3,14 @@ use collab_database::database::{Database, DatabaseContext, DatabaseData};
 use collab_database::entity::{CreateDatabaseParams, CreateViewParams};
 use collab_database::error::DatabaseError;
 use collab_database::workspace_database::{DatabaseCollabService, DatabaseMeta, WorkspaceDatabase};
-use dashmap::DashMap;
+use std::collections::HashMap;
+use lib_infra::async_entry::AsyncEntry;
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::{Mutex, RwLock};
+use std::time::Duration;
+use tokio::sync::RwLock;
 use tracing::{error, trace};
-
-// Database holder tracks initialization status and holds the database reference
-struct DatabaseHolder {
-  database: Mutex<Option<Arc<RwLock<Database>>>>,
-}
-
-impl DatabaseHolder {
-  fn new() -> Self {
-    Self {
-      database: Mutex::new(None),
-    }
-  }
-
-  fn new_with_database(database: Arc<RwLock<Database>>) -> Self {
-    Self {
-      database: Mutex::new(Some(database)),
-    }
-  }
-}
 
 /// A [WorkspaceDatabaseManager] indexes the databases within a workspace.
 /// Within a workspace, the view ID is used to identify each database. Therefore, you can use the view_id to retrieve
@@ -40,11 +23,13 @@ impl DatabaseHolder {
 pub struct WorkspaceDatabaseManager {
   body: WorkspaceDatabase,
   collab_service: Arc<dyn DatabaseCollabService>,
-  /// In memory database handlers with their initialization state.
-  /// The key is the database id. The handler will be added when the database is opened or created.
-  /// and the handler will be removed when the database is deleted or closed.
-  database_holders: DashMap<String, Arc<DatabaseHolder>>,
+  /// In memory database entries with their initialization state.
+  /// The key is the database id. The entry will be added when the database is opened or created,
+  /// and the entry will be removed when the database is deleted or closed.
+  database_entries: RwLock<HashMap<String, DatabaseEntry>>,
 }
+
+type DatabaseEntry = Arc<AsyncEntry<Arc<RwLock<Database>>, String>>;
 
 impl WorkspaceDatabaseManager {
   pub fn open(
@@ -57,7 +42,7 @@ impl WorkspaceDatabaseManager {
     Ok(Self {
       body,
       collab_service,
-      database_holders: DashMap::new(),
+      database_entries: RwLock::new(HashMap::new()),
     })
   }
 
@@ -71,32 +56,62 @@ impl WorkspaceDatabaseManager {
     &self,
     database_id: &str,
   ) -> Result<Arc<RwLock<Database>>, DatabaseError> {
-    let holder = self
-      .database_holders
-      .entry(database_id.to_string())
-      .or_insert_with(|| Arc::new(DatabaseHolder::new()))
-      .clone();
-
-    // Lock the mutex and check if database is already initialized
-    let mut database_guard = holder.database.lock().await;
-    if let Some(database) = database_guard.as_ref() {
-      trace!("Database already initialized: {}", database_id);
-      return Ok(database.clone());
+    // First, try to get existing entry with read lock
+    {
+      let entries = self.database_entries.read().await;
+      if let Some(entry) = entries.get(database_id) {
+        if let Some(database) = entry.get_resource().await {
+          trace!("Database already initialized: {}", database_id);
+          return Ok(database);
+        }
+      }
     }
 
-    trace!("Initializing database: {}", database_id);
-    let context = DatabaseContext::new(self.collab_service.clone());
-    match Database::arc_open(database_id, context).await {
-      Ok(database) => {
-        // Store the database in the holder
-        *database_guard = Some(database.clone());
-        trace!("Database opened and stored: {}", database_id);
-        Ok(database)
-      },
-      Err(err) => {
-        error!("Open database failed: {}", err);
-        Err(err)
-      },
+    // Get or create entry with write lock
+    let entry = {
+      let mut entries = self.database_entries.write().await;
+      entries
+        .entry(database_id.to_string())
+        .or_insert_with(|| Arc::new(AsyncEntry::new_initializing(database_id.to_string())))
+        .clone()
+    };
+
+    // Check if we already have the database after acquiring entry
+    if let Some(database) = entry.get_resource().await {
+      trace!("Database already initialized: {}", database_id);
+      return Ok(database);
+    }
+
+    // Try to start initialization
+    if entry.try_mark_initialization_start().await {
+      trace!("Initializing database: {}", database_id);
+      let context = DatabaseContext::new(self.collab_service.clone());
+      match Database::arc_open(database_id, context).await {
+        Ok(database) => {
+          // Store the database in the entry
+          entry.set_resource(database.clone()).await;
+          trace!("Database opened and stored: {}", database_id);
+          Ok(database)
+        },
+        Err(err) => {
+          error!("Open database failed: {}", err);
+          entry.mark_initialization_failed(err.to_string()).await;
+          Err(err)
+        },
+      }
+    } else {
+      // Another task is initializing, wait for it to complete
+      trace!("Waiting for database initialization: {}", database_id);
+      match entry.wait_for_initialization(Duration::from_secs(30)).await {
+        Ok(database) => {
+          trace!("Database initialization completed: {}", database_id);
+          Ok(database)
+        },
+        Err(err) => {
+          error!("Database initialization failed or timed out: {}", err);
+          Err(DatabaseError::Internal(anyhow::anyhow!(err)))
+        },
+      }
     }
   }
 
@@ -132,9 +147,10 @@ impl WorkspaceDatabaseManager {
 
     let database_id = params.database_id.clone();
     let database = Database::create_arc_with_view(params, context).await?;
-    self.database_holders.entry(database_id).or_insert(Arc::new(
-      DatabaseHolder::new_with_database(database.clone()),
-    ));
+
+    let entry = Arc::new(AsyncEntry::new_initializing(database_id.clone()));
+    entry.set_resource(database.clone()).await;
+    self.database_entries.write().await.insert(database_id, entry);
 
     Ok(database)
   }
@@ -160,8 +176,13 @@ impl WorkspaceDatabaseManager {
     write_guard.create_linked_view(params)
   }
 
-  pub fn close_database(&self, database_id: &str) {
-    let _ = self.database_holders.remove(database_id);
+  pub async fn close_database(&self, database_id: &str) {
+    if let Some(entry) = self.database_entries.write().await.remove(database_id) {
+      // Mark the entry for removal to allow cleanup
+      tokio::spawn(async move {
+        entry.mark_for_removal().await;
+      });
+    }
   }
 
   pub fn track_database(&mut self, database_id: &str, database_view_ids: Vec<String>) {
