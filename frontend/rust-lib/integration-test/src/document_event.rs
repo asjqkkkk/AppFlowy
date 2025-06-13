@@ -10,9 +10,8 @@ use collab_document::document::Document;
 use collab_entity::CollabType;
 use flowy_document::entities::{
   ApplyActionPayloadPB, BlockActionPB, BlockActionPayloadPB, BlockActionTypePB, BlockPB,
-  DocumentDataPB, DocumentRedoUndoPayloadPB, DocumentRedoUndoResponsePB, DocumentSnapshotMetaPB,
-  DocumentSnapshotPB, DocumentTextPB, EncodedCollabPB, OpenDocumentPayloadPB,
-  RepeatedDocumentSnapshotMetaPB, TextDeltaPayloadPB,
+  DocumentDataPB, DocumentRedoUndoPayloadPB, DocumentRedoUndoResponsePB, DocumentTextPB,
+  EncodedCollabPB, OpenDocumentPayloadPB, TextDeltaPayloadPB,
 };
 use flowy_document::event_map::DocumentEvent;
 use flowy_document::parser::parser_entities::{
@@ -288,31 +287,6 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse_or_panic::<ConvertDataToJsonResponsePB>()
-  }
-
-  pub async fn get_document_snapshot_metas(&self, doc_id: &str) -> Vec<DocumentSnapshotMetaPB> {
-    let payload = OpenDocumentPayloadPB {
-      document_id: doc_id.to_string(),
-    };
-    EventBuilder::new(self.clone())
-      .event(DocumentEvent::GetDocumentSnapshotMeta)
-      .payload(payload)
-      .async_send()
-      .await
-      .parse_or_panic::<RepeatedDocumentSnapshotMetaPB>()
-      .items
-  }
-
-  pub async fn get_document_snapshot(
-    &self,
-    snapshot_meta: DocumentSnapshotMetaPB,
-  ) -> DocumentSnapshotPB {
-    EventBuilder::new(self.clone())
-      .event(DocumentEvent::GetDocumentSnapshot)
-      .payload(snapshot_meta)
-      .async_send()
-      .await
-      .parse_or_panic::<DocumentSnapshotPB>()
   }
 
   /// Insert a new text block at the index of parent's children.

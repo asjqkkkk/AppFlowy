@@ -1,6 +1,6 @@
 use std::sync::Arc;
 use std::sync::Weak;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
@@ -18,9 +18,6 @@ use crate::document::{
   subscribe_document_changed, subscribe_document_snapshot_state, subscribe_document_sync_state,
 };
 use crate::entities::UpdateDocumentAwarenessStatePB;
-use crate::entities::{
-  DocumentSnapshotData, DocumentSnapshotMeta, DocumentSnapshotMetaPB, DocumentSnapshotPB,
-};
 use crate::reminder::DocumentReminderAction;
 use collab_plugins::CollabKVDB;
 use dashmap::DashMap;
@@ -42,14 +39,6 @@ pub trait DocumentUserService: Send + Sync {
   fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }
 
-pub trait DocumentSnapshotService: Send + Sync {
-  fn get_document_snapshot_metas(
-    &self,
-    document_id: &str,
-  ) -> FlowyResult<Vec<DocumentSnapshotMeta>>;
-  fn get_document_snapshot(&self, snapshot_id: &str) -> FlowyResult<DocumentSnapshotData>;
-}
-
 /// Struct to hold commonly needed user context
 struct UserContext {
   uid: i64,
@@ -62,7 +51,6 @@ pub struct DocumentManager {
   documents: Arc<DashMap<Uuid, DocumentEntry>>,
   cloud_service: Arc<dyn DocumentCloudService>,
   storage_service: Weak<dyn StorageService>,
-  snapshot_service: Arc<dyn DocumentSnapshotService>,
   base_removal_timeout: Duration,
 }
 
@@ -78,16 +66,19 @@ impl DocumentManager {
     collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DocumentCloudService>,
     storage_service: Weak<dyn StorageService>,
-    snapshot_service: Arc<dyn DocumentSnapshotService>,
   ) -> Self {
+    let base_removal_timeout = if cfg!(debug_assertions) {
+      Duration::from_secs(10) // Shorter timeout for debug builds
+    } else {
+      Duration::from_secs(60 * 10)
+    };
     let manager = Self {
       user_service,
       collab_builder,
       documents: Arc::new(Default::default()),
       cloud_service,
       storage_service,
-      snapshot_service,
-      base_removal_timeout: Duration::from_secs(60),
+      base_removal_timeout,
     };
 
     // Start periodic cleanup task
@@ -205,7 +196,10 @@ impl DocumentManager {
         .collab_builder()?
         .create_document(workspace_id, *doc_id, encoded_collab.into())
         .await?;
-      self.cache_and_initialize_document(*doc_id, document).await;
+
+      let document_entry = DocumentEntry::new_with_resource(*doc_id, document.clone());
+      self.documents.insert(*doc_id, document_entry);
+      self.setup_document_subscriptions(doc_id, &document).await;
       Ok(())
     }
   }
@@ -218,7 +212,6 @@ impl DocumentManager {
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
     if let Some(entry) = self.documents.get(doc_id) {
       Self::clean_document_awareness(&entry).await;
-      entry.mark_for_removal().await;
     }
     Ok(())
   }
@@ -242,13 +235,6 @@ impl DocumentManager {
     Ok(())
   }
 
-  async fn cache_and_initialize_document(&self, doc_id: Uuid, document: Arc<RwLock<Document>>) {
-    let document_entry = DocumentEntry::new_initializing(doc_id);
-    document_entry.set_resource(document.clone()).await;
-    self.documents.insert(doc_id, document_entry);
-    self.setup_document_subscriptions(&doc_id, &document).await;
-  }
-
   async fn setup_document_subscriptions(&self, doc_id: &Uuid, document: &Arc<RwLock<Document>>) {
     let mut lock = document.write().await;
     subscribe_document_changed(doc_id, &mut lock);
@@ -260,8 +246,6 @@ impl DocumentManager {
     let entry = self.documents.get(doc_id).map(|e| e.value().clone());
     // Check if we have an active document
     if let Some(entry) = entry {
-      entry.reactivate().await;
-
       if let Some(doc) = entry.get_resource().await {
         return Ok(doc);
       }
@@ -300,37 +284,6 @@ impl DocumentManager {
       return Ok(true);
     }
     Ok(false)
-  }
-
-  /// Return the list of snapshots of the document.
-  pub async fn get_document_snapshot_meta(
-    &self,
-    document_id: &Uuid,
-    _limit: usize,
-  ) -> FlowyResult<Vec<DocumentSnapshotMetaPB>> {
-    let metas = self
-      .snapshot_service
-      .get_document_snapshot_metas(document_id.to_string().as_str())?
-      .into_iter()
-      .map(|meta| DocumentSnapshotMetaPB {
-        snapshot_id: meta.snapshot_id,
-        object_id: meta.object_id,
-        created_at: meta.created_at,
-      })
-      .collect::<Vec<_>>();
-
-    Ok(metas)
-  }
-
-  pub async fn get_document_snapshot(&self, snapshot_id: &str) -> FlowyResult<DocumentSnapshotPB> {
-    let snapshot = self
-      .snapshot_service
-      .get_document_snapshot(snapshot_id)
-      .map(|snapshot| DocumentSnapshotPB {
-        object_id: snapshot.object_id,
-        encoded_v1: snapshot.encoded_v1,
-      })?;
-    Ok(snapshot)
   }
 
   #[instrument(level = "debug", skip_all, err)]
@@ -396,7 +349,7 @@ impl DocumentManager {
 
   /// Return a document instance if the document is already opened.
   pub async fn editable_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    self.open_document(doc_id).await
+    self.get_document_internal(doc_id).await
   }
 
   /// Returns Document for given object id
@@ -404,67 +357,44 @@ impl DocumentManager {
   /// If the document exists, open the document and cache it
   #[tracing::instrument(level = "info", skip(self), err)]
   async fn create_document_instance(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    let should_initialize = self.try_start_document_initialization(doc_id).await;
-    if !should_initialize {
-      return self.wait_for_document_initialization(doc_id).await;
+    let entry = {
+      self
+        .documents
+        .entry(*doc_id)
+        .or_insert_with(|| DocumentEntry::new_initializing(*doc_id))
+        .clone()
+    };
+
+    if let Some(document) = entry.get_resource().await {
+      trace!("document already initialized: {}", doc_id);
+      return Ok(document);
     }
 
-    trace!("Initializing document: {}", doc_id);
-    match self.initialize_document(doc_id).await {
-      Ok(document) => {
-        // Store the document in the entry
-        if let Some(entry) = self.documents.get(doc_id) {
+    if entry.try_mark_initialization_start().await {
+      trace!("Initializing document: {}", doc_id);
+      match self.initialize_document(doc_id).await {
+        Ok(document) => {
           entry.set_resource(document.clone()).await;
           Ok(document)
-        } else {
-          // This shouldn't happen since we inserted it earlier
-          Err(
-            FlowyError::internal().with_context("Document entry disappeared during initialization"),
-          )
-        }
-      },
-      Err(err) => {
-        if let Some(entry) = self.documents.get(doc_id) {
-          entry.mark_initialization_failed(err.msg.clone()).await;
-        }
+        },
+        Err(err) => {
+          entry
+            .mark_initialization_failed(
+              "Document entry disappeared during initialization".to_string(),
+            )
+            .await;
 
-        if err.is_invalid_data() {
-          self.delete_document(doc_id).await?;
-        }
-        Err(err)
-      },
-    }
-  }
-
-  /// Try to start document initialization, returns true if this task should proceed
-  async fn try_start_document_initialization(&self, doc_id: &Uuid) -> bool {
-    let entry = self.documents.entry(*doc_id);
-    match entry {
-      dashmap::mapref::entry::Entry::Occupied(entry) => {
-        let document_entry = entry.get();
-        document_entry.reactivate().await;
-        document_entry.try_mark_initialization_start().await
-      },
-      dashmap::mapref::entry::Entry::Vacant(entry) => {
-        let holder = DocumentEntry::new_initializing(*doc_id);
-        entry.insert(holder);
-        true
-      },
-    }
-  }
-
-  async fn wait_for_document_initialization(
-    &self,
-    doc_id: &Uuid,
-  ) -> FlowyResult<Arc<RwLock<Document>>> {
-    let entry = self.documents.get(doc_id).map(|v| v.value().clone());
-    if let Some(entry) = entry {
+          if err.is_invalid_data() {
+            self.delete_document(doc_id).await?;
+          }
+          Err(err)
+        },
+      }
+    } else {
       entry
-        .wait_for_initialization(Duration::from_secs(5))
+        .wait_for_initialization(Duration::from_secs(10))
         .await
         .map_err(|err| FlowyError::internal().with_context(err))
-    } else {
-      Err(FlowyError::internal().with_context("Document entry not found"))
     }
   }
 
@@ -523,22 +453,16 @@ impl DocumentManager {
       loop {
         interval.tick().await;
         if let Some(documents) = weak_documents.upgrade() {
-          let now = Instant::now();
           let mut to_remove = Vec::new();
           let timeout = base_timeout;
-
           for entry in documents.iter() {
             let (doc_id, document_entry) = entry.pair();
-            let should_remove = match document_entry.removal_time().await {
-              Some(removal_time) => now.duration_since(removal_time) >= timeout,
-              None => {
-                // Also remove failed entries that are old enough
-                document_entry.can_be_removed().await
-                  && now.duration_since(document_entry.last_access().await) >= timeout
-              },
-            };
-
-            if should_remove {
+            if document_entry.can_be_removed(timeout).await {
+              trace!(
+                "[Document]: Periodic cleanup document: {} can be removed, timeout duration: {}",
+                doc_id,
+                timeout.as_secs()
+              );
               to_remove.push(*doc_id);
             }
           }
@@ -546,7 +470,6 @@ impl DocumentManager {
           // Remove expired entries
           for doc_id in to_remove {
             if let Some((_, entry)) = documents.remove(&doc_id) {
-              trace!("[Document]: Periodic cleanup removing document: {}", doc_id);
               if let Some(document) = entry.get_resource().await {
                 let mut lock = document.write().await;
                 lock.clean_awareness_local_state();

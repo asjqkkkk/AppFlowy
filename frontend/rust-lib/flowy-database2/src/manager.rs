@@ -22,12 +22,12 @@ use collab_entity::{CollabType, EncodedCollab};
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use dashmap::DashMap;
 use rayon::prelude::*;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-use std::time::{Duration, Instant};
-use tokio::sync::Mutex;
+use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace};
 
 use flowy_database_pub::cloud::{
@@ -44,8 +44,9 @@ use crate::services::database::DatabaseEditor;
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
-use crate::wdb_manager::WorkspaceDatabaseManager;
+use crate::wdb_manager::{DatabaseEntry, WorkspaceDatabaseManager};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use lib_infra::async_entry::AsyncEntry;
 use tokio::sync::RwLock as TokioRwLock;
 use uuid::Uuid;
 
@@ -61,7 +62,9 @@ pub struct DatabaseManager {
   user: Arc<dyn DatabaseUser>,
   workspace_database_manager: Arc<ArcSwapOption<RwLock<WorkspaceDatabaseManager>>>,
   task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
-  database_editors: Arc<Mutex<HashMap<String, DatabaseEditorEntry>>>,
+  database_editors: Arc<DashMap<String, DatabaseEditorEntry>>,
+  database_entries: Arc<RwLock<HashMap<String, DatabaseEntry>>>,
+  collab_service: RwLock<Option<Arc<dyn DatabaseCollabService>>>,
   collab_builder: Weak<WorkspaceCollabAdaptor>,
   cloud_service: Arc<dyn DatabaseCloudService>,
   ai_service: Arc<dyn DatabaseAIService>,
@@ -82,15 +85,23 @@ impl DatabaseManager {
     cloud_service: Arc<dyn DatabaseCloudService>,
     ai_service: Arc<dyn DatabaseAIService>,
   ) -> Self {
+    let removal_timeout = if cfg!(debug_assertions) {
+      Duration::from_secs(10) // Shorter timeout for debug builds
+    } else {
+      Duration::from_secs(60 * 10)
+    };
+
     let manager = Self {
       user: database_user,
       workspace_database_manager: Default::default(),
       task_scheduler,
-      database_editors: Default::default(),
+      database_editors: Arc::new(DashMap::new()),
+      database_entries: Arc::new(RwLock::new(HashMap::new())),
+      collab_service: Default::default(),
       collab_builder,
       cloud_service,
       ai_service,
-      removal_timeout: Duration::from_secs(120), // 2 minutes
+      removal_timeout,
     };
 
     // Start periodic cleanup task
@@ -107,10 +118,12 @@ impl DatabaseManager {
     // 1. Clear all existing tasks
     self.task_scheduler.write().await.clear_task();
     // 2. Release all existing editors
-    for (_, editor) in self.database_editors.lock().await.iter() {
-      editor.editor.close_all_views().await;
+    for entry in self.database_editors.iter() {
+      if let Some(database) = entry.value().get_resource().await {
+        database.close_all_views().await;
+      }
     }
-    self.database_editors.lock().await.clear();
+    self.database_editors.clear();
     // 3. Clear the workspace database
     if let Some(old_workspace_database) = self.workspace_database_manager.swap(None) {
       info!("Close the old workspace database");
@@ -118,21 +131,25 @@ impl DatabaseManager {
       wdb.close();
     }
 
-    let collab_service = WorkspaceDatabaseCollabServiceImpl::new(
+    let collab_service = Arc::new(WorkspaceDatabaseCollabServiceImpl::new(
       is_local_user,
       self.user.clone(),
       self.collab_builder.clone(),
       self.cloud_service.clone(),
-    );
+    ));
+    self
+      .collab_service
+      .write()
+      .await
+      .replace(collab_service.clone());
 
     let object_id = self.user.workspace_database_object_id()?;
     let object_id_str = object_id.to_string();
-
     let collab_type = CollabType::WorkspaceDatabase;
     let collab = collab_service
       .build_workspace_database_collab(&object_id_str, None)
       .await?;
-    let workspace = WorkspaceDatabaseManager::open(&object_id.to_string(), collab, collab_service)?;
+    let workspace = WorkspaceDatabaseManager::open(&object_id.to_string(), collab)?;
     let workspace_database = Arc::new(RwLock::new(workspace));
     self
       .collab_builder()?
@@ -269,20 +286,18 @@ impl DatabaseManager {
     &self,
     database_id: &str,
   ) -> FlowyResult<Arc<DatabaseEditor>> {
-    {
-      let mut editors = self.database_editors.lock().await;
-      if let Some(editor_entry) = editors.get_mut(database_id) {
-        editor_entry.reactivate();
-        return Ok(editor_entry.editor.clone());
+    // Try to get existing editor
+    if let Some(editor_entry) = self.database_editors.get(database_id) {
+      if let Some(database) = editor_entry.get_resource().await {
+        return Ok(database);
       }
     }
 
     trace!("[Database]: Creating new database editor: {}", database_id);
-    let workspace_database = self.workspace_database()?;
     // When the user opens the database from the left-side bar, it may fail because the workspace database
     // hasn't finished syncing yet. In such cases, get_or_create_database will return None.
     // The workaround is to add a retry mechanism to attempt fetching the database again.
-    let database = open_database_with_retry(workspace_database, database_id).await?;
+    let database = self.get_or_init_database(database_id).await?;
     let collab_builder = self.collab_builder()?;
     let editor = DatabaseEditor::new(
       self.user.clone(),
@@ -292,10 +307,8 @@ impl DatabaseManager {
     )
     .await?;
 
-    self.database_editors.lock().await.insert(
-      database_id.to_string(),
-      DatabaseEditorEntry::new_active(editor.clone()),
-    );
+    let entry = DatabaseEditorEntry::new_with_resource(database_id.to_string(), editor.clone());
+    self.database_editors.insert(database_id.to_string(), entry);
     Ok(editor)
   }
 
@@ -322,20 +335,21 @@ impl DatabaseManager {
     drop(workspace_database);
 
     if let Some(database_id) = database_id {
-      let mut editors = self.database_editors.lock().await;
-      if let Some(editor_entry) = editors.get_mut(&database_id) {
-        editor_entry.editor.close_view(view_id).await;
-        editor_entry.editor.close_database().await;
-        let num_views = editor_entry.editor.num_of_opening_views().await;
-        if num_views == 0 {
-          trace!(
-            "[Database]: mark database editor for removal: {}",
-            database_id
-          );
-          editor_entry.mark_for_removal();
+      if let Some(editor_entry) = self
+        .database_editors
+        .get(&database_id)
+        .map(|e| e.value().clone())
+      {
+        if let Some(editor) = editor_entry.get_resource().await {
+          editor.close_view(view_id).await;
+          editor.close_database().await;
+          let num_views = editor.num_of_opening_views().await;
+          if num_views == 0 {
+            trace!("[Database]: removing database editor: {}", database_id);
+            self.database_editors.remove(&database_id);
+          }
         }
       }
-      drop(editors);
     }
 
     Ok(())
@@ -350,14 +364,22 @@ impl DatabaseManager {
   pub async fn get_database_data(&self, view_id: &str) -> FlowyResult<DatabaseData> {
     let lock = self.workspace_database()?;
     let wdb = lock.read().await;
-    let data = wdb.get_database_data(view_id).await?;
+
+    let database_id = wdb.get_database_id_with_view_id(view_id).ok_or_else(|| {
+      FlowyError::record_not_found().with_context("Could not find database with view id")
+    })?;
+    let database = self.get_or_init_database_editor(&database_id).await?;
+    let data = database
+      .get_mutex_database()
+      .read()
+      .await
+      .get_database_data()
+      .await;
     Ok(data)
   }
 
   pub async fn get_database_json_string(&self, view_id: &str) -> FlowyResult<String> {
-    let lock = self.workspace_database()?;
-    let wdb = lock.read().await;
-    let data = wdb.get_database_data(view_id).await?;
+    let data = self.get_database_data(view_id).await?;
     let json_string = serde_json::to_string(&data)?;
     Ok(json_string)
   }
@@ -376,17 +398,14 @@ impl DatabaseManager {
 
     // choose the first view as the display view. The new database_view_id is the ID in the Folder.
     let database_view_id = database_data.views[0].id.clone();
-    let create_database_params = CreateDatabaseParams::from_database_data(
+    let params = CreateDatabaseParams::from_database_data(
       database_data,
       &database_view_id,
       new_database_view_id,
     );
 
-    let lock = self.workspace_database()?;
-    let mut wdb = lock.write().await;
-    let _ = wdb.create_database(create_database_params).await?;
-    drop(wdb);
-
+    self.trace_database(&params).await?;
+    self.create_database(params).await?;
     Ok(())
   }
 
@@ -398,13 +417,108 @@ impl DatabaseManager {
     database_view_id: &str,
     new_database_view_id: &str,
   ) -> FlowyResult<()> {
-    let lock = self.workspace_database()?;
-    let mut wdb = lock.write().await;
-    let _ = wdb
-      .duplicate_database(database_view_id, new_database_view_id)
-      .await?;
-    drop(wdb);
+    let database_data = self.get_database_data(database_view_id).await?;
+    let params = CreateDatabaseParams::from_database_data(
+      database_data,
+      database_view_id,
+      new_database_view_id,
+    );
+
+    self.trace_database(&params).await?;
+    self.create_database(params).await?;
     Ok(())
+  }
+
+  pub async fn get_or_init_database(
+    &self,
+    database_id: &str,
+  ) -> Result<Arc<RwLock<Database>>, FlowyError> {
+    // First, try to get existing entry with read lock
+    {
+      let entries = self.database_entries.read().await;
+      if let Some(entry) = entries.get(database_id) {
+        if let Some(database) = entry.get_resource().await {
+          trace!("Database already initialized: {}", database_id);
+          return Ok(database);
+        }
+      }
+    }
+
+    // Get or create entry with write lock
+    let entry = {
+      let mut entries = self.database_entries.write().await;
+      entries
+        .entry(database_id.to_string())
+        .or_insert_with(|| Arc::new(AsyncEntry::new_initializing(database_id.to_string())))
+        .clone()
+    };
+
+    // Check if we already have the database after acquiring entry
+    if let Some(database) = entry.get_resource().await {
+      trace!("Database already initialized: {}", database_id);
+      return Ok(database);
+    }
+
+    // Try to start initialization
+    if entry.try_mark_initialization_start().await {
+      trace!("Initializing database: {}", database_id);
+      let context = DatabaseContext::new(self.get_collab_service().await?);
+      match Database::arc_open(database_id, context).await {
+        Ok(database) => {
+          // Store the database in the entry
+          entry.set_resource(database.clone()).await;
+          trace!("Database opened and stored: {}", database_id);
+          Ok(database)
+        },
+        Err(err) => {
+          error!("Open database failed: {}", err);
+          entry.mark_initialization_failed(err.to_string()).await;
+          Err(FlowyError::internal().with_context(err))
+        },
+      }
+    } else {
+      // Another task is initializing, wait for it to complete
+      trace!("Waiting for database initialization: {}", database_id);
+      match entry.wait_for_initialization(Duration::from_secs(10)).await {
+        Ok(database) => {
+          trace!("Database initialization completed: {}", database_id);
+          Ok(database)
+        },
+        Err(err) => {
+          error!("Database initialization failed or timed out: {}", err);
+          Err(FlowyError::internal().with_context(err))
+        },
+      }
+    }
+  }
+
+  async fn get_collab_service(&self) -> FlowyResult<Arc<dyn DatabaseCollabService>> {
+    let collab_service = self
+      .collab_service
+      .read()
+      .await
+      .as_ref()
+      .map(|v| v.clone())
+      .ok_or_else(|| FlowyError::internal().with_context("Collab service not initialized"))?;
+    Ok(collab_service)
+  }
+
+  pub async fn create_database(
+    &self,
+    params: CreateDatabaseParams,
+  ) -> Result<Arc<RwLock<Database>>, FlowyError> {
+    let context = DatabaseContext::new(self.get_collab_service().await?);
+    let database_id = params.database_id.clone();
+    let database = Database::create_arc_with_view(params, context).await?;
+    let entry = Arc::new(AsyncEntry::new_initializing(database_id.clone()));
+    entry.set_resource(database.clone()).await;
+    self
+      .database_entries
+      .write()
+      .await
+      .insert(database_id, entry);
+
+    Ok(database)
   }
 
   pub async fn import_database(
@@ -417,13 +531,18 @@ impl DatabaseManager {
           .with_context("Only support importing csv with less than 500 rows"),
       );
     }
+    self.trace_database(&params).await?;
+    let database = self.create_database(params).await?;
+    Ok(database)
+  }
 
+  async fn trace_database(&self, params: &CreateDatabaseParams) -> FlowyResult<()> {
     let lock = self.workspace_database()?;
     let mut wdb = lock.write().await;
-    let database = wdb.create_database(params).await?;
-    drop(wdb);
-
-    Ok(database)
+    let mut linked_views = HashSet::new();
+    linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
+    wdb.track_database(&params.database_id, linked_views.into_iter().collect());
+    Ok(())
   }
 
   /// A linked view is a view that is linked to existing database.
@@ -441,12 +560,11 @@ impl DatabaseManager {
       name, layout, database_id, database_view_id
     );
 
-    let workspace_database = self.workspace_database()?;
-    let mut wdb = workspace_database.write().await;
-    let mut params = CreateViewParams::new(database_id.clone(), database_view_id, name, layout);
-    if let Ok(database) = wdb.get_or_init_database(&database_id).await {
+    let mut params =
+      CreateViewParams::new(database_id.clone(), database_view_id.clone(), name, layout);
+    if let Ok(database) = self.get_or_init_database(&database_id).await {
       let (field, layout_setting, field_settings_map) =
-        DatabaseLayoutDepsResolver::new(database, layout)
+        DatabaseLayoutDepsResolver::new(database.clone(), layout)
           .resolve_deps_when_create_database_linked_view(&database_parent_view_id)
           .await;
       if let Some(field) = field {
@@ -458,8 +576,17 @@ impl DatabaseManager {
       if let Some(field_settings_map) = field_settings_map {
         params = params.with_field_settings_map(field_settings_map);
       }
+
+      database
+        .write()
+        .await
+        .create_linked_view(params)
+        .map_err(|err| FlowyError::internal().with_context(err))?;
     };
-    wdb.create_database_linked_view(params).await?;
+
+    let workspace_database = self.workspace_database()?;
+    let mut wdb = workspace_database.write().await;
+    wdb.trace_linked_view(&database_id, database_view_id);
     Ok(())
   }
 
@@ -680,7 +807,7 @@ impl DatabaseManager {
   /// Start a periodic cleanup task to remove old entries from removing_editor
   fn start_periodic_cleanup(&self) {
     let weak_database_editors = Arc::downgrade(&self.database_editors);
-    let weak_workspace_database = Arc::downgrade(&self.workspace_database_manager);
+    let weak_database_entries = Arc::downgrade(&self.database_entries);
     let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
     let base_timeout = self.removal_timeout;
 
@@ -691,34 +818,29 @@ impl DatabaseManager {
       loop {
         interval.tick().await;
         if let Some(database_editors) = weak_database_editors.upgrade() {
-          let mut editors = database_editors.lock().await;
-          let now = Instant::now();
           let mut to_remove = Vec::new();
           let timeout = base_timeout;
 
-          for (database_id, entry) in editors.iter() {
-            if let Some(removal_time) = entry.removal_time() {
-              if now.duration_since(removal_time) >= timeout {
-                to_remove.push(database_id.clone());
-              }
+          // Collect entries to remove
+          for entry in database_editors.iter() {
+            let database_id = entry.key();
+            let editor_entry = entry.value();
+            if editor_entry.can_be_removed(timeout).await {
+              trace!(
+                "[Database]: Periodic cleanup: database {} can be removed. timeout duration: {}",
+                database_id,
+                timeout.as_secs()
+              );
+              to_remove.push(database_id.clone());
             }
           }
 
           // Remove expired entries and close databases
           for database_id in to_remove {
-            if editors.remove(&database_id).is_some() {
-              trace!(
-                "[Database]: Periodic cleanup removing database: {}",
-                database_id
-              );
-
+            if database_editors.remove(&database_id).is_some() {
               // Close the database in the workspace
-              if let Some(workspace_manager) = weak_workspace_database.upgrade() {
-                if let Some(workspace) = workspace_manager.load_full() {
-                  let wdb = workspace.write().await;
-                  trace!("[Database]: Closing database: {}", database_id);
-                  wdb.close_database(&database_id);
-                }
+              if let Some(database_entries) = weak_database_entries.upgrade() {
+                database_entries.write().await.remove(&database_id);
               }
             }
           }
@@ -731,10 +853,11 @@ impl DatabaseManager {
 
   /// Get total editors count (active + pending removal)
   pub async fn get_total_editors_count(&self) -> usize {
-    self.database_editors.lock().await.len()
+    self.database_editors.len()
   }
 }
 
+#[derive(Clone)]
 struct WorkspaceDatabaseCollabServiceImpl {
   is_local_user: bool,
   user: Arc<dyn DatabaseUser>,
@@ -1222,119 +1345,4 @@ impl DatabaseCollabPersistenceService for DatabasePersistenceImpl {
     }
   }
 }
-async fn open_database_with_retry(
-  workspace_database_manager: Arc<RwLock<WorkspaceDatabaseManager>>,
-  database_id: &str,
-) -> Result<Arc<RwLock<Database>>, DatabaseError> {
-  let max_retries = 3;
-  let retry_interval = Duration::from_secs(4);
-  for attempt in 1..=max_retries {
-    trace!(
-      "[Database]: attempt {} to open database:{}",
-      attempt, database_id
-    );
-
-    let result = workspace_database_manager
-      .try_read()
-      .map_err(|err| DatabaseError::Internal(anyhow!("workspace database lock fail: {}", err)))?
-      .get_or_init_database(database_id)
-      .await;
-
-    // Attempt to open the database
-    match result {
-      Ok(database) => return Ok(database),
-      Err(err) => {
-        if matches!(err, DatabaseError::RecordNotFound)
-          || matches!(err, DatabaseError::NoRequiredData(_))
-        {
-          error!(
-            "[Database]: retry {} to open database:{}, error:{}",
-            attempt, database_id, err
-          );
-
-          if attempt < max_retries {
-            tokio::time::sleep(retry_interval).await;
-          } else {
-            error!(
-              "[Database]: exhausted retries to open database:{}, error:{}",
-              database_id, err
-            );
-            return Err(err);
-          }
-        } else {
-          error!(
-            "[Database]: stop retrying to open database:{}, error:{}",
-            database_id, err
-          );
-          return Err(err);
-        }
-      },
-    }
-  }
-
-  Err(DatabaseError::Internal(anyhow!(
-    "Exhausted retries to open database: {}",
-    database_id
-  )))
-}
-
-#[derive(Clone, Debug)]
-enum DatabaseEditorState {
-  Active,
-  PendingRemoval {
-    removal_time: Instant,
-    last_access: Instant,
-  },
-}
-
-#[derive(Clone)]
-struct DatabaseEditorEntry {
-  editor: Arc<DatabaseEditor>,
-  state: DatabaseEditorState,
-}
-
-impl DatabaseEditorEntry {
-  fn new_active(editor: Arc<DatabaseEditor>) -> Self {
-    Self {
-      editor,
-      state: DatabaseEditorState::Active,
-    }
-  }
-
-  fn mark_for_removal(&mut self) {
-    match self.state {
-      DatabaseEditorState::Active => {
-        self.state = DatabaseEditorState::PendingRemoval {
-          removal_time: Instant::now(),
-          last_access: Instant::now(),
-        };
-      },
-      DatabaseEditorState::PendingRemoval { .. } => {
-        if let DatabaseEditorState::PendingRemoval { last_access, .. } = self.state {
-          self.state = DatabaseEditorState::PendingRemoval {
-            removal_time: Instant::now(),
-            last_access,
-          };
-        }
-      },
-    }
-  }
-
-  fn reactivate(&mut self) {
-    match self.state {
-      DatabaseEditorState::Active => {
-        self.state = DatabaseEditorState::Active;
-      },
-      DatabaseEditorState::PendingRemoval { .. } => {
-        self.state = DatabaseEditorState::Active;
-      },
-    }
-  }
-
-  fn removal_time(&self) -> Option<Instant> {
-    match self.state {
-      DatabaseEditorState::Active { .. } => None,
-      DatabaseEditorState::PendingRemoval { removal_time, .. } => Some(removal_time),
-    }
-  }
-}
+type DatabaseEditorEntry = AsyncEntry<Arc<DatabaseEditor>, String>;

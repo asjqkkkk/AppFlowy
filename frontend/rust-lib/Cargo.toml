@@ -145,13 +145,13 @@ rocksdb = { git = "https://github.com/rust-rocksdb/rust-rocksdb", rev = "1710120
 # To switch to the local path, run:
 # scripts/tool/update_collab_source.sh
 # ⚠️⚠️⚠️️
-collab = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-entity = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-folder = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-document = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-database = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-plugins = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-user = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
-collab-importer = { version = "0.1", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "71e706e2d3ebc2a8523517b20ade439fd6e3ef0d" }
+collab = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-entity = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-folder = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-document = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-database = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-plugins = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-user = { version = "0.2", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
+collab-importer = { version = "0.1", git = "https://github.com/AppFlowy-IO/AppFlowy-Collab", rev = "f6a4663bab9c4d85a91f9d8382e5a7fbe109551b" }
 
 langchain-rust = { version = "4.6.0", git = "https://github.com/appflowy/langchain-rust", branch = "af" }

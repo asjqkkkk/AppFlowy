@@ -1,14 +1,13 @@
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, RwLock};
 use tracing::debug;
 
 #[derive(Clone, Debug)]
 pub enum ResourceState {
   Initializing,
-  Active,
+  Active { last_active: Instant },
   Failed,
-  PendingRemoval { removal_time: Instant },
 }
 
 // Internal mutable state wrapped in RwLock
@@ -16,7 +15,6 @@ pub enum ResourceState {
 struct AsyncEntryState<T> {
   resource: Option<T>,
   state: ResourceState,
-  last_access: Instant,
   initialization_sender: Option<broadcast::Sender<Result<T, String>>>,
   initialization_claimed: bool,
 }
@@ -30,7 +28,6 @@ where
     Self {
       resource: None,
       state: ResourceState::Initializing,
-      last_access: Instant::now(),
       initialization_sender: Some(sender),
       initialization_claimed: false,
     }
@@ -54,75 +51,62 @@ where
     }
   }
 
-  pub async fn mark_for_removal(&self) {
-    debug!("[ResourceEntry]: mark resource as removal {}", self.id);
-    let mut state = self.state.write().await;
-    match state.state {
-      ResourceState::Active => {
-        state.state = ResourceState::PendingRemoval {
-          removal_time: Instant::now(),
-        };
-      },
-      _ => {
-        debug!(
-          "[ResourceEntry]: Resource {} not active, will be cleaned up immediately",
-          self.id
-        );
-      },
+  pub fn new_with_resource(id: Id, resource: T) -> Self {
+    let mut state = AsyncEntryState::new();
+    state.resource = Some(resource);
+    state.state = ResourceState::Active {
+      last_active: Instant::now(),
+    };
+    Self {
+      id,
+      state: Arc::new(RwLock::new(state)),
     }
   }
 
-  pub async fn reactivate(&self) {
-    debug!("[ResourceEntry]: Reactivating resource {}", self.id);
+  async fn touch_active_time(&self) {
+    debug!(
+      "[ResourceEntry]: Touching active time for resource {}",
+      self.id
+    );
     let mut state = self.state.write().await;
-    state.last_access = Instant::now();
-
-    match state.state {
-      ResourceState::PendingRemoval { .. } => {
-        if state.resource.is_some() {
-          state.state = ResourceState::Active;
-        } else {
-          // This shouldn't happen, but if it does, mark as failed
-          state.state = ResourceState::Failed;
-        }
-      },
-      ResourceState::Failed => {
-        // Restart initialization from failed state
-        state.state = ResourceState::Initializing;
-        state.initialization_claimed = false;
-        let (sender, _) = broadcast::channel(1);
-        state.initialization_sender = Some(sender);
-      },
-      ResourceState::Initializing | ResourceState::Active => {
-        // Keep current state but update access time
-      },
+    if let ResourceState::Active { .. } = state.state {
+      state.state = ResourceState::Active {
+        last_active: Instant::now(),
+      };
     }
   }
 
-  pub async fn removal_time(&self) -> Option<Instant> {
+  pub async fn last_active_time(&self) -> Option<Instant> {
     let state = self.state.read().await;
     match state.state {
-      ResourceState::PendingRemoval { removal_time } => Some(removal_time),
+      ResourceState::Active { last_active } => Some(last_active),
       _ => None,
     }
   }
 
   pub async fn get_resource(&self) -> Option<T> {
-    let state = self.state.read().await;
-    // Only return resource if in active state
-    match state.state {
-      ResourceState::Active => state.resource.clone(),
-      _ => None,
+    let resource = {
+      let state = self.state.read().await;
+      match state.state {
+        ResourceState::Active { .. } => state.resource.clone(),
+        _ => None,
+      }
+    };
+
+    if resource.is_some() {
+      self.touch_active_time().await;
     }
+    resource
   }
 
   pub async fn set_resource(&self, resource: T) {
     let mut state = self.state.write().await;
     let resource_clone = resource.clone();
+    let now = Instant::now();
+
     state.resource = Some(resource);
-    state.state = ResourceState::Active;
+    state.state = ResourceState::Active { last_active: now };
     state.initialization_claimed = false;
-    state.last_access = Instant::now();
 
     // Send the successful result to all waiters
     if let Some(sender) = &state.initialization_sender {
@@ -139,13 +123,12 @@ where
       ResourceState::Initializing => {
         if !state.initialization_claimed {
           state.initialization_claimed = true;
-          state.last_access = Instant::now();
           true
         } else {
           false // Already claimed by someone else
         }
       },
-      ResourceState::Active => {
+      ResourceState::Active { .. } => {
         // Don't reinitialize if we already have a valid resource
         if state.resource.is_some() {
           return false;
@@ -153,17 +136,15 @@ where
         // Start initialization if no resource
         state.state = ResourceState::Initializing;
         state.initialization_claimed = true;
-        state.last_access = Instant::now();
         let (sender, _) = broadcast::channel(1);
         state.initialization_sender = Some(sender);
         true
       },
-      ResourceState::Failed | ResourceState::PendingRemoval { .. } => {
+      ResourceState::Failed => {
         // Clear any existing resource on retry
         state.resource = None;
         state.state = ResourceState::Initializing;
         state.initialization_claimed = true;
-        state.last_access = Instant::now();
         // Create a new sender for the retry
         let (sender, _) = broadcast::channel(1);
         state.initialization_sender = Some(sender);
@@ -188,20 +169,29 @@ where
     }
   }
 
-  /// Check if the entry is in a state that can be cleaned up
-  pub async fn can_be_removed(&self) -> bool {
+  /// Check if the entry can be cleaned up based on inactivity
+  pub async fn can_be_removed(&self, inactive_duration: Duration) -> bool {
     let state = self.state.read().await;
-    matches!(
-      state.state,
-      ResourceState::Failed | ResourceState::PendingRemoval { .. }
-    )
+    match state.state {
+      ResourceState::Failed => true,
+      ResourceState::Active { last_active } => {
+        let now = Instant::now();
+        now.duration_since(last_active) > inactive_duration
+      },
+      ResourceState::Initializing => false,
+    }
   }
 
-  /// Get the last access time for cleanup purposes
-  #[allow(dead_code)]
-  pub async fn last_access(&self) -> Instant {
+  /// Check if the entry is inactive for longer than the specified duration
+  pub async fn is_inactive_for(&self, duration: Duration) -> bool {
     let state = self.state.read().await;
-    state.last_access
+    match state.state {
+      ResourceState::Active { last_active } => {
+        let now = Instant::now();
+        now.duration_since(last_active) > duration
+      },
+      _ => false,
+    }
   }
 
   /// Get the current state for inspection
@@ -228,7 +218,7 @@ where
   #[allow(dead_code)]
   pub async fn is_active(&self) -> bool {
     let state = self.state.read().await;
-    matches!(state.state, ResourceState::Active)
+    matches!(state.state, ResourceState::Active { .. })
   }
 
   /// Check if the entry is initializing
@@ -253,7 +243,7 @@ where
       let state = self.state.read().await;
 
       // If already active, return immediately
-      if let ResourceState::Active = state.state {
+      if let ResourceState::Active { .. } = state.state {
         if let Some(resource) = &state.resource {
           return Ok(resource.clone());
         }
@@ -358,8 +348,8 @@ mod tests {
     assert!(!entry.is_failed().await);
     assert!(!entry.has_resource().await);
     assert_eq!(entry.get_resource().await, None);
-    assert!(!entry.can_be_removed().await);
-    assert_eq!(entry.removal_time().await, None);
+    assert!(!entry.can_be_removed(Duration::from_secs(0)).await);
+    assert_eq!(entry.last_active_time().await, None);
   }
 
   #[tokio::test]
@@ -374,7 +364,10 @@ mod tests {
     assert!(!entry.is_failed().await);
     assert!(entry.has_resource().await);
     assert_eq!(entry.get_resource().await, Some(resource));
-    assert!(!entry.can_be_removed().await);
+    // Resource should not be removable immediately after setting it
+    assert!(!entry.can_be_removed(Duration::from_millis(1)).await);
+    // But active time should be set
+    assert!(entry.last_active_time().await.is_some());
   }
 
   #[tokio::test]
@@ -389,80 +382,7 @@ mod tests {
     assert!(!entry.is_active().await);
     assert!(!entry.has_resource().await);
     assert_eq!(entry.get_resource().await, None);
-    assert!(entry.can_be_removed().await);
-  }
-
-  #[tokio::test]
-  async fn test_mark_for_removal_active() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let resource = TestResource::new("test data");
-    entry.set_resource(resource).await;
-
-    entry.mark_for_removal().await;
-
-    assert!(!entry.is_active().await);
-    assert!(!entry.is_initializing().await);
-    assert!(!entry.is_failed().await);
-    assert!(entry.can_be_removed().await);
-    assert!(entry.removal_time().await.is_some());
-  }
-
-  #[tokio::test]
-  async fn test_mark_for_removal_non_active() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-
-    entry.mark_for_removal().await;
-
-    // Should remain in initializing state, not become pending removal
-    assert!(entry.is_initializing().await);
-    assert!(!entry.can_be_removed().await);
-    assert!(entry.removal_time().await.is_none());
-  }
-
-  #[tokio::test]
-  async fn test_reactivate_from_pending_removal() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let resource = TestResource::new("test data");
-    entry.set_resource(resource.clone()).await;
-    entry.mark_for_removal().await;
-
-    entry.reactivate().await;
-
-    assert!(entry.is_active().await);
-    assert!(!entry.can_be_removed().await);
-    assert!(entry.removal_time().await.is_none());
-    assert_eq!(entry.get_resource().await, Some(resource));
-  }
-
-  #[tokio::test]
-  async fn test_reactivate_from_failed() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    entry.mark_initialization_failed(test_error()).await;
-
-    entry.reactivate().await;
-
-    assert!(entry.is_initializing().await);
-    assert!(!entry.is_failed().await);
-    assert!(!entry.can_be_removed().await);
-  }
-
-  #[tokio::test]
-  async fn test_reactivate_from_pending_removal_without_resource() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let resource = TestResource::new("test data");
-    entry.set_resource(resource).await;
-    entry.mark_for_removal().await;
-
-    // Manually clear the resource to simulate edge case
-    {
-      let mut state = entry.state.write().await;
-      state.resource = None;
-    }
-
-    entry.reactivate().await;
-
-    assert!(entry.is_failed().await);
-    assert!(entry.can_be_removed().await);
+    assert!(entry.can_be_removed(Duration::from_secs(0)).await);
   }
 
   #[tokio::test]
@@ -473,7 +393,7 @@ mod tests {
 
     assert!(result); // Should return true on first call
     assert!(entry.is_initializing().await);
-    
+
     // Second call should return false as already claimed
     let result2 = entry.try_mark_initialization_start().await;
     assert!(!result2);
@@ -498,7 +418,9 @@ mod tests {
     // Manually set to active without resource
     {
       let mut state = entry.state.write().await;
-      state.state = ResourceState::Active;
+      state.state = ResourceState::Active {
+        last_active: Instant::now(),
+      };
     }
 
     let result = entry.try_mark_initialization_start().await;
@@ -511,20 +433,6 @@ mod tests {
   async fn test_mark_initialization_start_from_failed() {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
     entry.mark_initialization_failed(test_error()).await;
-
-    let result = entry.try_mark_initialization_start().await;
-
-    assert!(result); // Should return true and restart initialization
-    assert!(entry.is_initializing().await);
-    assert!(!entry.has_resource().await);
-  }
-
-  #[tokio::test]
-  async fn test_mark_initialization_start_from_pending_removal() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let resource = TestResource::new("test data");
-    entry.set_resource(resource).await;
-    entry.mark_for_removal().await;
 
     let result = entry.try_mark_initialization_start().await;
 
@@ -547,17 +455,57 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_last_access_updates() {
+  async fn test_inactive_duration_check() {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let initial_time = entry.last_access().await;
+    let resource = TestResource::new("test data");
+    entry.set_resource(resource).await;
 
-    // Sleep a small amount to ensure time difference
+    // Resource should be active, not inactive
+    assert!(!entry.is_inactive_for(Duration::from_millis(1)).await);
+    assert!(!entry.can_be_removed(Duration::from_millis(1)).await);
+
+    // Wait a bit and check if it becomes inactive
+    tokio::time::sleep(Duration::from_millis(50)).await;
+    assert!(entry.is_inactive_for(Duration::from_millis(10)).await);
+    assert!(entry.can_be_removed(Duration::from_millis(10)).await);
+
+    // Touch the resource to make it active again
+    let _ = entry.get_resource().await;
+    assert!(!entry.is_inactive_for(Duration::from_millis(1)).await);
+    assert!(!entry.can_be_removed(Duration::from_millis(1)).await);
+  }
+
+  #[tokio::test]
+  async fn test_touch_active_time() {
+    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
+    let resource = TestResource::new("test data");
+    entry.set_resource(resource).await;
+
+    let initial_active_time = entry.last_active_time().await.unwrap();
+
+    // Sleep a bit and touch the active time
     tokio::time::sleep(Duration::from_millis(10)).await;
+    entry.touch_active_time().await;
 
-    entry.reactivate().await;
-    let after_reactivate = entry.last_access().await;
+    let updated_active_time = entry.last_active_time().await.unwrap();
+    assert!(updated_active_time > initial_active_time);
+  }
 
-    assert!(after_reactivate > initial_time);
+  #[tokio::test]
+  async fn test_get_resource_updates_active_time() {
+    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
+    let resource = TestResource::new("test data");
+    entry.set_resource(resource.clone()).await;
+
+    let initial_active_time = entry.last_active_time().await.unwrap();
+
+    // Sleep a bit and get the resource
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    let retrieved_resource = entry.get_resource().await;
+
+    assert_eq!(retrieved_resource, Some(resource));
+    let updated_active_time = entry.last_active_time().await.unwrap();
+    assert!(updated_active_time > initial_active_time);
   }
 
   #[tokio::test]
@@ -592,14 +540,14 @@ mod tests {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
     let resource = TestResource::new("test data");
     entry.set_resource(resource).await;
-    entry.mark_for_removal().await;
 
+    // Now it's active, not initializing
     let result = entry
       .wait_for_initialization(Duration::from_millis(100))
       .await;
 
-    assert!(result.is_err());
-    assert!(result.unwrap_err().contains("not being initialized"));
+    // This should succeed because active state with resource returns immediately
+    assert!(result.is_ok());
   }
 
   #[tokio::test]
@@ -763,22 +711,20 @@ mod tests {
     assert!(entry.is_active().await);
     assert_eq!(entry.get_resource().await, Some(resource.clone()));
 
-    // Mark for removal: Active -> PendingRemoval
-    entry.mark_for_removal().await;
-    assert!(entry.can_be_removed().await);
-    assert!(entry.removal_time().await.is_some());
-    assert_eq!(entry.get_resource().await, None); // Should not return resource when pending removal
+    // Verify active time tracking
+    assert!(entry.last_active_time().await.is_some());
+    assert!(!entry.is_inactive_for(Duration::from_millis(1)).await);
 
-    // Reactivate: PendingRemoval -> Active
-    entry.reactivate().await;
+    // Try to restart initialization: Active -> Initializing (should fail with existing resource)
+    let restarted = entry.try_mark_initialization_start().await;
+    assert!(!restarted); // Should not restart when resource exists
     assert!(entry.is_active().await);
-    assert_eq!(entry.get_resource().await, Some(resource));
 
-    // Mark for removal again: Active -> PendingRemoval
-    entry.mark_for_removal().await;
-    assert!(entry.can_be_removed().await);
-
-    // Try to restart initialization: PendingRemoval -> Initializing
+    // Manually clear resource and try again
+    {
+      let mut state = entry.state.write().await;
+      state.resource = None;
+    }
     let restarted = entry.try_mark_initialization_start().await;
     assert!(restarted);
     assert!(entry.is_initializing().await);
@@ -787,12 +733,13 @@ mod tests {
     // Fail initialization: Initializing -> Failed
     entry.mark_initialization_failed(test_error()).await;
     assert!(entry.is_failed().await);
-    assert!(entry.can_be_removed().await);
+    assert!(entry.can_be_removed(Duration::from_secs(0)).await);
 
-    // Reactivate from failed: Failed -> Initializing
-    entry.reactivate().await;
+    // Restart from failed: Failed -> Initializing
+    let restarted = entry.try_mark_initialization_start().await;
+    assert!(restarted);
     assert!(entry.is_initializing().await);
-    assert!(!entry.can_be_removed().await);
+    assert!(!entry.can_be_removed(Duration::from_secs(0)).await);
   }
 
   #[tokio::test]
@@ -824,18 +771,17 @@ mod tests {
   }
 
   #[tokio::test]
-  async fn test_removal_time_precision() {
+  async fn test_active_time_precision() {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
     let resource = TestResource::new("test data");
+
+    let before_set = Instant::now();
     entry.set_resource(resource).await;
+    let after_set = Instant::now();
 
-    let before_removal = Instant::now();
-    entry.mark_for_removal().await;
-    let after_removal = Instant::now();
-
-    let removal_time = entry.removal_time().await.unwrap();
-    assert!(removal_time >= before_removal);
-    assert!(removal_time <= after_removal);
+    let active_time = entry.last_active_time().await.unwrap();
+    assert!(active_time >= before_set);
+    assert!(active_time <= after_set);
   }
 
   #[tokio::test]
@@ -869,39 +815,34 @@ mod tests {
   async fn test_clone_shares_state() {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
     let resource = TestResource::new("shared state test");
-    
+
     // Clone the entry
     let cloned_entry = entry.clone();
-    
+
     // Both should have the same ID
     assert_eq!(entry.id(), cloned_entry.id());
-    
+
     // Both should start in initializing state
     assert!(entry.is_initializing().await);
     assert!(cloned_entry.is_initializing().await);
-    
+
     // Set resource on original entry
     entry.set_resource(resource.clone()).await;
-    
+
     // Both entries should now be active and have the same resource
     assert!(entry.is_active().await);
     assert!(cloned_entry.is_active().await);
     assert_eq!(entry.get_resource().await, Some(resource.clone()));
     assert_eq!(cloned_entry.get_resource().await, Some(resource));
-    
-    // Mark for removal on cloned entry
-    cloned_entry.mark_for_removal().await;
-    
-    // Both entries should be marked for removal
-    assert!(entry.can_be_removed().await);
-    assert!(cloned_entry.can_be_removed().await);
-    
-    // Reactivate through original entry
-    entry.reactivate().await;
-    
-    // Both should be reactivated
-    assert!(entry.is_active().await);
-    assert!(cloned_entry.is_active().await);
+
+    // Touch active time on cloned entry
+    tokio::time::sleep(Duration::from_millis(10)).await;
+    cloned_entry.touch_active_time().await;
+
+    // Both entries should have updated active time
+    let original_active_time = entry.last_active_time().await.unwrap();
+    let cloned_active_time = cloned_entry.last_active_time().await.unwrap();
+    assert_eq!(original_active_time, cloned_active_time);
   }
 
   #[tokio::test]
@@ -919,28 +860,6 @@ mod tests {
     assert!(result.is_err()); // timeout error
   }
 
-  #[tokio::test]
-  async fn test_multiple_reactivation_calls() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let resource = TestResource::new("test data");
-    entry.set_resource(resource.clone()).await;
-
-    // Multiple reactivate calls on active resource
-    let first_access = entry.last_access().await;
-    tokio::time::sleep(Duration::from_millis(10)).await;
-
-    entry.reactivate().await;
-    let second_access = entry.last_access().await;
-    assert!(second_access > first_access);
-
-    entry.reactivate().await;
-    let third_access = entry.last_access().await;
-    assert!(third_access >= second_access);
-
-    assert!(entry.is_active().await);
-    assert_eq!(entry.get_resource().await, Some(resource));
-  }
-
   // Now AsyncEntry is thread-safe, so we can test concurrent access directly
   #[tokio::test]
   async fn test_concurrent_operations() {
@@ -956,7 +875,7 @@ mod tests {
         let resource = resource.clone();
 
         tokio::spawn(async move {
-          match i % 4 {
+          match i % 3 {
             0 => {
               // Try to set resource
               if entry.is_initializing().await {
@@ -968,12 +887,8 @@ mod tests {
               let _resource = entry.get_resource().await;
             },
             2 => {
-              // Try to reactivate
-              entry.reactivate().await;
-            },
-            3 => {
-              // Try to mark for removal
-              entry.mark_for_removal().await;
+              // Try to touch active time
+              entry.touch_active_time().await;
             },
             _ => unreachable!(),
           }
@@ -990,7 +905,7 @@ mod tests {
     let is_valid_state = entry.is_initializing().await
       || entry.is_active().await
       || entry.is_failed().await
-      || entry.can_be_removed().await;
+      || entry.can_be_removed(Duration::from_secs(0)).await;
     assert!(is_valid_state);
   }
 
@@ -1034,21 +949,27 @@ mod tests {
     // This test specifically verifies the fix for the issue where
     // the first call to try_mark_initialization_start should return true
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    
+
     // Entry should be in initializing state but not yet claimed
     assert!(entry.is_initializing().await);
-    
+
     // First call should return true (claiming initialization)
     let first_attempt = entry.try_mark_initialization_start().await;
-    assert!(first_attempt, "First call to try_mark_initialization_start should return true");
-    
+    assert!(
+      first_attempt,
+      "First call to try_mark_initialization_start should return true"
+    );
+
     // Still in initializing state but now claimed
     assert!(entry.is_initializing().await);
-    
+
     // Second call should return false (already claimed)
     let second_attempt = entry.try_mark_initialization_start().await;
-    assert!(!second_attempt, "Second call should return false as initialization is already claimed");
-    
+    assert!(
+      !second_attempt,
+      "Second call should return false as initialization is already claimed"
+    );
+
     // Third call should also return false
     let third_attempt = entry.try_mark_initialization_start().await;
     assert!(!third_attempt, "Third call should also return false");

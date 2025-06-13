@@ -237,27 +237,6 @@ pub(crate) async fn can_undo_redo_handler(
   })
 }
 
-pub(crate) async fn get_snapshot_meta_handler(
-  data: AFPluginData<OpenDocumentPayloadPB>,
-  manager: AFPluginState<Weak<DocumentManager>>,
-) -> DataResult<RepeatedDocumentSnapshotMetaPB, FlowyError> {
-  let manager = upgrade_document(manager)?;
-  let params: OpenDocumentParams = data.into_inner().try_into()?;
-  let doc_id = params.document_id;
-  let snapshots = manager.get_document_snapshot_meta(&doc_id, 10).await?;
-  data_result_ok(RepeatedDocumentSnapshotMetaPB { items: snapshots })
-}
-
-pub(crate) async fn get_snapshot_data_handler(
-  data: AFPluginData<DocumentSnapshotMetaPB>,
-  manager: AFPluginState<Weak<DocumentManager>>,
-) -> DataResult<DocumentSnapshotPB, FlowyError> {
-  let manager = upgrade_document(manager)?;
-  let params = data.into_inner();
-  let snapshot = manager.get_document_snapshot(&params.snapshot_id).await?;
-  data_result_ok(snapshot)
-}
-
 impl From<BlockActionPB> for BlockAction {
   fn from(pb: BlockActionPB) -> Self {
     Self {

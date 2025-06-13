@@ -453,33 +453,6 @@ impl TryInto<ConvertDataParams> for ConvertDataPayloadPB {
 }
 
 #[derive(Debug, Default, ProtoBuf)]
-pub struct RepeatedDocumentSnapshotMetaPB {
-  #[pb(index = 1)]
-  pub items: Vec<DocumentSnapshotMetaPB>,
-}
-
-#[derive(Debug, Default, ProtoBuf)]
-pub struct DocumentSnapshotMetaPB {
-  #[pb(index = 1)]
-  pub snapshot_id: String,
-
-  #[pb(index = 2)]
-  pub object_id: String,
-
-  #[pb(index = 3)]
-  pub created_at: i64,
-}
-
-#[derive(Debug, Default, ProtoBuf)]
-pub struct DocumentSnapshotPB {
-  #[pb(index = 1)]
-  pub object_id: String,
-
-  #[pb(index = 2)]
-  pub encoded_v1: Vec<u8>,
-}
-
-#[derive(Debug, Default, ProtoBuf)]
 pub struct DocumentSnapshotStatePB {
   #[pb(index = 1)]
   pub new_snapshot_id: i64,

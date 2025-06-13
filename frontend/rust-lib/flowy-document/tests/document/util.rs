@@ -5,8 +5,7 @@ use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_document::document_data::default_document_data;
 use collab_plugins::CollabKVDB;
-use flowy_document::entities::{DocumentSnapshotData, DocumentSnapshotMeta};
-use flowy_document::manager::{DocumentManager, DocumentSnapshotService, DocumentUserService};
+use flowy_document::manager::{DocumentManager, DocumentUserService};
 use flowy_document_pub::cloud::*;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_storage_pub::storage::{CreatedUpload, FileProgressReceiver, StorageService};
@@ -33,7 +32,6 @@ impl DocumentTest {
     let user = FakeUser::new();
     let cloud_service = Arc::new(LocalTestDocumentCloudServiceImpl());
     let file_storage = Arc::new(DocumentTestFileStorageService) as Arc<dyn StorageService>;
-    let document_snapshot = Arc::new(DocumentTestSnapshot);
 
     let builder = Arc::new(WorkspaceCollabAdaptor::new(
       WorkspaceCollabIntegrateImpl {
@@ -47,7 +45,6 @@ impl DocumentTest {
       Arc::downgrade(&builder),
       cloud_service,
       Arc::downgrade(&file_storage),
-      document_snapshot,
     );
     Self {
       inner: manager,
@@ -228,20 +225,6 @@ impl StorageService for DocumentTestFileStorageService {
     _parent_idr: &str,
     _url: &str,
   ) -> Result<Option<FileProgressReceiver>, FlowyError> {
-    todo!()
-  }
-}
-
-struct DocumentTestSnapshot;
-impl DocumentSnapshotService for DocumentTestSnapshot {
-  fn get_document_snapshot_metas(
-    &self,
-    _document_id: &str,
-  ) -> FlowyResult<Vec<DocumentSnapshotMeta>> {
-    todo!()
-  }
-
-  fn get_document_snapshot(&self, _snapshot_id: &str) -> FlowyResult<DocumentSnapshotData> {
     todo!()
   }
 }
