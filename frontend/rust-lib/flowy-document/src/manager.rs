@@ -634,10 +634,6 @@ impl DocumentEntry {
     }
   }
 
-  fn is_pending_removal(&self) -> bool {
-    matches!(self.state, DocumentState::PendingRemoval { .. })
-  }
-
   fn removal_time(&self) -> Option<Instant> {
     match self.state {
       DocumentState::Initializing => None,

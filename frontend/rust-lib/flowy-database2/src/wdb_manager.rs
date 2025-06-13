@@ -4,7 +4,6 @@ use collab_database::entity::{CreateDatabaseParams, CreateViewParams};
 use collab_database::error::DatabaseError;
 use collab_database::workspace_database::{DatabaseCollabService, DatabaseMeta, WorkspaceDatabase};
 use dashmap::DashMap;
-use flowy_error::FlowyResult;
 use std::borrow::{Borrow, BorrowMut};
 use std::collections::HashSet;
 use std::sync::Arc;
@@ -20,6 +19,12 @@ impl DatabaseHolder {
   fn new() -> Self {
     Self {
       database: Mutex::new(None),
+    }
+  }
+
+  fn new_with_database(database: Arc<RwLock<Database>>) -> Self {
+    Self {
+      database: Mutex::new(Some(database)),
     }
   }
 }
@@ -56,27 +61,8 @@ impl WorkspaceDatabaseManager {
     })
   }
 
-  pub fn create(
-    _object_id: &str,
-    collab: Collab,
-    collab_service: impl DatabaseCollabService,
-  ) -> Result<Self, DatabaseError> {
-    let collab_service = Arc::new(collab_service);
-    let body = WorkspaceDatabase::create(collab);
-    Ok(Self {
-      body,
-      collab_service,
-      database_holders: DashMap::new(),
-    })
-  }
-
   pub fn close(&self) {
     self.body.close();
-  }
-
-  pub fn validate(&self) -> Result<(), DatabaseError> {
-    self.body.validate()?;
-    Ok(())
   }
 
   /// Get the database with the given database id.
@@ -85,12 +71,6 @@ impl WorkspaceDatabaseManager {
     &self,
     database_id: &str,
   ) -> Result<Arc<RwLock<Database>>, DatabaseError> {
-    // Check if the database exists in the body
-    if !self.body.contains(database_id) {
-      return Err(DatabaseError::DatabaseNotExist);
-    }
-
-    // Get or create holder object for this database
     let holder = self
       .database_holders
       .entry(database_id.to_string())
@@ -104,7 +84,6 @@ impl WorkspaceDatabaseManager {
       return Ok(database.clone());
     }
 
-    // Database not initialized, let's initialize it while holding the lock
     trace!("Initializing database: {}", database_id);
     let context = DatabaseContext::new(self.collab_service.clone());
     match Database::arc_open(database_id, context).await {
@@ -144,25 +123,18 @@ impl WorkspaceDatabaseManager {
     &mut self,
     params: CreateDatabaseParams,
   ) -> Result<Arc<RwLock<Database>>, DatabaseError> {
-    debug_assert!(!params.database_id.is_empty());
-
     let context = DatabaseContext::new(self.collab_service.clone());
-    // Add a new database record.
     let mut linked_views = HashSet::new();
     linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
     self
       .body
       .add_database(&params.database_id, linked_views.into_iter().collect());
+
     let database_id = params.database_id.clone();
     let database = Database::create_arc_with_view(params, context).await?;
-
-    // Store in the holder
-    let holder = Arc::new(DatabaseHolder::new());
-    {
-      let mut database_guard = holder.database.lock().await;
-      *database_guard = Some(database.clone());
-    }
-    self.database_holders.insert(database_id, holder);
+    self.database_holders.entry(database_id).or_insert(Arc::new(
+      DatabaseHolder::new_with_database(database.clone()),
+    ));
 
     Ok(database)
   }
@@ -176,7 +148,6 @@ impl WorkspaceDatabaseManager {
     let params = CreateViewParamsValidator::validate(params)?;
     let database = self.get_or_init_database(&params.database_id).await?;
     self.body.update_database(&params.database_id, |record| {
-      // Check if the view is already linked to the database.
       if record.linked_views.contains(&params.view_id) {
         error!("The view is already linked to the database");
       } else {
@@ -187,18 +158,6 @@ impl WorkspaceDatabaseManager {
 
     let mut write_guard = database.write().await;
     write_guard.create_linked_view(params)
-  }
-
-  /// Delete the database with the given database id.
-  pub fn delete_database(&mut self, database_id: &str) {
-    self.body.delete_database(database_id);
-
-    if let Some(persistence) = self.collab_service.persistence() {
-      if let Err(err) = persistence.delete_collab(database_id) {
-        error!("🔴Delete database failed: {}", err);
-      }
-    }
-    self.database_holders.remove(database_id);
   }
 
   pub fn close_database(&self, database_id: &str) {
@@ -218,20 +177,6 @@ impl WorkspaceDatabaseManager {
     self.body.get_database_meta(database_id)
   }
 
-  /// Delete the view from the database with the given view id.
-  /// If the view is the inline view, the database will be deleted too.
-  pub async fn delete_view(&mut self, database_id: &str, view_id: &str) {
-    if let Ok(database) = self.get_or_init_database(database_id).await {
-      let mut lock = database.write().await;
-      lock.delete_view(view_id);
-      if lock.get_all_views().is_empty() {
-        drop(lock);
-        // Delete the database if the view is the inline view.
-        self.delete_database(database_id);
-      }
-    }
-  }
-
   /// Duplicate the database that contains the view.
   pub async fn duplicate_database(
     &mut self,
@@ -239,7 +184,6 @@ impl WorkspaceDatabaseManager {
     new_database_view_id: &str,
   ) -> Result<Arc<RwLock<Database>>, DatabaseError> {
     let database_data = self.get_database_data(database_view_id).await?;
-
     let create_database_params = CreateDatabaseParams::from_database_data(
       database_data,
       database_view_id,

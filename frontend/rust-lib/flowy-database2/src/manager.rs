@@ -44,7 +44,7 @@ use crate::services::database::DatabaseEditor;
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
-use crate::workspace_database_manager::WorkspaceDatabaseManager;
+use crate::wdb_manager::WorkspaceDatabaseManager;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use tokio::sync::RwLock as TokioRwLock;
 use uuid::Uuid;
@@ -65,7 +65,7 @@ pub struct DatabaseManager {
   collab_builder: Weak<WorkspaceCollabAdaptor>,
   cloud_service: Arc<dyn DatabaseCloudService>,
   ai_service: Arc<dyn DatabaseAIService>,
-  base_removal_timeout: Duration,
+  removal_timeout: Duration,
 }
 
 impl Drop for DatabaseManager {
@@ -90,17 +90,12 @@ impl DatabaseManager {
       collab_builder,
       cloud_service,
       ai_service,
-      base_removal_timeout: Duration::from_secs(120), // 2 minutes
+      removal_timeout: Duration::from_secs(120), // 2 minutes
     };
 
     // Start periodic cleanup task
     manager.start_periodic_cleanup();
     manager
-  }
-
-  /// Configure removal timeouts
-  pub fn configure_removal_timeouts(&mut self, base_timeout: Duration) {
-    self.base_removal_timeout = base_timeout;
   }
 
   fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
@@ -687,7 +682,7 @@ impl DatabaseManager {
     let weak_database_editors = Arc::downgrade(&self.database_editors);
     let weak_workspace_database = Arc::downgrade(&self.workspace_database_manager);
     let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
-    let base_timeout = self.base_removal_timeout;
+    let base_timeout = self.removal_timeout;
 
     tokio::spawn(async move {
       let mut interval = tokio::time::interval(cleanup_interval);
@@ -1334,10 +1329,6 @@ impl DatabaseEditorEntry {
         self.state = DatabaseEditorState::Active;
       },
     }
-  }
-
-  fn is_pending_removal(&self) -> bool {
-    matches!(self.state, DatabaseEditorState::PendingRemoval { .. })
   }
 
   fn removal_time(&self) -> Option<Instant> {

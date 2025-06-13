@@ -9,4 +9,4 @@ mod protobuf;
 pub mod services;
 pub mod template;
 pub mod utils;
-mod workspace_database_manager;
+mod wdb_manager;

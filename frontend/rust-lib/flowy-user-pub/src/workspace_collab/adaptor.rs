@@ -9,9 +9,7 @@ use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::error::CollabError;
 use collab::preclude::{ClientID, Collab, Transact};
-use collab_database::workspace_database::{
-  CollabRef, DatabaseCollabService, WorkspaceDatabaseManager,
-};
+use collab_database::workspace_database::CollabRef;
 use collab_document::document::{Document, DocumentBody};
 use collab_entity::{CollabObject, CollabType};
 use collab_folder::{Folder, FolderData, FolderNotify};
