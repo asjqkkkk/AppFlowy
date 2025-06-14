@@ -3,10 +3,9 @@ use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::preclude::{ClientID, Collab};
 use collab_database::database::{DatabaseContext, default_database_collab};
+use collab_database::database_trait::NoPersistenceDatabaseCollabService;
 use collab_database::error::DatabaseError;
-use collab_database::workspace_database::{
-  NoPersistenceDatabaseCollabService, default_workspace_database_data,
-};
+use collab_database::workspace_database::default_workspace_database_data;
 use collab_document::document_data::default_document_collab_data;
 use collab_entity::CollabType;
 use collab_user::core::default_user_awareness_data;

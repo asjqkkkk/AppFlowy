@@ -413,6 +413,9 @@ pub enum ErrorCode {
 
   #[error("Retry later")]
   RetryLater = 141,
+
+  #[error("Limit exceeded")]
+  LimitExceed = 142,
 }
 
 impl ErrorCode {

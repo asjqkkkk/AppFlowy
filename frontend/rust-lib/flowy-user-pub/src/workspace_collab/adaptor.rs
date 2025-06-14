@@ -9,12 +9,12 @@ use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::error::CollabError;
 use collab::preclude::{ClientID, Collab, Transact};
-use collab_database::workspace_database::CollabRef;
 use collab_document::document::{Document, DocumentBody};
 use collab_entity::{CollabObject, CollabType};
 use collab_folder::{Folder, FolderData, FolderNotify};
 
 use collab::lock::RwLock;
+use collab_database::database_trait::CollabRef;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::rocksdb::kv_impl::KVTransactionDBRocksdbImpl;
@@ -128,9 +128,7 @@ impl WorkspaceCollabAdaptor {
     }
   }
 
-  pub fn update_network(&self, _reachable: bool) {
-    // TODO(nathan): new syncing protocol
-  }
+  pub fn update_network(&self, _reachable: bool) {}
 
   #[instrument(level = "trace", skip(self, data_source,))]
   pub async fn create_document(

@@ -38,6 +38,31 @@ async fn af_cloud_edit_document_test() {
 }
 
 #[tokio::test]
+async fn af_cloud_document_undo_redo_test() {
+  use_localhost_af_cloud().await;
+  let test = EventIntegrationTest::new().await;
+  test.af_cloud_sign_up().await;
+
+  // create document and then insert content
+  let current_workspace = test.get_current_workspace().await;
+  let view = test
+    .create_and_open_document(&current_workspace.id, "my document".to_string(), vec![])
+    .await;
+  test.insert_document_text(&view.id, "hello world", 0).await;
+
+  let text = test.get_document_text(&view.id).await.unwrap().text;
+  assert_eq!(text, "hello world");
+
+  test.undo(view.id.clone()).await;
+  let text = test.get_document_text(&view.id).await.unwrap().text;
+  assert_eq!(text, "");
+
+  test.redo(view.id.clone()).await;
+  let text = test.get_document_text(&view.id).await.unwrap().text;
+  assert_eq!(text, "hello world");
+}
+
+#[tokio::test]
 async fn af_cloud_multiple_user_edit_document_test() {
   use_localhost_af_cloud().await;
   let test_1 = EventIntegrationTest::new().await;

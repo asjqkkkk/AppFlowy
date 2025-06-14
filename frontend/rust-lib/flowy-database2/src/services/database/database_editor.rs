@@ -24,7 +24,7 @@ use arc_swap::ArcSwapOption;
 use async_trait::async_trait;
 use collab::lock::RwLock;
 use collab_database::database::Database;
-use collab_database::entity::DatabaseView;
+use collab_database::entity::{CreateViewParams, DatabaseView};
 use collab_database::fields::media_type_option::MediaCellData;
 use collab_database::fields::relation_type_option::RelationTypeOption;
 use collab_database::fields::{Field, TypeOptionData};
@@ -120,6 +120,16 @@ impl DatabaseEditor {
     observe_block_event(&database_id, &this).await;
     observe_view_change(&database_id, &this).await;
     Ok(this)
+  }
+
+  pub async fn create_linked_view(&self, params: CreateViewParams) -> FlowyResult<()> {
+    self
+      .database
+      .write()
+      .await
+      .create_linked_view(params)
+      .map_err(|err| FlowyError::internal().with_context(err))?;
+    Ok(())
   }
 
   pub fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
@@ -657,7 +667,6 @@ impl DatabaseEditor {
       .await?;
 
     let params = view_editor.v_will_create_row(params).await?;
-
     let mut database = self.database.write().await;
     let (index, row_order) = database
       .create_row_in_view(&view_editor.view_id, params)

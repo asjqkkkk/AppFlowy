@@ -1,52 +1,39 @@
-use anyhow::anyhow;
 use arc_swap::ArcSwapOption;
-use async_trait::async_trait;
-use collab::core::collab::{CollabOptions, DataSource, default_client_id};
-use collab::core::origin::CollabOrigin;
 use collab::lock::RwLock;
-use collab::preclude::{ClientID, Collab};
-use collab_database::database::{
-  Database, DatabaseBody, DatabaseContext, DatabaseData, default_database_collab,
-};
-use collab_database::entity::{CreateDatabaseParams, CreateViewParams, EncodedDatabase};
-use collab_database::error::DatabaseError;
+use collab::preclude::ClientID;
+use collab_database::database::{Database, DatabaseContext, DatabaseData};
+use collab_database::database_trait::DatabaseCollabService;
+use collab_database::entity::{CreateDatabaseParams, CreateViewParams};
 use collab_database::fields::translate_type_option::TranslateTypeOption;
-use collab_database::rows::{DatabaseRow, RowChangeSender, RowId};
+use collab_database::rows::RowId;
 use collab_database::template::csv::CSVTemplate;
 use collab_database::views::DatabaseLayout;
-use collab_database::workspace_database::{
-  CollabPersistenceImpl, DatabaseCollabPersistenceService, DatabaseCollabService,
-  DatabaseDataVariant, DatabaseMeta, DatabaseRowDataVariant, EncodeCollabByOid,
-};
-use collab_entity::{CollabType, EncodedCollab};
+use collab_database::workspace_database::{DatabaseMeta, WorkspaceDatabase};
+use collab_entity::CollabType;
 use collab_plugins::CollabKVDB;
-use collab_plugins::local_storage::kv::KVTransactionDB;
-use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use dashmap::DashMap;
-use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{error, info, instrument, trace};
 
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateItem, TranslateRowContent,
 };
 use flowy_error::{FlowyError, FlowyResult, internal_error};
 
-use lib_infra::box_any::BoxAny;
-use lib_infra::priority_task::TaskDispatcher;
-
+use crate::collab_service::WorkspaceDatabaseCollabServiceImpl;
 use crate::entities::{DatabaseLayoutPB, DatabaseSnapshotPB, FieldType, RowMetaPB};
 use crate::services::cell::stringify_cell;
 use crate::services::database::DatabaseEditor;
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
-use crate::wdb_manager::{DatabaseEntry, WorkspaceDatabaseManager};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use lib_infra::async_entry::AsyncEntry;
+use lib_infra::box_any::BoxAny;
+use lib_infra::priority_task::TaskDispatcher;
 use tokio::sync::RwLock as TokioRwLock;
 use uuid::Uuid;
 
@@ -60,10 +47,9 @@ pub trait DatabaseUser: Send + Sync {
 
 pub struct DatabaseManager {
   user: Arc<dyn DatabaseUser>,
-  workspace_database_manager: Arc<ArcSwapOption<RwLock<WorkspaceDatabaseManager>>>,
+  workspace_database: Arc<ArcSwapOption<RwLock<WorkspaceDatabase>>>,
   task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
   database_editors: Arc<DashMap<String, DatabaseEditorEntry>>,
-  database_entries: Arc<RwLock<HashMap<String, DatabaseEntry>>>,
   collab_service: RwLock<Option<Arc<dyn DatabaseCollabService>>>,
   collab_builder: Weak<WorkspaceCollabAdaptor>,
   cloud_service: Arc<dyn DatabaseCloudService>,
@@ -73,7 +59,7 @@ pub struct DatabaseManager {
 
 impl Drop for DatabaseManager {
   fn drop(&mut self) {
-    tracing::trace!("[Drop] drop database manager");
+    trace!("[Drop] drop database manager");
   }
 }
 
@@ -93,10 +79,9 @@ impl DatabaseManager {
 
     let manager = Self {
       user: database_user,
-      workspace_database_manager: Default::default(),
+      workspace_database: Default::default(),
       task_scheduler,
       database_editors: Arc::new(DashMap::new()),
-      database_entries: Arc::new(RwLock::new(HashMap::new())),
       collab_service: Default::default(),
       collab_builder,
       cloud_service,
@@ -125,7 +110,7 @@ impl DatabaseManager {
     }
     self.database_editors.clear();
     // 3. Clear the workspace database
-    if let Some(old_workspace_database) = self.workspace_database_manager.swap(None) {
+    if let Some(old_workspace_database) = self.workspace_database.swap(None) {
       info!("Close the old workspace database");
       let wdb = old_workspace_database.read().await;
       wdb.close();
@@ -149,16 +134,14 @@ impl DatabaseManager {
     let collab = collab_service
       .build_workspace_database_collab(&object_id_str, None)
       .await?;
-    let workspace = WorkspaceDatabaseManager::open(&object_id.to_string(), collab)?;
+    let workspace = WorkspaceDatabase::open(collab)?;
     let workspace_database = Arc::new(RwLock::new(workspace));
     self
       .collab_builder()?
       .cache_collab_ref(object_id, collab_type, workspace_database.clone())
       .await?;
 
-    self
-      .workspace_database_manager
-      .store(Some(workspace_database));
+    self.workspace_database.store(Some(workspace_database));
     Ok(())
   }
 
@@ -197,7 +180,7 @@ impl DatabaseManager {
 
   pub async fn get_all_databases_meta(&self) -> Vec<DatabaseMeta> {
     let mut items = vec![];
-    if let Some(lock) = self.workspace_database_manager.load_full() {
+    if let Some(lock) = self.workspace_database.load_full() {
       let wdb = lock.read().await;
       items = wdb.get_all_database_meta()
     }
@@ -206,7 +189,7 @@ impl DatabaseManager {
 
   pub async fn get_database_meta(&self, database_id: &str) -> FlowyResult<Option<DatabaseMeta>> {
     let mut database_meta = None;
-    if let Some(lock) = self.workspace_database_manager.load_full() {
+    if let Some(lock) = self.workspace_database.load_full() {
       let wdb = lock.read().await;
       database_meta = wdb.get_database_meta(database_id);
     }
@@ -223,7 +206,7 @@ impl DatabaseManager {
     view_ids_by_database_id
       .into_iter()
       .for_each(|(database_id, view_ids)| {
-        wdb.track_database(&database_id, view_ids);
+        wdb.add_database(&database_id, view_ids);
       });
     Ok(())
   }
@@ -231,24 +214,14 @@ impl DatabaseManager {
   pub async fn get_database_id_with_view_id(&self, view_id: &str) -> FlowyResult<String> {
     let lock = self.workspace_database()?;
     let wdb = lock.read().await;
-    let database_id = wdb.get_database_id_with_view_id(view_id);
+    let database_id = wdb
+      .get_database_meta_with_view_id(view_id)
+      .map(|record| record.database_id);
+
     database_id.ok_or_else(|| {
       FlowyError::record_not_found()
         .with_context(format!("The database for view id: {} not found", view_id))
     })
-  }
-
-  pub async fn encode_database(&self, view_id: &Uuid) -> FlowyResult<EncodedDatabase> {
-    let editor = self
-      .get_database_editor_with_view_id(view_id.to_string().as_str())
-      .await?;
-    let collabs = editor
-      .database
-      .read()
-      .await
-      .encode_database_collabs()
-      .await?;
-    Ok(collabs)
   }
 
   pub async fn get_database_row_ids_with_view_id(&self, view_id: &str) -> FlowyResult<Vec<RowId>> {
@@ -294,21 +267,7 @@ impl DatabaseManager {
     }
 
     trace!("[Database]: Creating new database editor: {}", database_id);
-    // When the user opens the database from the left-side bar, it may fail because the workspace database
-    // hasn't finished syncing yet. In such cases, get_or_create_database will return None.
-    // The workaround is to add a retry mechanism to attempt fetching the database again.
-    let database = self.get_or_init_database(database_id).await?;
-    let collab_builder = self.collab_builder()?;
-    let editor = DatabaseEditor::new(
-      self.user.clone(),
-      database,
-      self.task_scheduler.clone(),
-      collab_builder,
-    )
-    .await?;
-
-    let entry = DatabaseEditorEntry::new_with_resource(database_id.to_string(), editor.clone());
-    self.database_editors.insert(database_id.to_string(), entry);
+    let editor = self.get_or_init_database(database_id).await?;
     Ok(editor)
   }
 
@@ -318,7 +277,9 @@ impl DatabaseManager {
     let view_id = view_id.to_string();
     let lock = self.workspace_database()?;
     let workspace_database = lock.read().await;
-    let result = workspace_database.get_database_id_with_view_id(&view_id);
+    let result = workspace_database
+      .get_database_meta_with_view_id(&view_id)
+      .map(|record| record.database_id);
     drop(workspace_database);
 
     if let Some(database_id) = result {
@@ -331,7 +292,9 @@ impl DatabaseManager {
   pub async fn close_database_view(&self, view_id: &str) -> FlowyResult<()> {
     let lock = self.workspace_database()?;
     let workspace_database = lock.read().await;
-    let database_id = workspace_database.get_database_id_with_view_id(view_id);
+    let database_id = workspace_database
+      .get_database_meta_with_view_id(view_id)
+      .map(|record| record.database_id);
     drop(workspace_database);
 
     if let Some(database_id) = database_id {
@@ -362,12 +325,7 @@ impl DatabaseManager {
   }
 
   pub async fn get_database_data(&self, view_id: &str) -> FlowyResult<DatabaseData> {
-    let lock = self.workspace_database()?;
-    let wdb = lock.read().await;
-
-    let database_id = wdb.get_database_id_with_view_id(view_id).ok_or_else(|| {
-      FlowyError::record_not_found().with_context("Could not find database with view id")
-    })?;
+    let database_id = self.get_database_id_with_view_id(view_id).await?;
     let database = self.get_or_init_database_editor(&database_id).await?;
     let data = database
       .get_mutex_database()
@@ -429,98 +387,6 @@ impl DatabaseManager {
     Ok(())
   }
 
-  pub async fn get_or_init_database(
-    &self,
-    database_id: &str,
-  ) -> Result<Arc<RwLock<Database>>, FlowyError> {
-    // First, try to get existing entry with read lock
-    {
-      let entries = self.database_entries.read().await;
-      if let Some(entry) = entries.get(database_id) {
-        if let Some(database) = entry.get_resource().await {
-          trace!("Database already initialized: {}", database_id);
-          return Ok(database);
-        }
-      }
-    }
-
-    // Get or create entry with write lock
-    let entry = {
-      let mut entries = self.database_entries.write().await;
-      entries
-        .entry(database_id.to_string())
-        .or_insert_with(|| Arc::new(AsyncEntry::new_initializing(database_id.to_string())))
-        .clone()
-    };
-
-    // Check if we already have the database after acquiring entry
-    if let Some(database) = entry.get_resource().await {
-      trace!("Database already initialized: {}", database_id);
-      return Ok(database);
-    }
-
-    // Try to start initialization
-    if entry.try_mark_initialization_start().await {
-      trace!("Initializing database: {}", database_id);
-      let context = DatabaseContext::new(self.get_collab_service().await?);
-      match Database::arc_open(database_id, context).await {
-        Ok(database) => {
-          // Store the database in the entry
-          entry.set_resource(database.clone()).await;
-          trace!("Database opened and stored: {}", database_id);
-          Ok(database)
-        },
-        Err(err) => {
-          error!("Open database failed: {}", err);
-          entry.mark_initialization_failed(err.to_string()).await;
-          Err(FlowyError::internal().with_context(err))
-        },
-      }
-    } else {
-      // Another task is initializing, wait for it to complete
-      trace!("Waiting for database initialization: {}", database_id);
-      match entry.wait_for_initialization(Duration::from_secs(10)).await {
-        Ok(database) => {
-          trace!("Database initialization completed: {}", database_id);
-          Ok(database)
-        },
-        Err(err) => {
-          error!("Database initialization failed or timed out: {}", err);
-          Err(FlowyError::internal().with_context(err))
-        },
-      }
-    }
-  }
-
-  async fn get_collab_service(&self) -> FlowyResult<Arc<dyn DatabaseCollabService>> {
-    let collab_service = self
-      .collab_service
-      .read()
-      .await
-      .as_ref()
-      .map(|v| v.clone())
-      .ok_or_else(|| FlowyError::internal().with_context("Collab service not initialized"))?;
-    Ok(collab_service)
-  }
-
-  pub async fn create_database(
-    &self,
-    params: CreateDatabaseParams,
-  ) -> Result<Arc<RwLock<Database>>, FlowyError> {
-    let context = DatabaseContext::new(self.get_collab_service().await?);
-    let database_id = params.database_id.clone();
-    let database = Database::create_arc_with_view(params, context).await?;
-    let entry = Arc::new(AsyncEntry::new_initializing(database_id.clone()));
-    entry.set_resource(database.clone()).await;
-    self
-      .database_entries
-      .write()
-      .await
-      .insert(database_id, entry);
-
-    Ok(database)
-  }
-
   pub async fn import_database(
     &self,
     params: CreateDatabaseParams,
@@ -537,11 +403,12 @@ impl DatabaseManager {
   }
 
   async fn trace_database(&self, params: &CreateDatabaseParams) -> FlowyResult<()> {
-    let lock = self.workspace_database()?;
-    let mut wdb = lock.write().await;
     let mut linked_views = HashSet::new();
     linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
-    wdb.track_database(&params.database_id, linked_views.into_iter().collect());
+
+    let lock = self.workspace_database()?;
+    let mut wdb = lock.write().await;
+    wdb.add_database(&params.database_id, linked_views.into_iter().collect());
     Ok(())
   }
 
@@ -562,9 +429,9 @@ impl DatabaseManager {
 
     let mut params =
       CreateViewParams::new(database_id.clone(), database_view_id.clone(), name, layout);
-    if let Ok(database) = self.get_or_init_database(&database_id).await {
+    if let Ok(editor) = self.get_or_init_database(&database_id).await {
       let (field, layout_setting, field_settings_map) =
-        DatabaseLayoutDepsResolver::new(database.clone(), layout)
+        DatabaseLayoutDepsResolver::new(editor.database.clone(), layout)
           .resolve_deps_when_create_database_linked_view(&database_parent_view_id)
           .await;
       if let Some(field) = field {
@@ -577,16 +444,19 @@ impl DatabaseManager {
         params = params.with_field_settings_map(field_settings_map);
       }
 
-      database
-        .write()
-        .await
-        .create_linked_view(params)
-        .map_err(|err| FlowyError::internal().with_context(err))?;
+      editor.create_linked_view(params).await?;
     };
 
     let workspace_database = self.workspace_database()?;
     let mut wdb = workspace_database.write().await;
-    wdb.trace_linked_view(&database_id, database_view_id);
+    wdb.update_database(&database_id, |record| {
+      if record.linked_views.contains(&database_view_id) {
+        error!("The view is already linked to the database");
+      } else {
+        trace!("Insert linked view record: {}", database_view_id);
+        record.linked_views.push(database_view_id.clone());
+      }
+    });
     Ok(())
   }
 
@@ -667,13 +537,6 @@ impl DatabaseManager {
       .collect::<Vec<_>>();
 
     Ok(snapshots)
-  }
-
-  fn workspace_database(&self) -> FlowyResult<Arc<RwLock<WorkspaceDatabaseManager>>> {
-    self
-      .workspace_database_manager
-      .load_full()
-      .ok_or_else(|| FlowyError::internal().with_context("Workspace database not initialized"))
   }
 
   #[instrument(level = "debug", skip_all)]
@@ -798,16 +661,9 @@ impl DatabaseManager {
     Ok(())
   }
 
-  /// Only expose this method for testing
-  #[cfg(debug_assertions)]
-  pub fn get_cloud_service(&self) -> &Arc<dyn DatabaseCloudService> {
-    &self.cloud_service
-  }
-
   /// Start a periodic cleanup task to remove old entries from removing_editor
   fn start_periodic_cleanup(&self) {
     let weak_database_editors = Arc::downgrade(&self.database_editors);
-    let weak_database_entries = Arc::downgrade(&self.database_entries);
     let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
     let base_timeout = self.removal_timeout;
 
@@ -837,12 +693,7 @@ impl DatabaseManager {
 
           // Remove expired entries and close databases
           for database_id in to_remove {
-            if database_editors.remove(&database_id).is_some() {
-              // Close the database in the workspace
-              if let Some(database_entries) = weak_database_entries.upgrade() {
-                database_entries.write().await.remove(&database_id);
-              }
-            }
+            database_editors.remove(&database_id);
           }
         } else {
           break;
@@ -851,498 +702,104 @@ impl DatabaseManager {
     });
   }
 
-  /// Get total editors count (active + pending removal)
-  pub async fn get_total_editors_count(&self) -> usize {
-    self.database_editors.len()
-  }
-}
+  async fn get_or_init_database(
+    &self,
+    database_id: &str,
+  ) -> Result<Arc<DatabaseEditor>, FlowyError> {
+    let entry = self
+      .database_editors
+      .entry(database_id.to_string())
+      .or_insert_with(|| DatabaseEditorEntry::new_initializing(database_id.to_string()))
+      .clone();
 
-#[derive(Clone)]
-struct WorkspaceDatabaseCollabServiceImpl {
-  is_local_user: bool,
-  user: Arc<dyn DatabaseUser>,
-  collab_builder: Weak<WorkspaceCollabAdaptor>,
-  persistence: Arc<dyn DatabaseCollabPersistenceService>,
-  cloud_service: Arc<dyn DatabaseCloudService>,
-}
+    // Check if we already have the database after acquiring entry
+    if let Some(database) = entry.get_resource().await {
+      trace!("Database already initialized: {}", database_id);
+      return Ok(database);
+    }
 
-impl WorkspaceDatabaseCollabServiceImpl {
-  fn new(
-    is_local_user: bool,
-    user: Arc<dyn DatabaseUser>,
-    collab_builder: Weak<WorkspaceCollabAdaptor>,
-    cloud_service: Arc<dyn DatabaseCloudService>,
-  ) -> Self {
-    let persistence = DatabasePersistenceImpl { user: user.clone() };
-    Self {
-      is_local_user,
-      user,
-      collab_builder,
-      persistence: Arc::new(persistence),
-      cloud_service,
+    // Try to start initialization
+    if entry.try_mark_initialization_start().await {
+      trace!("Initializing database: {}", database_id);
+      let context = DatabaseContext::new(self.get_collab_service().await?);
+      match Database::arc_open(database_id, context).await {
+        Ok(database) => {
+          let collab_builder = self.collab_builder()?;
+          let editor = DatabaseEditor::new(
+            self.user.clone(),
+            database,
+            self.task_scheduler.clone(),
+            collab_builder,
+          )
+          .await?;
+
+          // Store the database in the entry
+          entry.set_resource(editor.clone()).await;
+          trace!("Database opened and stored: {}", database_id);
+          Ok(editor)
+        },
+        Err(err) => {
+          error!("Open database failed: {}", err);
+          entry.mark_initialization_failed(err.to_string()).await;
+          Err(FlowyError::internal().with_context(err))
+        },
+      }
+    } else {
+      // Another task is initializing, wait for it to complete
+      trace!("Waiting for database initialization: {}", database_id);
+      match entry.wait_for_initialization(Duration::from_secs(10)).await {
+        Ok(database) => {
+          trace!("Database initialization completed: {}", database_id);
+          Ok(database)
+        },
+        Err(err) => {
+          error!("Database initialization failed or timed out: {}", err);
+          Err(FlowyError::internal().with_context(err))
+        },
+      }
     }
   }
 
-  fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, DatabaseError> {
-    self
-      .collab_builder
-      .upgrade()
-      .ok_or_else(|| DatabaseError::Internal(anyhow!("Collab builder is not initialized")))
+  async fn get_collab_service(&self) -> FlowyResult<Arc<dyn DatabaseCollabService>> {
+    let collab_service = self
+      .collab_service
+      .read()
+      .await
+      .as_ref()
+      .map(|v| v.clone())
+      .ok_or_else(|| FlowyError::internal().with_context("Collab service not initialized"))?;
+    Ok(collab_service)
   }
 
-  async fn get_encode_collab(
+  async fn create_database(
     &self,
-    object_id: &Uuid,
-    object_ty: CollabType,
-  ) -> Result<Option<EncodedCollab>, DatabaseError> {
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|e| DatabaseError::Internal(e.into()))?;
-    trace!("[Database]: fetch {}:{} from remote", object_id, object_ty);
-    let encode_collab = self
-      .cloud_service
-      .get_database_encode_collab(object_id, object_ty, &workspace_id)
-      .await
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    Ok(encode_collab)
-  }
+    params: CreateDatabaseParams,
+  ) -> Result<Arc<RwLock<Database>>, FlowyError> {
+    let entry = self
+      .database_editors
+      .entry(params.database_id.clone())
+      .or_insert_with(|| DatabaseEditorEntry::new_initializing(params.database_id.clone()));
 
-  async fn batch_get_encode_collab(
-    &self,
-    object_ids: Vec<Uuid>,
-    object_ty: CollabType,
-  ) -> Result<EncodeCollabByOid, DatabaseError> {
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    let updates = self
-      .cloud_service
-      .batch_get_database_encode_collab(object_ids, object_ty, &workspace_id)
-      .await
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-
-    Ok(
-      updates
-        .into_iter()
-        .map(|(k, v)| (k.to_string(), v))
-        .collect(),
+    let context = DatabaseContext::new(self.get_collab_service().await?);
+    let database = Database::create_arc_with_view(params, context).await?;
+    let editor = DatabaseEditor::new(
+      self.user.clone(),
+      database.clone(),
+      self.task_scheduler.clone(),
+      self.collab_builder()?,
     )
-  }
+    .await?;
 
-  async fn get_data_source(
-    &self,
-    object_id: &str,
-    collab_type: CollabType,
-    encoded_collab: Option<EncodedCollab>,
-  ) -> Result<DataSource, DatabaseError> {
-    if encoded_collab.is_none()
-      && self
-        .persistence
-        .is_collab_exist(object_id.to_string().as_str())
-    {
-      return Ok(
-        CollabPersistenceImpl {
-          persistence: Some(self.persistence.clone()),
-        }
-        .into(),
-      );
-    }
-
-    let object_id = Uuid::parse_str(object_id)?;
-    match encoded_collab {
-      None => {
-        info!(
-          "build collab: fetch {}:{} from remote, is_new:{}",
-          collab_type,
-          object_id,
-          encoded_collab.is_none(),
-        );
-        match self.get_encode_collab(&object_id, collab_type).await {
-          Ok(Some(encode_collab)) => {
-            info!(
-              "build collab: {}:{} with remote encode collab, {} bytes",
-              collab_type,
-              object_id,
-              encode_collab.doc_state.len()
-            );
-            Ok(DataSource::from(encode_collab))
-          },
-          Ok(None) => {
-            if self.is_local_user {
-              info!(
-                "build collab: {}:{} with empty encode collab",
-                collab_type, object_id
-              );
-              Ok(
-                CollabPersistenceImpl {
-                  persistence: Some(self.persistence.clone()),
-                }
-                .into(),
-              )
-            } else {
-              Err(DatabaseError::RecordNotFound)
-            }
-          },
-          Err(err) => {
-            if !matches!(err, DatabaseError::ActionCancelled) {
-              error!("build collab: failed to get encode collab: {}", err);
-            }
-            Err(err)
-          },
-        }
-      },
-      Some(encoded_collab) => {
-        info!(
-          "build collab: {}:{} with new encode collab, {} bytes",
-          collab_type,
-          object_id,
-          encoded_collab.doc_state.len()
-        );
-        Ok(encoded_collab.into())
-      },
-    }
-  }
-
-  #[instrument(level = "trace", skip_all, err)]
-  async fn build_collab<T: Into<DataSourceOrCollab>>(
-    &self,
-    object_id: &str,
-    collab_type: CollabType,
-    data: T,
-  ) -> Result<Collab, DatabaseError> {
-    let data: DataSourceOrCollab = data.into();
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-
-    let object_uuid = Uuid::parse_str(object_id)?;
-    let collab_builder = self.collab_builder()?;
-
-    let mut collab = match data {
-      DataSourceOrCollab::Collab(collab) => collab,
-      DataSourceOrCollab::DataSource(source) => {
-        collab_builder
-          .build_collab_with_source(object_uuid, collab_type, source)
-          .await?
-      },
-    };
-
-    collab_builder
-      .finalize_collab(workspace_id, object_uuid, collab_type, &mut collab)
-      .await?;
-
-    Ok(collab)
-  }
-}
-
-enum DataSourceOrCollab {
-  Collab(Collab),
-  DataSource(DataSource),
-}
-
-impl From<DataSource> for DataSourceOrCollab {
-  fn from(source: DataSource) -> Self {
-    DataSourceOrCollab::DataSource(source)
-  }
-}
-
-impl From<Collab> for DataSourceOrCollab {
-  fn from(collab: Collab) -> Self {
-    DataSourceOrCollab::Collab(collab)
-  }
-}
-
-impl From<EncodedCollab> for DataSourceOrCollab {
-  fn from(encoded_collab: EncodedCollab) -> Self {
-    DataSourceOrCollab::DataSource(DataSource::from(encoded_collab))
-  }
-}
-
-#[async_trait]
-impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
-  async fn client_id(&self) -> ClientID {
-    match self.collab_builder.upgrade() {
-      None => default_client_id(),
-      Some(b) => b.client_id().await.unwrap_or(default_client_id()),
-    }
-  }
-
-  #[instrument(level = "trace", skip_all, err)]
-  async fn build_arc_database(
-    &self,
-    object_id: &str,
-    _is_new: bool,
-    data: Option<DatabaseDataVariant>,
-    context: DatabaseContext,
-  ) -> Result<Arc<RwLock<Database>>, DatabaseError> {
-    let database = self.build_database(object_id, false, data, context).await?;
-    let database = Arc::new(RwLock::new(database));
-    let object_id = Uuid::parse_str(object_id)?;
-    self
-      .collab_builder()?
-      .cache_collab_ref(object_id, CollabType::Database, database.clone())
-      .await?;
+    entry.set_resource(editor.clone()).await;
     Ok(database)
   }
 
-  #[instrument(level = "trace", skip_all, err)]
-  async fn build_database(
-    &self,
-    object_id: &str,
-    _is_new: bool,
-    data: Option<DatabaseDataVariant>,
-    context: DatabaseContext,
-  ) -> Result<Database, DatabaseError> {
-    let client_id = self.client_id().await;
-    let collab_type = CollabType::Database;
-
-    let collab_service = context.collab_service.clone();
-    let (body, collab) = match data {
-      None => {
-        let source = self.get_data_source(object_id, collab_type, None).await?;
-        let collab = self.build_collab(object_id, collab_type, source).await?;
-        DatabaseBody::open(collab, context)?
-      },
-      Some(data) => match data {
-        DatabaseDataVariant::Params(params) => {
-          let database_id = params.database_id.clone();
-          let (body, collab) =
-            default_database_collab(&database_id, client_id, Some(params), context.clone()).await?;
-          let collab = self.build_collab(object_id, collab_type, collab).await?;
-          (body, collab)
-        },
-        DatabaseDataVariant::EncodedCollab(data) => {
-          let collab = self.build_collab(object_id, collab_type, data).await?;
-          DatabaseBody::open(collab, context)?
-        },
-      },
-    };
-
-    Ok(Database {
-      collab,
-      body,
-      collab_service,
-    })
-  }
-
-  #[instrument(level = "info", skip_all, error)]
-  async fn build_arc_database_row(
-    &self,
-    object_id: &str,
-    _is_new: bool,
-    data: Option<DatabaseRowDataVariant>,
-    sender: Option<RowChangeSender>,
-    collab_service: Arc<dyn DatabaseCollabService>,
-  ) -> Result<Arc<RwLock<DatabaseRow>>, DatabaseError> {
-    let client_id = self.client_id().await;
-    let collab_type = CollabType::DatabaseRow;
-    let data = data.map(|v| v.into_encode_collab(client_id));
-
-    debug!(
-      "[Database]: build arc database row: {}, collab_type: {:?}, data: {:#?}",
-      object_id, collab_type, data
-    );
-
-    let source = self.get_data_source(object_id, collab_type, data).await?;
-    let collab = self.build_collab(object_id, collab_type, source).await?;
-    let database_row = DatabaseRow::open(RowId::from(object_id), collab, sender, collab_service)?;
-    let database_row = Arc::new(RwLock::new(database_row));
-    let object_id = Uuid::parse_str(object_id)?;
+  fn workspace_database(&self) -> FlowyResult<Arc<RwLock<WorkspaceDatabase>>> {
     self
-      .collab_builder()?
-      .cache_collab_ref(object_id, collab_type, database_row.clone())
-      .await?;
-    Ok(database_row)
-  }
-
-  async fn build_workspace_database_collab(
-    &self,
-    object_id: &str,
-    encoded_collab: Option<EncodedCollab>,
-  ) -> Result<Collab, DatabaseError> {
-    let collab_type = CollabType::WorkspaceDatabase;
-    let data_source = self
-      .get_data_source(object_id, collab_type, encoded_collab)
-      .await?;
-    self.build_collab(object_id, collab_type, data_source).await
-  }
-
-  async fn get_collabs(
-    &self,
-    mut object_ids: Vec<String>,
-    collab_type: CollabType,
-  ) -> Result<EncodeCollabByOid, DatabaseError> {
-    if object_ids.is_empty() {
-      return Ok(EncodeCollabByOid::new());
-    }
-
-    let mut encoded_collab_by_id = EncodeCollabByOid::new();
-    // 1. Collect local disk collabs into a HashMap
-    let local_disk_encoded_collab: HashMap<String, EncodedCollab> = object_ids
-      .par_iter()
-      .filter_map(|object_id| {
-        self
-          .persistence
-          .get_encoded_collab(object_id.as_str(), collab_type)
-          .map(|encoded_collab| (object_id.clone(), encoded_collab))
-      })
-      .collect();
-    trace!(
-      "[Database]: load {} database row from local disk",
-      local_disk_encoded_collab.len()
-    );
-
-    object_ids.retain(|object_id| !local_disk_encoded_collab.contains_key(object_id));
-    for (k, v) in local_disk_encoded_collab {
-      encoded_collab_by_id.insert(k, v);
-    }
-
-    if !object_ids.is_empty() {
-      let object_ids = object_ids
-        .into_iter()
-        .flat_map(|v| Uuid::from_str(&v).ok())
-        .collect::<Vec<_>>();
-      // 2. Fetch remaining collabs from remote
-      let remote_collabs = self
-        .batch_get_encode_collab(object_ids, collab_type)
-        .await?;
-
-      trace!(
-        "[Database]: load {} database row from remote",
-        remote_collabs.len()
-      );
-      for (k, v) in remote_collabs {
-        encoded_collab_by_id.insert(k, v);
-      }
-    }
-
-    Ok(encoded_collab_by_id)
-  }
-
-  fn persistence(&self) -> Option<Arc<dyn DatabaseCollabPersistenceService>> {
-    Some(self.persistence.clone())
+      .workspace_database
+      .load_full()
+      .ok_or_else(|| FlowyError::internal().with_context("Workspace database not initialized"))
   }
 }
 
-pub struct DatabasePersistenceImpl {
-  user: Arc<dyn DatabaseUser>,
-}
-
-impl DatabasePersistenceImpl {
-  fn workspace_id(&self) -> Result<Uuid, DatabaseError> {
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    Ok(workspace_id)
-  }
-}
-
-impl DatabaseCollabPersistenceService for DatabasePersistenceImpl {
-  fn load_collab(&self, collab: &mut Collab) {
-    let result = self
-      .user
-      .user_id()
-      .map(|uid| (uid, self.user.collab_db(uid).map(|weak| weak.upgrade())));
-
-    if let Ok(workspace_id) = self.user.workspace_id() {
-      if let Ok((uid, Ok(Some(collab_db)))) = result {
-        let object_id = collab.object_id().to_string();
-        let db_read = collab_db.read_txn();
-        if !db_read.is_exist(uid, workspace_id.to_string().as_str(), &object_id) {
-          trace!(
-            "[Database]: collab:{} not exist in local storage",
-            object_id
-          );
-          return;
-        }
-
-        trace!("[Database]: start loading collab:{} from disk", object_id);
-        let mut txn = collab.transact_mut();
-        match db_read.load_doc_with_txn(
-          uid,
-          workspace_id.to_string().as_str(),
-          &object_id,
-          &mut txn,
-        ) {
-          Ok(update_count) => {
-            trace!(
-              "[Database]: did load collab:{}, update_count:{}",
-              object_id, update_count
-            );
-          },
-          Err(err) => {
-            if !err.is_record_not_found() {
-              error!("[Database]: load collab:{} failed:{}", object_id, err);
-            }
-          },
-        }
-      }
-    }
-  }
-
-  fn get_encoded_collab(&self, object_id: &str, collab_type: CollabType) -> Option<EncodedCollab> {
-    let workspace_id = self.user.workspace_id().ok()?;
-    let uid = self.user.user_id().ok()?;
-    let db = self.user.collab_db(uid).ok()?.upgrade()?;
-    let read_txn = db.read_txn();
-    if !read_txn.is_exist(uid, workspace_id.to_string().as_str(), object_id) {
-      return None;
-    }
-
-    let client_id = self.user.collab_client_id(&workspace_id);
-    let options = CollabOptions::new(object_id.to_string(), client_id);
-    let mut collab = Collab::new_with_options(CollabOrigin::Empty, options).ok()?;
-    let mut txn = collab.transact_mut();
-    let _ = read_txn.load_doc_with_txn(uid, workspace_id.to_string().as_str(), object_id, &mut txn);
-    drop(txn);
-
-    collab
-      .encode_collab_v1(|collab| collab_type.validate_require_data(collab))
-      .ok()
-  }
-
-  fn delete_collab(&self, object_id: &str) -> Result<(), DatabaseError> {
-    let workspace_id = self.workspace_id()?.to_string();
-    let uid = self
-      .user
-      .user_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    if let Ok(Some(collab_db)) = self.user.collab_db(uid).map(|weak| weak.upgrade()) {
-      let write_txn = collab_db.write_txn();
-      write_txn
-        .delete_doc(uid, workspace_id.as_str(), object_id)
-        .unwrap();
-      write_txn
-        .commit_transaction()
-        .map_err(|err| DatabaseError::Internal(anyhow!("failed to commit transaction: {}", err)))?;
-    }
-    Ok(())
-  }
-
-  fn is_collab_exist(&self, object_id: &str) -> bool {
-    match self.user.workspace_id() {
-      Ok(workspace_id) => {
-        match self
-          .user
-          .user_id()
-          .map_err(|err| DatabaseError::Internal(err.into()))
-        {
-          Ok(uid) => {
-            if let Ok(Some(collab_db)) = self.user.collab_db(uid).map(|weak| weak.upgrade()) {
-              let read_txn = collab_db.read_txn();
-              return read_txn.is_exist(uid, workspace_id.to_string().as_str(), object_id);
-            }
-            false
-          },
-          Err(_) => false,
-        }
-      },
-      Err(_) => false,
-    }
-  }
-}
 type DatabaseEditorEntry = AsyncEntry<Arc<DatabaseEditor>, String>;
