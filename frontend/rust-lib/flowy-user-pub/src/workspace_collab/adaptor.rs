@@ -1,9 +1,10 @@
 use std::borrow::BorrowMut;
+use std::collections::HashMap;
 use std::fmt::{Debug, Display};
 use std::sync::{Arc, Weak};
 
 use anyhow::{Error, anyhow};
-use client_api::v2::WorkspaceController;
+use client_api::v2::{ChangedCollab, WorkspaceController};
 use collab::core::collab::{CollabOptions, DataSource, default_client_id};
 use collab::core::collab_plugin::CollabPersistence;
 use collab::core::origin::{CollabClient, CollabOrigin};
@@ -60,6 +61,7 @@ pub struct WorkspaceCollabAdaptor {
   user: Arc<dyn WorkspaceCollabUser>,
   collab_indexer: Option<Weak<dyn WorkspaceCollabIndexer>>,
   index_task_handle: RwLock<Option<tokio::task::JoinHandle<()>>>,
+  changed_collabs: Arc<RwLock<HashMap<Uuid, ChangedCollab>>>,
 }
 
 impl WorkspaceCollabAdaptor {
@@ -72,6 +74,7 @@ impl WorkspaceCollabAdaptor {
       collab_indexer,
       user: Arc::new(user),
       index_task_handle: Default::default(),
+      changed_collabs: Arc::new(RwLock::new(HashMap::new())),
     }
   }
 
@@ -80,52 +83,102 @@ impl WorkspaceCollabAdaptor {
   }
 
   pub async fn set_controller(&self, controller: Weak<WorkspaceController>) {
+    // Abort any existing indexing task
     if let Some(handle) = self.index_task_handle.write().await.take() {
       handle.abort();
     }
+    let controller_arc = Arc::new(controller);
+    *self.controller.write().await = Some(controller_arc.clone());
 
-    let controller = Arc::new(controller);
-    let weak_controller = Arc::downgrade(&controller);
-    *self.controller.write().await = Some(controller);
+    let Some(controller) = controller_arc.upgrade() else {
+      error!("Controller is already dropped, skipping background task setup");
+      return;
+    };
 
-    // Only spawn indexing task if indexer is available
-    if let Ok(workspace_id) = self.user.workspace_id() {
-      if let Some(indexer) = self.collab_indexer.clone() {
-        let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Delay);
-        let handle = tokio::spawn(async move {
-          loop {
-            interval.tick().await;
-            // Get indexer and controller, breaking out if either is unavailable
-            let Some(indexer) = indexer.upgrade() else {
-              break;
-            };
-            let Some(controller) = weak_controller.upgrade().and_then(|w| w.upgrade()) else {
-              break;
-            };
+    self
+      .spawn_changed_collab_subscriber(controller.clone())
+      .await;
+    self.spawn_indexing_task_if_available().await;
+  }
 
-            // Process changed collabs
-            match controller.consume_latest_changed_collab() {
-              collabs if !collabs.is_empty() => {
-                for collab in collabs {
-                  let _ = indexer
-                    .index_opened_collab(workspace_id, collab.id, collab.collab_type)
-                    .await;
-                }
-              },
-              _ => {
-                // If no collabs are changed, sleep for a while
-                tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-              },
-            }
-          }
-        });
+  async fn spawn_changed_collab_subscriber(&self, controller: Arc<WorkspaceController>) {
+    let weak_changed_collabs = Arc::downgrade(&self.changed_collabs);
+    let mut changed_collab_rx = controller.subscribe_changed_collab();
 
-        *self.index_task_handle.write().await = Some(handle);
+    tokio::spawn(async move {
+      while let Ok(changed_collab) = changed_collab_rx.recv().await {
+        if !changed_collab.collab_type.indexed_enabled() {
+          continue;
+        }
+
+        let Some(changed_collabs) = weak_changed_collabs.upgrade() else {
+          trace!("Changed collabs map dropped, stopping subscriber task");
+          break;
+        };
+
+        changed_collabs
+          .write()
+          .await
+          .insert(changed_collab.id, changed_collab);
       }
-    } else {
+      trace!("Changed collab subscriber task terminated");
+    });
+  }
+
+  async fn spawn_indexing_task_if_available(&self) {
+    let Ok(workspace_id) = self.user.workspace_id() else {
       error!("Unable to spawn indexing task: workspace_id not found");
-    }
+      return;
+    };
+
+    let Some(indexer) = self.collab_indexer.clone() else {
+      trace!("No indexer available, skipping indexing task");
+      return;
+    };
+
+    let weak_changed_collabs = Arc::downgrade(&self.changed_collabs);
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(30));
+    interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+
+    let handle = tokio::spawn(async move {
+      // Skip the first tick to avoid immediate execution
+      interval.tick().await;
+
+      loop {
+        interval.tick().await;
+
+        let Some(indexer) = indexer.upgrade() else {
+          trace!("Indexer dropped, stopping indexing task");
+          break;
+        };
+
+        let Some(changed_collabs_arc) = weak_changed_collabs.upgrade() else {
+          trace!("Changed collabs map dropped, stopping indexing task");
+          break;
+        };
+
+        // Extract all changed collabs atomically
+        let changed_collabs = std::mem::take(&mut *changed_collabs_arc.write().await);
+        if changed_collabs.is_empty() {
+          continue;
+        }
+
+        trace!(
+          "Processing {} changed collabs for indexing",
+          changed_collabs.len()
+        );
+
+        // Process all changed collabs
+        for (_, collab) in changed_collabs {
+          indexer
+            .index_opened_collab(workspace_id, collab.id, collab.collab_type)
+            .await;
+        }
+      }
+      trace!("Indexing task terminated");
+    });
+
+    *self.index_task_handle.write().await = Some(handle);
   }
 
   pub fn update_network(&self, _reachable: bool) {}
