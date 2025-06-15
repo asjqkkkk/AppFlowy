@@ -16,7 +16,9 @@ use collab_database::rows::{DatabaseRow, RowChangeSender, RowId};
 use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use flowy_database_pub::ChangedCollab;
 use flowy_database_pub::cloud::DatabaseCloudService;
+use flowy_error::{FlowyError};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use futures::future::join_all;
 use rayon::iter::IntoParallelRefIterator;
@@ -24,6 +26,7 @@ use rayon::prelude::*;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use tokio::sync::broadcast;
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 
@@ -53,11 +56,18 @@ impl DatabaseCollabServiceImpl {
     }
   }
 
-  fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, DatabaseError> {
+  pub async fn subscribe_changed_collab(
+    &self,
+  ) -> Result<broadcast::Receiver<ChangedCollab>, FlowyError> {
+    let collab_builder = self.collab_builder()?;
+    collab_builder.subscribe_changed_collab().await
+  }
+
+  fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, FlowyError> {
     self
       .workspace_collab_adaptor
       .upgrade()
-      .ok_or_else(|| DatabaseError::Internal(anyhow!("Collab builder is not initialized")))
+      .ok_or_else(|| FlowyError::internal().with_context("Collab builder is not initialized"))
   }
 
   async fn get_encode_collab(
@@ -189,7 +199,9 @@ impl DatabaseCollabServiceImpl {
       .map_err(|err| DatabaseError::Internal(err.into()))?;
 
     let object_uuid = Uuid::parse_str(object_id)?;
-    let collab_builder = self.collab_builder()?;
+    let collab_builder = self
+      .collab_builder()
+      .map_err(|err| DatabaseError::Internal(err.into()))?;
 
     let mut collab = match data {
       DataSourceOrCollab::Collab(collab) => collab,
@@ -252,7 +264,8 @@ impl DatabaseCollabService for DatabaseCollabServiceImpl {
     let database = Arc::new(RwLock::new(database));
     let object_id = Uuid::parse_str(object_id)?;
     self
-      .collab_builder()?
+      .collab_builder()
+      .map_err(|err| DatabaseError::Internal(err.into()))?
       .cache_collab_ref(object_id, CollabType::Database, database.clone())
       .await?;
     Ok(database)
@@ -332,7 +345,8 @@ impl DatabaseCollabService for DatabaseCollabServiceImpl {
     let database_row = Arc::new(RwLock::new(database_row));
     let object_id = Uuid::parse_str(object_id)?;
     self
-      .collab_builder()?
+      .collab_builder()
+      .map_err(|err| DatabaseError::Internal(err.into()))?
       .cache_collab_ref(object_id, collab_type, database_row.clone())
       .await?;
     Ok(database_row)
