@@ -60,7 +60,7 @@ pub trait DatabaseViewOperation: Send + Sync + 'static {
   async fn get_all_rows(&self, view_id: &str, row_orders: Vec<RowOrder>) -> Vec<Arc<Row>>;
   async fn get_all_row_orders(&self, view_id: &str) -> Vec<RowOrder>;
 
-  async fn remove_row(&self, row_id: &RowId) -> Option<Row>;
+  async fn remove_row(&self, row_id: &RowId);
 
   async fn get_cells_for_field(&self, view_id: &str, field_id: &str) -> Vec<RowCell>;
 

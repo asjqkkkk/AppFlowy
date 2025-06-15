@@ -23,13 +23,16 @@ pub async fn default_encode_collab_for_collab_type(
       let encode_collab = default_document_collab_data(object_id, client_id)?;
       Ok(encode_collab)
     },
-    CollabType::Database => default_database_data(
-      object_id,
-      client_id,
-      DatabaseContext::new(Arc::new(NoPersistenceDatabaseCollabService { client_id })),
-    )
-    .await
-    .map_err(Into::into),
+    CollabType::Database => {
+      let collab_service = Arc::new(NoPersistenceDatabaseCollabService::new(client_id));
+      default_database_data(
+        object_id,
+        client_id,
+        DatabaseContext::new(collab_service.clone(), collab_service),
+      )
+      .await
+      .map_err(Into::into)
+    },
     CollabType::WorkspaceDatabase => Ok(default_workspace_database_data(object_id, client_id)),
     CollabType::Folder => {
       // let collab = Collab::new_with_origin(CollabOrigin::Empty, object_id, vec![], false);

@@ -1,4 +1,3 @@
-use crate::DatabaseUser;
 use crate::entities::*;
 use crate::notification::{DatabaseNotification, database_notification_builder};
 use crate::services::calculations::Calculation;
@@ -56,11 +55,9 @@ type OpenDatabaseResult = oneshot::Sender<FlowyResult<DatabasePB>>;
 
 pub struct DatabaseEditor {
   database_id: Uuid,
-  pub(crate) database: Arc<RwLock<Database>>,
   pub cell_cache: CellCache,
+  pub(crate) database: Arc<RwLock<Database>>,
   pub(crate) database_views: Arc<DatabaseViews>,
-  #[allow(dead_code)]
-  user: Arc<dyn DatabaseUser>,
   collab_builder: Weak<WorkspaceCollabAdaptor>,
   is_loading_rows: Mutex<bool>,
   opening_ret_txs: Arc<RwLock<Vec<OpenDatabaseResult>>>,
@@ -68,7 +65,6 @@ pub struct DatabaseEditor {
 
 impl DatabaseEditor {
   pub async fn new(
-    user: Arc<dyn DatabaseUser>,
     database: Arc<RwLock<Database>>,
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
     collab_builder: Arc<WorkspaceCollabAdaptor>,
@@ -104,7 +100,6 @@ impl DatabaseEditor {
     let database_id = Uuid::from_str(&database_id)?;
     let this = Arc::new(Self {
       database_id,
-      user,
       database,
       cell_cache,
       database_views,
@@ -765,24 +760,40 @@ impl DatabaseEditor {
     }
   }
 
-  pub async fn init_database_row(&self, row_id: &RowId) -> FlowyResult<Arc<RwLock<DatabaseRow>>> {
-    if *self.is_loading_rows.lock().await {
-      return Err(FlowyError::internal().with_context("The database is loading rows"));
+  pub async fn init_database_row(
+    &self,
+    row_id: &RowId,
+    wait_until_finish: Option<oneshot::Sender<Arc<RwLock<DatabaseRow>>>>,
+  ) -> FlowyResult<()> {
+    debug!("[Database]: Init database row: {}", row_id);
+    match wait_until_finish {
+      None => {
+        let row_id = row_id.clone();
+        let weak_database = Arc::downgrade(&self.database);
+        tokio::spawn(async move {
+          if let Some(database) = weak_database.upgrade() {
+            if let Ok(database) = database.try_read() {
+              let _ = database.get_or_init_database_row(&row_id).await;
+            }
+          }
+        });
+      },
+      Some(notify) => {
+        let database_row = self
+          .database
+          .read()
+          .await
+          .get_or_init_database_row(row_id)
+          .await
+          .ok_or_else(|| {
+            FlowyError::record_not_found()
+              .with_context(format!("The row:{} in database not found", row_id))
+          })?;
+        let _ = notify.send(database_row);
+      },
     }
 
-    debug!("[Database]: Init database row: {}", row_id);
-    let database_row = self
-      .database
-      .read()
-      .await
-      .get_or_init_database_row(row_id)
-      .await
-      .ok_or_else(|| {
-        FlowyError::record_not_found()
-          .with_context(format!("The row:{} in database not found", row_id))
-      })?;
-
-    Ok(database_row)
+    Ok(())
   }
 
   pub async fn get_row_meta(&self, view_id: &str, row_id: &RowId) -> Option<RowMetaPB> {
@@ -1392,6 +1403,7 @@ impl DatabaseEditor {
   /// After load all rows, it will apply filters and sorts to the rows.
   ///
   /// If notify_finish is not None, it will send a notification to the sender when the opening process is complete.
+  #[instrument(level = "debug", skip_all)]
   pub async fn open_database_view(
     &self,
     view_id: &str,
@@ -1402,11 +1414,16 @@ impl DatabaseEditor {
     {
       let mut guard = self.is_loading_rows.lock().await;
       if *guard {
-        return match tokio::time::timeout(Duration::from_secs(10), rx).await {
+        info!("[Database]: Already loading rows, waiting for the result");
+        return match tokio::time::timeout(Duration::from_secs(30), rx).await {
           Ok(result) => result.map_err(internal_error)?,
           Err(_) => Err(FlowyError::internal().with_context("Timeout while opening database view")),
         };
       } else {
+        info!(
+          "[Database]: Start loading rows for database view: {}",
+          view_id
+        );
         *guard = true;
       }
     }
@@ -1476,6 +1493,7 @@ impl DatabaseEditor {
     result
   }
 
+  #[instrument(level = "debug", skip_all)]
   async fn async_load_rows(
     &self,
     view_editor: Arc<DatabaseViewEditor>,
@@ -1483,7 +1501,7 @@ impl DatabaseEditor {
     blocking_read: bool,
     original_row_orders: Vec<RowOrder>,
   ) {
-    trace!(
+    info!(
       "[Database]: start loading rows, blocking: {}, row_count: {}",
       blocking_read,
       original_row_orders.len()
@@ -2014,8 +2032,8 @@ impl DatabaseViewOperation for DatabaseViewOperationImpl {
     self.database.read().await.get_row_orders_for_view(view_id)
   }
 
-  async fn remove_row(&self, row_id: &RowId) -> Option<Row> {
-    self.database.write().await.remove_row(row_id).await
+  async fn remove_row(&self, row_id: &RowId) {
+    self.database.write().await.remove_row(row_id).await;
   }
 
   async fn get_cells_for_field(&self, view_id: &str, field_id: &str) -> Vec<RowCell> {

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::{broadcast, RwLock};
-use tracing::debug;
 
 #[derive(Clone, Debug)]
 pub enum ResourceState {
@@ -64,10 +63,6 @@ where
   }
 
   async fn touch_active_time(&self) {
-    debug!(
-      "[ResourceEntry]: Touching active time for resource {}",
-      self.id
-    );
     let mut state = self.state.write().await;
     if let ResourceState::Active { .. } = state.state {
       state.state = ResourceState::Active {

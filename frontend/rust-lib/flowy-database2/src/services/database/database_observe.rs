@@ -198,7 +198,11 @@ async fn handle_did_update_row_orders(
   let row_changes = DashMap::new();
   // 1. handle insert row orders
   for (row_order, index) in insert_row_orders {
-    let row = match database_editor.init_database_row(&row_order.id).await {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let _ = database_editor
+      .init_database_row(&row_order.id, Some(tx))
+      .await;
+    let row = match rx.await {
       Ok(database_row) => database_row.read().await.get_row().map(Arc::new),
       Err(err) => {
         error!("Failed to init row: {:?}", err);

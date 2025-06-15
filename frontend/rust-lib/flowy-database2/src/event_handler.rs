@@ -421,7 +421,9 @@ pub(crate) async fn init_row_handler(
   let database_editor = manager
     .get_database_editor_with_view_id(&params.view_id)
     .await?;
-  database_editor.init_database_row(&params.row_id).await?;
+  database_editor
+    .init_database_row(&params.row_id, None)
+    .await?;
   Ok(())
 }
 

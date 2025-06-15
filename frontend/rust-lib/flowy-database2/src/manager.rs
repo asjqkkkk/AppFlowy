@@ -16,7 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
-use tracing::{error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateItem, TranslateRowContent,
@@ -26,7 +26,7 @@ use flowy_error::{FlowyError, FlowyResult, internal_error};
 use crate::collab_service::DatabaseCollabServiceImpl;
 use crate::entities::{DatabaseLayoutPB, DatabaseSnapshotPB, FieldType, RowMetaPB};
 use crate::services::cell::stringify_cell;
-use crate::services::database::DatabaseEditor;
+use crate::services::database::{DatabaseEditor, DatabaseRowCollabServiceMiddleware};
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
@@ -422,7 +422,7 @@ impl DatabaseManager {
     database_view_id: String,
     database_parent_view_id: String,
   ) -> FlowyResult<()> {
-    trace!(
+    info!(
       "[database] create linked view: {}, layout: {:?}, database_id: {}, database_view_id: {}",
       name, layout, database_id, database_view_id
     );
@@ -453,7 +453,7 @@ impl DatabaseManager {
       if record.linked_views.contains(&database_view_id) {
         error!("The view is already linked to the database");
       } else {
-        trace!("Insert linked view record: {}", database_view_id);
+        debug!("Insert linked view record: {}", database_view_id);
         record.linked_views.push(database_view_id.clone());
       }
     });
@@ -565,7 +565,7 @@ impl DatabaseManager {
     }
 
     // Call the cloud service to summarize the row.
-    trace!(
+    debug!(
       "[AI]:summarize row:{}, content:{:?}",
       row_id, summary_row_content
     );
@@ -577,7 +577,7 @@ impl DatabaseManager {
         summary_row_content,
       )
       .await?;
-    trace!("[AI]:summarize row response: {}", response);
+    debug!("[AI]:summarize row response: {}", response);
 
     // Update the cell with the response from the cloud service.
     database
@@ -630,7 +630,7 @@ impl DatabaseManager {
     }
 
     // Call the cloud service to summarize the row.
-    trace!(
+    debug!(
       "[AI]:translate to {}, content:{:?}",
       language, translate_row_content
     );
@@ -653,7 +653,7 @@ impl DatabaseManager {
       .collect::<Vec<String>>()
       .join(",");
 
-    trace!("[AI]:translate row response: {}", content);
+    debug!("[AI]:translate row response: {}", content);
     // Update the cell with the response from the cloud service.
     database
       .update_cell_with_changeset(&view_id, &row_id, &field_id, BoxAny::new(content))
@@ -682,7 +682,7 @@ impl DatabaseManager {
             let database_id = entry.key();
             let editor_entry = entry.value();
             if editor_entry.can_be_removed(timeout).await {
-              trace!(
+              debug!(
                 "[Database]: Periodic cleanup: database {} can be removed. timeout duration: {}",
                 database_id,
                 timeout.as_secs()
@@ -714,22 +714,24 @@ impl DatabaseManager {
 
     // Check if we already have the database after acquiring entry
     if let Some(database) = entry.get_resource().await {
-      trace!("Database already initialized: {}", database_id);
+      debug!("Database already initialized: {}", database_id);
       return Ok(database);
     }
 
     // Try to start initialization
     if entry.try_mark_initialization_start().await {
-      trace!("Initializing database: {}", database_id);
+      debug!("Initializing database: {}", database_id);
       let collab_service = self.get_collab_service().await?;
       let changed_collab_rx = collab_service.subscribe_changed_collab().await?;
-      let context = DatabaseContext::new(collab_service);
+      let context = DatabaseContext::new(
+        collab_service.clone(),
+        Arc::new(DatabaseRowCollabServiceMiddleware::new(collab_service)),
+      );
 
       match Database::arc_open(database_id, context).await {
         Ok(database) => {
           let collab_builder = self.collab_builder()?;
           let editor = DatabaseEditor::new(
-            self.user.clone(),
             database,
             self.task_scheduler.clone(),
             collab_builder,
@@ -750,10 +752,10 @@ impl DatabaseManager {
       }
     } else {
       // Another task is initializing, wait for it to complete
-      trace!("Waiting for database initialization: {}", database_id);
+      debug!("Waiting for database initialization: {}", database_id);
       match entry.wait_for_initialization(Duration::from_secs(10)).await {
         Ok(database) => {
-          trace!("Database initialization completed: {}", database_id);
+          debug!("Database initialization completed: {}", database_id);
           Ok(database)
         },
         Err(err) => {
@@ -786,10 +788,9 @@ impl DatabaseManager {
 
     let collab_service = self.get_collab_service().await?;
     let changed_collab_rx = collab_service.subscribe_changed_collab().await?;
-    let context = DatabaseContext::new(collab_service);
+    let context = DatabaseContext::new(collab_service.clone(), collab_service);
     let database = Database::create_arc_with_view(params, context).await?;
     let editor = DatabaseEditor::new(
-      self.user.clone(),
       database.clone(),
       self.task_scheduler.clone(),
       self.collab_builder()?,
