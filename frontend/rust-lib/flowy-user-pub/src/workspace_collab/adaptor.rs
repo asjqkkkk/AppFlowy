@@ -82,6 +82,16 @@ impl WorkspaceCollabAdaptor {
     Ok(self.get_controller().await?.client_id())
   }
 
+  pub async fn subscribe_changed_collab(
+    &self,
+  ) -> FlowyResult<tokio::sync::broadcast::Receiver<ChangedCollab>> {
+    let controller = self
+      .get_controller()
+      .await
+      .map_err(|err| FlowyError::internal().with_context(err))?;
+    Ok(controller.subscribe_changed_collab())
+  }
+
   pub async fn set_controller(&self, controller: Weak<WorkspaceController>) {
     // Abort any existing indexing task
     if let Some(handle) = self.index_task_handle.write().await.take() {

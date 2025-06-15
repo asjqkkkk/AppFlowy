@@ -28,26 +28,26 @@ use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 
 #[derive(Clone)]
-pub(crate) struct WorkspaceDatabaseCollabServiceImpl {
+pub(crate) struct DatabaseCollabServiceImpl {
   is_local_user: bool,
   user: Arc<dyn DatabaseUser>,
-  collab_builder: Weak<WorkspaceCollabAdaptor>,
+  workspace_collab_adaptor: Weak<WorkspaceCollabAdaptor>,
   persistence: Arc<dyn DatabaseCollabPersistenceService>,
   cloud_service: Arc<dyn DatabaseCloudService>,
 }
 
-impl WorkspaceDatabaseCollabServiceImpl {
+impl DatabaseCollabServiceImpl {
   pub(crate) fn new(
     is_local_user: bool,
     user: Arc<dyn DatabaseUser>,
-    collab_builder: Weak<WorkspaceCollabAdaptor>,
+    workspace_collab_adaptor: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DatabaseCloudService>,
   ) -> Self {
     let persistence = DatabasePersistenceImpl { user: user.clone() };
     Self {
       is_local_user,
       user,
-      collab_builder,
+      workspace_collab_adaptor,
       persistence: Arc::new(persistence),
       cloud_service,
     }
@@ -55,7 +55,7 @@ impl WorkspaceDatabaseCollabServiceImpl {
 
   fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, DatabaseError> {
     self
-      .collab_builder
+      .workspace_collab_adaptor
       .upgrade()
       .ok_or_else(|| DatabaseError::Internal(anyhow!("Collab builder is not initialized")))
   }
@@ -232,9 +232,9 @@ impl From<EncodedCollab> for DataSourceOrCollab {
 }
 
 #[async_trait]
-impl DatabaseCollabService for WorkspaceDatabaseCollabServiceImpl {
+impl DatabaseCollabService for DatabaseCollabServiceImpl {
   async fn client_id(&self) -> ClientID {
-    match self.collab_builder.upgrade() {
+    match self.workspace_collab_adaptor.upgrade() {
       None => default_client_id(),
       Some(b) => b.client_id().await.unwrap_or(default_client_id()),
     }

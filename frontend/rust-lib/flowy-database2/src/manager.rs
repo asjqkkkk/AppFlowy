@@ -23,7 +23,7 @@ use flowy_database_pub::cloud::{
 };
 use flowy_error::{FlowyError, FlowyResult, internal_error};
 
-use crate::collab_service::WorkspaceDatabaseCollabServiceImpl;
+use crate::collab_service::DatabaseCollabServiceImpl;
 use crate::entities::{DatabaseLayoutPB, DatabaseSnapshotPB, FieldType, RowMetaPB};
 use crate::services::cell::stringify_cell;
 use crate::services::database::DatabaseEditor;
@@ -50,7 +50,7 @@ pub struct DatabaseManager {
   workspace_database: Arc<ArcSwapOption<RwLock<WorkspaceDatabase>>>,
   task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
   database_editors: Arc<DashMap<String, DatabaseEditorEntry>>,
-  collab_service: RwLock<Option<Arc<dyn DatabaseCollabService>>>,
+  collab_service: RwLock<Option<Arc<DatabaseCollabServiceImpl>>>,
   collab_builder: Weak<WorkspaceCollabAdaptor>,
   cloud_service: Arc<dyn DatabaseCloudService>,
   ai_service: Arc<dyn DatabaseAIService>,
@@ -116,7 +116,7 @@ impl DatabaseManager {
       wdb.close();
     }
 
-    let collab_service = Arc::new(WorkspaceDatabaseCollabServiceImpl::new(
+    let collab_service = Arc::new(DatabaseCollabServiceImpl::new(
       is_local_user,
       self.user.clone(),
       self.collab_builder.clone(),
@@ -760,7 +760,7 @@ impl DatabaseManager {
     }
   }
 
-  async fn get_collab_service(&self) -> FlowyResult<Arc<dyn DatabaseCollabService>> {
+  async fn get_collab_service(&self) -> FlowyResult<Arc<DatabaseCollabServiceImpl>> {
     let collab_service = self
       .collab_service
       .read()
