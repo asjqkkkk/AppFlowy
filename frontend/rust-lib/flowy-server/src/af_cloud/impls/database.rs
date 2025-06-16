@@ -114,7 +114,7 @@ where
             match EncodedCollab::decode_from_bytes(&encode_collab_v1) {
               Ok(encode) => Some((object_id, encode)),
               Err(err) => {
-                error!("Failed to decode collab: {}", err);
+                error!("Failed to decode collab:{} error:{}", object_id, err);
                 None
               },
             }

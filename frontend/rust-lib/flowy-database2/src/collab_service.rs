@@ -9,10 +9,9 @@ use collab::preclude::{ClientID, Collab};
 use collab_database::database::{Database, DatabaseBody, DatabaseContext, default_database_collab};
 use collab_database::database_trait::{
   CollabPersistenceImpl, DatabaseCollabPersistenceService, DatabaseCollabService,
-  DatabaseDataVariant, DatabaseRowCollabService, DatabaseRowDataVariant, EncodeCollabByOid,
+  DatabaseDataVariant, EncodeCollabByOid,
 };
 use collab_database::error::DatabaseError;
-use collab_database::rows::{DatabaseRow, RowChangeSender, RowId};
 use collab_entity::CollabType;
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -21,7 +20,6 @@ use flowy_database_pub::ChangedCollab;
 use flowy_database_pub::cloud::DatabaseCloudService;
 use flowy_error::FlowyError;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
-use futures::future::join_all;
 use rayon::iter::IntoParallelRefIterator;
 use rayon::prelude::*;
 use std::collections::HashMap;
@@ -64,7 +62,7 @@ impl DatabaseCollabServiceImpl {
     collab_builder.subscribe_changed_collab().await
   }
 
-  fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, FlowyError> {
+  pub(crate) fn collab_builder(&self) -> Result<Arc<WorkspaceCollabAdaptor>, FlowyError> {
     self
       .workspace_collab_adaptor
       .upgrade()
@@ -89,30 +87,70 @@ impl DatabaseCollabServiceImpl {
     Ok(encode_collab)
   }
 
-  async fn batch_get_encode_collab(
+  pub(crate) async fn batch_get_encode_collab(
     &self,
-    object_ids: Vec<Uuid>,
-    object_ty: CollabType,
+    mut object_ids: Vec<String>,
+    collab_type: CollabType,
   ) -> Result<EncodeCollabByOid, DatabaseError> {
-    let workspace_id = self
-      .user
-      .workspace_id()
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
-    let updates = self
-      .cloud_service
-      .batch_get_database_encode_collab(object_ids, object_ty, &workspace_id)
-      .await
-      .map_err(|err| DatabaseError::Internal(err.into()))?;
+    if object_ids.is_empty() {
+      return Ok(EncodeCollabByOid::new());
+    }
 
-    Ok(
-      updates
+    let mut encoded_collab_by_id = EncodeCollabByOid::new();
+    // 1. Collect local disk collabs into a HashMap
+    let local_disk_encoded_collab: HashMap<String, EncodedCollab> = object_ids
+      .par_iter()
+      .filter_map(|object_id| {
+        self
+          .persistence
+          .get_encoded_collab(object_id, collab_type)
+          .map(|encoded_collab| (object_id.clone(), encoded_collab))
+      })
+      .collect();
+    trace!(
+      "[Database]: load {} database row from local disk",
+      local_disk_encoded_collab.len()
+    );
+
+    object_ids.retain(|object_id| !local_disk_encoded_collab.contains_key(object_id));
+    for (k, v) in local_disk_encoded_collab {
+      encoded_collab_by_id.insert(k, v);
+    }
+
+    if !object_ids.is_empty() {
+      let object_ids = object_ids
+        .into_iter()
+        .flat_map(|v| Uuid::from_str(&v).ok())
+        .collect::<Vec<_>>();
+
+      let workspace_id = self
+        .user
+        .workspace_id()
+        .map_err(|err| DatabaseError::Internal(err.into()))?;
+      let updates = self
+        .cloud_service
+        .batch_get_database_encode_collab(object_ids, collab_type, &workspace_id)
+        .await
+        .map_err(|err| DatabaseError::Internal(err.into()))?;
+
+      let remote_collabs: EncodeCollabByOid = updates
         .into_iter()
         .map(|(k, v)| (k.to_string(), v))
-        .collect(),
-    )
+        .collect();
+
+      trace!(
+        "[Database]: load {} database row from remote",
+        remote_collabs.len()
+      );
+      for (k, v) in remote_collabs {
+        encoded_collab_by_id.insert(k, v);
+      }
+    }
+
+    Ok(encoded_collab_by_id)
   }
 
-  async fn get_data_source(
+  pub(crate) async fn get_data_source(
     &self,
     object_id: &str,
     collab_type: CollabType,
@@ -187,7 +225,7 @@ impl DatabaseCollabServiceImpl {
   }
 
   #[instrument(level = "trace", skip_all, err)]
-  async fn build_collab<T: Into<DataSourceOrCollab>>(
+  pub(crate) async fn build_collab<T: Into<DataSourceOrCollab>>(
     &self,
     object_id: &str,
     collab_type: CollabType,
@@ -241,89 +279,6 @@ impl From<Collab> for DataSourceOrCollab {
 impl From<EncodedCollab> for DataSourceOrCollab {
   fn from(encoded_collab: EncodedCollab) -> Self {
     DataSourceOrCollab::DataSource(DataSource::from(encoded_collab))
-  }
-}
-
-#[async_trait]
-impl DatabaseRowCollabService for DatabaseCollabServiceImpl {
-  async fn database_row_client_id(&self) -> ClientID {
-    match self.workspace_collab_adaptor.upgrade() {
-      None => default_client_id(),
-      Some(b) => b.client_id().await.unwrap_or(default_client_id()),
-    }
-  }
-
-  async fn create_arc_database_row(
-    &self,
-    object_id: &str,
-    data: DatabaseRowDataVariant,
-    sender: Option<RowChangeSender>,
-  ) -> Result<Arc<RwLock<DatabaseRow>>, DatabaseError> {
-    self
-      .build_arc_database_row(object_id, Some(data), sender)
-      .await
-  }
-
-  #[instrument(level = "info", skip_all, error)]
-  async fn build_arc_database_row(
-    &self,
-    object_id: &str,
-    data: Option<DatabaseRowDataVariant>,
-    sender: Option<RowChangeSender>,
-  ) -> Result<Arc<RwLock<DatabaseRow>>, DatabaseError> {
-    let client_id = self.database_row_client_id().await;
-    let collab_type = CollabType::DatabaseRow;
-    let data = data.map(|v| v.into_encode_collab(client_id));
-
-    trace!(
-      "[Database]: build arc database row: {}, collab_type: {:?}, data: {:#?}",
-      object_id, collab_type, data
-    );
-
-    let source = self.get_data_source(object_id, collab_type, data).await?;
-    let collab = self.build_collab(object_id, collab_type, source).await?;
-    let database_row = DatabaseRow::open(RowId::from(object_id), collab, sender)?;
-    let database_row = Arc::new(RwLock::new(database_row));
-    let object_id = Uuid::parse_str(object_id)?;
-    self
-      .collab_builder()
-      .map_err(|err| DatabaseError::Internal(err.into()))?
-      .cache_collab_ref(object_id, collab_type, database_row.clone())
-      .await?;
-    Ok(database_row)
-  }
-
-  async fn batch_build_arc_database_row(
-    &self,
-    row_ids: &[String],
-    sender: Option<RowChangeSender>,
-  ) -> Result<HashMap<RowId, Arc<RwLock<DatabaseRow>>>, DatabaseError> {
-    let encoded_collab_by_id = self
-      .get_collabs(row_ids.to_vec(), CollabType::DatabaseRow)
-      .await?;
-
-    // Prepare concurrent tasks to initialize database rows
-    let futures = encoded_collab_by_id
-      .into_iter()
-      .map(|(row_id, encoded_collab)| async {
-        let row_id = RowId::from(row_id);
-        let database_row = self
-          .build_arc_database_row(
-            &row_id,
-            Some(DatabaseRowDataVariant::EncodedCollab(encoded_collab)),
-            sender.clone(),
-          )
-          .await?;
-        Ok::<_, DatabaseError>((row_id, database_row))
-      });
-
-    // Execute the tasks concurrently and collect them into a HashMap
-    let uncached_rows: HashMap<RowId, Arc<RwLock<DatabaseRow>>> = join_all(futures)
-      .await
-      .into_iter()
-      .collect::<Result<HashMap<_, _>, _>>()?;
-
-    Ok(uncached_rows)
   }
 }
 
@@ -408,54 +363,10 @@ impl DatabaseCollabService for DatabaseCollabServiceImpl {
 
   async fn get_collabs(
     &self,
-    mut object_ids: Vec<String>,
+    object_ids: Vec<String>,
     collab_type: CollabType,
   ) -> Result<EncodeCollabByOid, DatabaseError> {
-    if object_ids.is_empty() {
-      return Ok(EncodeCollabByOid::new());
-    }
-
-    let mut encoded_collab_by_id = EncodeCollabByOid::new();
-    // 1. Collect local disk collabs into a HashMap
-    let local_disk_encoded_collab: HashMap<String, EncodedCollab> = object_ids
-      .par_iter()
-      .filter_map(|object_id| {
-        self
-          .persistence
-          .get_encoded_collab(object_id.as_str(), collab_type)
-          .map(|encoded_collab| (object_id.clone(), encoded_collab))
-      })
-      .collect();
-    trace!(
-      "[Database]: load {} database row from local disk",
-      local_disk_encoded_collab.len()
-    );
-
-    object_ids.retain(|object_id| !local_disk_encoded_collab.contains_key(object_id));
-    for (k, v) in local_disk_encoded_collab {
-      encoded_collab_by_id.insert(k, v);
-    }
-
-    if !object_ids.is_empty() {
-      let object_ids = object_ids
-        .into_iter()
-        .flat_map(|v| Uuid::from_str(&v).ok())
-        .collect::<Vec<_>>();
-      // 2. Fetch remaining collabs from remote
-      let remote_collabs = self
-        .batch_get_encode_collab(object_ids, collab_type)
-        .await?;
-
-      trace!(
-        "[Database]: load {} database row from remote",
-        remote_collabs.len()
-      );
-      for (k, v) in remote_collabs {
-        encoded_collab_by_id.insert(k, v);
-      }
-    }
-
-    Ok(encoded_collab_by_id)
+    self.batch_get_encode_collab(object_ids, collab_type).await
   }
 
   fn persistence(&self) -> Option<Arc<dyn DatabaseCollabPersistenceService>> {

@@ -96,7 +96,10 @@ async fn af_cloud_database_duplicate_row_test() {
   retry_with_backoff(|| async {
     let database = test_2.get_database(&grid_view.id).await?;
     if database.rows.len() != 4 {
-      return Err(anyhow::anyhow!("Rows not updated yet"));
+      return Err(anyhow::anyhow!(
+        "Rows not updated yet, expected 4, got {}",
+        database.rows.len()
+      ));
     }
     let first_row = &database.rows[0];
     let second_row = &database.rows[1];

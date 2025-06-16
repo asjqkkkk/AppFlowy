@@ -788,7 +788,11 @@ impl DatabaseManager {
 
     let collab_service = self.get_collab_service().await?;
     let changed_collab_rx = collab_service.subscribe_changed_collab().await?;
-    let context = DatabaseContext::new(collab_service.clone(), collab_service);
+    let context = DatabaseContext::new(
+      collab_service.clone(),
+      Arc::new(DatabaseRowCollabServiceMiddleware::new(collab_service)),
+    );
+
     let database = Database::create_arc_with_view(params, context).await?;
     let editor = DatabaseEditor::new(
       database.clone(),
