@@ -409,6 +409,9 @@ class _BoardContentState extends State<_BoardContent> {
                         BlocProvider.value(
                           value: cardContext.read<BoardActionsCubit>(),
                         ),
+                         BlocProvider.value(
+                          value: cardContext.read<PageAccessLevelBloc>(),
+                        ),
                       ],
                       child: BlocBuilder<PageAccessLevelBloc,
                           PageAccessLevelState>(
