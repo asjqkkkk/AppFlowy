@@ -4,8 +4,9 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sid
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_menu.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/sidebar_workspace.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'util.dart';
@@ -36,22 +37,19 @@ extension AppFlowyWorkspace on WidgetTester {
     await hoverOnWidget(
       menuItem,
       onHover: () async {
-        final moreButton = find.descendant(
-          of: menuItem,
-          matching: find.byType(WorkspaceMoreActionList),
+        await tapButton(
+          find.descendant(
+            of: menuItem,
+            matching: find.byType(WorkspaceMoreActionList),
+          ),
         );
-        await tapButton(moreButton);
-        // wait for the menu to open
-        final renameButton = find.text(
-          LocaleKeys.button_rename.tr(),
+        await tapButton(find.text(LocaleKeys.button_rename.tr()));
+        final input = find.descendant(
+          of: find.byType(AFTextFieldDialog),
+          matching: find.byType(AFTextField),
         );
-        await pumpUntilFound(renameButton);
-        expect(renameButton, findsOneWidget);
-        await tapButton(renameButton);
-        final input = find.byType(TextFormField);
-        expect(input, findsOneWidget);
         await enterText(input, name);
-        await tapButton(find.text(LocaleKeys.button_ok.tr()));
+        await tapButton(find.text(LocaleKeys.button_confirm.tr()));
       },
     );
   }
