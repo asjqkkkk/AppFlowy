@@ -27,6 +27,7 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/sidebar_
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/sidebar_space_menu.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_menu.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/create_workspace_dialog.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/sidebar_workspace.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/draggable_view_item.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_action_type.dart';
@@ -38,7 +39,6 @@ import 'package:appflowy/workspace/presentation/notifications/widgets/notificati
 import 'package:appflowy/workspace/presentation/notifications/widgets/notification_tab_bar.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/settings_menu.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
 import 'package:appflowy/workspace/presentation/widgets/more_view_actions/more_view_actions.dart';
 import 'package:appflowy/workspace/presentation/widgets/more_view_actions/widgets/common_view_action.dart';
 import 'package:appflowy/workspace/presentation/widgets/view_title_bar.dart';
@@ -757,14 +757,14 @@ extension CommonOperations on WidgetTester {
 
     // input the workspace name
     final workspaceNameInput = find.descendant(
-      of: find.byType(AFTextFieldDialog),
+      of: find.byType(CreateWorkspaceDialog),
       matching: find.byType(TextField),
     );
     await enterText(workspaceNameInput, name);
     await pumpAndSettle();
 
     await tapButton(
-      find.text(LocaleKeys.button_confirm.tr()),
+      find.text(LocaleKeys.workspace_create.tr()),
       milliseconds: 2000,
     );
   }
