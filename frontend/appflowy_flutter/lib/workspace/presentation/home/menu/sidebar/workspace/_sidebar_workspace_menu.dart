@@ -294,7 +294,6 @@ class _WorkspaceInfo extends StatelessWidget {
       iconPadding: 10.0,
       leftIconSize: const Size.square(32),
       leftIcon: const SizedBox.square(dimension: 32),
-      rightIcon: const HSpace(32.0),
       text: Row(
         children: [
           Flexible(
@@ -304,6 +303,7 @@ class _WorkspaceInfo extends StatelessWidget {
               children: [
                 // workspace name
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Flexible(
                       child: FlowyTooltip(
@@ -355,8 +355,8 @@ class _WorkspaceInfo extends StatelessWidget {
           if (workspace.role == AFRolePB.Guest) ...[
             const HSpace(6.0),
             GuestTag(),
-            const HSpace(24.0),
           ],
+          const HSpace(32),
         ],
       ),
     );

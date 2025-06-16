@@ -11,6 +11,7 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sid
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -236,39 +237,45 @@ class _WorkspaceMenuItemContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
     final memberCount = workspace.memberCount.toInt();
     return Padding(
       padding: const EdgeInsets.only(left: 12),
       child: Row(
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              FlowyText(
-                workspace.name,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (workspace.role != AFRolePB.Guest)
-                FlowyText(
-                  memberCount == 0
-                      ? ''
-                      : LocaleKeys.settings_appearance_members_membersCount
-                          .plural(
-                          memberCount,
-                        ),
-                  fontSize: 10.0,
-                  color: Theme.of(context).hintColor,
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  workspace.name,
+                  style: theme.textStyle.body.standard(
+                    color: theme.textColorScheme.primary,
+                  ),
+                  overflow: TextOverflow.ellipsis,
                 ),
-            ],
+                if (workspace.role != AFRolePB.Guest)
+                  Text(
+                    memberCount == 0
+                        ? ''
+                        : LocaleKeys.settings_appearance_members_membersCount
+                            .plural(
+                            memberCount,
+                          ),
+                    style: theme.textStyle.caption.standard(
+                      color: theme.textColorScheme.secondary,
+                    ),
+                  ),
+              ],
+            ),
           ),
           if (workspace.role == AFRolePB.Guest) ...[
             const HSpace(6.0),
             const GuestTag(),
-            const HSpace(24.0),
           ],
+          const HSpace(6.0),
         ],
       ),
     );

@@ -142,6 +142,7 @@
       "reachOut": "Reach out on Discord"
     },
     "menuTitle": "Workspaces",
+    "deleteWorkspace": "Delete workspace",
     "deleteWorkspaceHintText": "Are you sure you want to delete the workspace? This action cannot be undone, and any pages you have published will be unpublished.",
     "differentWorkspaceTypeTooltip": "Cannot perform this action on a different workspace type.",
     "createSuccess": "Workspace created successfully",

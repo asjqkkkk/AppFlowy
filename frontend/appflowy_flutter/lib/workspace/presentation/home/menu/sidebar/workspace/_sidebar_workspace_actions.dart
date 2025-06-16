@@ -86,6 +86,9 @@ class _WorkspaceMoreActionListState extends State<WorkspaceMoreActionList> {
               if (!widget.popoverOpenNotifier.value) {
                 controller.show();
                 widget.popoverOpenNotifier.value = true;
+              } else {
+                controller.close();
+                widget.popoverOpenNotifier.value = false;
               }
             },
           ),
@@ -155,17 +158,25 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
             case WorkspaceMoreAction.divider:
               break;
             case WorkspaceMoreAction.delete:
-              await showConfirmDeletionDialog(
+              await showSimpleAFDialog(
                 context: context,
-                name: workspace.name,
-                description: LocaleKeys.workspace_deleteWorkspaceHintText.tr(),
-                onConfirm: () {
-                  workspaceBloc.add(
-                    UserWorkspaceEvent.deleteWorkspace(
-                      workspaceId: workspace.workspaceId,
-                    ),
-                  );
-                },
+                title: LocaleKeys.workspace_deleteWorkspace.tr(),
+                content: LocaleKeys.workspace_deleteWorkspaceHintText.tr(),
+                isDestructive: true,
+                primaryAction: (
+                  LocaleKeys.button_delete.tr(),
+                  (_) {
+                    workspaceBloc.add(
+                        UserWorkspaceEvent.deleteWorkspace(
+                          workspaceId: workspace.workspaceId,
+                        ),
+                      );
+                  },
+                ),
+                secondaryAction: (
+                  LocaleKeys.button_cancel.tr(),
+                  (_) {},
+                ),
               );
             case WorkspaceMoreAction.rename:
               await showAFTextFieldDialog(
