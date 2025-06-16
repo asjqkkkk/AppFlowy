@@ -12,6 +12,7 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_w
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_action_type.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_more_popup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_add_button.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -215,12 +216,12 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
   }
 
   Future<void> _showRenameDialog() async {
-    await NavigatorTextFieldDialog(
+    await showAFTextFieldDialog(
+      context: context,
       title: LocaleKeys.space_rename.tr(),
-      value: widget.space.name,
-      autoSelectAllText: true,
+      initialValue: widget.space.name,
       hintText: LocaleKeys.space_spaceName.tr(),
-      onConfirm: (name, _) {
+      onConfirm: (name) {
         context.read<SpaceBloc>().add(
               SpaceEvent.rename(
                 space: widget.space,
@@ -228,7 +229,7 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
               ),
             );
       },
-    ).show(context);
+    );
   }
 
   void _showManageSpaceDialog(BuildContext context) {
