@@ -1,5 +1,6 @@
 pub use manager::*;
 
+mod collab_service;
 pub mod entities;
 mod event_handler;
 pub mod event_map;

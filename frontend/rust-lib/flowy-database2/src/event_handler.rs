@@ -81,7 +81,7 @@ pub(crate) async fn open_database_handler(
   let database_id = manager
     .get_database_id_with_view_id(view_id.as_ref())
     .await?;
-  let _ = manager.open_database(&database_id).await?;
+  let _ = manager.get_or_init_database_editor(&database_id).await?;
   Ok(())
 }
 
@@ -421,7 +421,9 @@ pub(crate) async fn init_row_handler(
   let database_editor = manager
     .get_database_editor_with_view_id(&params.view_id)
     .await?;
-  database_editor.init_database_row(&params.row_id).await?;
+  database_editor
+    .init_database_row(&params.row_id, None)
+    .await?;
   Ok(())
 }
 
@@ -1013,15 +1015,6 @@ pub(crate) async fn move_calendar_event_handler(
       BoxAny::new(cell_changeset),
     )
     .await?;
-  Ok(())
-}
-
-#[tracing::instrument(level = "debug", skip_all, err)]
-pub(crate) async fn create_database_view(
-  _data: AFPluginData<CreateDatabaseViewPayloadPB>,
-  _manager: AFPluginState<Weak<DatabaseManager>>,
-) -> FlowyResult<()> {
-  // let data: CreateDatabaseViewParams = data.into_inner().try_into()?;
   Ok(())
 }
 

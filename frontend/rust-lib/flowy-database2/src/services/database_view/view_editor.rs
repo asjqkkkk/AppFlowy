@@ -565,9 +565,8 @@ impl DatabaseViewEditor {
     let mut changes = RowsChangePB::default();
     if let Some(field) = old_field {
       for row_id in row_ids {
-        if let Some(row) = self.delegate.remove_row(&row_id).await {
-          changes.deleted_rows.push(row.id.into_inner());
-        }
+        self.delegate.remove_row(&row_id).await;
+        changes.deleted_rows.push(row_id.to_string());
       }
 
       if let Some(type_option) = type_option_data {
