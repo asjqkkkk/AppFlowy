@@ -44,8 +44,8 @@ class _WorkspaceIconState extends State<WorkspaceIcon> {
 
   @override
   Widget build(BuildContext context) {
-    final (textColor, backgroundColor) =
-        ColorGenerator(widget.workspaceName).randomColor();
+    final (textColor, backgroundColor) = ColorGenerator(widget.workspaceName)
+        .randomColorFromDesignSystem(context);
 
     Widget child = widget.workspaceIcon.isNotEmpty
         ? FlowyText.emoji(
@@ -54,7 +54,7 @@ class _WorkspaceIconState extends State<WorkspaceIcon> {
             figmaLineHeight: widget.figmaLineHeight,
             optimizeEmojiAlign: true,
           )
-        : FlowyText.semibold(
+        : FlowyText(
             widget.workspaceName.isEmpty
                 ? ''
                 : widget.workspaceName.characters.first,

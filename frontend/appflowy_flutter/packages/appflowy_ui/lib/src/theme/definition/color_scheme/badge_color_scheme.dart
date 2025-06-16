@@ -245,6 +245,62 @@ class AppFlowyBadgeColorScheme {
   final Color color20Thick2;
   final Color color20Thick3;
 
+  (Color, Color, Color) getLightColorSet(int index) {
+    return switch (index) {
+      1 => (color1Light1, color1Light2, color1Light3),
+      2 => (color2Light1, color2Light2, color2Light3),
+      3 => (color3Light1, color3Light2, color3Light3),
+      4 => (color4Light1, color4Light2, color4Light3),
+      5 => (color5Light1, color5Light2, color5Light3),
+      6 => (color6Light1, color6Light2, color6Light3),
+      7 => (color7Light1, color7Light2, color7Light3),
+      8 => (color8Light1, color8Light2, color8Light3),
+      9 => (color9Light1, color9Light2, color9Light3),
+      10 => (color10Light1, color10Light2, color10Light3),
+      11 => (color11Light1, color11Light2, color11Light3),
+      12 => (color12Light1, color12Light2, color12Light3),
+      13 => (color13Light1, color13Light2, color13Light3),
+      14 => (color14Light1, color14Light2, color14Light3),
+      15 => (color15Light1, color15Light2, color15Light3),
+      16 => (color16Light1, color16Light2, color16Light3),
+      17 => (color17Light1, color17Light2, color17Light3),
+      18 => (color18Light1, color18Light2, color18Light3),
+      19 => (color19Light1, color19Light2, color19Light3),
+      20 => (color20Light1, color20Light2, color20Light3),
+      _ => throw ArgumentError(
+          'Invalid index: $index. Must be between 1 and 20.',
+        ),
+    };
+  }
+
+  (Color, Color, Color) getThickColorSet(int index) {
+    return switch (index) {
+      1 => (color1Thick1, color1Thick2, color1Thick3),
+      2 => (color2Thick1, color2Thick2, color2Thick3),
+      3 => (color3Thick1, color3Thick2, color3Thick3),
+      4 => (color4Thick1, color4Thick2, color4Thick3),
+      5 => (color5Thick1, color5Thick2, color5Thick3),
+      6 => (color6Thick1, color6Thick2, color6Thick3),
+      7 => (color7Thick1, color7Thick2, color7Thick3),
+      8 => (color8Thick1, color8Thick2, color8Thick3),
+      9 => (color9Thick1, color9Thick2, color9Thick3),
+      10 => (color10Thick1, color10Thick2, color10Thick3),
+      11 => (color11Thick1, color11Thick2, color11Thick3),
+      12 => (color12Thick1, color12Thick2, color12Thick3),
+      13 => (color13Thick1, color13Thick2, color13Thick3),
+      14 => (color14Thick1, color14Thick2, color14Thick3),
+      15 => (color15Thick1, color15Thick2, color15Thick3),
+      16 => (color16Thick1, color16Thick2, color16Thick3),
+      17 => (color17Thick1, color17Thick2, color17Thick3),
+      18 => (color18Thick1, color18Thick2, color18Thick3),
+      19 => (color19Thick1, color19Thick2, color19Thick3),
+      20 => (color20Thick1, color20Thick2, color20Thick3),
+      _ => throw ArgumentError(
+          'Invalid index: $index. Must be between 1 and 20.',
+        ),
+    };
+  }
+
   AppFlowyBadgeColorScheme lerp(
     AppFlowyBadgeColorScheme other,
     double t,
