@@ -185,8 +185,7 @@ class _HomePageState extends State<_HomePage> {
         mobileBottomNavigationBarItems.value = [
           BottomNavigationBarItemType.home,
           BottomNavigationBarItemType.search,
-          if (state.currentWorkspace?.role != AFRolePB.Guest)
-            BottomNavigationBarItemType.add,
+          BottomNavigationBarItemType.add,
           BottomNavigationBarItemType.notification,
         ];
 

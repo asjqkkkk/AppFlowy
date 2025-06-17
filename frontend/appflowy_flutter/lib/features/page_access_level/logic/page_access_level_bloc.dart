@@ -6,11 +6,14 @@ import 'package:appflowy/features/page_access_level/data/repositories/rust_page_
 import 'package:appflowy/features/page_access_level/logic/page_access_level_event.dart';
 import 'package:appflowy/features/page_access_level/logic/page_access_level_state.dart';
 import 'package:appflowy/features/share_tab/data/models/models.dart';
+import 'package:appflowy/features/share_tab/data/repositories/rust_share_with_user_repository_impl.dart';
+import 'package:appflowy/features/share_tab/data/repositories/share_with_user_repository.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/workspace/application/view/view_listener.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:bloc/bloc.dart';
 import 'package:protobuf/protobuf.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 export 'page_access_level_event.dart';
 export 'page_access_level_state.dart';
@@ -20,8 +23,11 @@ class PageAccessLevelBloc
   PageAccessLevelBloc({
     required this.view,
     this.ignorePageAccessLevel = false,
-    PageAccessLevelRepository? repository,
-  })  : repository = repository ?? RustPageAccessLevelRepositoryImpl(),
+    PageAccessLevelRepository? pageAccessRepository,
+    ShareWithUserRepository? shareRepository,
+  })  : pageAccessRepository =
+            pageAccessRepository ?? RustPageAccessLevelRepositoryImpl(),
+        shareRepository = shareRepository ?? RustShareWithUserRepositoryImpl(),
         _viewListener = ViewListener(viewId: view.id),
         super(PageAccessLevelState.initial(view)) {
     on<PageAccessLevelInitialEvent>(_onInitial);
@@ -36,7 +42,10 @@ class PageAccessLevelBloc
 
   // The repository to manage view lock status.
   // If you need to test this bloc, you can add your own repository implementation.
-  final PageAccessLevelRepository repository;
+  final PageAccessLevelRepository pageAccessRepository;
+
+  /// The repository to manage share page.
+  final ShareWithUserRepository shareRepository;
 
   // Used to listen for view updates.
   late final ViewListener _viewListener;
@@ -62,7 +71,8 @@ class PageAccessLevelBloc
     _initListeners();
 
     // section type
-    final sectionTypeResult = await repository.getSectionType(view.id);
+    final sectionTypeResult =
+        await pageAccessRepository.getSectionType(view.id);
     final sectionType = sectionTypeResult.fold(
       (sectionType) => sectionType,
       (_) => SharedSectionType.public,
@@ -82,15 +92,20 @@ class PageAccessLevelBloc
       return;
     }
 
-    final userProfileResult = await repository.getCurrentUserProfile();
+    final userProfileResult =
+        await pageAccessRepository.getCurrentUserProfile();
     final email = userProfileResult.fold(
           (userProfile) => userProfile.email,
           (_) => null,
         ) ??
         '';
 
-    final result = await repository.getView(view.id);
-    final accessLevel = await repository.getAccessLevel(view.id, email);
+    final result = await pageAccessRepository.getView(view.id);
+    if (UniversalPlatform.isMobile) {
+      await shareRepository.getSharedUsersInPage(pageId: view.id);
+    }
+    final accessLevel =
+        await pageAccessRepository.getAccessLevel(view.id, email);
     final latestView = result.fold(
       (view) => view,
       (_) => view,
@@ -115,7 +130,7 @@ class PageAccessLevelBloc
     PageAccessLevelLockEvent event,
     Emitter<PageAccessLevelState> emit,
   ) async {
-    final result = await repository.lockView(view.id);
+    final result = await pageAccessRepository.lockView(view.id);
     final isLocked = result.fold(
       (_) => true,
       (_) => false,
@@ -131,7 +146,7 @@ class PageAccessLevelBloc
     PageAccessLevelUnlockEvent event,
     Emitter<PageAccessLevelState> emit,
   ) async {
-    final result = await repository.unlockView(view.id);
+    final result = await pageAccessRepository.unlockView(view.id);
     final isLocked = result.fold(
       (_) => false,
       (_) => true,
@@ -176,12 +191,14 @@ class PageAccessLevelBloc
     PageAccessLevelRefreshAccessLevelEvent event,
     Emitter<PageAccessLevelState> emit,
   ) async {
-    final sectionTypeResult = await repository.getSectionType(view.id);
+    final sectionTypeResult =
+        await pageAccessRepository.getSectionType(view.id);
     final sectionType = sectionTypeResult.fold(
       (sectionType) => sectionType,
       (_) => SharedSectionType.public,
     );
-    final accessLevel = await repository.getAccessLevel(view.id, state.email);
+    final accessLevel =
+        await pageAccessRepository.getAccessLevel(view.id, state.email);
     emit(
       state.copyWith(
         accessLevel: accessLevel.fold(

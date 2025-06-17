@@ -30,6 +30,8 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
   final popoverController = AFPopoverController();
   final popoverGroupId = SharePopoverGroupId();
 
+  bool isShowingDialog = false;
+
   @override
   void initState() {
     super.initState();
@@ -54,7 +56,6 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
     final userWorkspaceBloc = context.read<UserWorkspaceBloc>();
     final shareWithUserBloc = context.read<ShareTabBloc>();
     final pageAccessLevelBloc = context.read<PageAccessLevelBloc>();
-    // final animationDuration = const Duration(milliseconds: 120);
 
     final buttonText =
         userWorkspaceBloc.state.currentWorkspace?.workspaceType ==
@@ -70,22 +71,9 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
           anchor: AFAnchorAuto(
             offset: const Offset(-176, 12),
           ),
-          // Enable animation
-          // effects: [
-          //   FadeEffect(duration: animationDuration),
-          //   ScaleEffect(
-          //     duration: animationDuration,
-          //     begin: Offset(0.95, 0.95),
-          //     end: Offset(1, 1),
-          //     alignment: Alignment.topRight,
-          //   ),
-          //   MoveEffect(
-          //     duration: animationDuration,
-          //     begin: Offset(20, -20),
-          //     end: Offset(0, 0),
-          //     curve: Curves.easeOutQuad,
-          //   ),
-          // ],
+          canClose: (context) {
+            return !isShowingDialog;
+          },
           popover: (_) {
             return ConstrainedBox(
               constraints: const BoxConstraints(
@@ -107,6 +95,9 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
                   child: ShareMenu(
                     tabs: widget.tabs,
                     viewName: state.viewName,
+                    showDialogCallback: (value) {
+                      isShowingDialog = value;
+                    },
                     onClose: () {
                       popoverController.hide();
                     },

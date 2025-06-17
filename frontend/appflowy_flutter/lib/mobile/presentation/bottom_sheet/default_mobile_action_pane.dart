@@ -117,6 +117,7 @@ enum MobilePaneActionType {
             final viewBloc = context.read<ViewBloc>();
             final favoriteBloc = context.read<FavoriteBloc>();
             final recentViewsBloc = context.read<RecentViewsBloc?>();
+            final pageAccessLevelBloc = context.read<PageAccessLevelBloc>();
             showMobileBottomSheet(
               context,
               showDragHandle: true,
@@ -130,11 +131,7 @@ enum MobilePaneActionType {
                     BlocProvider.value(value: favoriteBloc),
                     if (recentViewsBloc != null)
                       BlocProvider.value(value: recentViewsBloc),
-                    BlocProvider(
-                      create: (_) =>
-                          PageAccessLevelBloc(view: viewBloc.state.view)
-                            ..add(const PageAccessLevelEvent.initial()),
-                    ),
+                    BlocProvider.value(value: pageAccessLevelBloc),
                   ],
                   child: BlocBuilder<ViewBloc, ViewState>(
                     builder: (context, state) {

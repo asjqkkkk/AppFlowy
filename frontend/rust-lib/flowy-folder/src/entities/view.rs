@@ -691,6 +691,15 @@ pub struct UpdateViewVisibilityStatusPayloadPB {
 }
 
 #[derive(Default, ProtoBuf)]
+pub struct PinOrUnpinFavoritePayloadPB {
+  #[pb(index = 1)]
+  pub view_id: String,
+
+  #[pb(index = 2)]
+  pub is_pinned: bool,
+}
+
+#[derive(Default, ProtoBuf)]
 pub struct DuplicateViewPayloadPB {
   #[pb(index = 1)]
   pub view_id: String,

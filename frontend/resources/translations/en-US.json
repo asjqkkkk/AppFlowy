@@ -3495,6 +3495,13 @@
         "withMe": "Pages shared with me",
         "byMe": "Pages you shared"
       }
+    },
+    "copyLinkPublicPageTitle": "Shared Guests can't access this page through the web link you're copying. They can still view and edit the page via the desktop or mobile apps. Web access is coming soon!",
+    "copyLinkPrivateOrSharePageTitle": "Shared Guests and Members can't access this page through the web link you're copying. They can still view and edit the page using the desktop or mobile apps. Web access is coming soon!",
+    "turnIntoMemberDialog": {
+      "title": "Send the request to workspace owner",
+      "description": "Only the workspace owner can do this. Send them a request to upgrade {name} to a member.",
+      "send": "Send"
     }
   },
   "shareSection": {

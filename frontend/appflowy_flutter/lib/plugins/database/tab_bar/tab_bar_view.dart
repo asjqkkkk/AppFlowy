@@ -345,6 +345,7 @@ class DatabaseTabBarViewPlugin extends Plugin {
     required ViewPB view,
     required PluginType pluginType,
     this.initialRowId,
+    this.initialPageAccessLevelBloc,
   })  : _pluginType = pluginType,
         notifier = ViewPluginNotifier(view: view);
 
@@ -356,8 +357,10 @@ class DatabaseTabBarViewPlugin extends Plugin {
   late final PageAccessLevelBloc _pageAccessLevelBloc;
 
   /// Used to open a Row on plugin load
-  ///
   final String? initialRowId;
+
+  /// Initial page access level bloc
+  final PageAccessLevelBloc? initialPageAccessLevelBloc;
 
   @override
   PluginWidgetBuilder get widgetBuilder => DatabasePluginWidgetBuilder(
@@ -377,14 +380,17 @@ class DatabaseTabBarViewPlugin extends Plugin {
   void init() {
     _viewInfoBloc = ViewInfoBloc(view: notifier.view)
       ..add(const ViewInfoEvent.started());
-    _pageAccessLevelBloc = PageAccessLevelBloc(view: notifier.view)
-      ..add(const PageAccessLevelEvent.initial());
+    _pageAccessLevelBloc = initialPageAccessLevelBloc ??
+        (PageAccessLevelBloc(view: notifier.view)
+          ..add(const PageAccessLevelEvent.initial()));
   }
 
   @override
   void dispose() {
     _viewInfoBloc.close();
-    _pageAccessLevelBloc.close();
+    if (initialPageAccessLevelBloc == null) {
+      _pageAccessLevelBloc.close();
+    }
     notifier.dispose();
   }
 }

@@ -46,7 +46,7 @@ class _SidebarNewPageButtonState extends State<SidebarNewPageButton> {
         ),
         leftIconSize: const Size.square(24.0),
         margin: const EdgeInsets.only(left: 4.0),
-        iconPadding: 8.0,
+        iconPadding: 4.0,
         text: FlowyText.regular(
           LocaleKeys.newPageText.tr(),
           lineHeight: 1.15,

@@ -6,7 +6,9 @@ import 'package:appflowy/plugins/inline_actions/inline_actions_menu.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_result.dart';
 import 'package:appflowy/plugins/inline_actions/service_handler.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -52,12 +54,26 @@ class InlineChildPageService extends InlineActionsDelegate {
       return;
     }
 
-    final view = (await ViewBackendService.createView(
+    final result = await ViewBackendService.createView(
       layoutType: ViewLayoutPB.Document,
       parentViewId: currentViewId,
       name: search!,
-    ))
-        .toNullable();
+    );
+    final view = result.fold(
+      (view) => view,
+      (error) {
+        final message = switch (error.code) {
+          ErrorCode.NotEnoughPermissions =>
+            'No permission to create pages with the Can Edit access',
+          _ => error.msg,
+        };
+        showToastNotification(
+          message: message,
+          type: ToastificationType.error,
+        );
+        return null;
+      },
+    );
 
     if (view == null) {
       return Log.error('Failed to create view');

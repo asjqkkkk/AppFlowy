@@ -6,6 +6,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flutter/material.dart';
 
 class SharedGroupWidget extends StatelessWidget {
@@ -58,16 +59,19 @@ class SharedGroupWidget extends StatelessWidget {
     return Row(
       children: [
         Flexible(
-          child: Text(
-            LocaleKeys.shareTab_anyoneAtWorkspace.tr(
-              namedArgs: {
-                'workspace': group.name,
-              },
+          child: FlowyTooltip(
+            message: group.name,
+            child: Text(
+              LocaleKeys.shareTab_anyoneAtWorkspace.tr(
+                namedArgs: {
+                  'workspace': group.name,
+                },
+              ),
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            style: theme.textStyle.body.standard(
-              color: theme.textColorScheme.primary,
-            ),
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ],

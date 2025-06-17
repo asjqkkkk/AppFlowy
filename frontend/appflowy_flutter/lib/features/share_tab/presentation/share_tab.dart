@@ -8,6 +8,8 @@ import 'package:appflowy/features/share_tab/presentation/widgets/people_with_acc
 import 'package:appflowy/features/share_tab/presentation/widgets/share_with_user_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/upgrade_to_pro_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
+import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
@@ -27,6 +29,7 @@ class ShareTab extends StatefulWidget {
     required this.workspaceIcon,
     required this.isInProPlan,
     required this.onUpgradeToPro,
+    required this.showDialogCallback,
   });
 
   final String workspaceId;
@@ -38,6 +41,7 @@ class ShareTab extends StatefulWidget {
 
   final bool isInProPlan;
   final VoidCallback onUpgradeToPro;
+  final void Function(bool value) showDialogCallback;
 
   @override
   State<ShareTab> createState() => _ShareTabState();
@@ -67,8 +71,8 @@ class _ShareTabState extends State<ShareTab> {
     final theme = AppFlowyTheme.of(context);
 
     return BlocConsumer<ShareTabBloc, ShareTabState>(
-      listener: (context, state) {
-        _onListenShareWithUserState(context, state);
+      listener: (context, state) async {
+        await _onListenShareWithUserState(context, state);
       },
       builder: (context, state) {
         if (state.isLoading) {
@@ -215,10 +219,10 @@ class _ShareTabState extends State<ShareTab> {
     );
   }
 
-  void _onListenShareWithUserState(
+  Future<void> _onListenShareWithUserState(
     BuildContext context,
     ShareTabState state,
-  ) {
+  ) async {
     final theme = AppFlowyTheme.of(context);
 
     final shareResult = state.shareResult;
@@ -232,12 +236,13 @@ class _ShareTabState extends State<ShareTab> {
         );
       }, (error) {
         String message;
+        if (error.code == ErrorCode.FreePlanGuestLimitExceeded) {
+          widget.onUpgradeToPro();
+          return;
+        }
         switch (error.code) {
           case ErrorCode.InvalidGuest:
             message = LocaleKeys.shareTab_emailAlreadyInList.tr();
-            break;
-          case ErrorCode.FreePlanGuestLimitExceeded:
-            message = LocaleKeys.shareTab_upgradeToProToInviteMoreGuests.tr();
             break;
           case ErrorCode.PaidPlanGuestLimitExceeded:
             message = LocaleKeys.shareTab_maxGuestsReached.tr();
@@ -299,6 +304,57 @@ class _ShareTabState extends State<ShareTab> {
             type: ToastificationType.error,
           );
         }
+      });
+    }
+
+    final copyLinkResult = state.copyLinkResult;
+    if (copyLinkResult != null) {
+      await copyLinkResult.result.fold((success) async {
+        final link = copyLinkResult.link;
+        void onConfirm() {
+          getIt<ClipboardService>().setData(
+            ClipboardServiceData(
+              plainText: link,
+            ),
+          );
+
+          showToastNotification(
+            message: LocaleKeys.shareTab_copiedLinkToClipboard.tr(),
+          );
+        }
+
+        final toastType = copyLinkResult.toastType;
+        if (toastType == CopyLinkToastType.none) {
+          onConfirm();
+          return;
+        }
+
+        String description = '';
+        if (toastType == CopyLinkToastType.publicPage) {
+          description = LocaleKeys.shareTab_copyLinkPublicPageTitle.tr();
+        } else if (toastType == CopyLinkToastType.privateOrSharedPage) {
+          description =
+              LocaleKeys.shareTab_copyLinkPrivateOrSharePageTitle.tr();
+        }
+
+        widget.showDialogCallback(true);
+
+        await showCancelAndConfirmDialog(
+          context: context,
+          title: LocaleKeys.shareTab_copyLink.tr(),
+          confirmLabel: LocaleKeys.button_copyLink.tr(),
+          description: description,
+          onConfirm: (_) {
+            onConfirm();
+          },
+        );
+
+        widget.showDialogCallback(false);
+      }, (error) {
+        showToastNotification(
+          message: error.msg,
+          type: ToastificationType.error,
+        );
       });
     }
   }

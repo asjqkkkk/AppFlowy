@@ -28,6 +28,7 @@ class MobileSearchScreen extends StatelessWidget {
       future: Future.wait([
         FolderEventGetCurrentWorkspaceSetting().send(),
         getIt<AuthService>().getUser(),
+        FolderEventReadCurrentWorkspace().send(),
       ]),
       builder: (context, snapshots) {
         if (!snapshots.hasData) {

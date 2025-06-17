@@ -2,12 +2,17 @@ import 'dart:async';
 
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:appflowy/features/share_tab/data/models/share_section_type.dart';
+import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
+import 'package:appflowy/features/shared_section/data/repositories/rust_shared_pages_repository_impl.dart';
+import 'package:appflowy/features/shared_section/presentation/widgets/m_shared_section_header.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/home/workspaces/create_workspace_menu.dart';
+import 'package:appflowy/mobile/presentation/widgets/show_flowy_mobile_confirm_dialog.dart';
 import 'package:appflowy/plugins/document/presentation/editor_notification.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
-import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/plugins/shared/share/publish_name_generator.dart';
 import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/shared/error_code/error_code_map.dart';
@@ -121,7 +126,47 @@ class MobileViewPageMoreBottomSheet extends StatelessWidget {
             arguments?[MobileViewBottomSheetBodyActionArguments.isLockedKey] ??
                 false;
         await _lockPage(context, isLocked: isLocked);
-        // context.pop();
+        break;
+      case MobileViewBottomSheetBodyAction.leaveSharedPage:
+        await showFlowyCupertinoConfirmDialog(
+          title: LocaleKeys.shareTab_removeYourOwnAccess.tr(),
+          leftButton: FlowyText(
+            LocaleKeys.button_cancel.tr(),
+            fontSize: 17.0,
+            figmaLineHeight: 24.0,
+            fontWeight: FontWeight.w500,
+            color: const Color(0xFF007AFF),
+          ),
+          rightButton: FlowyText(
+            LocaleKeys.button_remove.tr(),
+            fontSize: 17.0,
+            figmaLineHeight: 24.0,
+            fontWeight: FontWeight.w400,
+            color: const Color(0xFFFE0220),
+          ),
+          onRightButtonPressed: (buttonContext) async {
+            Navigator.of(buttonContext).pop();
+            final shareRepo = RustSharePagesRepositoryImpl();
+            final result = await shareRepo.leaveSharedPage(view.id);
+            result.fold(
+              (success) {
+                refreshSharedSectionNotifier.value =
+                    !refreshSharedSectionNotifier.value;
+                Navigator.of(context).pop();
+                context.go('/home');
+                showToastNotification(
+                  message: 'Leave shared page successfully',
+                );
+              },
+              (error) {
+                showToastNotification(
+                  message: error.msg,
+                  type: ToastificationType.error,
+                );
+              },
+            );
+          },
+        );
         break;
       case MobileViewBottomSheetBodyAction.rename:
         // no need to implement, rename is handled by the onRename callback.
@@ -225,27 +270,68 @@ class MobileViewPageMoreBottomSheet extends StatelessWidget {
   }
 
   void _copyShareLink(BuildContext context) {
-    final workspaceId = context.read<ShareBloc>().state.workspaceId;
-    final viewId = context.read<ShareBloc>().state.viewId;
-    final url = ShareConstants.buildShareUrl(
-      workspaceId: workspaceId,
-      viewId: viewId,
-    );
-    if (url.isNotEmpty) {
-      unawaited(
-        getIt<ClipboardService>().setData(
-          ClipboardServiceData(plainText: url),
-        ),
-      );
-      showToastNotification(
-        message: LocaleKeys.shareAction_copyLinkSuccess.tr(),
-      );
-    } else {
-      showToastNotification(
-        message: LocaleKeys.shareAction_copyLinkToBlockFailed.tr(),
-        type: ToastificationType.error,
-      );
+    final url = context.read<ShareTabBloc>().state.shareLink;
+    void copyLink() {
+      if (url.isNotEmpty) {
+        unawaited(
+          getIt<ClipboardService>().setData(
+            ClipboardServiceData(plainText: url),
+          ),
+        );
+        showToastNotification(
+          message: LocaleKeys.shareAction_copyLinkSuccess.tr(),
+        );
+      } else {
+        showToastNotification(
+          message: LocaleKeys.shareAction_copyLinkToBlockFailed.tr(),
+          type: ToastificationType.error,
+        );
+      }
     }
+
+    final shareSection = context.read<ShareTabBloc>().state.sectionType;
+    final collaborators = context.read<ShareTabBloc>().state.users;
+    final containsGuest = collaborators.any(
+      (user) => user.role == ShareRole.guest,
+    );
+    String content = '';
+    if (shareSection == SharedSectionType.public && containsGuest) {
+      content = LocaleKeys.shareTab_copyLinkPublicPageTitle.tr();
+    } else if (shareSection == SharedSectionType.private &&
+            collaborators.length > 1 ||
+        shareSection == SharedSectionType.shared) {
+      content = LocaleKeys.shareTab_copyLinkPrivateOrSharePageTitle.tr();
+    } else {
+      return copyLink();
+    }
+
+    showFlowyCupertinoConfirmDialog(
+      context: context,
+      content: FlowyText(
+        content,
+        fontSize: 16,
+        figmaLineHeight: 22.0,
+        maxLines: null,
+      ),
+      leftButton: FlowyText(
+        LocaleKeys.button_cancel.tr(),
+        fontSize: 17.0,
+        figmaLineHeight: 24.0,
+        fontWeight: FontWeight.w500,
+        color: const Color(0xFF007AFF),
+      ),
+      rightButton: FlowyText(
+        LocaleKeys.button_copyLink.tr(),
+        fontSize: 17.0,
+        figmaLineHeight: 24.0,
+        fontWeight: FontWeight.w500,
+        color: const Color(0xFF007AFF),
+      ),
+      onRightButtonPressed: (context) {
+        Navigator.of(context).pop();
+        copyLink();
+      },
+    );
   }
 
   void _onRename(BuildContext context, String name) {

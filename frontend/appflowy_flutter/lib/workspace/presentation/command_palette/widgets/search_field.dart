@@ -89,6 +89,7 @@ class _SearchFieldState extends State<SearchField> {
     final radius = BorderRadius.circular(theme.spacing.l);
     final workspace =
         context.read<UserWorkspaceBloc?>()?.state.currentWorkspace;
+    final myRole = workspace?.role;
 
     return Container(
       height: 44,
@@ -135,9 +136,12 @@ class _SearchFieldState extends State<SearchField> {
                   hasText ? BoxConstraints.loose(Size(48, 28)) : null,
               suffixIcon: hasText ? _buildSuffixIcon(context) : null,
             ),
-            onChanged: (value) => context
-                .read<CommandPaletteBloc>()
-                .add(CommandPaletteEvent.searchChanged(search: value)),
+            onChanged: (value) => context.read<CommandPaletteBloc>().add(
+                  CommandPaletteEvent.searchChanged(
+                    search: value,
+                    role: myRole,
+                  ),
+                ),
           );
         },
       ),

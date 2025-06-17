@@ -295,10 +295,18 @@ class _GridPageContentState extends State<GridPageContent> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        _GridHeader(
-          headerScrollController: headerScrollController,
-          editable: context.read<PageAccessLevelBloc>().state.isEditable,
-          shrinkWrap: widget.shrinkWrap,
+        BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
+          builder: (context, state) {
+            if (state.isInitializing) {
+              return const SizedBox.shrink();
+            }
+
+            return _GridHeader(
+              headerScrollController: headerScrollController,
+              editable: state.isEditable,
+              shrinkWrap: widget.shrinkWrap,
+            );
+          },
         ),
         _GridRows(
           viewId: widget.view.id,
@@ -562,20 +570,23 @@ class _GridRowsState extends State<_GridRows> {
       itemBuilder: (context, index) {
         if (index == itemCount - 1) {
           final child = Column(
-            key: const Key('grid_footer'),
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: footer,
           );
 
-          if (!context.read<PageAccessLevelBloc>().state.isEditable) {
-            return IgnorePointer(
-              key: const Key('grid_footer'),
-              child: child,
-            );
-          }
-
-          return child;
+          return BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
+            key: const Key('grid_footer'),
+            builder: (context, state) {
+              if (!state.isEditable) {
+                return IgnorePointer(
+                  key: const Key('grid_footer'),
+                  child: child,
+                );
+              }
+              return child;
+            },
+          );
         }
 
         return _renderRow(

@@ -265,7 +265,7 @@ ToastificationItem showToastNotification({
   String? description,
   ToastificationType type = ToastificationType.success,
   ToastificationCallbacks? callbacks,
-  double bottomPadding = 100,
+  double bottomPadding = 60,
 }) {
   assert(
     (message == null) != (richMessage == null),

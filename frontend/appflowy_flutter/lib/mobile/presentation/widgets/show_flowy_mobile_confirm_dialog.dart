@@ -37,6 +37,9 @@ Future<T?> showFlowyMobileConfirmDialog<T>(
     builder: (dialogContext) {
       final foregroundColor = Theme.of(context).colorScheme.onSurface;
       final actionButton = TextButton(
+        style: TextButton.styleFrom(
+          splashFactory: NoSplash.splashFactory,
+        ),
         child: FlowyText(
           actionButtonTitle,
           color: actionButtonColor ?? foregroundColor,
@@ -48,6 +51,9 @@ Future<T?> showFlowyMobileConfirmDialog<T>(
         },
       );
       final cancelButton = TextButton(
+        style: TextButton.styleFrom(
+          splashFactory: NoSplash.splashFactory,
+        ),
         child: FlowyText(
           cancelButtonTitle ?? LocaleKeys.button_cancel.tr(),
           color: cancelButtonColor ?? foregroundColor,
@@ -90,7 +96,7 @@ Future<T?> showFlowyMobileConfirmDialog<T>(
 
 Future<T?> showFlowyCupertinoConfirmDialog<T>({
   BuildContext? context,
-  required String title,
+  String? title,
   Widget? content,
   required Widget leftButton,
   required Widget rightButton,
@@ -101,12 +107,14 @@ Future<T?> showFlowyCupertinoConfirmDialog<T>({
     context: context ?? AppGlobals.context,
     barrierColor: Colors.black.withValues(alpha: 0.25),
     builder: (context) => CupertinoAlertDialog(
-      title: FlowyText.medium(
-        title,
-        fontSize: 16,
-        maxLines: 10,
-        figmaLineHeight: 22.0,
-      ),
+      title: title == null
+          ? null
+          : FlowyText.medium(
+              title,
+              fontSize: 16,
+              maxLines: 10,
+              figmaLineHeight: 22.0,
+            ),
       content: content,
       actions: [
         CupertinoDialogAction(

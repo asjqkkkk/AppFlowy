@@ -1,3 +1,5 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/app_bar/app_bar_actions.dart';
@@ -9,6 +11,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emo
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:collection/collection.dart';
@@ -252,6 +255,16 @@ class MobileNewDatabaseViewButton extends StatelessWidget {
           },
         );
         if (context.mounted && result != null) {
+          final accessLevel =
+              context.read<PageAccessLevelBloc>().state.accessLevel;
+          if (accessLevel != ShareAccessLevel.fullAccess) {
+            showToastNotification(
+              // todo: 18n
+              message: 'No permission to create pages with the Can Edit access',
+              type: ToastificationType.error,
+            );
+            return;
+          }
           context
               .read<DatabaseTabBarBloc>()
               .add(DatabaseTabBarEvent.createView(result.$1, result.$2));

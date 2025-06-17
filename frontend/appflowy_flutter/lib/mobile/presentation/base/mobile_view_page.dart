@@ -1,5 +1,7 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
+import 'package:appflowy/features/share_tab/data/repositories/rust_share_with_user_repository_impl.dart';
+import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
@@ -97,9 +99,12 @@ class _MobileViewPageState extends State<MobileViewPage> {
       child: BlocBuilder<MobileViewPageBloc, MobileViewPageState>(
         builder: (context, state) {
           final view = state.result?.fold((s) => s, (f) => null);
-          final body = _buildBody(context, state);
 
           if (view == null) {
+            // if (state.result?.isFailure ?? false) {
+            //   return _buildApp(context, view, body);
+            // }
+            // todo: handle no access error
             return SizedBox.shrink();
           }
 
@@ -134,16 +139,29 @@ class _MobileViewPageState extends State<MobileViewPage> {
                   create: (_) => DocumentPageStyleBloc(view: view)
                     ..add(const DocumentPageStyleEvent.initial()),
                 ),
-              if (view.layout.isDocumentView || view.layout.isDatabaseView)
-                BlocProvider(
-                  create: (_) => PageAccessLevelBloc(view: view)
-                    ..add(const PageAccessLevelEvent.initial()),
-                ),
+              BlocProvider(
+                create: (_) {
+                  return PageAccessLevelBloc(view: view)
+                    ..add(const PageAccessLevelEvent.initial());
+                },
+              ),
+              BlocProvider(
+                create: (_) {
+                  return ShareTabBloc(
+                    pageId: view.id,
+                    repository: RustShareWithUserRepositoryImpl(),
+                  )..add(ShareTabEvent.initialize());
+                },
+              ),
             ],
             child: Builder(
               builder: (context) {
-                final view = context.watch<ViewBloc>().state.view;
-                return _buildApp(context, view, body);
+                final body = _buildBody(context, state);
+                return BlocBuilder<ViewBloc, ViewState>(
+                  builder: (context, state) {
+                    return _buildApp(context, state.view, body);
+                  },
+                );
               },
             ),
           );
@@ -209,8 +227,10 @@ class _MobileViewPageState extends State<MobileViewPage> {
 
     return result.fold(
       (view) {
-        final plugin = view.plugin(arguments: widget.arguments ?? const {})
-          ..init();
+        final pageAccessLevelBloc = context.read<PageAccessLevelBloc>();
+        final Map<String, dynamic> arguments = widget.arguments ?? {};
+        arguments[PluginArgumentKeys.pageAccessLevelBloc] = pageAccessLevelBloc;
+        final plugin = view.plugin(arguments: arguments)..init();
         return plugin.widgetBuilder.buildWidget(
           shrinkWrap: false,
           context: PluginContext(userProfile: state.userProfilePB),
@@ -245,7 +265,9 @@ class _MobileViewPageState extends State<MobileViewPage> {
         context.read<MobileViewPageBloc>().state.isImmersiveMode;
     final isLocked =
         context.read<PageAccessLevelBloc?>()?.state.isLocked ?? false;
-    final accessLevel = context.watch<PageAccessLevelBloc>().state.accessLevel;
+    final accessLevel =
+        context.watch<PageAccessLevelBloc?>()?.state.accessLevel ??
+            ShareAccessLevel.fullAccess;
     final actions = <Widget>[];
 
     if (FeatureFlag.syncDocument.isOn) {

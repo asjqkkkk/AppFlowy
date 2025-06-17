@@ -444,11 +444,6 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     emit(
       state.copyWith(
         workspaces: _sortWorkspaces(workspaces),
-        actionResult: WorkspaceActionResult(
-          actionType: WorkspaceActionType.leave,
-          isLoading: false,
-          result: result,
-        ),
       ),
     );
   }

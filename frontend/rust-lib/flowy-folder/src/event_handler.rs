@@ -187,6 +187,18 @@ pub(crate) async fn toggle_favorites_handler(
   Ok(())
 }
 
+pub(crate) async fn pin_or_unpin_favorite_handler(
+  data: AFPluginData<PinOrUnpinFavoritePayloadPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let params = data.into_inner();
+  folder
+    .pin_or_unpin_favorite(&params.view_id, params.is_pinned)
+    .await?;
+  Ok(())
+}
+
 pub(crate) async fn update_recent_views_handler(
   data: AFPluginData<UpdateRecentViewPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -587,8 +599,19 @@ pub(crate) async fn get_shared_views_handler(
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<RepeatedSharedViewResponsePB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let resp = folder.get_shared_pages(true).await?;
-  data_result_ok(resp)
+  let shared_views = folder.get_shared_pages(true).await?;
+  data_result_ok(shared_views)
+}
+
+#[tracing::instrument(level = "debug", skip(folder), err)]
+pub(crate) async fn get_flatten_shared_pages_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<RepeatedViewPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let flatten_shared_views = folder.get_flatten_shared_pages().await?;
+  data_result_ok(RepeatedViewPB {
+    items: flatten_shared_views,
+  })
 }
 
 #[tracing::instrument(level = "debug", skip(data, folder))]
@@ -602,7 +625,7 @@ pub(crate) async fn get_shared_view_section_handler(
   data_result_ok(GetSharedViewSectionResponsePB { section })
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
 pub(crate) async fn get_access_level_handler(
   data: AFPluginData<GetAccessLevelPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,

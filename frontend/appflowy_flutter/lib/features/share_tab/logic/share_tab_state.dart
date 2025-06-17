@@ -15,6 +15,24 @@ class TurnIntoMemberResult {
   final FlowyResult<void, FlowyError> result;
 }
 
+enum CopyLinkToastType {
+  publicPage,
+  privateOrSharedPage,
+  none,
+}
+
+class CopyLinkResult {
+  CopyLinkResult({
+    required this.link,
+    required this.result,
+    required this.toastType,
+  });
+
+  final String link;
+  final FlowyResult<void, FlowyError> result;
+  final CopyLinkToastType toastType;
+}
+
 class ShareTabState {
   factory ShareTabState.initial() => const ShareTabState();
 
@@ -33,6 +51,7 @@ class ShareTabState {
     this.removeResult,
     this.updateAccessLevelResult,
     this.turnIntoMemberResult,
+    this.copyLinkResult,
     this.hasClickedUpgradeToPro = false,
   });
 
@@ -50,6 +69,7 @@ class ShareTabState {
   final FlowyResult<bool, FlowyError>? removeResult;
   final FlowyResult<void, FlowyError>? updateAccessLevelResult;
   final TurnIntoMemberResult? turnIntoMemberResult;
+  final CopyLinkResult? copyLinkResult;
   final bool hasClickedUpgradeToPro;
 
   ShareTabState copyWith({
@@ -67,6 +87,7 @@ class ShareTabState {
     FlowyResult<bool, FlowyError>? removeResult,
     FlowyResult<void, FlowyError>? updateAccessLevelResult,
     TurnIntoMemberResult? turnIntoMemberResult,
+    CopyLinkResult? copyLinkResult,
     bool? hasClickedUpgradeToPro,
   }) {
     return ShareTabState(
@@ -84,6 +105,7 @@ class ShareTabState {
       removeResult: removeResult,
       updateAccessLevelResult: updateAccessLevelResult,
       turnIntoMemberResult: turnIntoMemberResult,
+      copyLinkResult: copyLinkResult,
       hasClickedUpgradeToPro:
           hasClickedUpgradeToPro ?? this.hasClickedUpgradeToPro,
     );
@@ -107,6 +129,7 @@ class ShareTabState {
         other.removeResult == removeResult &&
         other.updateAccessLevelResult == updateAccessLevelResult &&
         other.turnIntoMemberResult == turnIntoMemberResult &&
+        other.copyLinkResult == copyLinkResult &&
         other.hasClickedUpgradeToPro == hasClickedUpgradeToPro;
   }
 
@@ -127,6 +150,7 @@ class ShareTabState {
       removeResult,
       updateAccessLevelResult,
       turnIntoMemberResult,
+      copyLinkResult,
       hasClickedUpgradeToPro,
     );
   }

@@ -1,12 +1,8 @@
-import 'dart:convert';
-
 import 'package:appflowy/workspace/application/view/view_ext.dart';
-import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
-import 'package:collection/collection.dart';
 
 class FavoriteService {
   Future<FlowyResult<RepeatedFavoriteViewPB, FlowyError>> readFavorites() {
@@ -42,21 +38,9 @@ class FavoriteService {
     ViewPB view,
     bool isPinned,
   ) async {
-    try {
-      final current =
-          view.extra.isNotEmpty ? jsonDecode(view.extra) : <String, dynamic>{};
-      final merged = mergeMaps(
-        current,
-        <String, dynamic>{ViewExtKeys.isPinnedKey: isPinned},
-      );
-      await ViewBackendService.updateView(
-        viewId: view.id,
-        extra: jsonEncode(merged),
-      );
-    } catch (e) {
-      return FlowyResult.failure(FlowyError(msg: 'Failed to pin favorite: $e'));
-    }
-
-    return FlowyResult.success(null);
+    final payload = PinOrUnpinFavoritePayloadPB()
+      ..viewId = view.id
+      ..isPinned = isPinned;
+    return FolderEventPinOrUnpinFavorite(payload).send();
   }
 }

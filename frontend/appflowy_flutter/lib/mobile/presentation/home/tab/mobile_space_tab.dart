@@ -12,6 +12,7 @@ import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/folder/folder_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
     hide AFRolePB;
@@ -109,16 +110,25 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
               return const SizedBox.shrink();
             }
 
-            final role =
-                context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;
-            final isGuest = role == AFRolePB.Guest;
-            final tabs = isGuest
+            final workspace =
+                context.read<UserWorkspaceBloc>().state.currentWorkspace;
+            final isLocalWorkspace =
+                workspace?.workspaceType == WorkspaceTypePB.LocalW;
+            final isGuest = workspace?.role == AFRolePB.Guest;
+
+            List<MobileSpaceTabType> tabs = isGuest
                 ? [
                     MobileSpaceTabType.shared,
                     MobileSpaceTabType.recent,
                     MobileSpaceTabType.favorites,
                   ]
                 : state.tabsOrder;
+
+            if (isLocalWorkspace) {
+              tabs = tabs
+                  .where((tab) => tab != MobileSpaceTabType.shared)
+                  .toList();
+            }
 
             _initTabController(state, tabs);
 
@@ -198,16 +208,14 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
         case MobileSpaceTabType.favorites:
           return MobileFavoriteSpace(userProfile: widget.userProfile);
         case MobileSpaceTabType.shared:
-          final workspaceId = context
-              .read<UserWorkspaceBloc>()
-              .state
-              .currentWorkspace
-              ?.workspaceId;
-          if (workspaceId == null) {
+          final workspace =
+              context.read<UserWorkspaceBloc>().state.currentWorkspace;
+          if (workspace == null ||
+              workspace.workspaceType == WorkspaceTypePB.LocalW) {
             return const SizedBox.shrink();
           }
           return MSharedSection(
-            workspaceId: workspaceId,
+            workspaceId: workspace.workspaceId,
           );
       }
     }).toList();
@@ -219,6 +227,16 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
   void _createNewAIChat() => _createNewPage(ViewLayoutPB.Chat);
 
   void _createNewPage(ViewLayoutPB layout) {
+    final role = context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;
+    if (role == AFRolePB.Guest) {
+      showToastNotification(
+        // todo: i18n
+        message: 'You don\'t have permission to create a page as a guest',
+        type: ToastificationType.error,
+      );
+      return;
+    }
+
     if (context.read<SpaceBloc>().state.spaces.isNotEmpty) {
       context.read<SpaceBloc>().add(
             SpaceEvent.createPage(

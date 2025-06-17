@@ -65,16 +65,20 @@ class EditorStyleCustomizer {
         : AFThemeExtension.of(context).toolbarHoverColor;
   }
 
-  EditorStyle style() {
+  EditorStyle style({
+    bool editable = true,
+  }) {
     if (UniversalPlatform.isDesktopOrWeb) {
-      return desktop();
+      return desktop(editable: editable);
     } else if (UniversalPlatform.isMobile) {
-      return mobile();
+      return mobile(editable: editable);
     }
     throw UnimplementedError();
   }
 
-  EditorStyle desktop() {
+  EditorStyle desktop({
+    bool editable = true,
+  }) {
     final theme = Theme.of(context);
     final afThemeExtension = AFThemeExtension.of(context);
     final appearanceFont = context.read<AppearanceSettingsCubit>().state.font;
@@ -85,7 +89,7 @@ class EditorStyleCustomizer {
       fontFamily = appearanceFont;
     }
 
-    final cursorColor = (editorState?.editable ?? true)
+    final cursorColor = editable
         ? (appearance.cursorColor ??
             DefaultAppearanceSettings.getDefaultCursorColor(context))
         : Colors.transparent;
@@ -138,7 +142,9 @@ class EditorStyleCustomizer {
     );
   }
 
-  EditorStyle mobile() {
+  EditorStyle mobile({
+    bool editable = true,
+  }) {
     final afThemeExtension = AFThemeExtension.of(context);
     final pageStyle = context.read<DocumentPageStyleBloc>().state;
     final theme = Theme.of(context);

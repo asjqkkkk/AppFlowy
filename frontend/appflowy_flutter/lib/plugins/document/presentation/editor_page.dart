@@ -364,7 +364,7 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
         autoFocus: widget.autoFocus ?? autoFocus,
         focusedSelection: selection,
         // setup the theme
-        editorStyle: styleCustomizer.style(),
+        editorStyle: styleCustomizer.style(editable: isEditable),
         // customize the block builders
         blockComponentBuilders: buildBlockComponentBuilders(
           slashMenuItemsBuilder: (editorState, node) => _customSlashMenuItems(

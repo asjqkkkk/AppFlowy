@@ -29,7 +29,9 @@ class ChatEditorStyleCustomizer extends EditorStyleCustomizer {
   });
 
   @override
-  EditorStyle desktop() {
+  EditorStyle desktop({
+    bool editable = true,
+  }) {
     final theme = Theme.of(context);
     final afThemeExtension = AFThemeExtension.of(context);
     final appearanceFont = context.read<AppearanceSettingsCubit>().state.font;

@@ -277,11 +277,24 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
               // open the first page by default
               if (currentSpace.childViews.isNotEmpty) {
                 final firstPage = currentSpace.childViews.first;
-                emit(
-                  state.copyWith(
-                    lastCreatedPage: firstPage,
-                  ),
+                final result = await ViewBackendService.getView(firstPage.id);
+                final hasPermission = result.fold(
+                  (view) => true,
+                  (error) => false,
                 );
+                if (!hasPermission) {
+                  emit(
+                    state.copyWith(
+                      lastCreatedPage: ViewPB(),
+                    ),
+                  );
+                } else {
+                  emit(
+                    state.copyWith(
+                      lastCreatedPage: firstPage,
+                    ),
+                  );
+                }
               } else {
                 emit(
                   state.copyWith(

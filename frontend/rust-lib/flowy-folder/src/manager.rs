@@ -56,6 +56,7 @@ use flowy_user_pub::entities::WorkspaceType;
 use flowy_user_pub::entities::{Role, UserWorkspace};
 use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
 use futures::future;
+use serde_json;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -1176,6 +1177,32 @@ impl FolderManager {
     self
       .update_view(&params.view_id, true, |update| {
         update.set_icon(params.icon).done()
+      })
+      .await
+  }
+
+  /// Pin or unpin a favorite view.
+  #[tracing::instrument(level = "trace", skip(self), err)]
+  pub async fn pin_or_unpin_favorite(&self, view_id: &str, is_pinned: bool) -> FlowyResult<()> {
+    self
+      .check_guest_permission(view_id, AFAccessLevelPB::ReadOnly)
+      .await?;
+
+    let view = self.get_view_pb(view_id).await?;
+    let current_extra = view.extra.unwrap_or_default();
+
+    let mut extra_map: serde_json::Map<String, serde_json::Value> =
+      serde_json::from_str(&current_extra).unwrap_or_default();
+
+    extra_map.insert("is_pinned".to_string(), is_pinned.into());
+
+    let updated_extra = serde_json::to_string(&extra_map).map_err(|e| {
+      FlowyError::internal().with_context(format!("Failed to serialize extra: {}", e))
+    })?;
+
+    self
+      .update_view(view_id, true, |update| {
+        update.set_extra_if_not_none(Some(updated_extra)).done()
       })
       .await
   }

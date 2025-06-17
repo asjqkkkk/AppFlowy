@@ -6,6 +6,8 @@ import 'package:appflowy/features/shared_section/presentation/widgets/shared_sec
 import 'package:appflowy/features/shared_section/presentation/widgets/shared_section_error.dart';
 import 'package:appflowy/features/shared_section/presentation/widgets/shared_section_loading.dart';
 import 'package:appflowy/mobile/application/mobile_router.dart';
+import 'package:appflowy/mobile/presentation/home/favorite_folder/favorite_space.dart';
+import 'package:appflowy/mobile/presentation/home/recent_folder/recent_space.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
@@ -29,10 +31,14 @@ class MSharedSection extends StatelessWidget {
         workspaceId: workspaceId,
         repository: repository,
         enablePolling: true,
-        pollingIntervalSeconds:
-            60, // remove this after the websocket is implemented
       )..add(const SharedSectionInitEvent()),
-      child: BlocBuilder<SharedSectionBloc, SharedSectionState>(
+      child: BlocConsumer<SharedSectionBloc, SharedSectionState>(
+        listenWhen: (previous, current) =>
+            previous.sharedPages != current.sharedPages,
+        listener: (context, state) {
+          refreshFavoriteNotifier.value = !refreshFavoriteNotifier.value;
+          refreshRecentNotifier.value = !refreshRecentNotifier.value;
+        },
         builder: (context, state) {
           if (state.isLoading) {
             return const SharedSectionLoading();
@@ -73,16 +79,6 @@ class MSharedSection extends StatelessWidget {
                   },
                 ),
               ),
-
-              // Refresh button, for debugging only
-              // if (kDebugMode)
-              //   RefreshSharedSectionButton(
-              //     onTap: () {
-              //       context.read<SharedSectionBloc>().add(
-              //             const SharedSectionEvent.refresh(),
-              //           );
-              //     },
-              //   ),
             ],
           );
         },

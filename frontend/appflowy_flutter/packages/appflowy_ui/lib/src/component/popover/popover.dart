@@ -64,6 +64,7 @@ class AFPopover extends StatefulWidget {
     this.groupId,
     this.areaGroupId,
     this.useSameGroupIdForChild = true,
+    this.canClose,
   }) : assert(
           (controller != null) ^ (visible != null),
           'Either controller or visible must be provided',
@@ -152,6 +153,8 @@ class AFPopover extends StatefulWidget {
   /// the popover.
   /// {@endtemplate}
   final bool useSameGroupIdForChild;
+
+  final bool Function(BuildContext context)? canClose;
 
   @override
   State<AFPopover> createState() => _AFPopoverState();
@@ -276,6 +279,9 @@ class _AFPopoverState extends State<AFPopover> {
         groupId: groupId,
         behavior: HitTestBehavior.opaque,
         onTapOutside: (_) {
+          final canClose = widget.canClose?.call(context) ?? true;
+          if (!canClose) return;
+
           final now = DateTime.now().microsecondsSinceEpoch;
           if (_isTopMostPopover &&
               (_lastPopoverClosedTimestamp == null ||

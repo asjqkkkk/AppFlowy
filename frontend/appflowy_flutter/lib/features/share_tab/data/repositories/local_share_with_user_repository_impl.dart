@@ -200,4 +200,18 @@ class LocalShareWithUserRepositoryImpl extends ShareWithUserRepository {
   Future<void> refreshSharedPages() async {
     return;
   }
+
+  @override
+  Future<FlowyResult<String, FlowyError>> getCurrentWorkspaceId() async {
+    return FlowySuccess('mock_workspace_id');
+  }
+
+  @override
+  String buildShareUrl({
+    required String workspaceId,
+    required String viewId,
+    String? blockId,
+  }) {
+    return 'https://appflowy.io/share/$workspaceId/$viewId';
+  }
 }

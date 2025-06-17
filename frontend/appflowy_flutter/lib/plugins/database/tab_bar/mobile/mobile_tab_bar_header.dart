@@ -1,3 +1,4 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_transition_bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/database/view/database_view_list.dart';
@@ -30,7 +31,12 @@ class MobileTabBarHeader extends StatelessWidget {
         children: [
           const _DatabaseViewSelectorButton(),
           const Spacer(),
-          BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
+          BlocConsumer<DatabaseTabBarBloc, DatabaseTabBarState>(
+            listener: (context, state) {
+              if (state.tabBars.isEmpty) {
+                context.read<ViewBloc>().add(const ViewEvent.initial());
+              }
+            },
             builder: (context, state) {
               final currentView = state.tabBars.firstWhereIndexedOrNull(
                 (index, tabBar) => index == state.selectedIndex,
@@ -129,6 +135,9 @@ class _DatabaseViewSelectorButton extends StatelessWidget {
                     ),
                     BlocProvider<DatabaseTabBarBloc>.value(
                       value: context.read<DatabaseTabBarBloc>(),
+                    ),
+                    BlocProvider<PageAccessLevelBloc>.value(
+                      value: context.read<PageAccessLevelBloc>(),
                     ),
                   ],
                   child: const MobileDatabaseViewList(),

@@ -578,7 +578,7 @@ class _SidebarSearchButton extends StatelessWidget {
           );
         },
         leftIcon: const FlowySvg(FlowySvgs.search_s),
-        iconPadding: 12.0,
+        iconPadding: 8.0,
         margin: const EdgeInsets.only(left: 8.0),
         text: FlowyText.regular(LocaleKeys.search_label.tr()),
       ),

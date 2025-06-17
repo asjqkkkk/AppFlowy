@@ -45,11 +45,13 @@ class ShareMenu extends StatefulWidget {
     required this.tabs,
     required this.viewName,
     required this.onClose,
+    required this.showDialogCallback,
   });
 
   final List<ShareMenuTab> tabs;
   final String viewName;
   final VoidCallback onClose;
+  final void Function(bool value) showDialogCallback;
 
   @override
   State<ShareMenu> createState() => _ShareMenuState();
@@ -157,10 +159,9 @@ class _ShareMenuState extends State<ShareMenu>
             workspaceName: workspace?.name ?? '',
             workspaceIcon: workspace?.icon ?? '',
             isInProPlan: isInProPlan,
-            onUpgradeToPro: () {
-              widget.onClose();
-
-              _showUpgradeToProDialog(context);
+            showDialogCallback: widget.showDialogCallback,
+            onUpgradeToPro: () async {
+              await _showUpgradeToProDialog(context);
             },
           );
         }
@@ -169,7 +170,7 @@ class _ShareMenuState extends State<ShareMenu>
     }
   }
 
-  void _showUpgradeToProDialog(BuildContext context) {
+  Future<void> _showUpgradeToProDialog(BuildContext context) async {
     final state = context.read<UserWorkspaceBloc>().state;
     final workspace = state.currentWorkspace;
     if (workspace == null) {
@@ -213,8 +214,27 @@ class _ShareMenuState extends State<ShareMenu>
       AFRolePB.Member || AFRolePB.Guest || _ => LocaleKeys.button_ok.tr(),
     };
 
+    widget.showDialogCallback(true);
+
     if (role == AFRolePB.Owner) {
-      showDialog(
+      bool isConfirmed = false;
+      await showConfirmDialog(
+        context: context,
+        title: title,
+        description: description,
+        style: style,
+        confirmLabel: confirmLabel,
+        confirmButtonColor: Theme.of(context).colorScheme.primary,
+        onConfirm: (context) async {
+          isConfirmed = true;
+        },
+      );
+
+      if (!context.mounted || !isConfirmed) {
+        return;
+      }
+
+      await showDialog(
         context: context,
         builder: (_) => BlocProvider<SettingsPlanBloc>(
           create: (_) => SettingsPlanBloc(
@@ -228,18 +248,20 @@ class _ShareMenuState extends State<ShareMenu>
         ),
       );
     } else {
-      showConfirmDialog(
+      await showConfirmDialog(
         context: Navigator.of(context, rootNavigator: true).context,
         title: title,
         description: description,
         style: style,
         confirmLabel: confirmLabel,
         confirmButtonColor: Theme.of(context).colorScheme.primary,
-        onConfirm: (context) {
-          // fixme: show the upgrade to pro dialog
+        onConfirm: (_) async {
+          // do nothing
         },
       );
     }
+
+    widget.showDialogCallback(false);
   }
 }
 

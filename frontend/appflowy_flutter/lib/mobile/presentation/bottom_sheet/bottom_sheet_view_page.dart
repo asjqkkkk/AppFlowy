@@ -29,7 +29,8 @@ enum MobileViewBottomSheetBodyAction {
   visitSite,
   copyShareLink,
   updatePathName,
-  lockPage;
+  lockPage,
+  leaveSharedPage;
 
   static const disableInLockedView = [
     undo,
@@ -118,6 +119,9 @@ class MobileViewBottomSheetBody extends StatelessWidget {
     final hasFullAccess =
         context.watch<PageAccessLevelBloc>().state.accessLevel ==
             ShareAccessLevel.fullAccess;
+    final userProfile = context.read<MobileViewPageBloc>().state.userProfilePB;
+    final isLocalWorkspace =
+        userProfile?.workspaceType == WorkspaceTypePB.LocalW;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -145,9 +149,10 @@ class MobileViewBottomSheetBody extends StatelessWidget {
                 : MobileViewBottomSheetBodyAction.addToFavorites,
           ),
         ),
-        _divider(),
+
         if ((view.layout.isDatabaseView || view.layout.isDocumentView) &&
             hasFullAccess) ...[
+          _divider(),
           MobileQuickActionButton(
             text: LocaleKeys.disclosureAction_lockPage.tr(),
             icon: FlowySvgs.lock_page_s,
@@ -180,17 +185,19 @@ class MobileViewBottomSheetBody extends StatelessWidget {
           ),
         ],
         // copy link
-        _divider(),
-        MobileQuickActionButton(
-          text: LocaleKeys.shareAction_copyLink.tr(),
-          icon: FlowySvgs.m_copy_link_s,
-          iconSize: const Size.square(18),
-          onTap: () => onAction(
-            MobileViewBottomSheetBodyAction.copyShareLink,
+        if (!isLocalWorkspace) ...[
+          _divider(),
+          MobileQuickActionButton(
+            text: LocaleKeys.shareAction_copyLink.tr(),
+            icon: FlowySvgs.m_copy_link_s,
+            iconSize: const Size.square(18),
+            onTap: () => onAction(
+              MobileViewBottomSheetBodyAction.copyShareLink,
+            ),
           ),
-        ),
-        _divider(),
+        ],
         if (hasFullAccess) ...[
+          _divider(),
           ..._buildPublishActions(context),
         ],
         if (hasFullAccess) ...[
@@ -206,6 +213,16 @@ class MobileViewBottomSheetBody extends StatelessWidget {
             ),
           ),
           _divider(),
+        ],
+        if (!hasFullAccess) ...[
+          MobileQuickActionButton(
+            text: LocaleKeys.shareTab_removeYourOwnAccess.tr(),
+            icon: FlowySvgs.leave_workspace_s,
+            iconSize: const Size.square(18),
+            onTap: () => onAction(
+              MobileViewBottomSheetBodyAction.leaveSharedPage,
+            ),
+          ),
         ],
       ],
     );

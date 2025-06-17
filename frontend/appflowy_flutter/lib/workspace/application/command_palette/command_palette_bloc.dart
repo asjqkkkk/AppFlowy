@@ -2,62 +2,53 @@ import 'dart:async';
 
 import 'package:appflowy/plugins/trash/application/trash_listener.dart';
 import 'package:appflowy/plugins/trash/application/trash_service.dart';
+import 'package:appflowy/util/debounce.dart';
+import 'package:appflowy/workspace/application/command_palette/command_palette_event.dart';
+import 'package:appflowy/workspace/application/command_palette/command_palette_state.dart';
 import 'package:appflowy/workspace/application/command_palette/search_service.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
+import 'package:appflowy_backend/dispatch/dispatch.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart'
+    hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 
-part 'command_palette_bloc.freezed.dart';
-
-class Debouncer {
-  Debouncer({required this.delay});
-
-  final Duration delay;
-  Timer? _timer;
-
-  void run(void Function() action) {
-    _timer?.cancel();
-    _timer = Timer(delay, action);
-  }
-
-  void dispose() {
-    _timer?.cancel();
-  }
-}
+export 'command_palette_event.dart';
+export 'command_palette_state.dart';
 
 class CommandPaletteBloc
     extends Bloc<CommandPaletteEvent, CommandPaletteState> {
   CommandPaletteBloc() : super(CommandPaletteState.initial()) {
-    on<_SearchChanged>(_onSearchChanged);
-    on<_PerformSearch>(_onPerformSearch);
-    on<_NewSearchStream>(_onNewSearchStream);
-    on<_ResultsChanged>(_onResultsChanged);
-    on<_TrashChanged>(_onTrashChanged);
-    on<_WorkspaceChanged>(_onWorkspaceChanged);
-    on<_ClearSearch>(_onClearSearch);
-    on<_GoingToAskAI>(_onGoingToAskAI);
-    on<_AskedAI>(_onAskedAI);
-    on<_RefreshCachedViews>(_onRefreshCachedViews);
-    on<_UpdateCachedViews>(_onUpdateCachedViews);
+    on<CommandPaletteSearchChangedEvent>(_onSearchChanged);
+    on<CommandPalettePerformSearchEvent>(_onPerformSearch);
+    on<CommandPaletteNewSearchStreamEvent>(_onNewSearchStream);
+    on<CommandPaletteResultsChangedEvent>(_onResultsChanged);
+    on<CommandPaletteTrashChangedEvent>(_onTrashChanged);
+    on<CommandPaletteWorkspaceChangedEvent>(_onWorkspaceChanged);
+    on<CommandPaletteClearSearchEvent>(_onClearSearch);
+    on<CommandPaletteGoingToAskAIEvent>(_onGoingToAskAI);
+    on<CommandPaletteAskedAIEvent>(_onAskedAI);
+    on<CommandPaletteRefreshCachedViewsEvent>(_onRefreshCachedViews);
+    on<CommandPaletteUpdateCachedViewsEvent>(_onUpdateCachedViews);
 
     _initTrash();
     _refreshCachedViews();
   }
 
-  final Debouncer _searchDebouncer = Debouncer(
-    delay: const Duration(milliseconds: 300),
+  final _searchDebounce = Debounce(
+    duration: const Duration(milliseconds: 300),
   );
   final TrashService _trashService = TrashService();
   final TrashListener _trashListener = TrashListener();
   String? _activeQuery;
+  AFRolePB? _myRole;
 
   @override
   Future<void> close() {
     _trashListener.close();
-    _searchDebouncer.dispose();
+    _searchDebounce.dispose();
     state.searchResponseStream?.dispose();
     return super.close();
   }
@@ -93,14 +84,14 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onRefreshCachedViews(
-    _RefreshCachedViews event,
+    CommandPaletteRefreshCachedViewsEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
     _refreshCachedViews();
   }
 
   FutureOr<void> _onUpdateCachedViews(
-    _UpdateCachedViews event,
+    CommandPaletteUpdateCachedViewsEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
     final cachedViews = <String, ViewPB>{};
@@ -111,12 +102,13 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onSearchChanged(
-    _SearchChanged event,
+    CommandPaletteSearchChangedEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
-    _searchDebouncer.run(
+    _searchDebounce.call(
       () {
         if (!isClosed) {
+          _myRole = event.role;
           add(CommandPaletteEvent.performSearch(search: event.search));
         }
       },
@@ -124,13 +116,12 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onPerformSearch(
-    _PerformSearch event,
+    CommandPalettePerformSearchEvent event,
     Emitter<CommandPaletteState> emit,
   ) async {
     if (event.search.isEmpty) {
       emit(
         state.copyWith(
-          query: null,
           searching: false,
           serverResponseItems: [],
           localResponseItems: [],
@@ -154,7 +145,6 @@ class CommandPaletteBloc
               }
             },
             (error) {
-              debugPrint('Search error: $error');
               if (!isClosed) {
                 add(
                   CommandPaletteEvent.resultsChanged(
@@ -172,7 +162,7 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onNewSearchStream(
-    _NewSearchStream event,
+    CommandPaletteNewSearchStreamEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
     state.searchResponseStream?.dispose();
@@ -233,12 +223,12 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onResultsChanged(
-    _ResultsChanged event,
+    CommandPaletteResultsChangedEvent event,
     Emitter<CommandPaletteState> emit,
   ) async {
     if (state.searchId != event.searchId) return;
 
-    final combinedItems = <String, SearchResultItem>{};
+    final Map<String, SearchResultItem> combinedItems = {};
     for (final item in event.serverItems ?? state.serverResponseItems) {
       combinedItems[item.id] = SearchResultItem(
         id: item.id,
@@ -262,6 +252,16 @@ class CommandPaletteBloc
       );
     }
 
+    if (_myRole == AFRolePB.Guest) {
+      final result = await FolderEventGetFlattenSharedPages().send();
+      final flattenViewIds = result.fold(
+        (views) => views.items.map((e) => e.id).toList(),
+        (error) => [],
+      );
+      // remove the views that are not in the flattenViewIds
+      combinedItems.removeWhere((key, value) => !flattenViewIds.contains(key));
+    }
+
     emit(
       state.copyWith(
         serverResponseItems: event.serverItems ?? state.serverResponseItems,
@@ -275,7 +275,7 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onTrashChanged(
-    _TrashChanged event,
+    CommandPaletteTrashChangedEvent event,
     Emitter<CommandPaletteState> emit,
   ) async {
     if (event.trash != null) {
@@ -291,7 +291,7 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onWorkspaceChanged(
-    _WorkspaceChanged event,
+    CommandPaletteWorkspaceChangedEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
     emit(
@@ -309,102 +309,26 @@ class CommandPaletteBloc
   }
 
   FutureOr<void> _onClearSearch(
-    _ClearSearch event,
+    CommandPaletteClearSearchEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
     emit(CommandPaletteState.initial().copyWith(trash: state.trash));
   }
 
   FutureOr<void> _onGoingToAskAI(
-    _GoingToAskAI event,
+    CommandPaletteGoingToAskAIEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
     emit(state.copyWith(askAI: true, askAISources: event.sources));
   }
 
   FutureOr<void> _onAskedAI(
-    _AskedAI event,
+    CommandPaletteAskedAIEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
-    emit(state.copyWith(askAI: false, askAISources: null));
+    emit(state.copyWith(askAI: false));
   }
 
   bool _isActiveSearch(String searchId) =>
       !isClosed && state.searchId == searchId;
-}
-
-@freezed
-class CommandPaletteEvent with _$CommandPaletteEvent {
-  const factory CommandPaletteEvent.searchChanged({required String search}) =
-      _SearchChanged;
-  const factory CommandPaletteEvent.performSearch({required String search}) =
-      _PerformSearch;
-  const factory CommandPaletteEvent.newSearchStream({
-    required SearchResponseStream stream,
-  }) = _NewSearchStream;
-  const factory CommandPaletteEvent.resultsChanged({
-    required String searchId,
-    required bool searching,
-    required bool generatingAIOverview,
-    List<SearchResponseItemPB>? serverItems,
-    List<LocalSearchResponseItemPB>? localItems,
-    List<SearchSummaryPB>? summaries,
-  }) = _ResultsChanged;
-
-  const factory CommandPaletteEvent.trashChanged({
-    @Default(null) List<TrashPB>? trash,
-  }) = _TrashChanged;
-  const factory CommandPaletteEvent.workspaceChanged({
-    @Default(null) String? workspaceId,
-  }) = _WorkspaceChanged;
-  const factory CommandPaletteEvent.clearSearch() = _ClearSearch;
-  const factory CommandPaletteEvent.goingToAskAI({
-    @Default(null) List<SearchSourcePB>? sources,
-  }) = _GoingToAskAI;
-  const factory CommandPaletteEvent.askedAI() = _AskedAI;
-  const factory CommandPaletteEvent.refreshCachedViews() = _RefreshCachedViews;
-  const factory CommandPaletteEvent.updateCachedViews({
-    required List<ViewPB> views,
-  }) = _UpdateCachedViews;
-}
-
-class SearchResultItem {
-  const SearchResultItem({
-    required this.id,
-    required this.icon,
-    required this.content,
-    required this.displayName,
-    this.workspaceId,
-  });
-
-  final String id;
-  final String content;
-  final ResultIconPB icon;
-  final String displayName;
-  final String? workspaceId;
-}
-
-@freezed
-class CommandPaletteState with _$CommandPaletteState {
-  const CommandPaletteState._();
-  const factory CommandPaletteState({
-    @Default(null) String? query,
-    @Default([]) List<SearchResponseItemPB> serverResponseItems,
-    @Default([]) List<LocalSearchResponseItemPB> localResponseItems,
-    @Default({}) Map<String, SearchResultItem> combinedResponseItems,
-    @Default({}) Map<String, ViewPB> cachedViews,
-    @Default([]) List<SearchSummaryPB> resultSummaries,
-    @Default(null) SearchResponseStream? searchResponseStream,
-    required bool searching,
-    required bool generatingAIOverview,
-    @Default(false) bool askAI,
-    @Default(null) List<SearchSourcePB>? askAISources,
-    @Default([]) List<TrashPB> trash,
-    @Default(null) String? searchId,
-  }) = _CommandPaletteState;
-
-  factory CommandPaletteState.initial() => const CommandPaletteState(
-        searching: false,
-        generatingAIOverview: false,
-      );
 }

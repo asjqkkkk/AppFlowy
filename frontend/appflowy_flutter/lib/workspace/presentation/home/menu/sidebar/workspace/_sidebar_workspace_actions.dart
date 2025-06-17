@@ -2,6 +2,7 @@ import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/af_role_pb_extension.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
@@ -196,6 +197,7 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
             case WorkspaceMoreAction.leave:
               await showConfirmDialog(
                 context: context,
+                style: ConfirmPopupStyle.cancelAndOk,
                 title: LocaleKeys.workspace_leaveCurrentWorkspace.tr(),
                 description:
                     LocaleKeys.workspace_leaveCurrentWorkspacePrompt.tr(),

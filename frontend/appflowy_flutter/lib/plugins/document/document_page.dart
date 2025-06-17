@@ -205,6 +205,21 @@ class _DocumentPageState extends State<DocumentPage>
               node.type == ParagraphBlockKeys.type && !node.isInTable
                   ? LocaleKeys.editor_slashPlaceHolder.tr()
                   : '',
+          showParagraphPlaceholder: (editorState, node) {
+            if (!editorState.editable) {
+              return false;
+            }
+
+            final selection = editorState.selection;
+            if (selection == null) {
+              return false;
+            }
+
+            final showPlaceholder =
+                selection.isSingle && selection.start.path.equals(node.path);
+
+            return showPlaceholder;
+          },
         ),
       );
     }
@@ -263,11 +278,10 @@ class _DocumentPageState extends State<DocumentPage>
         userProfilePB: userProfilePB,
       );
 
-      if (!context.read<PageAccessLevelBloc>().state.isEditable) {
-        child = IgnorePointer(
-          child: child,
-        );
-      }
+      child = IgnorePointer(
+        ignoring: context.read<PageAccessLevelBloc>().state.isEditable,
+        child: child,
+      );
 
       return child;
     }

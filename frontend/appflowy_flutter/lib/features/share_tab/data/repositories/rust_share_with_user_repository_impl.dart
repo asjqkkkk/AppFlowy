@@ -2,6 +2,7 @@ import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/util/extensions.dart';
+import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
@@ -180,6 +181,28 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
         return FlowyResult.failure(error);
       },
+    );
+  }
+
+  @override
+  Future<FlowyResult<String, FlowyError>> getCurrentWorkspaceId() async {
+    final result = await FolderEventReadCurrentWorkspace().send();
+    return result.fold(
+      (workspace) => FlowySuccess(workspace.id),
+      (error) => FlowyFailure(error),
+    );
+  }
+
+  @override
+  String buildShareUrl({
+    required String workspaceId,
+    required String viewId,
+    String? blockId,
+  }) {
+    return ShareConstants.buildShareUrl(
+      workspaceId: workspaceId,
+      viewId: viewId,
+      blockId: blockId,
     );
   }
 }
