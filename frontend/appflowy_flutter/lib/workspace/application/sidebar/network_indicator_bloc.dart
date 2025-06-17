@@ -1,4 +1,6 @@
 import 'package:appflowy/user/application/ws_connect_state_listener.dart';
+import 'package:appflowy_backend/dispatch/dispatch.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -11,12 +13,8 @@ class NetworkIndicatorBloc
     extends Bloc<NetworkIndicatorEvent, NetworkIndicatorState> {
   NetworkIndicatorBloc({
     required String workspaceId,
-  })  : _listener = WsConnectStateListener(
-          workspaceId: workspaceId,
-        ),
-        super(
-          const NetworkIndicatorState(),
-        ) {
+  })  : _listener = WsConnectStateListener(workspaceId: workspaceId),
+        super(const NetworkIndicatorState()) {
     _listener.start(
       onConnectStateChanged: (connectState) {
         if (isClosed) return;
@@ -24,6 +22,15 @@ class NetworkIndicatorBloc
         add(NetworkIndicatorEvent.connectStateChanged(connectState));
       },
     );
+
+    UserEventGetWSConnectState().send().then((value) {
+      if (isClosed) return;
+
+      value.fold(
+        (data) => add(NetworkIndicatorEvent.connectStateChanged(data.state)),
+        (error) => Log.error(error.toString()),
+      );
+    });
 
     on<NetworkIndicatorEvent>((event, emit) {
       event.when(

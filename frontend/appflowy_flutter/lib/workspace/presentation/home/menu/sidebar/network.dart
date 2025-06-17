@@ -30,11 +30,18 @@ class WebSocketIndicator extends StatelessWidget {
 Widget _icon(ConnectStatePB connectState) {
   switch (connectState) {
     case ConnectStatePB.WSConnecting:
-      return const Icon(Icons.wifi_calling);
+      return const SizedBox(
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(
+          strokeWidth: 2,
+          valueColor: AlwaysStoppedAnimation<Color>(Colors.grey),
+        ),
+      );
     case ConnectStatePB.WSConnected:
-      return const Icon(Icons.wifi);
+      return const Icon(Icons.wifi, color: Colors.green);
     case ConnectStatePB.WSDisconnected:
-      return const Icon(Icons.wifi_off);
+      return const Icon(Icons.wifi_off, color: Colors.red);
     default:
       return const SizedBox.shrink();
   }
