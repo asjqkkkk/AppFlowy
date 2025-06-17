@@ -82,6 +82,7 @@ pub fn init(user_manager: Weak<UserManager>) -> AFPlugin {
     .event(UserEvent::GetWorkspaceSetting, get_workspace_setting_handler)
     .event(UserEvent::NotifyDidSwitchPlan, notify_did_switch_plan_handler)
     .event(UserEvent::PasscodeSignIn, sign_in_with_passcode_handler)
+    .event(UserEvent::GetWSConnectState, get_ws_connect_state_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -275,6 +276,9 @@ pub enum UserEvent {
 
   #[event(input = "PasscodeSignInPB", output = "GotrueTokenResponsePB")]
   PasscodeSignIn = 65,
+
+  #[event(output = "ConnectStateNotificationPB")]
+  GetWSConnectState = 66,
 }
 
 #[async_trait]

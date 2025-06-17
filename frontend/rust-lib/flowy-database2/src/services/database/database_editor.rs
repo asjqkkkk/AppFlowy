@@ -74,7 +74,7 @@ impl DatabaseEditor {
     let cell_cache = AnyTypeCache::<u64>::new();
     let database_id = database.read().await.get_database_id();
     // Receive database sync state and send to frontend via the notification
-    observe_sync_state(&database_id, &database).await;
+    // observe_sync_state(&database_id, &database).await;
     // observe_field_change(&database_id, &database).await;
     observe_rows_change(&database_id, &database, &notification_sender).await;
 

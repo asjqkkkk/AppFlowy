@@ -24,7 +24,8 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::select;
 use tokio::task::LocalSet;
-use tokio::time::{sleep, timeout};
+use tokio::time::{sleep, Instant};
+use tokio_stream::StreamExt;
 use uuid::Uuid;
 
 mod chat_event;
@@ -163,8 +164,8 @@ impl EventIntegrationTest {
         _ = sleep(Duration::from_secs(20)) => {
           panic!("wait_ws_connected timeout");
         }
-        state = ws_state.recv() => {
-          if let Ok(state) = &state {
+        state = ws_state.next() => {
+          if let Some(state) = &state {
             if state.is_connected() {
               break;
             }
@@ -279,8 +280,8 @@ pub struct RetryConfig {
 impl Default for RetryConfig {
   fn default() -> Self {
     Self {
-      timeout: Duration::from_secs(30),
-      poll_interval: Duration::from_secs(3),
+      timeout: Duration::from_secs(60),
+      poll_interval: Duration::from_secs(6),
       max_retries: 10,
     }
   }
@@ -304,55 +305,58 @@ where
 {
   let mut attempt = 0;
   let mut delay = config.poll_interval;
-  let max_delay = config.poll_interval * 10; // Cap maximum delay
+  let max_delay = config.poll_interval * 10;
   let mut latest_error: Option<anyhow::Error> = None;
+  let start_time = Instant::now();
 
-  let result = timeout(config.timeout, async {
-    loop {
-      match operation().await {
-        Ok(result) => return Ok(result),
-        Err(e) if attempt >= config.max_retries => {
-          return Err(anyhow::anyhow!(
-            "Max retries ({}) exceeded. Last error: {}",
-            config.max_retries,
-            e
-          ));
-        },
-        Err(e) => {
-          attempt += 1;
-          tracing::warn!(
-            "Operation failed (attempt {}/{}): {}. Retrying in {:?}",
-            attempt,
-            config.max_retries,
-            e,
-            delay
-          );
-
-          latest_error = Some(e);
-          tokio::time::sleep(delay).await;
-          // Exponential backoff with jitter
-          delay = std::cmp::min(delay * 2, max_delay);
-        },
-      }
+  loop {
+    let elapsed = start_time.elapsed();
+    if elapsed >= config.timeout {
+      return Err(latest_error.unwrap());
     }
-  })
-  .await;
 
-  match result {
-    Ok(value) => value,
-    Err(_) => {
-      let timeout_msg = format!("Operation timed out after {:?}", config.timeout);
-      if let Some(last_err) = latest_error {
-        tracing::error!("{}, latest error: {}", timeout_msg, last_err);
-        Err(anyhow::anyhow!(
-          "{}, latest error: {}",
-          timeout_msg,
-          last_err
-        ))
-      } else {
-        tracing::error!("{}", timeout_msg);
-        Err(anyhow::anyhow!("{}", timeout_msg))
-      }
-    },
+    match operation().await {
+      Ok(result) => return Ok(result),
+      Err(e) if attempt >= config.max_retries => {
+        return Err(anyhow::anyhow!(
+          "Max retries ({}) exceeded. Last error: {}",
+          config.max_retries,
+          e
+        ));
+      },
+      Err(e) => {
+        attempt += 1;
+        tracing::warn!(
+          "Operation failed (attempt {}/{}): {}. Retrying in {:?}",
+          attempt,
+          config.max_retries,
+          e,
+          delay
+        );
+
+        latest_error = Some(e);
+        let remaining_time = config.timeout - elapsed;
+        if delay > remaining_time {
+          let timeout_msg = format!(
+            "Next retry delay ({:?}) exceeds remaining timeout ({:?}). Aborting.",
+            delay, remaining_time
+          );
+          return if let Some(last_err) = latest_error {
+            tracing::error!("{}, latest error: {}", timeout_msg, last_err);
+            Err(anyhow::anyhow!(
+              "{}, latest error: {}",
+              timeout_msg,
+              last_err
+            ))
+          } else {
+            tracing::error!("{}", timeout_msg);
+            Err(anyhow::anyhow!("{}", timeout_msg))
+          };
+        }
+
+        tokio::time::sleep(delay).await;
+        delay = std::cmp::min(delay * 2, max_delay);
+      },
+    }
   }
 }

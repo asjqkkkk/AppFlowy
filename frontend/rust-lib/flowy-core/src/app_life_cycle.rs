@@ -25,9 +25,10 @@ use flowy_user::user_manager::UserManager;
 use flowy_user_pub::cloud::{UserCloudConfig, UserCloudServiceProvider};
 use flowy_user_pub::entities::{UserProfile, UserWorkspace, WorkspaceType};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use futures::stream::BoxStream;
+use futures::StreamExt;
 use lib_dispatch::runtime::AFPluginRuntime;
 use lib_infra::async_trait::async_trait;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -580,8 +581,10 @@ impl LoggedWorkspaceImpl {
 }
 
 impl LoggedWorkspace for LoggedWorkspaceImpl {
-  fn subscribe_ws_state(&self) -> FlowyResult<Receiver<ConnectState>> {
-    todo!()
+  fn subscribe_ws_state(&self) -> FlowyResult<BoxStream<'static, ConnectState>> {
+    let workspace_controller = self.0.upgrade().ok_or_else(FlowyError::ref_drop)?;
+    let receiver = workspace_controller.subscribe_connect_state();
+    Ok(receiver.boxed())
   }
 
   fn ws_state(&self) -> FlowyResult<ConnectState> {

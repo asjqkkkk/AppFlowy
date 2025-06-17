@@ -2,6 +2,7 @@ use client_api::entity::billing_dto::{
   Currency, RecurringInterval, SubscriptionPlan, SubscriptionPlanDetail,
   WorkspaceSubscriptionStatus, WorkspaceUsageAndLimit,
 };
+use client_api::v2::ConnectState;
 use serde::{Deserialize, Serialize};
 use validator::Validate;
 
@@ -764,6 +765,42 @@ impl From<Currency> for CurrencyPB {
   fn from(value: Currency) -> Self {
     match value {
       Currency::USD => CurrencyPB::USD,
+    }
+  }
+}
+
+#[derive(ProtoBuf_Enum, Clone, Default)]
+pub enum ConnectStatePB {
+  #[default]
+  WSDisconnected = 0,
+  WSConnecting = 1,
+  WSConnected = 2,
+}
+
+#[derive(ProtoBuf, Default, Clone)]
+pub struct ConnectStateNotificationPB {
+  #[pb(index = 1)]
+  pub state: ConnectStatePB,
+
+  #[pb(index = 2, one_of)]
+  pub disconnected_reason: Option<String>,
+}
+
+impl From<ConnectState> for ConnectStateNotificationPB {
+  fn from(value: ConnectState) -> Self {
+    let mut disconnected_reason = None;
+    let state = match value {
+      ConnectState::Connected => ConnectStatePB::WSConnected,
+      ConnectState::Disconnected { reason } => {
+        disconnected_reason = reason.map(|v| v.to_string());
+        ConnectStatePB::WSDisconnected
+      },
+      ConnectState::Connecting => ConnectStatePB::WSConnecting,
+    };
+
+    ConnectStateNotificationPB {
+      state,
+      disconnected_reason,
     }
   }
 }

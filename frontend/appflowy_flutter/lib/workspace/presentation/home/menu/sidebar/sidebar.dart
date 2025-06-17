@@ -362,6 +362,8 @@ class _SidebarState extends State<_Sidebar> {
                     : SidebarUser(userProfile: widget.userProfile),
               ),
             ),
+            //
+            //
             if (FeatureFlag.search.isOn) ...[
               const VSpace(6),
               Container(

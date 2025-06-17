@@ -1,3 +1,4 @@
+use crate::entities::{ConnectStateNotificationPB, ConnectStatePB};
 use crate::notification::{send_notification, UserNotification};
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
@@ -117,6 +118,15 @@ impl UserManager {
     };
     Ok(controller)
   }
+
+  pub(crate) fn get_ws_connect_state(&self) -> FlowyResult<ConnectState> {
+    let workspace_id = self.workspace_id()?;
+    if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
+      Ok(controller.connect_state())
+    } else {
+      Err(FlowyError::internal().with_context("Connection not found"))
+    }
+  }
 }
 fn spawn_subscribe_connect_state(
   controller: Arc<WorkspaceController>,
@@ -127,11 +137,12 @@ fn spawn_subscribe_connect_state(
     return;
   }
 
+  let workspace_id = controller.workspace_id();
   let mut rx = controller.subscribe_connect_state();
   tokio::spawn(async move {
     // Loop as long as we get a Disconnected { reason: Some(reason) }
     while let Some(value) = rx.next().await {
-      match value {
+      match &value {
         ConnectState::Disconnected {
           reason: Some(reason),
         } => {
@@ -148,6 +159,13 @@ fn spawn_subscribe_connect_state(
         ConnectState::Connecting => {},
         ConnectState::Connected => {},
       }
+
+      send_notification(
+        workspace_id.to_string(),
+        UserNotification::WebSockerConnectState,
+      )
+      .payload(ConnectStateNotificationPB::from(value.clone()))
+      .send();
     }
   });
 }
