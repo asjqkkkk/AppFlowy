@@ -365,18 +365,6 @@ class _SidebarState extends State<_Sidebar> {
               ),
             ),
 
-            if (kDebugMode)
-              BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
-                builder: (context, state) {
-                  if (state.currentWorkspace?.workspaceId == null) {
-                    return const SizedBox.shrink();
-                  }
-                  return WebSocketIndicator(
-                    workspaceId: state.currentWorkspace!.workspaceId,
-                  );
-                },
-              ),
-
             if (FeatureFlag.search.isOn) ...[
               const VSpace(6),
               Container(
@@ -430,6 +418,18 @@ class _SidebarState extends State<_Sidebar> {
                   const EdgeInsets.symmetric(horizontal: 4.0),
               child: const SidebarFooter(),
             ),
+
+            if (kDebugMode)
+              BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+                builder: (context, state) {
+                  if (state.currentWorkspace?.workspaceId == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return WebSocketIndicator(
+                    workspaceId: state.currentWorkspace!.workspaceId,
+                  );
+                },
+              ),
             const VSpace(14),
           ],
         ),

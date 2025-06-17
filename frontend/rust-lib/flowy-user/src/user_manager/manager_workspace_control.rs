@@ -127,6 +127,14 @@ impl UserManager {
       Err(FlowyError::internal().with_context("Connection not found"))
     }
   }
+
+  pub(crate) fn start_ws_connect_state(&self) -> FlowyResult<()> {
+    let workspace_id = self.workspace_id()?;
+    if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
+      // controller.connect()
+    }
+    Ok(())
+  }
 }
 fn spawn_subscribe_connect_state(
   controller: Arc<WorkspaceController>,

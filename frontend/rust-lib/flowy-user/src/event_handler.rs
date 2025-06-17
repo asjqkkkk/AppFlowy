@@ -872,3 +872,11 @@ pub async fn get_ws_connect_state_handler(
   let response = manager.get_ws_connect_state()?;
   data_result_ok(ConnectStateNotificationPB::from(response))
 }
+
+pub async fn start_ws_connect_handler(
+  manager: AFPluginState<Weak<UserManager>>,
+) -> Result<(), FlowyError> {
+  let manager = upgrade_manager(manager)?;
+  manager.start_ws_connect_state()?;
+  Ok(())
+}
