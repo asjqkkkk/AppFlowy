@@ -1,3 +1,4 @@
+import 'package:appflowy/user/application/ws_connect_state_listener.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -8,10 +9,22 @@ part 'network_indicator_bloc.freezed.dart';
 
 class NetworkIndicatorBloc
     extends Bloc<NetworkIndicatorEvent, NetworkIndicatorState> {
-  NetworkIndicatorBloc()
-      : super(
+  NetworkIndicatorBloc({
+    required String workspaceId,
+  })  : _listener = WsConnectStateListener(
+          workspaceId: workspaceId,
+        ),
+        super(
           const NetworkIndicatorState(),
         ) {
+    _listener.start(
+      onConnectStateChanged: (connectState) {
+        if (isClosed) return;
+
+        add(NetworkIndicatorEvent.connectStateChanged(connectState));
+      },
+    );
+
     on<NetworkIndicatorEvent>((event, emit) {
       event.when(
         connectStateChanged: (connectState) => emit(
@@ -22,6 +35,14 @@ class NetworkIndicatorBloc
       );
     });
   }
+
+  @override
+  Future<void> close() async {
+    await _listener.stop();
+    await super.close();
+  }
+
+  final WsConnectStateListener _listener;
 }
 
 @freezed

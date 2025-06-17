@@ -1,4 +1,4 @@
-use crate::entities::{ConnectStateNotificationPB, ConnectStatePB};
+use crate::entities::ConnectStateNotificationPB;
 use crate::notification::{send_notification, UserNotification};
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
@@ -162,7 +162,7 @@ fn spawn_subscribe_connect_state(
 
       send_notification(
         workspace_id.to_string(),
-        UserNotification::WebSockerConnectState,
+        UserNotification::WebSocketConnectState,
       )
       .payload(ConnectStateNotificationPB::from(value.clone()))
       .send();
