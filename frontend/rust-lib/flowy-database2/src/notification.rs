@@ -91,8 +91,6 @@ impl std::convert::From<i32> for DatabaseNotification {
 
 #[tracing::instrument(level = "trace")]
 pub fn database_notification_builder(id: &str, ty: DatabaseNotification) -> NotificationBuilder {
-  #[cfg(feature = "verbose_log")]
   tracing::trace!("[Database Notification]: id:{}, ty:{:?}", id, ty);
-
   NotificationBuilder::new(id, ty, DATABASE_OBSERVABLE_SOURCE)
 }

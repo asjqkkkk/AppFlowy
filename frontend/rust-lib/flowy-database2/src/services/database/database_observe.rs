@@ -1,4 +1,4 @@
-use crate::entities::{DatabaseSyncStatePB, DidFetchRowPB, RowsChangePB};
+use crate::entities::{DidFetchRowPB, RowsChangePB};
 use crate::notification::{
   DATABASE_OBSERVABLE_SOURCE, DatabaseNotification, database_notification_builder,
 };
@@ -12,31 +12,10 @@ use collab_database::rows::{RowChange, RowId};
 use collab_database::views::{DatabaseViewChange, RowOrder};
 use dashmap::DashMap;
 use flowy_notification::{DebounceNotificationSender, NotificationBuilder};
-use futures::StreamExt;
 
 use std::sync::Arc;
 use tracing::{error, trace, warn};
 use uuid::Uuid;
-
-pub(crate) async fn observe_sync_state(database_id: &str, database: &Arc<RwLock<Database>>) {
-  let weak_database = Arc::downgrade(database);
-  let mut sync_state = database.read().await.subscribe_sync_state();
-  let database_id = database_id.to_string();
-  tokio::spawn(async move {
-    while let Some(sync_state) = sync_state.next().await {
-      if weak_database.upgrade().is_none() {
-        break;
-      }
-
-      database_notification_builder(
-        &database_id,
-        DatabaseNotification::DidUpdateDatabaseSyncUpdate,
-      )
-      .payload(DatabaseSyncStatePB::from(sync_state))
-      .send();
-    }
-  });
-}
 
 pub(crate) async fn observe_rows_change(
   database_id: &str,

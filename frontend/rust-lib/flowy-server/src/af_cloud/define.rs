@@ -5,10 +5,10 @@ use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::DBConnection;
 use flowy_user_pub::entities::WorkspaceType;
+use futures_util::stream::BoxStream;
 use lib_infra::async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
-use tokio::sync::broadcast::Receiver;
 use uuid::Uuid;
 
 pub const USER_SIGN_IN_URL: &str = "sign_in_url";
@@ -17,7 +17,7 @@ pub const USER_EMAIL: &str = "email";
 pub const USER_DEVICE_ID: &str = "device_id";
 
 pub trait LoggedWorkspace: Send + Sync {
-  fn subscribe_ws_state(&self) -> FlowyResult<Receiver<ConnectState>>;
+  fn subscribe_ws_state(&self) -> FlowyResult<BoxStream<'static, ConnectState>>;
 
   fn ws_state(&self) -> FlowyResult<ConnectState>;
 }

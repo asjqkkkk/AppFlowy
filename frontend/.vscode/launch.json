@@ -13,7 +13,7 @@
             "type": "dart",
             "env": {
                 "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
+                "SYNC_LOG_ENABLE": "true",
             },
             // uncomment the following line to testing performance.
             // "flutterMode": "profile",
@@ -27,9 +27,9 @@
             "type": "dart",
             "preLaunchTask": "AF: Build Appflowy Core",
             "env": {
-                "RUST_LOG": "debug",
+                "RUST_LOG": "trace",
                 "RUST_BACKTRACE": "1",
-                "SYNC_LOG_ENABLE": "false",
+                "SYNC_LOG_ENABLE": "true",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },

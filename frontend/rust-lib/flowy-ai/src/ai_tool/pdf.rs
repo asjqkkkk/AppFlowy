@@ -1,5 +1,8 @@
+#![allow(dead_code)]
+
 use lopdf::Document;
 
+#[allow(dead_code)]
 pub struct PdfRead {
   path: String,
 }

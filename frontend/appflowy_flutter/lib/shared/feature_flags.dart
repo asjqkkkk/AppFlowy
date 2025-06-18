@@ -25,10 +25,6 @@ enum FeatureFlag {
   // if it's on, the document will be synced the events from server in real-time
   syncDocument,
 
-  // used to control the sync feature of the database
-  // if it's on, the collaborators will show in the database
-  syncDatabase,
-
   // used for the search feature
   search,
 
@@ -111,7 +107,6 @@ enum FeatureFlag {
       FeatureFlag.collaborativeWorkspace,
       FeatureFlag.membersSettings,
       // release this feature in version 0.5.4
-      FeatureFlag.syncDatabase,
       FeatureFlag.syncDocument,
       FeatureFlag.inlineSubPageMention,
       FeatureFlag.createVaultWorkspace,
@@ -129,7 +124,6 @@ enum FeatureFlag {
       case FeatureFlag.planBilling:
       case FeatureFlag.search:
       case FeatureFlag.syncDocument:
-      case FeatureFlag.syncDatabase:
       case FeatureFlag.spaceDesign:
       case FeatureFlag.inlineSubPageMention:
       case FeatureFlag.collaborativeWorkspace:
@@ -150,8 +144,6 @@ enum FeatureFlag {
         return 'if it\'s on, you can see the members settings in the settings page';
       case FeatureFlag.syncDocument:
         return 'if it\'s on, the document will be synced in real-time';
-      case FeatureFlag.syncDatabase:
-        return 'if it\'s on, the collaborators will show in the database';
       case FeatureFlag.search:
         return 'if it\'s on, the command palette and search button will be available';
       case FeatureFlag.planBilling:

@@ -1,3 +1,4 @@
+use crate::entities::ConnectStateNotificationPB;
 use crate::notification::{send_notification, UserNotification};
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
@@ -117,6 +118,48 @@ impl UserManager {
     };
     Ok(controller)
   }
+
+  pub(crate) fn get_ws_connect_state(&self) -> FlowyResult<ConnectState> {
+    let workspace_id = self.workspace_id()?;
+    if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
+      if matches!(controller.workspace_type, WorkspaceType::Local) {
+        // Always return connected state for local workspace
+        return Ok(ConnectState::Connected);
+      }
+
+      Ok(controller.connect_state())
+    } else {
+      Err(FlowyError::internal().with_context("Connection not found"))
+    }
+  }
+
+  pub(crate) async fn start_ws_connect_state(&self) -> FlowyResult<()> {
+    let workspace_id = self.workspace_id()?;
+    send_notification(
+      workspace_id.to_string(),
+      UserNotification::WebSocketConnectState,
+    )
+    .payload(ConnectStateNotificationPB::from(ConnectState::Connecting))
+    .send();
+
+    let cloud_service = self
+      .cloud_service
+      .upgrade()
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade cloud service"))?;
+
+    let access_token = cloud_service
+      .get_access_token()
+      .ok_or_else(|| FlowyError::internal().with_context("Access token not found"))?;
+
+    if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
+      info!(
+        "Start ws connect state manually for workspace: {}",
+        workspace_id
+      );
+      controller.connect_with_access_token(access_token).await?;
+    }
+    Ok(())
+  }
 }
 fn spawn_subscribe_connect_state(
   controller: Arc<WorkspaceController>,
@@ -127,11 +170,12 @@ fn spawn_subscribe_connect_state(
     return;
   }
 
+  let workspace_id = controller.workspace_id();
   let mut rx = controller.subscribe_connect_state();
   tokio::spawn(async move {
     // Loop as long as we get a Disconnected { reason: Some(reason) }
     while let Some(value) = rx.next().await {
-      match value {
+      match &value {
         ConnectState::Disconnected {
           reason: Some(reason),
         } => {
@@ -148,6 +192,13 @@ fn spawn_subscribe_connect_state(
         ConnectState::Connecting => {},
         ConnectState::Connected => {},
       }
+
+      send_notification(
+        workspace_id.to_string(),
+        UserNotification::WebSocketConnectState,
+      )
+      .payload(ConnectStateNotificationPB::from(value.clone()))
+      .send();
     }
   });
 }

@@ -138,7 +138,7 @@ impl DatabaseManager {
     let workspace_database = Arc::new(RwLock::new(workspace));
     self
       .collab_builder()?
-      .cache_collab_ref(object_id, collab_type, workspace_database.clone())
+      .cache_collab(object_id, collab_type, workspace_database.clone())
       .await?;
 
     self.workspace_database.store(Some(workspace_database));

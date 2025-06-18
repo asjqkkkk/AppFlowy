@@ -19,10 +19,10 @@ use flowy_server::{AppFlowyEncryption, AppFlowyServer, EmbeddingWriter, Encrypti
 use flowy_server_pub::AuthenticatorType;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::*;
+use futures::stream::BoxStream;
 use lib_infra::async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 use tracing::{error, info};
 use uuid::Uuid;
@@ -121,8 +121,9 @@ impl ServerProvider {
     self.set_tanvity_state(tanvity_state).await;
   }
 
-  pub fn subscribe_ws_state(&self) -> Option<Receiver<ConnectState>> {
-    self.logged_workspace.load_full()?.subscribe_ws_state().ok()
+  pub fn subscribe_ws_state(&self) -> Option<BoxStream<'static, ConnectState>> {
+    let workspace = self.logged_workspace.load_full()?;
+    workspace.subscribe_ws_state().ok()
   }
 
   pub fn get_ws_state(&self) -> FlowyResult<ConnectState> {
