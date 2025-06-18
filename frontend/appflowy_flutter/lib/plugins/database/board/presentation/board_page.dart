@@ -346,97 +346,112 @@ class _BoardContentState extends State<_BoardContent> {
               child: ValueListenableBuilder(
                 valueListenable: databaseController.compactModeNotifier,
                 builder: (context, compactMode, _) {
-                  bool canCreateNewGroup =
-                      context.read<PageAccessLevelBloc>().state.isEditable;
-                  if (canCreateNewGroup) {
-                    canCreateNewGroup = context
-                            .read<BoardBloc>()
-                            .groupingFieldType
-                            ?.canCreateNewGroup ??
-                        false;
-                  }
+                  return BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
+                    builder: (context, state) {
+                      if (state.isInitializing) {
+                        return const SizedBox.shrink();
+                      }
 
-                  return AppFlowyBoard(
-                    boardScrollController: scrollManager,
-                    scrollController: scrollController,
-                    shrinkWrap: widget.shrinkWrap,
-                    controller: context.read<BoardBloc>().boardController,
-                    groupConstraints:
-                        BoxConstraints.tightFor(width: compactMode ? 196 : 256),
-                    config: config,
-                    leading: HiddenGroupsColumn(
-                      shrinkWrap: widget.shrinkWrap,
-                      margin: config.groupHeaderPadding +
-                          EdgeInsets.only(
-                            left: widget.shrinkWrap ? horizontalPadding : 0.0,
-                          ),
-                    ),
-                    trailing: canCreateNewGroup
-                        ? BoardTrailing(scrollController: scrollController)
-                        : const HSpace(40),
-                    headerBuilder: (_, groupData) => IgnorePointer(
-                      ignoring:
-                          !context.read<PageAccessLevelBloc>().state.isEditable,
-                      child: BlocProvider.value(
-                        value: context.read<BoardBloc>(),
-                        child: BoardColumnHeader(
-                          databaseController: databaseController,
-                          groupData: groupData,
-                          margin: config.groupHeaderPadding,
+                      bool canCreateNewGroup = state.isEditable;
+                      if (canCreateNewGroup) {
+                        canCreateNewGroup = context
+                                .read<BoardBloc>()
+                                .groupingFieldType
+                                ?.canCreateNewGroup ??
+                            false;
+                      }
+
+                      return AppFlowyBoard(
+                        boardScrollController: scrollManager,
+                        scrollController: scrollController,
+                        shrinkWrap: widget.shrinkWrap,
+                        controller: context.read<BoardBloc>().boardController,
+                        groupConstraints: BoxConstraints.tightFor(
+                          width: compactMode ? 196 : 256,
                         ),
-                      ),
-                    ),
-                    footerBuilder: (_, groupData) => MultiBlocProvider(
-                      providers: [
-                        BlocProvider.value(value: context.read<BoardBloc>()),
-                        BlocProvider.value(
-                          value: context.read<BoardActionsCubit>(),
-                        ),
-                      ],
-                      child: BoardColumnFooter(
-                        columnData: groupData,
-                        boardConfig: config,
-                        scrollManager: scrollManager,
-                      ),
-                    ),
-                    cardBuilder: (cardContext, column, columnItem) =>
-                        MultiBlocProvider(
-                      key: ValueKey("board_card_${column.id}_${columnItem.id}"),
-                      providers: [
-                        BlocProvider<BoardBloc>.value(
-                          value: cardContext.read<BoardBloc>(),
-                        ),
-                        BlocProvider.value(
-                          value: cardContext.read<BoardActionsCubit>(),
-                        ),
-                         BlocProvider.value(
-                          value: cardContext.read<PageAccessLevelBloc>(),
-                        ),
-                      ],
-                      child: BlocBuilder<PageAccessLevelBloc,
-                          PageAccessLevelState>(
-                        builder: (lockStatusContext, state) {
-                          return IgnorePointer(
-                            ignoring: !state.isEditable,
-                            child: _BoardCard(
-                              afGroupData: column,
-                              groupItem: columnItem as GroupItem,
-                              boardConfig: config,
-                              notifier: widget.focusScope,
-                              cellBuilder: cellBuilder,
-                              compactMode: compactMode,
-                              onOpenCard: (rowMeta) => _openCard(
-                                context: context,
-                                databaseController: lockStatusContext
-                                    .read<BoardBloc>()
-                                    .databaseController,
-                                rowMeta: rowMeta,
+                        config: config,
+                        leading: HiddenGroupsColumn(
+                          shrinkWrap: widget.shrinkWrap,
+                          margin: config.groupHeaderPadding +
+                              EdgeInsets.only(
+                                left:
+                                    widget.shrinkWrap ? horizontalPadding : 0.0,
                               ),
+                        ),
+                        trailing: canCreateNewGroup
+                            ? BoardTrailing(scrollController: scrollController)
+                            : const HSpace(40),
+                        headerBuilder: (_, groupData) => IgnorePointer(
+                          ignoring: !context
+                              .read<PageAccessLevelBloc>()
+                              .state
+                              .isEditable,
+                          child: BlocProvider.value(
+                            value: context.read<BoardBloc>(),
+                            child: BoardColumnHeader(
+                              databaseController: databaseController,
+                              groupData: groupData,
+                              margin: config.groupHeaderPadding,
                             ),
-                          );
-                        },
-                      ),
-                    ),
+                          ),
+                        ),
+                        footerBuilder: (_, groupData) => MultiBlocProvider(
+                          providers: [
+                            BlocProvider.value(
+                              value: context.read<BoardBloc>(),
+                            ),
+                            BlocProvider.value(
+                              value: context.read<BoardActionsCubit>(),
+                            ),
+                          ],
+                          child: BoardColumnFooter(
+                            columnData: groupData,
+                            boardConfig: config,
+                            scrollManager: scrollManager,
+                          ),
+                        ),
+                        cardBuilder: (cardContext, column, columnItem) =>
+                            MultiBlocProvider(
+                          key: ValueKey(
+                            "board_card_${column.id}_${columnItem.id}",
+                          ),
+                          providers: [
+                            BlocProvider<BoardBloc>.value(
+                              value: cardContext.read<BoardBloc>(),
+                            ),
+                            BlocProvider.value(
+                              value: cardContext.read<BoardActionsCubit>(),
+                            ),
+                            BlocProvider.value(
+                              value: cardContext.read<PageAccessLevelBloc>(),
+                            ),
+                          ],
+                          child: BlocBuilder<PageAccessLevelBloc,
+                              PageAccessLevelState>(
+                            builder: (lockStatusContext, state) {
+                              return IgnorePointer(
+                                ignoring: !state.isEditable,
+                                child: _BoardCard(
+                                  afGroupData: column,
+                                  groupItem: columnItem as GroupItem,
+                                  boardConfig: config,
+                                  notifier: widget.focusScope,
+                                  cellBuilder: cellBuilder,
+                                  compactMode: compactMode,
+                                  onOpenCard: (rowMeta) => _openCard(
+                                    context: context,
+                                    databaseController: lockStatusContext
+                                        .read<BoardBloc>()
+                                        .databaseController,
+                                    rowMeta: rowMeta,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      );
+                    },
                   );
                 },
               ),

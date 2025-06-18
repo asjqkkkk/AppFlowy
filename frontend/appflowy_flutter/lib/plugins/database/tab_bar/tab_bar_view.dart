@@ -164,9 +164,9 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
             builder: (innerContext, state) {
               final layout = state.tabBars[state.selectedIndex].layout;
               final isCalendar = layout == ViewLayoutPB.Calendar;
-              final databseBuilderSize =
+              final databaseBuilderSize =
                   context.read<DatabasePluginWidgetBuilderSize>();
-              final horizontalPadding = databseBuilderSize.horizontalPadding;
+              final horizontalPadding = databaseBuilderSize.horizontalPadding;
               final showActionWrapper = widget.showActions &&
                   widget.actionBuilder != null &&
                   widget.node != null;
@@ -188,15 +188,6 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                       Widget child = UniversalPlatform.isDesktop
                           ? const TabBarHeader()
                           : const MobileTabBarHeader();
-
-                      if (!innerContext
-                          .watch<PageAccessLevelBloc>()
-                          .state
-                          .isEditable) {
-                        child = IgnorePointer(
-                          child: child,
-                        );
-                      }
 
                       if (showActionWrapper) {
                         child = BlockComponentActionWrapper(
@@ -221,7 +212,15 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                         );
                       }
 
-                      return child;
+                      return BlocBuilder<PageAccessLevelBloc,
+                          PageAccessLevelState>(
+                        builder: (context, state) {
+                          return IgnorePointer(
+                            ignoring: !state.isEditable,
+                            child: child,
+                          );
+                        },
+                      );
                     },
                   ),
                   pageSettingBarExtensionFromState(context, state),
@@ -236,7 +235,7 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                         create: (_) => DatabasePluginWidgetBuilderSize(
                           horizontalPadding: horizontalPadding,
                           paddingLeftWithMaxDocumentWidth: paddingLeft,
-                          verticalPadding: databseBuilderSize.verticalPadding,
+                          verticalPadding: databaseBuilderSize.verticalPadding,
                         ),
                         child: pageContentFromState(context, state),
                       ),

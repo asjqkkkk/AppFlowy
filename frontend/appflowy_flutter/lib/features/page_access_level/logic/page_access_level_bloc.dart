@@ -95,10 +95,9 @@ class PageAccessLevelBloc
     final userProfileResult =
         await pageAccessRepository.getCurrentUserProfile();
     final email = userProfileResult.fold(
-          (userProfile) => userProfile.email,
-          (_) => null,
-        ) ??
-        '';
+      (userProfile) => userProfile.email,
+      (_) => '',
+    );
 
     final result = await pageAccessRepository.getView(view.id);
     if (UniversalPlatform.isMobile) {

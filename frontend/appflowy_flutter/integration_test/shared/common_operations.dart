@@ -387,6 +387,9 @@ extension CommonOperations on WidgetTester {
       );
       await pumpAndSettle();
     }
+
+    // wait for the page to be loaded
+    await pumpAndSettle(const Duration(milliseconds: 300));
   }
 
   Future<void> createOpenRenameDocumentUnderParent({

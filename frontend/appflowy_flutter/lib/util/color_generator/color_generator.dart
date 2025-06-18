@@ -29,7 +29,7 @@ extension type ColorGenerator(String value) {
 
   (Color, Color) randomColorFromDesignSystem(BuildContext context) {
     final hash = value.codeUnits.fold(0, (int acc, int unit) => acc + unit);
-    final index = hash % 20;
+    final index = (hash % 20 + 1).clamp(1, 20);
 
     final theme = AppFlowyTheme.of(context);
     final background = theme.badgeColorScheme.getLightColorSet(index).$2;

@@ -275,7 +275,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             // don't open the page automatically on mobile
             if (UniversalPlatform.isDesktop) {
               // open the first page by default
-              if (currentSpace.childViews.isNotEmpty) {
+              if (currentSpace.childViews.isNotEmpty && openFirstPage) {
                 final firstPage = currentSpace.childViews.first;
                 final result = await ViewBackendService.getView(firstPage.id);
                 final hasPermission = result.fold(
@@ -361,7 +361,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
 
             add(
               SpaceEvent.initial(
-                openFirstPage: openFirstPage,
+                openFirstPage: false,
               ),
             );
           },

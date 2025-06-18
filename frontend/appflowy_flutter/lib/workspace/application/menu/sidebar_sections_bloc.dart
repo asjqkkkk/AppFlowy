@@ -1,8 +1,5 @@
 import 'dart:async';
 
-import 'package:appflowy/startup/plugin/plugin.dart';
-import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/workspace/workspace_sections_listener.dart';
 import 'package:appflowy/workspace/application/workspace/workspace_service.dart';
@@ -174,26 +171,6 @@ class SidebarSectionsBloc
                   containsSpace: containsSpace,
                 ),
               );
-              // try to open the fist view in public section or private section
-              if (sectionViews.publicViews.isNotEmpty) {
-                getIt<TabsBloc>().add(
-                  TabsEvent.openPlugin(
-                    plugin: sectionViews.publicViews.first.plugin(),
-                  ),
-                );
-              } else if (sectionViews.privateViews.isNotEmpty) {
-                getIt<TabsBloc>().add(
-                  TabsEvent.openPlugin(
-                    plugin: sectionViews.privateViews.first.plugin(),
-                  ),
-                );
-              } else {
-                getIt<TabsBloc>().add(
-                  TabsEvent.openPlugin(
-                    plugin: makePlugin(pluginType: PluginType.blank),
-                  ),
-                );
-              }
             }
           },
         );
