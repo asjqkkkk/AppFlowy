@@ -897,6 +897,9 @@ pub struct SharedUserPB {
 
   #[pb(index = 5, one_of)]
   pub avatar_url: Option<String>,
+
+  #[pb(index = 6)]
+  pub is_pending_invitation: bool,
 }
 
 impl From<SharedUser> for SharedUserPB {
@@ -907,6 +910,7 @@ impl From<SharedUser> for SharedUserPB {
       role: user.role.into(),
       access_level: user.access_level.into(),
       avatar_url: user.avatar_url,
+      is_pending_invitation: user.pending_invitation,
     }
   }
 }
@@ -923,6 +927,7 @@ impl From<WorkspaceSharedUserTable> for SharedUserPB {
       } else {
         Some(table.avatar_url)
       },
+      is_pending_invitation: table.pending_invitation,
     }
   }
 }

@@ -1564,6 +1564,7 @@ impl FolderManager {
                     user.role.clone() as i32,
                     user.access_level as i32,
                     order as i32,
+                    user.pending_invitation,
                   )
                 })
                 .collect::<Vec<_>>();
@@ -1675,6 +1676,7 @@ impl FolderManager {
           } else {
             Some(user.avatar_url)
           },
+          pending_invitation: user.pending_invitation,
         })
         .collect();
 
@@ -1718,6 +1720,7 @@ impl FolderManager {
                       user.role.clone() as i32,
                       user.access_level as i32,
                       order as i32,
+                      user.pending_invitation,
                     )
                   })
                   .collect::<Vec<_>>();

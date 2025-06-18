@@ -157,6 +157,7 @@ diesel::table! {
         role -> Integer,
         access_level -> Integer,
         order -> Integer,
+        pending_invitation -> Bool,
     }
 }
 

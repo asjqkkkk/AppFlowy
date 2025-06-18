@@ -28,7 +28,8 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
     return result.fold(
       (success) {
-        return FlowySuccess(success.sharedUsers);
+        final sharedUsers = success.sharedUsers;
+        return FlowySuccess(sharedUsers);
       },
       (failure) {
         Log.error('get shared users failed: $failure');
@@ -71,7 +72,6 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
       viewId: pageId,
       emails: emails,
       accessLevel: accessLevel.accessLevel,
-      autoConfirm: true,
     );
     final result = await FolderEventSharePageWithUser(request).send();
 
