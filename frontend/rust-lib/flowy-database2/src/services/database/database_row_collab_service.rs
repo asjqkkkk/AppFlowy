@@ -96,7 +96,7 @@ impl DatabaseRowCollabService for DatabaseRowCollabServiceMiddleware {
         .inner
         .collab_builder()
         .map_err(|err| DatabaseError::Internal(err.into()))?
-        .cache_collab_ref(object_id, collab_type, row.clone())
+        .cache_collab(object_id, collab_type, row.clone())
         .await?;
 
       entry.set_resource(row.clone()).await;

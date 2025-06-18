@@ -1,6 +1,7 @@
 import 'package:appflowy/workspace/application/sidebar/network_indicator_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:flowy_infra_ui/style_widget/button.dart';
+import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,17 +28,21 @@ class WebSocketIndicator extends StatelessWidget {
 }
 
 Widget _icon(ConnectStatePB connectState, BuildContext context) {
+  const height = 26.0;
   switch (connectState) {
     case ConnectStatePB.WSConnecting:
       return const SizedBox(
-        height: 26,
+        height: height,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator.adaptive(),
             HSpace(6),
-            Text('Connecting...'),
+            FlowyText(
+              'Connecting...',
+              fontSize: 12,
+            ),
           ],
         ),
       );
@@ -45,19 +50,20 @@ Widget _icon(ConnectStatePB connectState, BuildContext context) {
       return SizedBox.shrink();
     case ConnectStatePB.WSDisconnected:
       return SizedBox(
-        height: 26,
+        height: height,
         child: FlowyButton(
           radius: BorderRadius.zero,
-          text: Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.wifi_off, color: Colors.red, size: 16),
-                HSpace(6),
-                Text('Click to reconnect'),
-              ],
-            ),
+          text: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.wifi_off, color: Colors.red, size: 16),
+              HSpace(6),
+              FlowyText(
+                'Click to reconnect',
+                fontSize: 12,
+              ),
+            ],
           ),
           onTap: () {
             context

@@ -208,7 +208,7 @@ impl WorkspaceCollabAdaptor {
     let document = Document::open(collab)?;
     let document = Arc::new(RwLock::new(document));
     self
-      .finalize_arc_collab(workspace_id, object_id, collab_type, document)
+      .bind_and_cache_collab(workspace_id, object_id, collab_type, document)
       .await
   }
 
@@ -228,7 +228,7 @@ impl WorkspaceCollabAdaptor {
     let folder = Folder::open(uid, collab, folder_notifier)?;
     let folder = Arc::new(RwLock::new(folder));
     self
-      .finalize_arc_collab(workspace_id, workspace_id, collab_type, folder)
+      .bind_and_cache_collab(workspace_id, workspace_id, collab_type, folder)
       .await
   }
 
@@ -249,7 +249,7 @@ impl WorkspaceCollabAdaptor {
     let folder = Folder::create(uid, collab, folder_notifier, folder_data);
     let folder = Arc::new(RwLock::new(folder));
     self
-      .finalize_arc_collab(workspace_id, workspace_id, collab_type, folder)
+      .bind_and_cache_collab(workspace_id, workspace_id, collab_type, folder)
       .await
   }
 
@@ -269,7 +269,7 @@ impl WorkspaceCollabAdaptor {
     let user_awareness = UserAwareness::create(collab, notifier)?;
     let user_awareness = Arc::new(RwLock::new(user_awareness));
     self
-      .finalize_arc_collab(workspace_id, object_id, collab_type, user_awareness)
+      .bind_and_cache_collab(workspace_id, object_id, collab_type, user_awareness)
       .await
   }
 
@@ -307,7 +307,7 @@ impl WorkspaceCollabAdaptor {
   }
 
   #[instrument(level = "trace", skip_all, err)]
-  pub async fn finalize_arc_collab<T>(
+  pub async fn bind_and_cache_collab<T>(
     &self,
     workspace_id: Uuid,
     object_id: Uuid,
@@ -328,7 +328,7 @@ impl WorkspaceCollabAdaptor {
   }
 
   #[instrument(level = "trace", skip_all, err)]
-  pub async fn finalize_collab(
+  pub async fn bind_collab(
     &self,
     workspace_id: Uuid,
     object_id: Uuid,
@@ -341,19 +341,8 @@ impl WorkspaceCollabAdaptor {
     Ok(())
   }
 
-  fn spawn_indexing_task(&self, workspace_id: Uuid, object_id: Uuid, collab_type: CollabType) {
-    let weak_collab_indexer = self.collab_indexer.clone();
-    tokio::spawn(async move {
-      if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
-        indexer
-          .index_opened_collab(workspace_id, object_id, collab_type)
-          .await;
-      }
-    });
-  }
-
   #[instrument(level = "trace", skip_all, err)]
-  pub async fn cache_collab_ref(
+  pub async fn cache_collab(
     &self,
     object_id: Uuid,
     collab_type: CollabType,
@@ -364,6 +353,17 @@ impl WorkspaceCollabAdaptor {
       .cache_collab_ref(object_id, &collab, collab_type)
       .await?;
     Ok(())
+  }
+
+  fn spawn_indexing_task(&self, workspace_id: Uuid, object_id: Uuid, collab_type: CollabType) {
+    let weak_collab_indexer = self.collab_indexer.clone();
+    tokio::spawn(async move {
+      if let Some(indexer) = weak_collab_indexer.and_then(|w| w.upgrade()) {
+        indexer
+          .index_opened_collab(workspace_id, object_id, collab_type)
+          .await;
+      }
+    });
   }
 }
 

@@ -252,7 +252,7 @@ impl DatabaseCollabServiceImpl {
     };
 
     collab_builder
-      .finalize_collab(workspace_id, object_uuid, collab_type, &mut collab)
+      .bind_collab(workspace_id, object_uuid, collab_type, &mut collab)
       .await?;
 
     Ok(collab)
@@ -305,7 +305,7 @@ impl DatabaseCollabService for DatabaseCollabServiceImpl {
     self
       .collab_builder()
       .map_err(|err| DatabaseError::Internal(err.into()))?
-      .cache_collab_ref(object_id, CollabType::Database, database.clone())
+      .cache_collab(object_id, CollabType::Database, database.clone())
       .await?;
     Ok(database)
   }
