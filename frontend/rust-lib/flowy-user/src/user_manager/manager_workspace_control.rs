@@ -135,6 +135,13 @@ impl UserManager {
 
   pub(crate) async fn start_ws_connect_state(&self) -> FlowyResult<()> {
     let workspace_id = self.workspace_id()?;
+    send_notification(
+      workspace_id.to_string(),
+      UserNotification::WebSocketConnectState,
+    )
+    .payload(ConnectStateNotificationPB::from(ConnectState::Connecting))
+    .send();
+
     let cloud_service = self
       .cloud_service
       .upgrade()
