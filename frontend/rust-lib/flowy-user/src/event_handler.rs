@@ -877,6 +877,6 @@ pub async fn start_ws_connect_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> Result<(), FlowyError> {
   let manager = upgrade_manager(manager)?;
-  manager.start_ws_connect_state()?;
+  manager.start_ws_connect_state().await?;
   Ok(())
 }

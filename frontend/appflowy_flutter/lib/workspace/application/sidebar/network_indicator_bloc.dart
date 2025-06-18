@@ -32,13 +32,16 @@ class NetworkIndicatorBloc
       );
     });
 
-    on<NetworkIndicatorEvent>((event, emit) {
-      event.when(
-        connectStateChanged: (connectState) => emit(
+    on<NetworkIndicatorEvent>((event, emit) async {
+      await event.when(
+        connectStateChanged: (connectState) async => emit(
           state.copyWith(
             connectState: connectState,
           ),
         ),
+        reconnect: () async {
+          await UserEventStartWSConnect().send();
+        },
       );
     });
   }
@@ -57,6 +60,8 @@ class NetworkIndicatorEvent with _$NetworkIndicatorEvent {
   const factory NetworkIndicatorEvent.connectStateChanged(
     ConnectStatePB connectState,
   ) = _ConnectStateChanged;
+
+  const factory NetworkIndicatorEvent.reconnect() = _Reconnect;
 }
 
 @freezed

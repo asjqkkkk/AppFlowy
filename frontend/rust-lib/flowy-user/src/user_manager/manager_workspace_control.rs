@@ -122,16 +122,34 @@ impl UserManager {
   pub(crate) fn get_ws_connect_state(&self) -> FlowyResult<ConnectState> {
     let workspace_id = self.workspace_id()?;
     if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
+      if matches!(controller.workspace_type, WorkspaceType::Local) {
+        // Always return connected state for local workspace
+        return Ok(ConnectState::Connected);
+      }
+
       Ok(controller.connect_state())
     } else {
       Err(FlowyError::internal().with_context("Connection not found"))
     }
   }
 
-  pub(crate) fn start_ws_connect_state(&self) -> FlowyResult<()> {
+  pub(crate) async fn start_ws_connect_state(&self) -> FlowyResult<()> {
     let workspace_id = self.workspace_id()?;
+    let cloud_service = self
+      .cloud_service
+      .upgrade()
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade cloud service"))?;
+
+    let access_token = cloud_service
+      .get_access_token()
+      .ok_or_else(|| FlowyError::internal().with_context("Access token not found"))?;
+
     if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
-      // controller.connect()
+      info!(
+        "Start ws connect state manually for workspace: {}",
+        workspace_id
+      );
+      controller.connect_with_access_token(access_token).await?;
     }
     Ok(())
   }

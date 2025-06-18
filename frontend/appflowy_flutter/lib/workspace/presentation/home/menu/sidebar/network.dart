@@ -1,5 +1,6 @@
 import 'package:appflowy/workspace/application/sidebar/network_indicator_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
+import 'package:flowy_infra_ui/style_widget/button.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -17,7 +18,7 @@ class WebSocketIndicator extends StatelessWidget {
           if (state.connectState == null) {
             return const SizedBox.shrink();
           } else {
-            return Center(child: _icon(state.connectState!));
+            return Center(child: _icon(state.connectState!, context));
           }
         },
       ),
@@ -25,11 +26,11 @@ class WebSocketIndicator extends StatelessWidget {
   }
 }
 
-Widget _icon(ConnectStatePB connectState) {
+Widget _icon(ConnectStatePB connectState, BuildContext context) {
   switch (connectState) {
     case ConnectStatePB.WSConnecting:
       return const SizedBox(
-        height: 16,
+        height: 26,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -44,15 +45,25 @@ Widget _icon(ConnectStatePB connectState) {
       return SizedBox.shrink();
     case ConnectStatePB.WSDisconnected:
       return SizedBox(
-        height: 16,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.wifi_off, color: Colors.red),
-            HSpace(6),
-            const Text('Disconnected'),
-          ],
+        height: 26,
+        child: FlowyButton(
+          radius: BorderRadius.zero,
+          text: Expanded(
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.wifi_off, color: Colors.red, size: 16),
+                HSpace(6),
+                Text('Click to reconnect'),
+              ],
+            ),
+          ),
+          onTap: () {
+            context
+                .read<NetworkIndicatorBloc>()
+                .add(const NetworkIndicatorEvent.reconnect());
+          },
         ),
       );
     default:
