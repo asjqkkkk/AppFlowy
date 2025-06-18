@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use pulldown_cmark::{Options, Parser, html};
 use std::fs;
 
