@@ -30,35 +30,6 @@ use flowy_user_pub::entities::WorkspaceType;
 use lib_dispatch::prelude::{AFPluginDispatcher, AFPluginRequest, ToBytes};
 
 impl EventIntegrationTest {
-  /// Generic retry utility for operations that return FlowyResult<T>
-  ///
-  /// # Arguments
-  /// * `operation` - A closure that returns a Future with FlowyResult<T>
-  /// * `max_retries` - Maximum number of retry attempts
-  /// * `delay` - Duration to wait between retries
-  /// * `should_retry` - Function that determines if an error should be retried
-  /// * `operation_name` - Name of the operation for logging purposes
-  ///
-  /// # Examples
-  /// ```
-  /// // Retry on specific error code with custom settings
-  /// let result = self.retry_operation(
-  ///   || self.some_operation(),
-  ///   5, // 5 retries
-  ///   Duration::from_secs(2), // 2 second delay
-  ///   |err| err.code == ErrorCode::InternalServerError,
-  ///   "Custom operation"
-  /// ).await;
-  ///
-  /// // Retry on multiple error codes
-  /// let result = self.retry_operation(
-  ///   || self.database_operation(),
-  ///   3,
-  ///   Duration::from_millis(500),
-  ///   |err| matches!(err.code, ErrorCode::NetworkError | ErrorCode::ConnectTimeout),
-  ///   "Database operation"
-  /// ).await;
-  /// ```
   pub async fn retry_operation<T, F, Fut>(
     &self,
     operation: F,
@@ -174,8 +145,8 @@ impl EventIntegrationTest {
     self
       .retry_operation(
         operation,
-        5,                                        // fewer retries for network errors
-        tokio::time::Duration::from_millis(1000), // longer delay for network issues
+        5,
+        tokio::time::Duration::from_millis(1000),
         |err| {
           matches!(
             err.code,
