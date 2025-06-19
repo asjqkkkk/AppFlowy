@@ -2,6 +2,7 @@ import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/access_level_list_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/edit_access_level_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart';
+import 'package:appflowy/features/share_tab/presentation/widgets/pending_tag.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/turn_into_member_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -87,6 +88,10 @@ class SharedUserWidget extends StatelessWidget {
           HSpace(theme.spacing.m),
           const GuestTag(),
         ],
+        if (user.isPending) ...[
+          Spacer(),
+          PendingTag(),
+        ],
       ],
     );
   }
@@ -133,7 +138,8 @@ class SharedUserWidget extends StatelessWidget {
 
     // Full access user can turn a guest into a member
     if (user.role == ShareRole.guest &&
-        currentAccessLevel == ShareAccessLevel.fullAccess) {
+        currentAccessLevel == ShareAccessLevel.fullAccess &&
+        !user.isPending) {
       return Row(
         children: [
           if (isHovering)
