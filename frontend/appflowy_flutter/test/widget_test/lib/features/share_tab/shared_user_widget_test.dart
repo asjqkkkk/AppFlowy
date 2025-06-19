@@ -148,6 +148,7 @@ void main() {
         email: 'guest@user.com',
         accessLevel: ShareAccessLevel.readOnly,
         role: ShareRole.guest,
+        isPending: false,
       );
       final currentUser = SharedUser(
         name: 'Full Access User',
