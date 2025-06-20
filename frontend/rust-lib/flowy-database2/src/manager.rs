@@ -327,12 +327,7 @@ impl DatabaseManager {
   pub async fn get_database_data(&self, view_id: &str) -> FlowyResult<DatabaseData> {
     let database_id = self.get_database_id_with_view_id(view_id).await?;
     let database = self.get_or_init_database_editor(&database_id).await?;
-    let data = database
-      .get_mutex_database()
-      .read()
-      .await
-      .get_database_data()
-      .await;
+    let data = database.database.read().await.get_database_data().await;
     Ok(data)
   }
 
