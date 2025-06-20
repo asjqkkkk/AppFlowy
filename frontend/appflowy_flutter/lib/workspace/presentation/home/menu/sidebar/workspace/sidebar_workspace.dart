@@ -2,6 +2,9 @@ import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/loading.dart';
+import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
+import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/home/home_setting_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_setting.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
@@ -148,6 +151,28 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
       return;
     }
 
+    if (actionType == WorkspaceActionType.open) {
+      result.fold(
+        (s) {
+          final initialViewId = openWorkspaceNotifier.value?.initialViewId;
+          if (initialViewId == null) {
+            return;
+          }
+
+          getIt<ActionNavigationBloc>().add(
+            ActionNavigationEvent.performAction(
+              action: NavigationAction(
+                objectId: initialViewId,
+              ),
+            ),
+          );
+        },
+        (e) {},
+      );
+
+      openWorkspaceNotifier.value = null;
+    }
+
     final String? message;
     switch (actionType) {
       case WorkspaceActionType.create:
@@ -269,8 +294,6 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
             workspaceType: openWorkspace.workspaceType,
           ),
         );
-
-    openWorkspaceNotifier.value = null;
   }
 }
 

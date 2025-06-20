@@ -84,8 +84,8 @@ void main() {
 
       // the switch should be on after toggling
       await tester.toggleEnableSync(AppFlowyCloudEnableSync);
-      tester.assertAppFlowyCloudEnableSyncSwitchValue(true);
       await tester.wait(250);
+      tester.assertAppFlowyCloudEnableSyncSwitchValue(true);
     });
   });
 }
