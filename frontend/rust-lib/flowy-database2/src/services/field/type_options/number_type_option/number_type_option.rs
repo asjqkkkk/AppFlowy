@@ -12,7 +12,7 @@ use lazy_static::lazy_static;
 
 use collab_database::template::number_parse::NumberCellData;
 use std::cmp::Ordering;
-
+use std::sync::Arc;
 use tracing::info;
 
 use crate::entities::{FieldType, NumberFilterPB};
@@ -20,7 +20,7 @@ use crate::services::cell::{CellDataChangeset, CellDataDecoder};
 use crate::services::field::type_options::util::ProtobufStr;
 use crate::services::field::{
   CellDataProtobufEncoder, TypeOption, TypeOptionCellData, TypeOptionCellDataCompare,
-  TypeOptionCellDataFilter, TypeOptionTransform,
+  TypeOptionCellDataFilter, TypeOptionHandlerCache, TypeOptionTransform,
 };
 use crate::services::sort::SortCondition;
 
@@ -106,6 +106,7 @@ impl CellDataDecoder for NumberTypeOption {
     cell: &Cell,
     _from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     let num_cell = Self::CellData::from(cell);
     Some(Self::CellData::from(

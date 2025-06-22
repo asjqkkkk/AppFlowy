@@ -16,6 +16,7 @@ use crate::entities::{
 };
 use crate::services::calculations::CalculationsByFieldIdCache;
 use crate::services::database_view::{DatabaseViewChanged, DatabaseViewChangedNotifier};
+use crate::services::field::TypeOptionHandlerCache;
 use crate::utils::cache::AnyTypeCache;
 
 use super::{Calculation, CalculationChangeset, CalculationsService};
@@ -54,6 +55,7 @@ impl CalculationsController {
     calculations: Vec<Arc<Calculation>>,
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
     notifier: DatabaseViewChangedNotifier,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Self
   where
     T: CalculationsDelegate + 'static,
@@ -64,7 +66,7 @@ impl CalculationsController {
       delegate: Box::new(delegate),
       calculations_by_field_cache: AnyTypeCache::<String>::new(),
       task_scheduler,
-      calculations_service: CalculationsService::new(),
+      calculations_service: CalculationsService::new(type_option_handlers),
       notifier,
     };
     this.update_cache(calculations);
@@ -354,7 +356,8 @@ impl CalculationsController {
   ) -> Option<Calculation> {
     let value = self
       .calculations_service
-      .calculate(field, calculation.calculation_type, cells);
+      .calculate(field, calculation.calculation_type, cells)
+      .await;
 
     if value != calculation.value {
       return Some(calculation.with_value(value));
@@ -379,7 +382,8 @@ impl CalculationsController {
 
       let value = self
         .calculations_service
-        .calculate(&field, insert.calculation_type, cells);
+        .calculate(&field, insert.calculation_type, cells)
+        .await;
 
       notification = Some(CalculationChangesetNotificationPB::from_insert(
         &self.view_id,

@@ -35,8 +35,6 @@ async fn test_row_movement_between_groups_with_assertions() {
     test.move_row(2, 1, 1, 0).await;
     test.assert_group_row_count(2, 2).await;
     test.assert_group_row_count(1, 2).await;
-
-    tokio::time::sleep(tokio::time::Duration::from_millis(500)).await;
   }
 }
 

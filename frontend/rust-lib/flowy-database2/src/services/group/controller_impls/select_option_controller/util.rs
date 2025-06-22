@@ -1,10 +1,12 @@
+use std::sync::Arc;
+
 use crate::entities::{
   FieldType, GroupRowsNotificationPB, InsertedRowPB, RowMetaPB, SelectOptionCellDataPB,
 };
 use crate::services::cell::{
   insert_checkbox_cell, insert_date_cell, insert_select_option_cell, insert_url_cell,
 };
-use crate::services::field::CHECK;
+use crate::services::field::{CHECK, TypeOptionHandlerCache};
 use crate::services::group::{Group, GroupData, MoveGroupRowContext};
 use chrono::NaiveDateTime;
 use collab_database::fields::Field;
@@ -69,6 +71,7 @@ pub fn remove_select_option_row(
 pub fn move_group_row(
   group: &mut GroupData,
   context: &mut MoveGroupRowContext,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Option<GroupRowsNotificationPB> {
   let mut changeset = GroupRowsNotificationPB::new(group.id.clone());
   let MoveGroupRowContext {
@@ -117,7 +120,7 @@ pub fn move_group_row(
     // If the from_index is none which means the row is not belong to this group before and
     // it is moved from other groups.
     if from_index.is_none() {
-      let cell = make_inserted_cell(&group.id, field);
+      let cell = make_inserted_cell(&group.id, field, type_option_handlers.clone());
       if let Some(cell) = cell {
         debug!(
           "[Database Group]: Update content of the cell in the row:{} to group:{}",
@@ -134,30 +137,43 @@ pub fn move_group_row(
   }
 }
 
-pub fn make_inserted_cell(group_id: &str, field: &Field) -> Option<Cell> {
+pub fn make_inserted_cell(
+  group_id: &str,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> Option<Cell> {
   let field_type = FieldType::from(field.field_type);
   match field_type {
     FieldType::SingleSelect => {
-      let cell = insert_select_option_cell(vec![group_id.to_owned()], field);
+      let cell =
+        insert_select_option_cell(vec![group_id.to_owned()], field, type_option_handlers).ok()?;
       Some(cell)
     },
     FieldType::MultiSelect => {
-      let cell = insert_select_option_cell(vec![group_id.to_owned()], field);
+      let cell =
+        insert_select_option_cell(vec![group_id.to_owned()], field, type_option_handlers).ok()?;
       Some(cell)
     },
     FieldType::Checkbox => {
-      let cell = insert_checkbox_cell(group_id == CHECK, field);
+      let cell = insert_checkbox_cell(group_id == CHECK, field, type_option_handlers).ok()?;
       Some(cell)
     },
     FieldType::URL => {
-      let cell = insert_url_cell(group_id.to_owned(), field);
+      let cell = insert_url_cell(group_id.to_owned(), field, type_option_handlers).ok()?;
       Some(cell)
     },
     FieldType::DateTime => {
       let date =
         NaiveDateTime::parse_from_str(&format!("{} 00:00:00", group_id), "%Y/%m/%d %H:%M:%S")
           .unwrap();
-      let cell = insert_date_cell(date.and_utc().timestamp(), None, Some(false), field);
+      let cell = insert_date_cell(
+        date.and_utc().timestamp(),
+        None,
+        Some(false),
+        field,
+        type_option_handlers,
+      )
+      .ok()?;
       Some(cell)
     },
     _ => {

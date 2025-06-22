@@ -174,7 +174,8 @@ async fn handle_did_update_row_orders(
   // Delete row: Next, we delete a from its original position at index 0.
   // Delete row indexes: [0]
   // Final state after delete: [b, a, c]
-  let row_changes = DashMap::new();
+  warn!("insert row orders: {:?}", insert_row_orders);
+  let row_changes = DashMap::<String, RowsChangePB>::new();
   // 1. handle insert row orders
   for (row_order, index) in insert_row_orders {
     let (tx, rx) = tokio::sync::oneshot::channel();
@@ -189,11 +190,7 @@ async fn handle_did_update_row_orders(
       },
     };
 
-    if let Some(view_editor) = database_editor
-      .database_views
-      .get_view_editor(view_id)
-      .await
-    {
+    if let Ok(view_editor) = database_editor.get_view_editor(view_id).await {
       trace!(
         "[RowOrder]: insert row:{} at index:{}, is_local:{}",
         row_order.id, index, is_local_change
@@ -201,7 +198,6 @@ async fn handle_did_update_row_orders(
 
       // insert row order in database view cache
       view_editor.insert_row(row.clone(), index, &row_order).await;
-
       let is_move_row = is_move_row(&view_editor, &row_order, &delete_row_indexes).await;
       if let Some((index, row_detail)) = view_editor.v_get_row(&row_order.id).await {
         view_editor
@@ -220,11 +216,7 @@ async fn handle_did_update_row_orders(
   // handle delete row orders
   for index in delete_row_indexes {
     let index = index as usize;
-    if let Some(view_editor) = database_editor
-      .database_views
-      .get_view_editor(view_id)
-      .await
-    {
+    if let Ok(view_editor) = database_editor.get_or_init_view_editor(view_id).await {
       let mut view_row_orders = view_editor.row_orders.write().await;
       if view_row_orders.len() > index {
         let lazy_row = view_row_orders.remove(index);

@@ -1082,6 +1082,7 @@ impl FolderManager {
 
   /// Helper function to check if a guest user has permission to modify a view
   /// Guest users can modify views only if they have edit access level for that specific view
+  #[instrument(level = "debug", skip_all, err)]
   async fn check_guest_permission(
     &self,
     view_id: &str,
@@ -2496,6 +2497,7 @@ impl FolderManager {
   ///
   /// This function will return the first level of the shared views. If the shared view has child
   /// views, this function will not return the child views.
+  #[instrument(level = "debug", skip_all, err)]
   pub async fn get_shared_pages(
     &self,
     is_fetch_from_cloud: bool,
@@ -2653,6 +2655,7 @@ impl FolderManager {
   /// Get all the shared views of the workspace.
   ///
   /// This function will return all the shared views of the workspace, including the child views of the shared views.
+  #[instrument(level = "debug", skip_all, err)]
   pub async fn get_flatten_shared_pages(&self) -> FlowyResult<Vec<ViewPB>> {
     let shared_pages = self.get_shared_pages(false).await?;
     let mut flattened_views = Vec::new();

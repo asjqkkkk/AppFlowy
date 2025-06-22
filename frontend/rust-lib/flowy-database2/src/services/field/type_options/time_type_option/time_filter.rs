@@ -1,8 +1,10 @@
 use collab_database::fields::Field;
 use collab_database::rows::Cell;
+use std::sync::Arc;
 
 use crate::entities::{NumberFilterConditionPB, TimeFilterPB};
 use crate::services::cell::insert_text_cell;
+use crate::services::field::TypeOptionHandlerCache;
 use crate::services::filter::PreFillCellsWithFilter;
 
 impl TimeFilterPB {
@@ -38,7 +40,11 @@ impl TimeFilterPB {
 }
 
 impl PreFillCellsWithFilter for TimeFilterPB {
-  fn get_compliant_cell(&self, field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    field: &Field,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     let expected_decimal = || self.content.parse::<i64>().ok();
 
     let text = match self.condition {
@@ -65,6 +71,6 @@ impl PreFillCellsWithFilter for TimeFilterPB {
     };
 
     // use `insert_text_cell` because self.content might not be a parsable i64.
-    text.map(|s| insert_text_cell(s, field))
+    text.and_then(|s| insert_text_cell(s, field, type_option_handlers).ok())
   }
 }

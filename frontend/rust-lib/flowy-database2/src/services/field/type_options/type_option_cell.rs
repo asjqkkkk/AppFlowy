@@ -22,12 +22,71 @@ use collab_database::fields::url_type_option::URLTypeOption;
 use collab_database::rows::{Cell, RowId, get_field_type_from_cell};
 use flowy_error::FlowyResult;
 use lib_infra::box_any::BoxAny;
+use moka::sync::Cache;
 use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::ops::{Deref, DerefMut};
+use std::sync::Arc;
 
 pub const CELL_DATA: &str = "data";
+
+pub fn type_option_cache_key(field_id: &str, field_type: &i64) -> String {
+  format!("{}-{}", field_id, field_type)
+}
+
+pub struct TypeOptionHandlerCache {
+  inner: Cache<String, Arc<dyn TypeOptionCellDataHandler>>,
+}
+
+impl Default for TypeOptionHandlerCache {
+  fn default() -> Self {
+    Self {
+      inner: Cache::builder()
+        .time_to_live(std::time::Duration::from_secs(10))
+        .build(),
+    }
+  }
+}
+
+impl Deref for TypeOptionHandlerCache {
+  type Target = Cache<String, Arc<dyn TypeOptionCellDataHandler>>;
+
+  fn deref(&self) -> &Self::Target {
+    &self.inner
+  }
+}
+
+impl DerefMut for TypeOptionHandlerCache {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.inner
+  }
+}
+
+impl TypeOptionHandlerCache {
+  pub fn new() -> Self {
+    Self::default()
+  }
+
+  pub fn remove_prefix(&self, prefix: &str) {
+    let keys_to_remove = self
+      .inner
+      .iter()
+      .filter_map(|(key, _)| {
+        if key.starts_with(prefix) {
+          Some(key.clone())
+        } else {
+          None
+        }
+      })
+      .collect::<Vec<_>>();
+
+    for key in keys_to_remove {
+      self.inner.remove(key.as_ref());
+    }
+  }
+}
 
 /// Each [FieldType] has its own [TypeOptionCellDataHandler].
 /// A helper trait that used to erase the `Self` of `TypeOption` trait to make it become a Object-safe trait
@@ -148,6 +207,7 @@ struct TypeOptionCellDataHandlerImpl<T> {
   inner: T,
   field_type: FieldType,
   cell_data_cache: Option<CellCache>,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 }
 
 impl<T> TypeOptionCellDataHandlerImpl<T>
@@ -163,21 +223,18 @@ where
     + Sync
     + 'static,
 {
-  pub fn into_boxed(self) -> Box<dyn TypeOptionCellDataHandler> {
-    Box::new(self) as Box<dyn TypeOptionCellDataHandler>
-  }
-
   pub fn new_with_boxed(
     inner: T,
     field_type: FieldType,
     cell_data_cache: Option<CellCache>,
-  ) -> Box<dyn TypeOptionCellDataHandler> {
-    Self {
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Arc<dyn TypeOptionCellDataHandler> {
+    Arc::new(Self {
       inner,
       field_type,
       cell_data_cache,
-    }
-    .into_boxed()
+      type_option_handlers,
+    })
   }
 }
 
@@ -223,7 +280,12 @@ where
     } else if is_type_option_cell_transformable(field_type_of_cell, self.field_type) {
       Some(
         self
-          .decode_cell_with_transform(cell, field_type_of_cell, field)
+          .decode_cell_with_transform(
+            cell,
+            field_type_of_cell,
+            field,
+            self.type_option_handlers.clone(),
+          )
           .unwrap_or_default(),
       )
     } else {
@@ -353,21 +415,39 @@ where
 
 pub struct TypeOptionCellExt<'a> {
   field: &'a Field,
-  cell_data_cache: Option<CellCache>,
+  cell_cache: Option<CellCache>,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 }
 
 impl<'a> TypeOptionCellExt<'a> {
-  pub fn new(field: &'a Field, cell_data_cache: Option<CellCache>) -> Self {
+  pub fn new(
+    field: &'a Field,
+    cell_cache: Option<CellCache>,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Self {
     Self {
       field,
-      cell_data_cache,
+      cell_cache,
+      type_option_handlers,
     }
   }
 
-  pub fn get_type_option_cell_data_handler_with_field_type(
+  pub fn new_with_handler_cache(
+    field: &'a Field,
+    cell_cache: Option<CellCache>,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Self {
+    Self {
+      field,
+      cell_cache,
+      type_option_handlers,
+    }
+  }
+
+  fn create_type_option_cell_data_handler(
     &self,
     field_type: FieldType,
-  ) -> Option<Box<dyn TypeOptionCellDataHandler>> {
+  ) -> Option<Arc<dyn TypeOptionCellDataHandler>> {
     match field_type {
       FieldType::RichText => self
         .field
@@ -376,7 +456,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Number => self
@@ -386,7 +467,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::DateTime => self
@@ -396,7 +478,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::LastEditedTime | FieldType::CreatedTime => self
@@ -406,7 +489,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::SingleSelect => self
@@ -416,7 +500,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::MultiSelect => self
@@ -426,7 +511,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Checkbox => self
@@ -436,7 +522,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::URL => {
@@ -447,7 +534,8 @@ impl<'a> TypeOptionCellExt<'a> {
             TypeOptionCellDataHandlerImpl::new_with_boxed(
               type_option,
               field_type,
-              self.cell_data_cache.clone(),
+              self.cell_cache.clone(),
+              self.type_option_handlers.clone(),
             )
           })
       },
@@ -458,7 +546,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Relation => self
@@ -468,7 +557,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Summary => self
@@ -478,7 +568,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Time => self
@@ -488,7 +579,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Translate => self
@@ -498,7 +590,8 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
       FieldType::Media => self
@@ -508,15 +601,30 @@ impl<'a> TypeOptionCellExt<'a> {
           TypeOptionCellDataHandlerImpl::new_with_boxed(
             type_option,
             field_type,
-            self.cell_data_cache.clone(),
+            self.cell_cache.clone(),
+            self.type_option_handlers.clone(),
           )
         }),
     }
   }
 
-  pub fn get_type_option_cell_data_handler(&self) -> Option<Box<dyn TypeOptionCellDataHandler>> {
-    let field_type = FieldType::from(self.field.field_type);
-    self.get_type_option_cell_data_handler_with_field_type(field_type)
+  pub fn get_type_option_cell_data_handler(
+    &self,
+    field_type: FieldType,
+  ) -> Option<Arc<dyn TypeOptionCellDataHandler>> {
+    let key = type_option_cache_key(&self.field.id, &field_type.value());
+    // Try to get from cache first
+    if let Some(cached_handler) = self.type_option_handlers.get(&key) {
+      return Some(cached_handler);
+    }
+
+    // If not in cache, create new handler and store it
+    if let Some(handler) = self.create_type_option_cell_data_handler(field_type) {
+      self.type_option_handlers.insert(key, handler.clone());
+      Some(handler)
+    } else {
+      None
+    }
   }
 }
 

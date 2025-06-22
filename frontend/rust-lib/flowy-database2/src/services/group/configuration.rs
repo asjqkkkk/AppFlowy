@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::fmt::Formatter;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -12,20 +11,15 @@ use tracing::event;
 use flowy_error::{FlowyError, FlowyResult};
 
 use crate::entities::{GroupChangesPB, GroupPB, InsertedGroupPB};
-use crate::services::field::RowSingleCellData;
+use crate::services::database_view::view_group::get_cells_for_field;
+use crate::services::database_view::{
+  CellOperations, FieldOperations, GroupOperations, RowOperations,
+};
+use crate::services::field::{RowSingleCellData, TypeOptionHandlerCache};
+use crate::services::filter::FilterController;
 use crate::services::group::{
   GeneratedGroups, Group, GroupChangeset, GroupData, GroupSetting, default_group_setting,
 };
-
-#[async_trait]
-pub trait GroupContextDelegate: Send + Sync + 'static {
-  async fn get_group_setting(&self, view_id: &str) -> Option<Arc<GroupSetting>>;
-
-  async fn get_configuration_cells(&self, view_id: &str, field_id: &str) -> Vec<RowSingleCellData>;
-
-  async fn save_configuration(&self, view_id: &str, group_setting: GroupSetting)
-  -> FlowyResult<()>;
-}
 
 impl<T> std::fmt::Display for GroupControllerContext<T> {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -48,53 +42,57 @@ impl<T> std::fmt::Display for GroupControllerContext<T> {
 /// The `context` contains a list of [GroupData]s and the grouping [Field]
 pub struct GroupControllerContext<C> {
   pub view_id: String,
-  /// The group configuration restored from the disk.
-  ///
-  /// Uses the [GroupSettingReader] to read the configuration data from disk
   setting: Arc<GroupSetting>,
-
-  configuration_phantom: PhantomData<C>,
-
-  /// The grouping field id
   field_id: String,
-
-  /// Cache all the groups. Cache the group by its id.
-  /// We use the id of the [Field] as the [No Status] group id.
   group_by_id: IndexMap<String, GroupData>,
-
-  /// delegate that reads and writes data to and from disk
-  delegate: Arc<dyn GroupContextDelegate>,
+  pub(crate) row_ops: Arc<dyn RowOperations>,
+  pub(crate) cell_ops: Arc<dyn CellOperations>,
+  pub(crate) group_ops: Arc<dyn GroupOperations>,
+  pub(crate) field_ops: Arc<dyn FieldOperations>,
+  pub(crate) type_option_handlers: Arc<TypeOptionHandlerCache>,
+  pub(crate) filter_controller: Arc<FilterController>,
+  configuration_phantom: PhantomData<C>,
 }
 
 impl<C> GroupControllerContext<C>
 where
   C: Serialize + DeserializeOwned,
 {
-  #[tracing::instrument(level = "trace", skip_all, err)]
+  #[allow(clippy::too_many_arguments)]
   pub async fn new(
     view_id: String,
     field: Field,
-    delegate: Arc<dyn GroupContextDelegate>,
+    row_ops: Arc<dyn RowOperations>,
+    cell_ops: Arc<dyn CellOperations>,
+    group_ops: Arc<dyn GroupOperations>,
+    field_ops: Arc<dyn FieldOperations>,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+    filter_controller: Arc<FilterController>,
   ) -> FlowyResult<Self> {
     event!(tracing::Level::TRACE, "GroupControllerContext::new");
-    let setting = match delegate.get_group_setting(&view_id).await {
-      None => {
-        let default_configuration = default_group_setting(&field);
-        delegate
-          .save_configuration(&view_id, default_configuration.clone())
-          .await?;
-        Arc::new(default_configuration)
-      },
-      Some(setting) => setting,
+    let mut settings = group_ops.get_group_setting(&view_id).await;
+    let setting = if settings.is_empty() {
+      let default_configuration = default_group_setting(&field);
+      group_ops
+        .insert_group_setting(&view_id, default_configuration.clone())
+        .await;
+      Arc::new(default_configuration)
+    } else {
+      Arc::new(settings.remove(0))
     };
 
     Ok(Self {
       view_id,
       field_id: field.id,
       group_by_id: IndexMap::new(),
-      delegate,
       setting,
       configuration_phantom: PhantomData,
+      row_ops,
+      cell_ops,
+      group_ops,
+      field_ops,
+      type_option_handlers,
+      filter_controller,
     })
   }
 
@@ -338,10 +336,14 @@ where
   }
 
   pub(crate) async fn get_all_cells(&self) -> Vec<RowSingleCellData> {
-    self
-      .delegate
-      .get_configuration_cells(&self.view_id, &self.field_id)
-      .await
+    get_cells_for_field(
+      self.field_ops.clone(),
+      self.cell_ops.clone(),
+      &self.view_id,
+      &self.field_id,
+      self.type_option_handlers.clone(),
+    )
+    .await
   }
 
   pub fn get_setting_content(&self) -> String {
@@ -361,15 +363,12 @@ where
     let is_changed = mut_configuration_fn(configuration);
     if is_changed {
       let configuration = (*self.setting).clone();
-      let delegate = self.delegate.clone();
+      let group_ops = self.group_ops.clone();
       let view_id = self.view_id.clone();
       tokio::spawn(async move {
-        match delegate.save_configuration(&view_id, configuration).await {
-          Ok(_) => {},
-          Err(e) => {
-            tracing::error!("Save group configuration failed: {}", e);
-          },
-        }
+        group_ops
+          .insert_group_setting(&view_id, configuration)
+          .await;
       });
     }
     Ok(())

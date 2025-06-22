@@ -1,31 +1,37 @@
-use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::services::cell::CellCache;
 use crate::services::database_view::{
-  DatabaseViewChangedNotifier, DatabaseViewOperation, gen_handler_id,
+  DatabaseViewChangedNotifier, FieldOperations, FilterOperations, RowOperations, UtilityOperations,
 };
-use crate::services::filter::{Filter, FilterController, FilterDelegate, FilterTaskHandler};
-use collab_database::fields::Field;
-use collab_database::rows::{Row, RowDetail, RowId};
+use crate::services::field::TypeOptionHandlerCache;
+use crate::services::filter::{FilterController, FilterTaskHandler};
+use uuid::Uuid;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn make_filter_controller(
   view_id: &str,
-  delegate: Arc<dyn DatabaseViewOperation>,
+  field_ops: Arc<dyn FieldOperations>,
+  row_ops: Arc<dyn RowOperations>,
+  filter_ops: Arc<dyn FilterOperations>,
+  utility_ops: Arc<dyn UtilityOperations>,
   notifier: DatabaseViewChangedNotifier,
   cell_cache: CellCache,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Arc<FilterController> {
-  let task_scheduler = delegate.get_task_scheduler();
-  let filter_delegate = DatabaseViewFilterDelegateImpl(delegate.clone());
+  let task_scheduler = utility_ops.get_task_scheduler();
 
-  let handler_id = gen_handler_id();
+  let handler_id = Uuid::new_v4().to_string();
   let filter_controller = FilterController::new(
     view_id,
     &handler_id,
-    filter_delegate,
     task_scheduler.clone(),
     cell_cache,
     notifier,
+    type_option_handlers,
+    field_ops,
+    row_ops,
+    filter_ops,
   )
   .await;
   let filter_controller = Arc::new(filter_controller);
@@ -37,34 +43,4 @@ pub async fn make_filter_controller(
       filter_controller.clone(),
     ));
   filter_controller
-}
-
-struct DatabaseViewFilterDelegateImpl(Arc<dyn DatabaseViewOperation>);
-
-#[async_trait]
-impl FilterDelegate for DatabaseViewFilterDelegateImpl {
-  async fn get_field(&self, field_id: &str) -> Option<Field> {
-    self.0.get_field(field_id).await
-  }
-
-  async fn get_fields(&self, view_id: &str, field_ids: Option<Vec<String>>) -> Vec<Field> {
-    self.0.get_fields(view_id, field_ids).await
-  }
-
-  async fn get_rows(&self, view_id: &str) -> Vec<Arc<Row>> {
-    let row_orders = self.0.get_all_row_orders(view_id).await;
-    self.0.get_all_rows(view_id, row_orders).await
-  }
-
-  async fn get_row(&self, view_id: &str, rows_id: &RowId) -> Option<(usize, Arc<RowDetail>)> {
-    self.0.get_row_detail(view_id, rows_id).await
-  }
-
-  async fn get_all_filters(&self, view_id: &str) -> Vec<Filter> {
-    self.0.get_all_filters(view_id).await
-  }
-
-  async fn save_filters(&self, view_id: &str, filters: &[Filter]) {
-    self.0.save_filters(view_id, filters).await
-  }
 }

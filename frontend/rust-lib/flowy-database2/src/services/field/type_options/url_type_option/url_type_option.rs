@@ -2,7 +2,7 @@ use crate::entities::{FieldType, TextFilterPB, URLCellDataPB};
 use crate::services::cell::{CellDataChangeset, CellDataDecoder};
 use crate::services::field::{
   CellDataProtobufEncoder, TypeOption, TypeOptionCellDataCompare, TypeOptionCellDataFilter,
-  TypeOptionTransform,
+  TypeOptionHandlerCache, TypeOptionTransform,
 };
 use crate::services::sort::SortCondition;
 use async_trait::async_trait;
@@ -13,6 +13,7 @@ use collab_database::rows::Cell;
 use flowy_error::FlowyResult;
 
 use std::cmp::Ordering;
+use std::sync::Arc;
 use tracing::trace;
 
 impl TypeOption for URLTypeOption {
@@ -78,6 +79,7 @@ impl CellDataDecoder for URLTypeOption {
     cell: &Cell,
     from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     match from_field_type {
       FieldType::RichText => Some(Self::CellData::from(cell)),

@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use async_trait::async_trait;
 use collab::util::AnyMapExt;
 use collab_database::database::Database;
@@ -8,6 +6,8 @@ use collab_database::fields::{Field, TypeOptionData};
 use collab_database::rows::Cell;
 use collab_database::template::date_parse::cast_string_to_timestamp;
 use flowy_error::FlowyResult;
+use std::cmp::Ordering;
+use std::sync::Arc;
 use tracing::info;
 
 use crate::entities::{DateCellDataPB, DateFilterPB, FieldType};
@@ -15,7 +15,7 @@ use crate::services::cell::{CellDataChangeset, CellDataDecoder};
 use crate::services::field::date_type_option::date_filter::DateCellChangeset;
 use crate::services::field::{
   CELL_DATA, CellDataProtobufEncoder, TypeOption, TypeOptionCellDataCompare,
-  TypeOptionCellDataFilter, TypeOptionTransform, default_order,
+  TypeOptionCellDataFilter, TypeOptionHandlerCache, TypeOptionTransform, default_order,
 };
 use crate::services::sort::SortCondition;
 
@@ -134,6 +134,7 @@ impl CellDataDecoder for DateTypeOption {
     cell: &Cell,
     _from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     let s = cell.get_as::<String>(CELL_DATA)?;
     let timestamp = cast_string_to_timestamp(&s)?;

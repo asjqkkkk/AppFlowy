@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::convert::TryFrom;
-
 use bytes::Bytes;
 use collab_database::database::timestamp;
 use collab_database::fields::select_type_option::{
@@ -12,11 +9,15 @@ use flowy_database2::entities::*;
 use flowy_database2::event_map::DatabaseEvent;
 use flowy_database2::services::cell::CellBuilder;
 use flowy_database2::services::field::checklist_filter::ChecklistCellInsertChangeset;
+use flowy_database2::services::field::TypeOptionHandlerCache;
 use flowy_database2::services::share::csv::CSVFormat;
 use flowy_error::FlowyResult;
 use flowy_folder::entities::*;
 use flowy_folder::event_map::FolderEvent;
 use flowy_user::errors::FlowyError;
+use std::collections::HashMap;
+use std::convert::TryFrom;
+use std::sync::Arc;
 
 use crate::event_builder::EventBuilder;
 use crate::EventIntegrationTest;
@@ -678,7 +679,8 @@ pub struct TestRowBuilder<'a> {
 
 impl<'a> TestRowBuilder<'a> {
   pub fn new(database_id: &'a str, row_id: RowId, fields: &'a [Field]) -> Self {
-    let cell_build = CellBuilder::with_cells(Default::default(), fields);
+    let cache = Arc::new(TypeOptionHandlerCache::new());
+    let cell_build = CellBuilder::with_cells(Default::default(), fields, cache).unwrap();
     Self {
       database_id,
       row_id,
@@ -691,7 +693,8 @@ impl<'a> TestRowBuilder<'a> {
     let text_field = self.field_with_type(&FieldType::RichText);
     self
       .cell_build
-      .insert_text_cell(&text_field.id, data.to_string());
+      .insert_text_cell(&text_field.id, data.to_string())
+      .unwrap();
 
     text_field.id.clone()
   }
@@ -700,7 +703,8 @@ impl<'a> TestRowBuilder<'a> {
     let number_field = self.field_with_type(&FieldType::Number);
     self
       .cell_build
-      .insert_text_cell(&number_field.id, data.to_string());
+      .insert_text_cell(&number_field.id, data.to_string())
+      .unwrap();
     number_field.id.clone()
   }
 
@@ -713,7 +717,8 @@ impl<'a> TestRowBuilder<'a> {
     let date_field = self.field_with_type(field_type);
     self
       .cell_build
-      .insert_date_cell(&date_field.id, timestamp, include_time);
+      .insert_date_cell(&date_field.id, timestamp, include_time)
+      .unwrap();
     date_field.id.clone()
   }
 
@@ -721,7 +726,8 @@ impl<'a> TestRowBuilder<'a> {
     let checkbox_field = self.field_with_type(&FieldType::Checkbox);
     self
       .cell_build
-      .insert_text_cell(&checkbox_field.id, data.to_string());
+      .insert_text_cell(&checkbox_field.id, data.to_string())
+      .unwrap();
 
     checkbox_field.id.clone()
   }
@@ -730,7 +736,8 @@ impl<'a> TestRowBuilder<'a> {
     let url_field = self.field_with_type(&FieldType::URL);
     self
       .cell_build
-      .insert_url_cell(&url_field.id, content.to_string());
+      .insert_url_cell(&url_field.id, content.to_string())
+      .unwrap();
     url_field.id.clone()
   }
 
@@ -746,7 +753,8 @@ impl<'a> TestRowBuilder<'a> {
     let option = f(type_option.options);
     self
       .cell_build
-      .insert_select_option_cell(&single_select_field.id, vec![option.id]);
+      .insert_select_option_cell(&single_select_field.id, vec![option.id])
+      .unwrap();
 
     single_select_field.id.clone()
   }
@@ -767,7 +775,8 @@ impl<'a> TestRowBuilder<'a> {
       .collect::<Vec<_>>();
     self
       .cell_build
-      .insert_select_option_cell(&multi_select_field.id, ops_ids);
+      .insert_select_option_cell(&multi_select_field.id, ops_ids)
+      .unwrap();
 
     multi_select_field.id.clone()
   }
@@ -776,19 +785,26 @@ impl<'a> TestRowBuilder<'a> {
     let checklist_field = self.field_with_type(&FieldType::Checklist);
     self
       .cell_build
-      .insert_checklist_cell(&checklist_field.id, new_tasks);
+      .insert_checklist_cell(&checklist_field.id, new_tasks)
+      .unwrap();
     checklist_field.id.clone()
   }
 
   pub fn insert_time_cell(&mut self, time: i64) -> String {
     let time_field = self.field_with_type(&FieldType::Time);
-    self.cell_build.insert_number_cell(&time_field.id, time);
+    self
+      .cell_build
+      .insert_number_cell(&time_field.id, time)
+      .unwrap();
     time_field.id.clone()
   }
 
   pub fn insert_media_cell(&mut self, media: String) -> String {
     let media_field = self.field_with_type(&FieldType::Media);
-    self.cell_build.insert_text_cell(&media_field.id, media);
+    self
+      .cell_build
+      .insert_text_cell(&media_field.id, media)
+      .unwrap();
     media_field.id.clone()
   }
 

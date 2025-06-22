@@ -1,18 +1,18 @@
 use collab::util::AnyMapExt;
-use std::cmp::Ordering;
-
 use collab_database::fields::Field;
 use collab_database::fields::text_type_option::RichTextTypeOption;
 use collab_database::rows::{Cell, new_cell_builder};
 use collab_database::template::util::ToCellString;
 use flowy_error::{FlowyError, FlowyResult};
+use std::cmp::Ordering;
+use std::sync::Arc;
 
 use crate::entities::{FieldType, TextFilterPB};
 use crate::services::cell::{CellDataChangeset, CellDataDecoder, stringify_cell};
 use crate::services::field::type_options::util::ProtobufStr;
 use crate::services::field::{
   CELL_DATA, CellDataProtobufEncoder, TypeOption, TypeOptionCellData, TypeOptionCellDataCompare,
-  TypeOptionCellDataFilter, TypeOptionTransform,
+  TypeOptionCellDataFilter, TypeOptionHandlerCache, TypeOptionTransform,
 };
 use crate::services::sort::SortCondition;
 
@@ -40,6 +40,7 @@ impl CellDataDecoder for RichTextTypeOption {
     cell: &Cell,
     from_field_type: FieldType,
     field: &Field,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     match from_field_type {
       FieldType::RichText
@@ -52,7 +53,11 @@ impl CellDataDecoder for RichTextTypeOption {
       | FieldType::Summary
       | FieldType::Translate
       | FieldType::Media
-      | FieldType::Time => Some(StringCellData::from(stringify_cell(cell, field))),
+      | FieldType::Time => Some(StringCellData::from(stringify_cell(
+        cell,
+        field,
+        type_option_handlers,
+      ))),
       FieldType::Checklist
       | FieldType::LastEditedTime
       | FieldType::CreatedTime

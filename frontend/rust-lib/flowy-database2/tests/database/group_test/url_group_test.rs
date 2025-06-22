@@ -94,9 +94,6 @@ async fn set_group_by_url_field_test() {
 
   // assert number of groups
   test.assert_group_count(3).await;
-
-  // close the database view
   test.editor.close_view(&test.view_id).await;
-
   test.assert_group_count(3).await;
 }

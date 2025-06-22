@@ -36,7 +36,7 @@ pub mod event_builder;
 pub mod folder_event;
 pub mod user_event;
 
-const LOG_LEVEL: &str = "debug";
+const LOG_LEVEL: &str = "trace";
 #[derive(Clone)]
 pub struct EventIntegrationTest {
   pub authenticator: Arc<AtomicU8>,

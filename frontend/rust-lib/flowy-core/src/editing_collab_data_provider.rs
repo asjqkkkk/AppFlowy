@@ -84,7 +84,6 @@ impl EditingCollabDataProvider {
         let authenticate_user = match authenticate_user.upgrade() {
           Some(auth) => auth,
           None => {
-            debug!("[Indexing] skip when no session");
             continue;
           },
         };

@@ -183,8 +183,9 @@ impl GroupCustomize for DateGroupController {
 
   fn move_row(&mut self, mut context: MoveGroupRowContext) -> Vec<GroupRowsNotificationPB> {
     let mut group_changeset = vec![];
+    let type_option_handlers = self.context.type_option_handlers.clone();
     self.context.iter_mut_groups(|group| {
-      if let Some(changeset) = move_group_row(group, &mut context) {
+      if let Some(changeset) = move_group_row(group, &mut context, type_option_handlers.clone()) {
         group_changeset.push(changeset);
       }
     });
@@ -217,15 +218,23 @@ impl GroupCustomize for DateGroupController {
     Ok(None)
   }
 
-  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) {
+  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) -> FlowyResult<()> {
     match self.context.get_group(group_id) {
       None => tracing::warn!("Can not find the group: {}", group_id),
       _ => {
-        let date = DateTime::parse_from_str(group_id, GROUP_ID_DATE_FORMAT).unwrap();
-        let cell = insert_date_cell(date.timestamp(), None, Some(false), field);
+        let date =
+          DateTime::parse_from_str(group_id, GROUP_ID_DATE_FORMAT).map_err(internal_error)?;
+        let cell = insert_date_cell(
+          date.timestamp(),
+          None,
+          Some(false),
+          field,
+          self.context.type_option_handlers.clone(),
+        )?;
         cells.insert(field.id.clone(), cell);
       },
     }
+    Ok(())
   }
 }
 

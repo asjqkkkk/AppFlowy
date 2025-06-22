@@ -370,7 +370,7 @@ impl DocumentManager {
       return Ok(document);
     }
 
-    if entry.try_mark_initialization_start().await {
+    if entry.should_initialize().await {
       trace!("Initializing document: {}", doc_id);
       match self.initialize_document(doc_id).await {
         Ok(document) => {

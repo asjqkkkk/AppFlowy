@@ -39,9 +39,7 @@ pub(crate) async fn get_database_data_handler(
     .await?;
   let database_editor = manager.get_or_init_database_editor(&database_id).await?;
   let start = std::time::Instant::now();
-  let data = database_editor
-    .open_database_view(view_id.as_ref(), None)
-    .await?;
+  let data = database_editor.open_database_view(view_id.as_ref()).await?;
   info!(
     "[Database]: {} layout: {:?}, rows: {}, fields: {}, cost time: {} milliseconds",
     database_id,
@@ -1355,8 +1353,9 @@ pub(crate) async fn rename_media_cell_file_handler(
     .get_field(&cell_id.field_id)
     .await
     .ok_or_else(FlowyError::record_not_found)?;
-  let handler = TypeOptionCellExt::new(&field, None)
-    .get_type_option_cell_data_handler_with_field_type(FieldType::Media);
+
+  let handler = TypeOptionCellExt::new(&field, None, database_editor.type_option_handlers.clone())
+    .get_type_option_cell_data_handler(FieldType::Media);
   if handler.is_none() {
     return Err(
       FlowyError::internal().with_context("Error renaming media file: field type is not Media"),

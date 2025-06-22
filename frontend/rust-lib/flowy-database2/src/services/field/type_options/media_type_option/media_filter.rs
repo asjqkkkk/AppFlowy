@@ -1,5 +1,7 @@
 use collab_database::{fields::Field, rows::Cell};
+use std::sync::Arc;
 
+use crate::services::field::TypeOptionHandlerCache;
 use crate::{
   entities::{MediaFilterConditionPB, MediaFilterPB},
   services::filter::PreFillCellsWithFilter,
@@ -16,7 +18,11 @@ impl MediaFilterPB {
 }
 
 impl PreFillCellsWithFilter for MediaFilterPB {
-  fn get_compliant_cell(&self, _field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     None
   }
 }

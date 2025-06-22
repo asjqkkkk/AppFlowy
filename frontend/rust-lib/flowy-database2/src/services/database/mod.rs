@@ -1,6 +1,7 @@
 mod database_editor;
 mod database_observe;
 mod database_row_collab_service;
+mod database_view_trait_impl;
 mod entities;
 mod util;
 

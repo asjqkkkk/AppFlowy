@@ -2,7 +2,11 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::{DatabaseViewChanged, notify_did_update_calculation};
+use super::{
+  CalculationOperations, CellOperations, DatabaseOperations, DatabaseViewChanged, FieldOperations,
+  FilterOperations, GroupOperations, LayoutOperations, RowOperations, SortOperations,
+  UtilityOperations, ViewOperations, notify_did_update_calculation,
+};
 use crate::entities::{
   CalculationChangesetNotificationPB, CalendarEventPB, CreateRowPayloadPB, DatabaseLayoutMetaPB,
   DatabaseLayoutSettingPB, DeleteSortPayloadPB, FieldSettingsChangesetPB, FieldType,
@@ -17,7 +21,6 @@ use crate::services::database::{DatabaseRowEvent, UpdatedRow, database_view_sett
 use crate::services::database_view::view_calculations::make_calculations_controller;
 use crate::services::database_view::view_filter::make_filter_controller;
 use crate::services::database_view::view_group::{get_cell_for_row, new_group_controller};
-use crate::services::database_view::view_operation::DatabaseViewOperation;
 use crate::services::database_view::view_sort::make_sort_controller;
 use crate::services::database_view::{
   DatabaseLayoutDepsResolver, DatabaseViewChangedNotifier, DatabaseViewChangedReceiverRunner,
@@ -39,6 +42,7 @@ use collab_database::views::{DatabaseLayout, RowOrder};
 use dashmap::DashMap;
 use flowy_error::{FlowyError, FlowyResult};
 
+use crate::services::field::TypeOptionHandlerCache;
 use lib_infra::util::timestamp;
 use tokio::sync::{RwLock, broadcast};
 use tracing::{error, instrument, trace, warn};
@@ -46,7 +50,18 @@ use tracing::{error, instrument, trace, warn};
 pub struct DatabaseViewEditor {
   database_id: String,
   pub view_id: String,
-  delegate: Arc<dyn DatabaseViewOperation>,
+  // Separated operations for different functional areas
+  database_ops: Arc<dyn DatabaseOperations>,
+  view_ops: Arc<dyn ViewOperations>,
+  field_ops: Arc<dyn FieldOperations>,
+  row_ops: Arc<dyn RowOperations>,
+  cell_ops: Arc<dyn CellOperations>,
+  group_ops: Arc<dyn GroupOperations>,
+  sort_ops: Arc<dyn SortOperations>,
+  filter_ops: Arc<dyn FilterOperations>,
+  calculation_ops: Arc<dyn CalculationOperations>,
+  layout_ops: Arc<dyn LayoutOperations>,
+
   group_controller: Arc<RwLock<Option<Box<dyn GroupController>>>>,
   filter_controller: Arc<FilterController>,
   sort_controller: Arc<RwLock<SortController>>,
@@ -59,6 +74,7 @@ pub struct DatabaseViewEditor {
   pub(crate) row_orders: RwLock<Vec<RowOrder>>,
   pub(crate) row_by_row_id: DashMap<String, Arc<Row>>,
   pub notifier: DatabaseViewChangedNotifier,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 }
 
 impl Drop for DatabaseViewEditor {
@@ -73,14 +89,26 @@ impl DatabaseViewEditor {
   /// After creating the editor, you must call [DatabaseViewEditor::initialize] to properly initialize it.
   /// This initialization step will load essential data, such as group information.
   ///
-  /// Avoid calling any methods of [DatabaseViewOperation] before the editor is fully initialized,
+  /// Avoid calling any methods before the editor is fully initialized,
   /// as some actions may rely on the current editor state. Failing to follow this order could result
   /// in unexpected behavior, including potential deadlocks.
+  #[allow(clippy::too_many_arguments)]
   pub async fn new(
     database_id: String,
     view_id: String,
-    delegate: Arc<dyn DatabaseViewOperation>,
+    database_ops: Arc<dyn DatabaseOperations>,
+    view_ops: Arc<dyn ViewOperations>,
+    field_ops: Arc<dyn FieldOperations>,
+    row_ops: Arc<dyn RowOperations>,
+    cell_ops: Arc<dyn CellOperations>,
+    group_ops: Arc<dyn GroupOperations>,
+    sort_ops: Arc<dyn SortOperations>,
+    filter_ops: Arc<dyn FilterOperations>,
+    calculation_ops: Arc<dyn CalculationOperations>,
+    layout_ops: Arc<dyn LayoutOperations>,
+    utility_ops: Arc<dyn UtilityOperations>,
     cell_cache: CellCache,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> FlowyResult<Self> {
     let (notifier, _) = broadcast::channel(100);
     tokio::spawn(DatabaseViewChangedReceiverRunner(Some(notifier.subscribe())).run());
@@ -88,19 +116,27 @@ impl DatabaseViewEditor {
     // Filter
     let filter_controller = make_filter_controller(
       &view_id,
-      delegate.clone(),
+      field_ops.clone(),
+      row_ops.clone(),
+      filter_ops.clone(),
+      utility_ops.clone(),
       notifier.clone(),
       cell_cache.clone(),
+      type_option_handlers.clone(),
     )
     .await;
 
     // Sort
     let sort_controller = make_sort_controller(
       &view_id,
-      delegate.clone(),
+      field_ops.clone(),
+      row_ops.clone(),
+      sort_ops.clone(),
+      utility_ops.clone(),
       notifier.clone(),
       filter_controller.clone(),
       cell_cache,
+      type_option_handlers.clone(),
     )
     .await;
 
@@ -108,21 +144,43 @@ impl DatabaseViewEditor {
     let group_controller = Arc::new(RwLock::new(
       new_group_controller(
         view_id.clone(),
-        delegate.clone(),
+        field_ops.clone(),
+        row_ops.clone(),
+        cell_ops.clone(),
+        group_ops.clone(),
+        layout_ops.clone(),
         filter_controller.clone(),
         None,
+        type_option_handlers.clone(),
       )
       .await?,
     ));
 
     // Calculations
-    let calculations_controller =
-      make_calculations_controller(&view_id, delegate.clone(), notifier.clone()).await;
+    let calculations_controller = make_calculations_controller(
+      &view_id,
+      field_ops.clone(),
+      cell_ops.clone(),
+      calculation_ops.clone(),
+      utility_ops.clone(),
+      notifier.clone(),
+      type_option_handlers.clone(),
+    )
+    .await;
 
     Ok(Self {
       database_id,
       view_id,
-      delegate,
+      database_ops,
+      view_ops,
+      field_ops,
+      row_ops,
+      cell_ops,
+      group_ops,
+      sort_ops,
+      filter_ops,
+      calculation_ops,
+      layout_ops,
       group_controller,
       filter_controller,
       sort_controller,
@@ -130,6 +188,7 @@ impl DatabaseViewEditor {
       row_orders: Default::default(),
       row_by_row_id: Default::default(),
       notifier,
+      type_option_handlers,
     })
   }
 
@@ -139,7 +198,6 @@ impl DatabaseViewEditor {
     if let Some(group) = self.group_controller.write().await.as_mut() {
       group.load_group_data().await?;
     }
-
     Ok(())
   }
 
@@ -164,7 +222,7 @@ impl DatabaseViewEditor {
   }
 
   pub async fn get_all_row_orders(&self) -> FlowyResult<Vec<RowOrder>> {
-    let row_orders = self.delegate.get_all_row_orders(&self.view_id).await;
+    let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
     Ok(row_orders)
   }
 
@@ -183,7 +241,7 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_get_view(&self) -> Option<DatabaseView> {
-    self.delegate.get_view(&self.view_id).await
+    self.view_ops.get_view(&self.view_id).await
   }
 
   pub async fn v_will_create_row(
@@ -204,18 +262,22 @@ impl DatabaseViewEditor {
     };
 
     // fill in cells from the frontend
-    let fields = self.delegate.get_fields(&params.view_id, None).await;
-    let mut cells = CellBuilder::with_cells(params.data, &fields).build();
+    let fields = self
+      .field_ops
+      .get_multiple_fields(&params.view_id, None)
+      .await;
+    let mut cells =
+      CellBuilder::with_cells(params.data, &fields, self.type_option_handlers.clone())?.build();
 
     // fill in cells according to group_id if supplied
     if let Some(group_id) = params.group_id {
       if let Some(controller) = self.group_controller.read().await.as_ref() {
         let field = self
-          .delegate
+          .field_ops
           .get_field(controller.get_grouping_field_id())
           .await
           .ok_or_else(|| FlowyError::internal().with_context("Failed to get grouping field"))?;
-        controller.will_create_row(&mut cells, &field, &group_id);
+        controller.will_create_row(&mut cells, &field, &group_id)?;
       }
     }
 
@@ -321,7 +383,7 @@ impl DatabaseViewEditor {
   pub async fn v_did_update_row(&self, old_row: &Option<Row>, row: &Row, field_id: Option<String>) {
     if let Some(controller) = self.group_controller.write().await.as_mut() {
       let field = self
-        .delegate
+        .field_ops
         .get_field(controller.get_grouping_field_id())
         .await;
 
@@ -402,16 +464,16 @@ impl DatabaseViewEditor {
 
   #[instrument(level = "info", skip(self))]
   pub async fn v_get_all_rows(&self) -> Vec<Arc<Row>> {
-    let row_orders = self.delegate.get_all_row_orders(&self.view_id).await;
-    let rows = self.delegate.get_all_rows(&self.view_id, row_orders).await;
+    let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
+    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
     let mut rows = self.v_filter_rows(rows).await;
     self.v_sort_rows(&mut rows).await;
     rows
   }
 
   pub async fn v_get_cells_for_field(&self, field_id: &str) -> Vec<RowCell> {
-    let row_orders = self.delegate.get_all_row_orders(&self.view_id).await;
-    let rows = self.delegate.get_all_rows(&self.view_id, row_orders).await;
+    let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
+    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
     let rows = self.v_filter_rows(rows).await;
     let rows = rows
       .into_iter()
@@ -431,7 +493,7 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_get_row(&self, row_id: &RowId) -> Option<(usize, Arc<RowDetail>)> {
-    self.delegate.get_row_detail(&self.view_id, row_id).await
+    self.row_ops.get_row_detail(&self.view_id, row_id).await
   }
 
   pub async fn v_move_group_row(
@@ -470,7 +532,7 @@ impl DatabaseViewEditor {
       .into_iter()
       .map(|group_data| GroupPB::from(group_data.clone()))
       .collect::<Vec<_>>();
-    tracing::trace!("Number of groups: {}", groups.len());
+    trace!("Number of groups: {}", groups.len());
     Some(groups)
   }
 
@@ -505,7 +567,7 @@ impl DatabaseViewEditor {
 
   /// Called when the user changes the grouping field
   pub async fn v_initialize_new_group(&self, field_id: &str) -> FlowyResult<()> {
-    if let Some(view) = self.delegate.get_view(&self.view_id).await {
+    if let Some(view) = self.view_ops.get_view(&self.view_id).await {
       let setting = database_view_setting_pb_from_view(view);
       notify_did_update_setting(&self.view_id, setting).await;
     }
@@ -519,7 +581,7 @@ impl DatabaseViewEditor {
     let result = if let Some(controller) = self.group_controller.write().await.as_mut() {
       let create_group_results = controller.create_group(name.to_string()).await?;
       old_field = self
-        .delegate
+        .field_ops
         .get_field(controller.get_grouping_field_id())
         .await;
       create_group_results
@@ -530,7 +592,7 @@ impl DatabaseViewEditor {
     if let Some(old_field) = old_field {
       if let (Some(type_option_data), Some(payload)) = result {
         self
-          .delegate
+          .field_ops
           .update_field(type_option_data, old_field)
           .await?;
 
@@ -555,7 +617,7 @@ impl DatabaseViewEditor {
     };
 
     let old_field = self
-      .delegate
+      .field_ops
       .get_field(controller.get_grouping_field_id())
       .await;
     let (row_ids, type_option_data) = controller.delete_group(group_id).await?;
@@ -565,12 +627,12 @@ impl DatabaseViewEditor {
     let mut changes = RowsChangePB::default();
     if let Some(field) = old_field {
       for row_id in row_ids {
-        self.delegate.remove_row(&row_id).await;
+        self.row_ops.remove_row(&row_id).await;
         changes.deleted_rows.push(row_id.to_string());
       }
 
       if let Some(type_option) = type_option_data {
-        self.delegate.update_field(type_option, field).await?;
+        self.field_ops.update_field(type_option, field).await?;
       }
       let notification = GroupChangesPB {
         view_id: self.view_id.clone(),
@@ -589,7 +651,7 @@ impl DatabaseViewEditor {
       self.group_controller.write().await.as_mut()
     {
       let old_field = self
-        .delegate
+        .field_ops
         .get_field(controller.get_grouping_field_id())
         .await;
       let (updated_groups, new_type_option) = controller.apply_group_changeset(&changeset).await?;
@@ -606,7 +668,7 @@ impl DatabaseViewEditor {
     if let Some(old_field) = old_field {
       if let Some(type_option_data) = type_option_data {
         self
-          .delegate
+          .field_ops
           .update_field(type_option_data, old_field)
           .await?;
       }
@@ -622,7 +684,7 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_get_all_sorts(&self) -> Vec<Sort> {
-    self.delegate.get_all_sorts(&self.view_id).await
+    self.sort_ops.get_all_sorts(&self.view_id).await
   }
 
   #[tracing::instrument(level = "trace", skip(self), err)]
@@ -639,7 +701,7 @@ impl DatabaseViewEditor {
       condition: params.condition.into(),
     };
 
-    self.delegate.insert_sort(&self.view_id, sort.clone()).await;
+    self.sort_ops.insert_sort(&self.view_id, sort.clone()).await;
     let mut sort_controller = self.sort_controller.write().await;
     let notification = if is_exist {
       sort_controller
@@ -657,7 +719,7 @@ impl DatabaseViewEditor {
 
   pub async fn v_reorder_sort(&self, params: ReorderSortPayloadPB) -> FlowyResult<()> {
     self
-      .delegate
+      .sort_ops
       .move_sort(&self.view_id, &params.from_sort_id, &params.to_sort_id)
       .await;
 
@@ -684,7 +746,7 @@ impl DatabaseViewEditor {
       .await;
 
     self
-      .delegate
+      .sort_ops
       .remove_sort(&self.view_id, &params.sort_id)
       .await;
     notify_did_update_sort(notification).await;
@@ -693,15 +755,14 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_update_calculate(&self, field_id: &str) -> Option<()> {
-    let field = self.delegate.get_field(field_id).await?;
+    let field = self.field_ops.get_field(field_id).await?;
     let cal = self
-      .delegate
+      .calculation_ops
       .get_calculation(&self.view_id, &field.id)
       .await?;
 
     let cells = self
-      .delegate
-      .get_cells_for_field(&self.view_id, field_id)
+      .v_get_cells_for_field(field_id)
       .await
       .into_iter()
       .flat_map(|row_cell| row_cell.cell.map(Arc::new))
@@ -733,7 +794,7 @@ impl DatabaseViewEditor {
     let fields_with_calculations: Vec<(&Field, Calculation)> =
       futures::future::join_all(fields.iter().map(|field| async move {
         self
-          .delegate
+          .calculation_ops
           .get_calculation(&self.view_id, &field.id)
           .await
           .map(|cal| (field, cal))
@@ -786,7 +847,7 @@ impl DatabaseViewEditor {
     let all_sorts = self.v_get_all_sorts().await;
     self.sort_controller.write().await.delete_all_sorts().await;
 
-    self.delegate.remove_all_sorts(&self.view_id).await;
+    self.sort_ops.remove_all_sorts(&self.view_id).await;
     let mut notification = SortChangesetNotificationPB::new(self.view_id.clone());
     notification.delete_sorts = all_sorts.into_iter().map(SortPB::from).collect();
     notify_did_update_sort(notification).await;
@@ -794,7 +855,10 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_get_all_calculations(&self) -> Vec<Arc<Calculation>> {
-    self.delegate.get_all_calculations(&self.view_id).await
+    self
+      .calculation_ops
+      .get_all_calculations(&self.view_id)
+      .await
   }
 
   pub async fn v_update_calculations(
@@ -820,7 +884,7 @@ impl DatabaseViewEditor {
         for insert in changeset.insert_calculations.clone() {
           let calculation: Calculation = Calculation::from(&insert);
           self
-            .delegate
+            .calculation_ops
             .update_calculation(&params.view_id, calculation)
             .await;
         }
@@ -837,7 +901,7 @@ impl DatabaseViewEditor {
     params: RemoveCalculationChangesetPB,
   ) -> FlowyResult<()> {
     self
-      .delegate
+      .calculation_ops
       .remove_calculation(&params.view_id, &params.calculation_id)
       .await;
 
@@ -856,11 +920,11 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_get_all_filters(&self) -> Vec<Filter> {
-    self.delegate.get_all_filters(&self.view_id).await
+    self.filter_ops.get_all_filters(&self.view_id).await
   }
 
   pub async fn v_get_filter(&self, filter_id: &str) -> Option<Filter> {
-    self.delegate.get_filter(&self.view_id, filter_id).await
+    self.filter_ops.get_filter(&self.view_id, filter_id).await
   }
 
   #[tracing::instrument(level = "trace", skip(self), err)]
@@ -878,9 +942,12 @@ impl DatabaseViewEditor {
       self.v_group_by_field(&field_id).await?;
     }
 
-    let row_orders = self.delegate.get_all_row_orders(&self.view_id).await;
-    let rows = self.delegate.get_all_rows(&self.view_id, row_orders).await;
-    let fields = self.delegate.get_fields(&self.view_id, None).await;
+    let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
+    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
+    let fields = self
+      .field_ops
+      .get_multiple_fields(&self.view_id, None)
+      .await;
     self.v_calculate_rows(fields, rows).await?;
     Ok(())
   }
@@ -893,7 +960,7 @@ impl DatabaseViewEditor {
       DatabaseLayout::Grid => {},
       DatabaseLayout::Board => {
         if let Some(value) = self
-          .delegate
+          .layout_ops
           .get_layout_setting(&self.view_id, layout_ty)
           .await
         {
@@ -902,13 +969,13 @@ impl DatabaseViewEditor {
       },
       DatabaseLayout::Calendar => {
         if let Some(value) = self
-          .delegate
+          .layout_ops
           .get_layout_setting(&self.view_id, layout_ty)
           .await
         {
           let calendar_setting = CalendarLayoutSetting::from(value);
           // Check the field exist or not
-          if let Some(field) = self.delegate.get_field(&calendar_setting.field_id).await {
+          if let Some(field) = self.field_ops.get_field(&calendar_setting.field_id).await {
             let field_type = FieldType::from(field.field_type);
 
             // Check the type of field is Datetime or not
@@ -938,7 +1005,7 @@ impl DatabaseViewEditor {
         let layout_setting = params.board.unwrap();
 
         self
-          .delegate
+          .layout_ops
           .insert_layout_setting(
             &self.view_id,
             &params.layout_type,
@@ -951,13 +1018,13 @@ impl DatabaseViewEditor {
       DatabaseLayout::Calendar => {
         let layout_setting = params.calendar.unwrap();
 
-        if let Some(field) = self.delegate.get_field(&layout_setting.field_id).await {
+        if let Some(field) = self.field_ops.get_field(&layout_setting.field_id).await {
           if FieldType::from(field.field_type) != FieldType::DateTime {
             return Err(FlowyError::unexpect_calendar_field_type());
           }
 
           self
-            .delegate
+            .layout_ops
             .insert_layout_setting(
               &self.view_id,
               &params.layout_type,
@@ -989,10 +1056,10 @@ impl DatabaseViewEditor {
     let notification = self.filter_controller.apply_changeset(changeset).await;
     notify_did_update_filter(notification).await;
 
-    let sorts = self.delegate.get_all_sorts(&self.view_id).await;
+    let sorts = self.sort_ops.get_all_sorts(&self.view_id).await;
 
     if let Some(sort) = sorts.iter().find(|sort| sort.field_id == deleted_field_id) {
-      self.delegate.remove_sort(&self.view_id, &sort.id).await;
+      self.sort_ops.remove_sort(&self.view_id, &sort.id).await;
       let notification = self
         .sort_controller
         .write()
@@ -1040,7 +1107,7 @@ impl DatabaseViewEditor {
   pub async fn v_did_update_field_type_option(&self, old_field: &Field) -> FlowyResult<()> {
     let field_id = &old_field.id;
 
-    if let Some(field) = self.delegate.get_field(field_id).await {
+    if let Some(field) = self.field_ops.get_field(field_id).await {
       self
         .sort_controller
         .read()
@@ -1066,45 +1133,49 @@ impl DatabaseViewEditor {
   /// Called when a grouping field is updated.
   #[tracing::instrument(level = "debug", skip_all, err)]
   pub async fn v_group_by_field(&self, field_id: &str) -> FlowyResult<()> {
-    if let Some(field) = self.delegate.get_field(field_id).await {
-      tracing::trace!("create new group controller");
+    let field = self
+      .field_ops
+      .get_field(field_id)
+      .await
+      .ok_or_else(|| FlowyError::internal().with_context("can not find the grouping field"))?;
 
-      let mut new_group_controller = new_group_controller(
-        self.view_id.clone(),
-        self.delegate.clone(),
-        self.filter_controller.clone(),
-        Some(field),
-      )
-      .await?;
+    let mut new_group_controller = new_group_controller(
+      self.view_id.clone(),
+      self.field_ops.clone(),
+      self.row_ops.clone(),
+      self.cell_ops.clone(),
+      self.group_ops.clone(),
+      self.layout_ops.clone(),
+      self.filter_controller.clone(),
+      Some(field),
+      self.type_option_handlers.clone(),
+    )
+    .await?;
 
-      if let Some(controller) = &mut new_group_controller {
-        (*controller).load_group_data().await?;
+    if let Some(controller) = &mut new_group_controller {
+      (*controller).load_group_data().await?;
 
-        let new_groups = controller
-          .get_all_groups()
-          .into_iter()
-          .map(|group| GroupPB::from(group.clone()))
-          .collect();
+      let new_groups = controller
+        .get_all_groups()
+        .into_iter()
+        .map(|group| GroupPB::from(group.clone()))
+        .collect();
 
-        let changeset = GroupChangesPB {
-          view_id: self.view_id.clone(),
-          initial_groups: new_groups,
-          ..Default::default()
-        };
+      let changeset = GroupChangesPB {
+        view_id: self.view_id.clone(),
+        initial_groups: new_groups,
+        ..Default::default()
+      };
 
-        debug_assert!(!changeset.is_empty());
-        if !changeset.is_empty() {
-          database_notification_builder(&changeset.view_id, DatabaseNotification::DidGroupByField)
-            .payload(changeset)
-            .send();
-        }
+      debug_assert!(!changeset.is_empty());
+      if !changeset.is_empty() {
+        database_notification_builder(&changeset.view_id, DatabaseNotification::DidGroupByField)
+          .payload(changeset)
+          .send();
       }
-
-      *self.group_controller.write().await = new_group_controller;
-
-      tracing::trace!("did write group_controller to cache");
     }
 
+    *self.group_controller.write().await = new_group_controller;
     Ok(())
   }
 
@@ -1113,13 +1184,27 @@ impl DatabaseViewEditor {
     let calendar_setting = self.v_get_layout_settings(&layout_ty).await.calendar?;
 
     // Text
-    let primary_field = self.delegate.get_primary_field().await?;
-    let text_cell = get_cell_for_row(self.delegate.clone(), &primary_field.id, &row_id).await?;
+    let primary_field = self.field_ops.get_primary_field().await?;
+    let text_cell = get_cell_for_row(
+      self.field_ops.clone(),
+      self.cell_ops.clone(),
+      &primary_field.id,
+      &row_id,
+      self.type_option_handlers.clone(),
+    )
+    .await?;
 
     // Date
-    let date_field = self.delegate.get_field(&calendar_setting.field_id).await?;
+    let date_field = self.field_ops.get_field(&calendar_setting.field_id).await?;
 
-    let date_cell = get_cell_for_row(self.delegate.clone(), &date_field.id, &row_id).await?;
+    let date_cell = get_cell_for_row(
+      self.field_ops.clone(),
+      self.cell_ops.clone(),
+      &date_field.id,
+      &row_id,
+      self.type_option_handlers.clone(),
+    )
+    .await?;
     let title = text_cell
       .into_text_field_cell_data()
       .unwrap_or_default()
@@ -1130,7 +1215,7 @@ impl DatabaseViewEditor {
       .unwrap_or_default()
       .timestamp;
 
-    let (_, row_detail) = self.delegate.get_row_detail(&self.view_id, &row_id).await?;
+    let (_, row_detail) = self.row_ops.get_row_detail(&self.view_id, &row_id).await?;
 
     Some(CalendarEventPB {
       row_meta: RowMetaPB::from(row_detail.as_ref().clone()),
@@ -1154,16 +1239,29 @@ impl DatabaseViewEditor {
       Some(calendar_setting) => calendar_setting,
     };
 
-    let primary_field = self.delegate.get_primary_field().await?;
+    let primary_field = self.field_ops.get_primary_field().await?;
 
     let mut events: Vec<CalendarEventPB> = vec![];
 
     let rows = self.v_get_all_rows().await;
 
     for row in rows {
-      let primary_cell = get_cell_for_row(self.delegate.clone(), &primary_field.id, &row.id).await;
-      let timestamp_cell =
-        get_cell_for_row(self.delegate.clone(), &calendar_setting.field_id, &row.id).await;
+      let primary_cell = get_cell_for_row(
+        self.field_ops.clone(),
+        self.cell_ops.clone(),
+        &primary_field.id,
+        &row.id,
+        self.type_option_handlers.clone(),
+      )
+      .await;
+      let timestamp_cell = get_cell_for_row(
+        self.field_ops.clone(),
+        self.cell_ops.clone(),
+        &calendar_setting.field_id,
+        &row.id,
+        self.type_option_handlers.clone(),
+      )
+      .await;
 
       let timestamp = timestamp_cell
         .and_then(|cell| cell.into_date_field_cell_data())
@@ -1174,7 +1272,7 @@ impl DatabaseViewEditor {
         .map(|cell_data| cell_data.into())
         .unwrap_or_default();
 
-      let (_, row_detail) = self.delegate.get_row_detail(&self.view_id, &row.id).await?;
+      let (_, row_detail) = self.row_ops.get_row_detail(&self.view_id, &row.id).await?;
       let event = CalendarEventPB {
         row_meta: RowMetaPB::from(row_detail.as_ref().clone()),
         date_field_id: calendar_setting.field_id.clone(),
@@ -1189,20 +1287,21 @@ impl DatabaseViewEditor {
   }
 
   pub async fn v_get_layout_type(&self) -> DatabaseLayout {
-    self.delegate.get_layout_for_view(&self.view_id).await
+    self.layout_ops.get_layout_for_view(&self.view_id).await
   }
 
   #[tracing::instrument(level = "trace", skip_all)]
   pub async fn v_update_layout_type(&self, new_layout_type: DatabaseLayout) -> FlowyResult<()> {
     self
-      .delegate
+      .layout_ops
       .update_layout_type(&self.view_id, &new_layout_type)
       .await;
 
     // using the {} brackets to denote the lifetime of the resolver. Because the DatabaseLayoutDepsResolver
     // is not sync and send, so we can't pass it to the async block.
     {
-      let resolver = DatabaseLayoutDepsResolver::new(self.delegate.get_database(), new_layout_type);
+      let resolver =
+        DatabaseLayoutDepsResolver::new(self.database_ops.get_database(), new_layout_type);
       resolver
         .resolve_deps_when_update_layout_type(&self.view_id)
         .await;
@@ -1211,9 +1310,14 @@ impl DatabaseViewEditor {
     // initialize the group controller if the current layout support grouping
     let new_group_controller = match new_group_controller(
       self.view_id.clone(),
-      self.delegate.clone(),
+      self.field_ops.clone(),
+      self.row_ops.clone(),
+      self.cell_ops.clone(),
+      self.group_ops.clone(),
+      self.layout_ops.clone(),
       self.filter_controller.clone(),
       None,
+      self.type_option_handlers.clone(),
     )
     .await?
     {
@@ -1255,13 +1359,17 @@ impl DatabaseViewEditor {
 
   pub async fn v_get_field_settings(&self, field_ids: &[String]) -> HashMap<String, FieldSettings> {
     self
-      .delegate
+      .field_ops
       .get_field_settings(&self.view_id, field_ids)
       .await
   }
 
   pub async fn v_update_field_settings(&self, params: FieldSettingsChangesetPB) -> FlowyResult<()> {
-    self.delegate.update_field_settings(params).await;
+    let layout_type = self.layout_ops.get_layout_for_view(&params.view_id).await;
+    self
+      .field_ops
+      .update_field_settings(params, layout_type)
+      .await?;
     Ok(())
   }
 
@@ -1275,7 +1383,7 @@ impl DatabaseViewEditor {
       .await
       .as_ref()
       .map(|controller| controller.get_grouping_field_id().to_owned())?;
-    let field = self.delegate.get_field(&group_field_id).await?;
+    let field = self.field_ops.get_field(&group_field_id).await?;
     let mut write_guard = self.group_controller.write().await;
     if let Some(group_controller) = &mut *write_guard {
       f(group_controller, field).ok()

@@ -12,7 +12,7 @@ flowy-derive.workspace = true
 protobuf.workspace = true
 bytes.workspace = true
 anyhow.workspace = true
-thiserror = "1.0"
+thiserror = "2.0"
 validator.workspace = true
 tokio = { workspace = true, features = ["sync", "rt"] }
 

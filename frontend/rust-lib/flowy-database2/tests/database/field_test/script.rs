@@ -91,7 +91,7 @@ impl DatabaseFieldTest {
     let row = rows.get(row_index).unwrap();
 
     let cell = row.cells.get(&field_id).unwrap().clone();
-    let content = stringify_cell(&cell, &field);
+    let content = stringify_cell(&cell, &field, self.type_option_handler_cache.clone());
     assert_eq!(content, expected_content);
   }
 }

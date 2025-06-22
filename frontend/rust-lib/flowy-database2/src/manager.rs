@@ -108,6 +108,8 @@ impl DatabaseManager {
         database.close_all_views().await;
       }
     }
+    trace!("[Database lifecycle] Clear all existing database editors");
+
     self.database_editors.clear();
     // 3. Clear the workspace database
     if let Some(old_workspace_database) = self.workspace_database.swap(None) {
@@ -304,13 +306,11 @@ impl DatabaseManager {
         .map(|e| e.value().clone())
       {
         if let Some(editor) = editor_entry.get_resource().await {
+          trace!(
+            "[Database lifecycle]: closing database:{} view: {}",
+            database_id, view_id
+          );
           editor.close_view(view_id).await;
-          editor.close_database().await;
-          let num_views = editor.num_of_opening_views().await;
-          if num_views == 0 {
-            trace!("[Database]: removing database editor: {}", database_id);
-            self.database_editors.remove(&database_id);
-          }
         }
       }
     }
@@ -553,7 +553,10 @@ impl DatabaseManager {
             continue;
           }
           if let Some(cell) = row.cells.get(&field.id) {
-            summary_row_content.insert(field.name.clone(), stringify_cell(cell, &field));
+            summary_row_content.insert(
+              field.name.clone(),
+              stringify_cell(cell, &field, database.type_option_handlers.clone()),
+            );
           }
         }
       }
@@ -606,7 +609,7 @@ impl DatabaseManager {
           if let Some(cell) = row.cells.get(&field.id) {
             translate_row_content.push(TranslateItem {
               title: field.name.clone(),
-              content: stringify_cell(cell, &field),
+              content: stringify_cell(cell, &field, database.type_option_handlers.clone()),
             })
           }
         } else {
@@ -656,47 +659,6 @@ impl DatabaseManager {
     Ok(())
   }
 
-  /// Start a periodic cleanup task to remove old entries from removing_editor
-  fn start_periodic_cleanup(&self) {
-    let weak_database_editors = Arc::downgrade(&self.database_editors);
-    let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
-    let base_timeout = self.removal_timeout;
-
-    tokio::spawn(async move {
-      let mut interval = tokio::time::interval(cleanup_interval);
-      interval.tick().await;
-
-      loop {
-        interval.tick().await;
-        if let Some(database_editors) = weak_database_editors.upgrade() {
-          let mut to_remove = Vec::new();
-          let timeout = base_timeout;
-
-          // Collect entries to remove
-          for entry in database_editors.iter() {
-            let database_id = entry.key();
-            let editor_entry = entry.value();
-            if editor_entry.can_be_removed(timeout).await {
-              debug!(
-                "[Database]: Periodic cleanup: database {} can be removed. timeout duration: {}",
-                database_id,
-                timeout.as_secs()
-              );
-              to_remove.push(database_id.clone());
-            }
-          }
-
-          // Remove expired entries and close databases
-          for database_id in to_remove {
-            database_editors.remove(&database_id);
-          }
-        } else {
-          break;
-        }
-      }
-    });
-  }
-
   async fn get_or_init_database(
     &self,
     database_id: &str,
@@ -709,13 +671,19 @@ impl DatabaseManager {
 
     // Check if we already have the database after acquiring entry
     if let Some(database) = entry.get_resource().await {
-      debug!("Database already initialized: {}", database_id);
+      debug!(
+        "[Database lifecycle] Database already initialized: {}",
+        database_id
+      );
       return Ok(database);
     }
 
     // Try to start initialization
-    if entry.try_mark_initialization_start().await {
-      debug!("Initializing database: {}", database_id);
+    if entry.should_initialize().await {
+      debug!(
+        "[Database lifecycle] Initializing database: {}",
+        database_id
+      );
       let collab_service = self.get_collab_service().await?;
       let changed_collab_rx = collab_service.subscribe_changed_collab().await?;
       let context = DatabaseContext::new(
@@ -736,18 +704,24 @@ impl DatabaseManager {
 
           // Store the database in the entry
           entry.set_resource(editor.clone()).await;
-          trace!("Database opened and stored: {}", database_id);
+          trace!(
+            "[Database lifecycle] Database opened and stored: {}",
+            database_id
+          );
           Ok(editor)
         },
         Err(err) => {
-          error!("Open database failed: {}", err);
+          error!("[Database lifecycle] Open database failed: {}", err);
           entry.mark_initialization_failed(err.to_string()).await;
           Err(FlowyError::internal().with_context(err))
         },
       }
     } else {
       // Another task is initializing, wait for it to complete
-      debug!("Waiting for database initialization: {}", database_id);
+      debug!(
+        "[Database lifecycle] Waiting for database initialization: {}",
+        database_id
+      );
       match entry.wait_for_initialization(Duration::from_secs(10)).await {
         Ok(database) => {
           debug!("Database initialization completed: {}", database_id);
@@ -806,6 +780,60 @@ impl DatabaseManager {
       .workspace_database
       .load_full()
       .ok_or_else(|| FlowyError::internal().with_context("Workspace database not initialized"))
+  }
+
+  /// Start a periodic cleanup task to remove old entries from removing_editor
+  fn start_periodic_cleanup(&self) {
+    let weak_database_editors = Arc::downgrade(&self.database_editors);
+    let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
+    let base_timeout = self.removal_timeout;
+
+    tokio::spawn(async move {
+      let mut interval = tokio::time::interval(cleanup_interval);
+      interval.tick().await;
+
+      loop {
+        interval.tick().await;
+        if let Some(database_editors) = weak_database_editors.upgrade() {
+          let mut to_remove = Vec::new();
+          let timeout = base_timeout;
+          trace!(
+            "[Database lifecycle] {} num opened database",
+            database_editors.len()
+          );
+
+          for entry in database_editors.iter() {
+            let database_id = entry.key();
+            if entry.value().can_be_removed(timeout).await {
+              if let Some(resource) = entry.value().get_resource().await {
+                let num_views = resource.num_of_opening_views().await;
+                trace!(
+                  "[Database lifecycle]: Periodic cleanup: database {} has {} opening views",
+                  database_id, num_views
+                );
+                if num_views > 0 {
+                  continue;
+                }
+              }
+
+              info!(
+                "[Database lifecycle]: Periodic cleanup: database {} can be removed. timeout duration: {}",
+                database_id,
+                timeout.as_secs()
+              );
+              to_remove.push(database_id.clone());
+            }
+          }
+
+          // Remove expired entries and close databases
+          for database_id in to_remove {
+            database_editors.remove(&database_id);
+          }
+        } else {
+          break;
+        }
+      }
+    });
   }
 }
 

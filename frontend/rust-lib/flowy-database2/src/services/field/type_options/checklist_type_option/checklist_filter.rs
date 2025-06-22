@@ -7,7 +7,9 @@ use collab_database::fields::select_type_option::SelectOption;
 use collab_database::rows::Cell;
 use collab_database::template::check_list_parse::ChecklistCellData;
 
+use crate::services::field::TypeOptionHandlerCache;
 use std::fmt::Debug;
+use std::sync::Arc;
 
 impl ChecklistFilterPB {
   pub fn is_visible(
@@ -47,7 +49,11 @@ impl ChecklistFilterPB {
 }
 
 impl PreFillCellsWithFilter for ChecklistFilterPB {
-  fn get_compliant_cell(&self, _field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     None
   }
 }

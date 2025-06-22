@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use std::str::FromStr;
-
 use collab_database::fields::Field;
 use collab_database::fields::media_type_option::MediaCellData;
 use collab_database::fields::select_type_option::SelectOptionIds;
@@ -8,6 +5,9 @@ use collab_database::rows::{Cell, Cells, get_field_type_from_cell};
 use collab_database::template::relation_parse::RelationCellData;
 use flowy_error::{FlowyError, FlowyResult};
 use lib_infra::box_any::BoxAny;
+use std::collections::HashMap;
+use std::str::FromStr;
+use std::sync::Arc;
 use tracing::trace;
 
 use crate::entities::{CheckboxCellDataPB, FieldType};
@@ -46,6 +46,7 @@ pub trait CellDataDecoder: TypeOption {
     _cell: &Cell,
     _from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     None
   }
@@ -89,8 +90,12 @@ pub fn apply_cell_changeset(
   cell: Option<Cell>,
   field: &Field,
   cell_data_cache: Option<CellCache>,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Result<Cell, FlowyError> {
-  match TypeOptionCellExt::new(field, cell_data_cache).get_type_option_cell_data_handler() {
+  let field_type = FieldType::from(field.field_type);
+  match TypeOptionCellExt::new_with_handler_cache(field, cell_data_cache, type_option_handlers)
+    .get_type_option_cell_data_handler(field_type)
+  {
     None => Ok(Cell::default()),
     Some(handler) => Ok(handler.handle_cell_changeset(changeset, cell, field)?),
   }
@@ -112,8 +117,12 @@ pub fn get_cell_protobuf(
   cell: &Cell,
   field: &Field,
   cell_data_cache: Option<CellCache>,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> CellProtobufBlob {
-  match TypeOptionCellExt::new(field, cell_data_cache).get_type_option_cell_data_handler() {
+  let field_type = FieldType::from(field.field_type);
+  match TypeOptionCellExt::new_with_handler_cache(field, cell_data_cache, type_option_handlers)
+    .get_type_option_cell_data_handler(field_type)
+  {
     None => CellProtobufBlob::default(),
     Some(handler) => handler
       .handle_get_protobuf_cell_data(cell, field)
@@ -129,10 +138,14 @@ pub fn get_cell_protobuf(
 /// * `cell`: the opaque cell string that can be decoded by corresponding structs
 /// * `field`: used to get the corresponding TypeOption for the specified field type.
 ///
-pub fn stringify_cell(cell: &Cell, field: &Field) -> String {
+pub fn stringify_cell(
+  cell: &Cell,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> String {
   if let Some(field_type_of_cell) = get_field_type_from_cell::<FieldType>(cell) {
-    TypeOptionCellExt::new(field, None)
-      .get_type_option_cell_data_handler_with_field_type(field_type_of_cell)
+    TypeOptionCellExt::new(field, None, type_option_handlers)
+      .get_type_option_cell_data_handler(field_type_of_cell)
       .map(|handler| handler.handle_stringify_cell(cell, field))
       .unwrap_or_default()
   } else {
@@ -140,15 +153,33 @@ pub fn stringify_cell(cell: &Cell, field: &Field) -> String {
   }
 }
 
-pub fn insert_text_cell(s: String, field: &Field) -> Cell {
-  apply_cell_changeset(BoxAny::new(s), None, field, None).unwrap()
+pub fn insert_text_cell(
+  s: String,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
+  apply_cell_changeset(BoxAny::new(s), None, field, None, type_option_handlers)
 }
 
-pub fn insert_number_cell(num: i64, field: &Field) -> Cell {
-  apply_cell_changeset(BoxAny::new(num.to_string()), None, field, None).unwrap()
+pub fn insert_number_cell(
+  num: i64,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
+  apply_cell_changeset(
+    BoxAny::new(num.to_string()),
+    None,
+    field,
+    None,
+    type_option_handlers,
+  )
 }
 
-pub fn insert_url_cell(url: String, field: &Field) -> Cell {
+pub fn insert_url_cell(
+  url: String,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
   // checking if url is equal to group id of no status group because everywhere
   // except group of rows with empty url the group id is equal to the url
   // so then on the case that url is equal to empty url group id we should change
@@ -159,16 +190,20 @@ pub fn insert_url_cell(url: String, field: &Field) -> Cell {
     _ => url,
   };
 
-  apply_cell_changeset(BoxAny::new(url), None, field, None).unwrap()
+  apply_cell_changeset(BoxAny::new(url), None, field, None, type_option_handlers)
 }
 
-pub fn insert_checkbox_cell(is_checked: bool, field: &Field) -> Cell {
+pub fn insert_checkbox_cell(
+  is_checked: bool,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
   let s = if is_checked {
     CHECK.to_string()
   } else {
     UNCHECK.to_string()
   };
-  apply_cell_changeset(BoxAny::new(s), None, field, None).unwrap()
+  apply_cell_changeset(BoxAny::new(s), None, field, None, type_option_handlers)
 }
 
 pub fn insert_date_cell(
@@ -176,45 +211,84 @@ pub fn insert_date_cell(
   end_timestamp: Option<i64>,
   include_time: Option<bool>,
   field: &Field,
-) -> Cell {
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
   let cell_data = DateCellChangeset {
     timestamp: Some(timestamp),
     end_timestamp,
     include_time,
     ..Default::default()
   };
-  apply_cell_changeset(BoxAny::new(cell_data), None, field, None).unwrap()
+  apply_cell_changeset(
+    BoxAny::new(cell_data),
+    None,
+    field,
+    None,
+    type_option_handlers,
+  )
 }
 
-pub fn insert_select_option_cell(option_ids: Vec<String>, field: &Field) -> Cell {
+pub fn insert_select_option_cell(
+  option_ids: Vec<String>,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
   let changeset = SelectOptionCellChangeset::from_insert_options(option_ids);
-  apply_cell_changeset(BoxAny::new(changeset), None, field, None).unwrap()
+  apply_cell_changeset(
+    BoxAny::new(changeset),
+    None,
+    field,
+    None,
+    type_option_handlers,
+  )
 }
 
 pub fn insert_checklist_cell(
   insert_options: Vec<ChecklistCellInsertChangeset>,
   field: &Field,
-) -> Cell {
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
   let changeset = ChecklistCellChangeset {
     insert_tasks: insert_options,
     ..Default::default()
   };
-  apply_cell_changeset(BoxAny::new(changeset), None, field, None).unwrap()
+  apply_cell_changeset(
+    BoxAny::new(changeset),
+    None,
+    field,
+    None,
+    type_option_handlers,
+  )
 }
 
-pub fn delete_select_option_cell(option_ids: Vec<String>, field: &Field) -> Cell {
+pub fn delete_select_option_cell(
+  option_ids: Vec<String>,
+  field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+) -> FlowyResult<Cell> {
   let changeset = SelectOptionCellChangeset::from_delete_options(option_ids);
-  apply_cell_changeset(BoxAny::new(changeset), None, field, None).unwrap()
+  apply_cell_changeset(
+    BoxAny::new(changeset),
+    None,
+    field,
+    None,
+    type_option_handlers,
+  )
 }
 
 pub struct CellBuilder<'a> {
   cells: Cells,
   field_maps: HashMap<String, &'a Field>,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 }
 
 impl<'a> CellBuilder<'a> {
   /// Build list of Cells from HashMap of cell string by field id.
-  pub fn with_cells(cell_by_field_id: HashMap<String, String>, fields: &'a [Field]) -> Self {
+  pub fn with_cells(
+    cell_by_field_id: HashMap<String, String>,
+    fields: &'a [Field],
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> FlowyResult<Self> {
     let field_maps = fields
       .iter()
       .map(|field| (field.id.clone(), field))
@@ -227,18 +301,30 @@ impl<'a> CellBuilder<'a> {
         trace!("Field type: {:?}, cell_str: {}", field_type, cell_str);
         match field_type {
           FieldType::RichText | FieldType::Translate | FieldType::Summary => {
-            cells.insert(field_id, insert_text_cell(cell_str, field));
+            cells.insert(
+              field_id,
+              insert_text_cell(cell_str, field, type_option_handlers.clone())?,
+            );
           },
           FieldType::Number | FieldType::Time => {
             if let Ok(num) = cell_str.parse::<i64>() {
-              cells.insert(field_id, insert_number_cell(num, field));
+              cells.insert(
+                field_id,
+                insert_number_cell(num, field, type_option_handlers.clone())?,
+              );
             }
           },
           FieldType::DateTime => {
             if let Ok(timestamp) = cell_str.parse::<i64>() {
               cells.insert(
                 field_id,
-                insert_date_cell(timestamp, None, Some(false), field),
+                insert_date_cell(
+                  timestamp,
+                  None,
+                  Some(false),
+                  field,
+                  type_option_handlers.clone(),
+                )?,
               );
             }
           },
@@ -249,20 +335,32 @@ impl<'a> CellBuilder<'a> {
           },
           FieldType::SingleSelect | FieldType::MultiSelect => {
             if let Ok(ids) = SelectOptionIds::from_str(&cell_str) {
-              cells.insert(field_id, insert_select_option_cell(ids.into_inner(), field));
+              cells.insert(
+                field_id,
+                insert_select_option_cell(ids.into_inner(), field, type_option_handlers.clone())?,
+              );
             }
           },
           FieldType::Checkbox => {
             if let Ok(value) = CheckboxCellDataPB::from_str(&cell_str) {
-              cells.insert(field_id, insert_checkbox_cell(value.is_checked, field));
+              cells.insert(
+                field_id,
+                insert_checkbox_cell(value.is_checked, field, type_option_handlers.clone())?,
+              );
             }
           },
           FieldType::URL => {
-            cells.insert(field_id, insert_url_cell(cell_str, field));
+            cells.insert(
+              field_id,
+              insert_url_cell(cell_str, field, type_option_handlers.clone())?,
+            );
           },
           FieldType::Checklist => {
             if let Ok(ids) = SelectOptionIds::from_str(&cell_str) {
-              cells.insert(field_id, insert_select_option_cell(ids.into_inner(), field));
+              cells.insert(
+                field_id,
+                insert_select_option_cell(ids.into_inner(), field, type_option_handlers.clone())?,
+              );
             }
           },
           FieldType::Relation => {
@@ -279,92 +377,125 @@ impl<'a> CellBuilder<'a> {
       }
     }
 
-    CellBuilder { cells, field_maps }
+    Ok(CellBuilder {
+      cells,
+      field_maps,
+      type_option_handlers,
+    })
   }
 
   pub fn build(self) -> Cells {
     self.cells
   }
 
-  pub fn insert_text_cell(&mut self, field_id: &str, data: String) {
+  pub fn insert_text_cell(&mut self, field_id: &str, data: String) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the text field with id: {}", field_id),
       Some(field) => {
-        self
-          .cells
-          .insert(field_id.to_owned(), insert_text_cell(data, field));
+        self.cells.insert(
+          field_id.to_owned(),
+          insert_text_cell(data, field, self.type_option_handlers.clone())?,
+        );
       },
     }
+    Ok(())
   }
 
-  pub fn insert_url_cell(&mut self, field_id: &str, data: String) {
+  pub fn insert_url_cell(&mut self, field_id: &str, data: String) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the url field with id: {}", field_id),
       Some(field) => {
-        self
-          .cells
-          .insert(field_id.to_owned(), insert_url_cell(data, field));
+        self.cells.insert(
+          field_id.to_owned(),
+          insert_url_cell(data, field, self.type_option_handlers.clone())?,
+        );
       },
     }
+
+    Ok(())
   }
 
-  pub fn insert_number_cell(&mut self, field_id: &str, num: i64) {
+  pub fn insert_number_cell(&mut self, field_id: &str, num: i64) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the number field with id: {}", field_id),
       Some(field) => {
-        self
-          .cells
-          .insert(field_id.to_owned(), insert_number_cell(num, field));
+        self.cells.insert(
+          field_id.to_owned(),
+          insert_number_cell(num, field, self.type_option_handlers.clone())?,
+        );
       },
     }
+    Ok(())
   }
 
-  pub fn insert_checkbox_cell(&mut self, field_id: &str, is_checked: bool) {
+  pub fn insert_checkbox_cell(&mut self, field_id: &str, is_checked: bool) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the checkbox field with id: {}", field_id),
       Some(field) => {
-        self
-          .cells
-          .insert(field_id.to_owned(), insert_checkbox_cell(is_checked, field));
+        self.cells.insert(
+          field_id.to_owned(),
+          insert_checkbox_cell(is_checked, field, self.type_option_handlers.clone())?,
+        );
       },
     }
+
+    Ok(())
   }
 
-  pub fn insert_date_cell(&mut self, field_id: &str, timestamp: i64, include_time: Option<bool>) {
+  pub fn insert_date_cell(
+    &mut self,
+    field_id: &str,
+    timestamp: i64,
+    include_time: Option<bool>,
+  ) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the date field with id: {}", field_id),
       Some(field) => {
         self.cells.insert(
           field_id.to_owned(),
-          insert_date_cell(timestamp, None, include_time, field),
+          insert_date_cell(
+            timestamp,
+            None,
+            include_time,
+            field,
+            self.type_option_handlers.clone(),
+          )?,
         );
       },
     }
+    Ok(())
   }
 
-  pub fn insert_select_option_cell(&mut self, field_id: &str, option_ids: Vec<String>) {
+  pub fn insert_select_option_cell(
+    &mut self,
+    field_id: &str,
+    option_ids: Vec<String>,
+  ) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the select option field with id: {}", field_id),
       Some(field) => {
         self.cells.insert(
           field_id.to_owned(),
-          insert_select_option_cell(option_ids, field),
+          insert_select_option_cell(option_ids, field, self.type_option_handlers.clone())?,
         );
       },
     }
+    Ok(())
   }
   pub fn insert_checklist_cell(
     &mut self,
     field_id: &str,
     new_tasks: Vec<ChecklistCellInsertChangeset>,
-  ) {
+  ) -> FlowyResult<()> {
     match self.field_maps.get(field_id) {
       None => tracing::warn!("Can't find the field with id: {}", field_id),
       Some(field) => {
-        self
-          .cells
-          .insert(field_id.to_owned(), insert_checklist_cell(new_tasks, field));
+        self.cells.insert(
+          field_id.to_owned(),
+          insert_checklist_cell(new_tasks, field, self.type_option_handlers.clone())?,
+        );
       },
     }
+    Ok(())
   }
 }

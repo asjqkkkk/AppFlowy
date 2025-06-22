@@ -71,13 +71,13 @@ impl DatabaseRowCollabService for DatabaseRowCollabServiceMiddleware {
       return Ok(row);
     }
 
-    if entry.try_mark_initialization_start().await {
+    if entry.should_initialize().await {
       let client_id = self.database_row_client_id().await;
       let collab_type = CollabType::DatabaseRow;
       let data = data.map(|v| v.into_encode_collab(client_id));
 
       trace!(
-        "[Database]: build arc database row: {}, collab_type: {:?}, data: {:#?}",
+        "[Database]: build arc database row:{}, collab_type: {:?}, data: {:#?}",
         object_id, collab_type, data
       );
 
@@ -100,12 +100,17 @@ impl DatabaseRowCollabService for DatabaseRowCollabServiceMiddleware {
         .await?;
 
       entry.set_resource(row.clone()).await;
+      drop(entry);
+
       Ok(row)
     } else {
       match entry.wait_for_initialization(Duration::from_secs(10)).await {
         Ok(database) => Ok(database),
         Err(err) => {
-          error!("Database initialization failed or timed out: {}", err);
+          error!(
+            "Database Row:{} initialization failed or timed out: {}",
+            object_id, err
+          );
           Err(DatabaseError::Internal(anyhow!(err)))
         },
       }

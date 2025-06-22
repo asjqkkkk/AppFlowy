@@ -1,7 +1,9 @@
 use collab_database::{fields::Field, rows::Cell};
+use std::sync::Arc;
 
 use crate::entities::{TextFilterConditionPB, TextFilterPB};
 use crate::services::cell::insert_text_cell;
+use crate::services::field::TypeOptionHandlerCache;
 use crate::services::filter::PreFillCellsWithFilter;
 
 impl TextFilterPB {
@@ -33,7 +35,11 @@ impl TextFilterPB {
 }
 
 impl PreFillCellsWithFilter for TextFilterPB {
-  fn get_compliant_cell(&self, field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    field: &Field,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     let text = match self.condition {
       TextFilterConditionPB::TextIs
       | TextFilterConditionPB::TextContains
@@ -46,7 +52,7 @@ impl PreFillCellsWithFilter for TextFilterPB {
       _ => None,
     };
 
-    text.map(|s| insert_text_cell(s, field))
+    text.and_then(|s| insert_text_cell(s, field, type_option_handlers).ok())
   }
 }
 

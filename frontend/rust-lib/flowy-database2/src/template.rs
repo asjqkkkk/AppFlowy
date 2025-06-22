@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use collab_database::database::{gen_database_id, gen_row_id, timestamp};
 use collab_database::entity::{CreateDatabaseParams, CreateViewParams};
 use collab_database::fields::select_type_option::{
@@ -8,7 +10,7 @@ use collab_database::views::{DatabaseLayout, LayoutSettings};
 
 use crate::entities::FieldType;
 use crate::services::cell::{insert_select_option_cell, insert_text_cell};
-use crate::services::field::FieldBuilder;
+use crate::services::field::{FieldBuilder, TypeOptionHandlerCache};
 use crate::services::field_settings::default_field_settings_for_fields;
 use crate::services::setting::{BoardLayoutSetting, CalendarLayoutSetting};
 
@@ -81,17 +83,28 @@ pub fn make_default_board(view_id: &str, name: &str) -> CreateDatabaseParams {
     .name("Status")
     .build();
   let single_select_field_id = single_select.id.clone();
+  let handler_cache = Arc::new(TypeOptionHandlerCache::new());
 
   let mut rows = vec![];
   for i in 0..3 {
     let mut row = CreateRowParams::new(gen_row_id(), database_id.clone());
     row.cells.insert(
       single_select_field_id.clone(),
-      insert_select_option_cell(vec![to_do_option.id.clone()], &single_select),
+      insert_select_option_cell(
+        vec![to_do_option.id.clone()],
+        &single_select,
+        handler_cache.clone(),
+      )
+      .unwrap(),
     );
     row.cells.insert(
       text_field_id.clone(),
-      insert_text_cell(format!("Card {}", i + 1), &text_field),
+      insert_text_cell(
+        format!("Card {}", i + 1),
+        &text_field,
+        handler_cache.clone(),
+      )
+      .unwrap(),
     );
     rows.push(row);
   }

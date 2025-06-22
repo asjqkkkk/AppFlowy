@@ -22,7 +22,7 @@ impl DatabaseGroupTest {
   }
 
   pub async fn assert_group_row_count(&self, group_index: usize, row_count: usize) {
-    tokio::time::sleep(Duration::from_secs(3)).await; // Sleep to allow updates to complete
+    tokio::time::sleep(Duration::from_secs(2)).await; // Sleep to allow updates to complete
     assert_eq!(row_count, self.group_at_index(group_index).await.rows.len());
   }
 
@@ -97,17 +97,25 @@ impl DatabaseGroupTest {
 
     let cell = if to_group.is_default {
       match field_type {
-        FieldType::SingleSelect | FieldType::MultiSelect => {
-          delete_select_option_cell(vec![to_group.group_id.clone()], &field)
-        },
+        FieldType::SingleSelect | FieldType::MultiSelect => delete_select_option_cell(
+          vec![to_group.group_id.clone()],
+          &field,
+          self.type_option_handler_cache.clone(),
+        ),
         _ => panic!("Unsupported group field type"),
       }
     } else {
       match field_type {
-        FieldType::SingleSelect | FieldType::MultiSelect => {
-          insert_select_option_cell(vec![to_group.group_id.clone()], &field)
-        },
-        FieldType::URL => insert_url_cell(to_group.group_id.clone(), &field),
+        FieldType::SingleSelect | FieldType::MultiSelect => insert_select_option_cell(
+          vec![to_group.group_id.clone()],
+          &field,
+          self.type_option_handler_cache.clone(),
+        ),
+        FieldType::URL => insert_url_cell(
+          to_group.group_id.clone(),
+          &field,
+          self.type_option_handler_cache.clone(),
+        ),
         _ => panic!("Unsupported group field type"),
       }
     };
@@ -115,7 +123,7 @@ impl DatabaseGroupTest {
     let row_id = RowId::from(self.row_at_index(from_group_index, row_index).await.id);
     self
       .editor
-      .update_cell(&self.view_id, &row_id, &field_id, cell)
+      .update_cell(&self.view_id, &row_id, &field_id, cell.unwrap())
       .await
       .unwrap();
   }
@@ -131,17 +139,21 @@ impl DatabaseGroupTest {
     let field = self.editor.get_field(&field_id).await.unwrap();
     let field_type = FieldType::from(field.field_type);
     let cell = match field_type {
-      FieldType::URL => insert_url_cell(cell_data, &field),
-      FieldType::DateTime => {
-        insert_date_cell(cell_data.parse::<i64>().unwrap(), None, Some(true), &field)
-      },
+      FieldType::URL => insert_url_cell(cell_data, &field, self.type_option_handler_cache.clone()),
+      FieldType::DateTime => insert_date_cell(
+        cell_data.parse::<i64>().unwrap(),
+        None,
+        Some(true),
+        &field,
+        self.type_option_handler_cache.clone(),
+      ),
       _ => panic!("Unsupported group field type"),
     };
 
     let row_id = RowId::from(self.row_at_index(from_group_index, row_index).await.id);
     self
       .editor
-      .update_cell(&self.view_id, &row_id, &field_id, cell)
+      .update_cell(&self.view_id, &row_id, &field_id, cell.unwrap())
       .await
       .unwrap();
   }

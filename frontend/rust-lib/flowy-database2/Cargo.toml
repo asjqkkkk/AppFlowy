@@ -50,12 +50,13 @@ strum = "0.25"
 strum_macros = "0.25"
 validator = { workspace = true, features = ["derive"] }
 tokio-util.workspace = true
-moka = { version = "0.12.8", features = ["future"] }
+moka = { workspace = true, features = ["sync"] }
 uuid.workspace = true
 
 [dev-dependencies]
 event-integration-test = { path = "../integration-test", default-features = false }
 flowy-database2 = { path = ".", features = ["verbose_log"] }
+lib-infra = { workspace = true }
 
 [build-dependencies]
 flowy-codegen.workspace = true

@@ -17,8 +17,8 @@ use event_integration_test::folder_event::ViewTest;
 use flowy_database2::entities::{DatabasePB, FieldType, FilterPB, RowMetaPB};
 
 use flowy_database2::services::database::DatabaseEditor;
-use flowy_database2::services::field::SelectOptionCellChangeset;
 use flowy_database2::services::field::checklist_filter::ChecklistCellChangeset;
+use flowy_database2::services::field::{SelectOptionCellChangeset, TypeOptionHandlerCache};
 use flowy_database2::services::share::csv::{CSVFormat, ImportResult};
 use flowy_error::FlowyResult;
 
@@ -34,6 +34,7 @@ pub struct DatabaseEditorTest {
   pub rows: Vec<Arc<Row>>,
   pub field_count: usize,
   pub row_by_row_id: HashMap<String, RowMetaPB>,
+  pub type_option_handler_cache: Arc<TypeOptionHandlerCache>,
 }
 
 impl DatabaseEditorTest {
@@ -93,6 +94,7 @@ impl DatabaseEditorTest {
       .collect();
 
     let view_id = test.child_view.id;
+    let type_option_handler_cache = Arc::new(TypeOptionHandlerCache::new());
     let this = Self {
       sdk,
       view_id: view_id.clone(),
@@ -101,13 +103,14 @@ impl DatabaseEditorTest {
       rows,
       field_count: FieldType::COUNT,
       row_by_row_id: HashMap::default(),
+      type_option_handler_cache,
     };
     this.get_database_data(&view_id).await;
     this
   }
 
   pub async fn get_database_data(&self, view_id: &str) -> DatabasePB {
-    self.editor.open_database_view(view_id, None).await.unwrap()
+    self.editor.open_database_view(view_id).await.unwrap()
   }
 
   #[allow(dead_code)]

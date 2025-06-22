@@ -112,7 +112,7 @@ where
   }
 
   /// Mark the start of initialization. Returns true if initialization was started, false if already in progress or not needed.
-  pub async fn try_mark_initialization_start(&self) -> bool {
+  pub async fn should_initialize(&self) -> bool {
     let mut state = self.state.write().await;
     match state.state {
       ResourceState::Initializing => {
@@ -124,7 +124,6 @@ where
         }
       },
       ResourceState::Active { .. } => {
-        // Don't reinitialize if we already have a valid resource
         if state.resource.is_some() {
           return false;
         }
@@ -266,10 +265,7 @@ where
     let mut receiver = receiver;
     tokio::select! {
       result = receiver.recv() => {
-        match result {
-          Ok(resource_result) => resource_result,
-          Err(_) => Err("Initialization channel closed unexpectedly".to_string()),
-        }
+        result.unwrap_or_else(|_| Err("Initialization channel closed unexpectedly".to_string()))
       }
       _ = tokio::time::sleep(timeout) => {
         Err("Initialization timed out".to_string())
@@ -384,13 +380,13 @@ mod tests {
   async fn test_mark_initialization_start_from_initializing() {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
 
-    let result = entry.try_mark_initialization_start().await;
+    let result = entry.should_initialize().await;
 
     assert!(result); // Should return true on first call
     assert!(entry.is_initializing().await);
 
     // Second call should return false as already claimed
-    let result2 = entry.try_mark_initialization_start().await;
+    let result2 = entry.should_initialize().await;
     assert!(!result2);
     assert!(entry.is_initializing().await);
   }
@@ -401,7 +397,7 @@ mod tests {
     let resource = TestResource::new("test data");
     entry.set_resource(resource).await;
 
-    let result = entry.try_mark_initialization_start().await;
+    let result = entry.should_initialize().await;
 
     assert!(!result); // Should return false as resource already exists
     assert!(entry.is_active().await);
@@ -418,7 +414,7 @@ mod tests {
       };
     }
 
-    let result = entry.try_mark_initialization_start().await;
+    let result = entry.should_initialize().await;
 
     assert!(result); // Should return true and start initialization
     assert!(entry.is_initializing().await);
@@ -429,7 +425,7 @@ mod tests {
     let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
     entry.mark_initialization_failed(test_error()).await;
 
-    let result = entry.try_mark_initialization_start().await;
+    let result = entry.should_initialize().await;
 
     assert!(result); // Should return true and restart initialization
     assert!(entry.is_initializing().await);
@@ -711,7 +707,7 @@ mod tests {
     assert!(!entry.is_inactive_for(Duration::from_millis(1)).await);
 
     // Try to restart initialization: Active -> Initializing (should fail with existing resource)
-    let restarted = entry.try_mark_initialization_start().await;
+    let restarted = entry.should_initialize().await;
     assert!(!restarted); // Should not restart when resource exists
     assert!(entry.is_active().await);
 
@@ -720,7 +716,7 @@ mod tests {
       let mut state = entry.state.write().await;
       state.resource = None;
     }
-    let restarted = entry.try_mark_initialization_start().await;
+    let restarted = entry.should_initialize().await;
     assert!(restarted);
     assert!(entry.is_initializing().await);
     assert!(!entry.has_resource().await);
@@ -731,7 +727,7 @@ mod tests {
     assert!(entry.can_be_removed(Duration::from_secs(0)).await);
 
     // Restart from failed: Failed -> Initializing
-    let restarted = entry.try_mark_initialization_start().await;
+    let restarted = entry.should_initialize().await;
     assert!(restarted);
     assert!(entry.is_initializing().await);
     assert!(!entry.can_be_removed(Duration::from_secs(0)).await);
@@ -921,7 +917,7 @@ mod tests {
         let success_count = Arc::clone(&success_count);
 
         tokio::spawn(async move {
-          if entry.try_mark_initialization_start().await {
+          if entry.should_initialize().await {
             success_count.fetch_add(1, Ordering::SeqCst);
           }
         })
@@ -949,7 +945,7 @@ mod tests {
     assert!(entry.is_initializing().await);
 
     // First call should return true (claiming initialization)
-    let first_attempt = entry.try_mark_initialization_start().await;
+    let first_attempt = entry.should_initialize().await;
     assert!(
       first_attempt,
       "First call to try_mark_initialization_start should return true"
@@ -959,14 +955,14 @@ mod tests {
     assert!(entry.is_initializing().await);
 
     // Second call should return false (already claimed)
-    let second_attempt = entry.try_mark_initialization_start().await;
+    let second_attempt = entry.should_initialize().await;
     assert!(
       !second_attempt,
       "Second call should return false as initialization is already claimed"
     );
 
     // Third call should also return false
-    let third_attempt = entry.try_mark_initialization_start().await;
+    let third_attempt = entry.should_initialize().await;
     assert!(!third_attempt, "Third call should also return false");
   }
 }

@@ -3,6 +3,7 @@ use protobuf::ProtobufError;
 use std::convert::TryInto;
 use std::fmt::{Debug, Display};
 use thiserror::Error;
+use tokio::sync::TryLockError;
 use tokio::task::JoinError;
 use validator::{ValidationError, ValidationErrors};
 
@@ -229,6 +230,12 @@ impl From<JoinError> for FlowyError {
 impl From<tokio::sync::oneshot::error::RecvError> for FlowyError {
   fn from(e: tokio::sync::oneshot::error::RecvError) -> Self {
     FlowyError::internal().with_context(e)
+  }
+}
+
+impl From<tokio::sync::TryLockError> for FlowyError {
+  fn from(value: TryLockError) -> Self {
+    FlowyError::internal().with_context(value)
   }
 }
 

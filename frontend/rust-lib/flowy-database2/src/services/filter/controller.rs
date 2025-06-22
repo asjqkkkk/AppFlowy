@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -6,7 +5,7 @@ use std::sync::Arc;
 use collab::lock::RwLock;
 use collab_database::database::gen_database_filter_id;
 use collab_database::fields::Field;
-use collab_database::rows::{Cell, Cells, Row, RowDetail, RowId};
+use collab_database::rows::{Cell, Cells, Row, RowId};
 use collab_database::template::timestamp_parse::TimestampCellData;
 use dashmap::DashMap;
 use flowy_error::FlowyResult;
@@ -20,33 +19,33 @@ use tracing::{error, trace};
 use crate::entities::filter_entities::*;
 use crate::entities::{FieldType, InsertedRowPB, RowMetaPB};
 use crate::services::cell::CellCache;
-use crate::services::database_view::{DatabaseViewChanged, DatabaseViewChangedNotifier};
-use crate::services::field::TypeOptionCellExt;
+use crate::services::database_view::{
+  DatabaseViewChanged, DatabaseViewChangedNotifier, FieldOperations, FilterOperations,
+  RowOperations,
+};
+use crate::services::field::{TypeOptionCellExt, TypeOptionHandlerCache};
 use crate::services::filter::{Filter, FilterChangeset, FilterInner, FilterResultNotification};
 
-#[async_trait]
-pub trait FilterDelegate: Send + Sync + 'static {
-  async fn get_field(&self, field_id: &str) -> Option<Field>;
-  async fn get_fields(&self, view_id: &str, field_ids: Option<Vec<String>>) -> Vec<Field>;
-  async fn get_rows(&self, view_id: &str) -> Vec<Arc<Row>>;
-  async fn get_row(&self, view_id: &str, rows_id: &RowId) -> Option<(usize, Arc<RowDetail>)>;
-  async fn get_all_filters(&self, view_id: &str) -> Vec<Filter>;
-  async fn save_filters(&self, view_id: &str, filters: &[Filter]);
-}
-
 pub trait PreFillCellsWithFilter {
-  fn get_compliant_cell(&self, field: &Field) -> Option<Cell>;
+  fn get_compliant_cell(
+    &self,
+    field: &Field,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell>;
 }
 
 pub struct FilterController {
   view_id: String,
   handler_id: String,
-  delegate: Box<dyn FilterDelegate>,
   result_by_row_id: DashMap<RowId, bool>,
   cell_cache: CellCache,
   filters: RwLock<Vec<Filter>>,
   task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
   notifier: DatabaseViewChangedNotifier,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
+  field_ops: Arc<dyn FieldOperations>,
+  row_ops: Arc<dyn RowOperations>,
+  filter_ops: Arc<dyn FilterOperations>,
 }
 
 impl Drop for FilterController {
@@ -56,20 +55,21 @@ impl Drop for FilterController {
 }
 
 impl FilterController {
-  pub async fn new<T>(
+  #[allow(clippy::too_many_arguments)]
+  pub async fn new(
     view_id: &str,
     handler_id: &str,
-    delegate: T,
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
     cell_cache: CellCache,
     notifier: DatabaseViewChangedNotifier,
-  ) -> Self
-  where
-    T: FilterDelegate + 'static,
-  {
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+    field_ops: Arc<dyn FieldOperations>,
+    row_ops: Arc<dyn RowOperations>,
+    filter_ops: Arc<dyn FilterOperations>,
+  ) -> Self {
     // ensure every filter is valid
-    let field_ids = delegate
-      .get_fields(view_id, None)
+    let field_ids = field_ops
+      .get_multiple_fields(view_id, None)
       .await
       .into_iter()
       .map(|field| field.id)
@@ -77,7 +77,7 @@ impl FilterController {
 
     let mut need_save = false;
 
-    let mut filters = delegate.get_all_filters(view_id).await;
+    let mut filters = filter_ops.get_all_filters(view_id).await;
     trace!("[Database]: filters: {:?}", filters);
     let mut filtering_field_ids: HashMap<String, Vec<String>> = HashMap::new();
     for filter in filters.iter() {
@@ -97,18 +97,21 @@ impl FilterController {
     }
 
     if need_save {
-      delegate.save_filters(view_id, &filters).await;
+      filter_ops.save_filters(view_id, &filters).await;
     }
 
     Self {
       view_id: view_id.to_string(),
       handler_id: handler_id.to_string(),
-      delegate: Box::new(delegate),
       result_by_row_id: DashMap::default(),
       cell_cache,
       filters: RwLock::new(filters),
       task_scheduler,
       notifier,
+      type_option_handlers,
+      field_ops,
+      row_ops,
+      filter_ops,
     }
   }
 
@@ -214,7 +217,7 @@ impl FilterController {
       },
     }
 
-    self.delegate.save_filters(&self.view_id, &filters).await;
+    self.filter_ops.save_filters(&self.view_id, &filters).await;
 
     self
       .gen_task(FilterEvent::FilterDidChanged, QualityOfService::Background)
@@ -253,39 +256,39 @@ impl FilterController {
           let cell = match field_type {
             FieldType::RichText | FieldType::URL => {
               let filter = condition_and_content.cloned::<TextFilterPB>().unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::Number => {
               let filter = condition_and_content.cloned::<NumberFilterPB>().unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::DateTime => {
               let filter = condition_and_content.cloned::<DateFilterPB>().unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::SingleSelect => {
               let filter = condition_and_content
                 .cloned::<SelectOptionFilterPB>()
                 .unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::MultiSelect => {
               let filter = condition_and_content
                 .cloned::<SelectOptionFilterPB>()
                 .unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::Checkbox => {
               let filter = condition_and_content.cloned::<CheckboxFilterPB>().unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::Checklist => {
               let filter = condition_and_content.cloned::<ChecklistFilterPB>().unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             FieldType::Time => {
               let filter = condition_and_content.cloned::<TimeFilterPB>().unwrap();
-              filter.get_compliant_cell(field)
+              filter.get_compliant_cell(field, self.type_option_handlers.clone())
             },
             _ => None,
           };
@@ -309,7 +312,8 @@ impl FilterController {
     let event_type = FilterEvent::from_str(predicate).unwrap();
     match event_type {
       FilterEvent::FilterDidChanged => {
-        let mut rows = self.delegate.get_rows(&self.view_id).await;
+        let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
+        let mut rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
         self.filter_rows_and_notify(&mut rows).await?
       },
       FilterEvent::RowDidChanged(row_id) => self.filter_single_row_handler(row_id).await?,
@@ -319,8 +323,7 @@ impl FilterController {
 
   async fn filter_single_row_handler(&self, row_id: RowId) -> FlowyResult<()> {
     let filters = self.filters.read().await;
-
-    if let Some((_, row_detail)) = self.delegate.get_row(&self.view_id, &row_id).await {
+    if let Some((_, row_detail)) = self.row_ops.get_row_detail(&self.view_id, &row_id).await {
       let field_by_field_id = self.get_field_map().await;
       let mut notification = FilterResultNotification::new(self.view_id.clone());
       if filter_row(
@@ -329,8 +332,9 @@ impl FilterController {
         &field_by_field_id,
         &self.cell_cache,
         &filters,
+        self.type_option_handlers.clone(),
       ) {
-        if let Some((index, _row)) = self.delegate.get_row(&self.view_id, &row_id).await {
+        if let Some((index, _row)) = self.row_ops.get_row_detail(&self.view_id, &row_id).await {
           notification.visible_rows.push(
             InsertedRowPB::new(RowMetaPB::from(row_detail.as_ref().clone()))
               .with_index(index as i32),
@@ -358,6 +362,7 @@ impl FilterController {
           &field_by_field_id,
           &self.cell_cache,
           &filters,
+          self.type_option_handlers.clone(),
         ) {
           let row_meta = RowMetaPB::from(row.as_ref());
           // Visible rows go into the left partition
@@ -393,6 +398,7 @@ impl FilterController {
         &field_by_field_id,
         &self.cell_cache,
         &filters,
+        self.type_option_handlers.clone(),
       );
     });
 
@@ -410,8 +416,8 @@ impl FilterController {
 
   async fn get_field_map(&self) -> HashMap<String, Field> {
     self
-      .delegate
-      .get_fields(&self.view_id, None)
+      .field_ops
+      .get_multiple_fields(&self.view_id, None)
       .await
       .into_iter()
       .map(|field| (field.id.clone(), field))
@@ -452,13 +458,20 @@ fn filter_row(
   field_by_field_id: &HashMap<String, Field>,
   cell_data_cache: &CellCache,
   filters: &Vec<Filter>,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> bool {
   // Create a filter result cache if it doesn't exist
   let mut filter_result = result_by_row_id.entry(row.id.clone()).or_insert(true);
   let mut new_is_visible = true;
 
   for filter in filters {
-    if let Some(is_visible) = apply_filter(row, field_by_field_id, cell_data_cache, filter) {
+    if let Some(is_visible) = apply_filter(
+      row,
+      field_by_field_id,
+      cell_data_cache,
+      filter,
+      type_option_handlers.clone(),
+    ) {
       new_is_visible = new_is_visible && is_visible;
       // short-circuit as soon as one filter tree returns false
       if !new_is_visible {
@@ -477,6 +490,7 @@ fn apply_filter(
   field_by_field_id: &HashMap<String, Field>,
   cell_data_cache: &CellCache,
   filter: &Filter,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Option<bool> {
   match &filter.inner {
     FilterInner::And { children } => {
@@ -484,7 +498,13 @@ fn apply_filter(
         return None;
       }
       for child_filter in children.iter() {
-        if let Some(false) = apply_filter(row, field_by_field_id, cell_data_cache, child_filter) {
+        if let Some(false) = apply_filter(
+          row,
+          field_by_field_id,
+          cell_data_cache,
+          child_filter,
+          type_option_handlers.clone(),
+        ) {
           return Some(false);
         }
       }
@@ -495,7 +515,13 @@ fn apply_filter(
         return None;
       }
       for child_filter in children.iter() {
-        if let Some(true) = apply_filter(row, field_by_field_id, cell_data_cache, child_filter) {
+        if let Some(true) = apply_filter(
+          row,
+          field_by_field_id,
+          cell_data_cache,
+          child_filter,
+          type_option_handlers.clone(),
+        ) {
           return Some(true);
         }
       }
@@ -530,8 +556,9 @@ fn apply_filter(
         _ => None,
       };
       let cell = timestamp_cell.or_else(|| row.cells.get(field_id).cloned());
-      if let Some(handler) = TypeOptionCellExt::new(field, Some(cell_data_cache.clone()))
-        .get_type_option_cell_data_handler()
+      if let Some(handler) =
+        TypeOptionCellExt::new(field, Some(cell_data_cache.clone()), type_option_handlers)
+          .get_type_option_cell_data_handler(FieldType::from(field.field_type))
       {
         Some(handler.handle_cell_filter(field, &cell.unwrap_or_default(), condition_and_content))
       } else {

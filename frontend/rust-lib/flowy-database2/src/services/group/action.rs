@@ -85,7 +85,7 @@ pub trait GroupCustomize: Send + Sync {
     None
   }
 
-  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str);
+  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) -> FlowyResult<()>;
 }
 
 /// The `GroupController` trait defines the behavior of the group controller when performing any
@@ -189,7 +189,7 @@ pub trait GroupController: Send + Sync {
   ) -> FlowyResult<(Vec<GroupPB>, Option<TypeOptionData>)>;
 
   /// Called before the row was created.
-  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str);
+  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) -> FlowyResult<()>;
 }
 
 #[derive(Debug)]

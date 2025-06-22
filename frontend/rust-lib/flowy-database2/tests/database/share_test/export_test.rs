@@ -48,7 +48,7 @@ async fn export_and_then_import_meta_csv_test() {
     for (index, row) in rows.iter().enumerate() {
       if let Some(cell) = row.cells.get(&field.id) {
         let field_type = FieldType::from(field.field_type);
-        let s = stringify_cell(cell, &field);
+        let s = stringify_cell(cell, &field, test.type_option_handler_cache.clone());
         match &field_type {
           FieldType::RichText => {
             if index == 0 {
