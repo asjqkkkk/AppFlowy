@@ -75,7 +75,7 @@ extension CommonOperations on WidgetTester {
     await pumpAndSettle(const Duration(milliseconds: 200));
   }
 
-  Future<void> tapContinousAnotherWay() async {
+  Future<void> tapContinuousAnotherWay() async {
     // local version
     await tapButtonWithName(LocaleKeys.signIn_continueAnotherWay.tr());
     if (Platform.isWindows) {
