@@ -519,7 +519,7 @@ impl DatabaseEditor {
       ));
     }
 
-    let cells: Vec<RowCell> = self.get_cells_for_field(view_id, field_id).await;
+    let cells: Vec<RowCell> = self.get_cells_for_field(view_id, field_id, false).await;
     for row_cell in cells {
       self.clear_cell(view_id, row_cell.row_id, field_id).await?;
     }
@@ -638,7 +638,7 @@ impl DatabaseEditor {
         .await;
 
       let new_field_id = duplicated_field.id.clone();
-      let cells = self.get_cells_for_field(view_id, field_id).await;
+      let cells = self.get_cells_for_field(view_id, field_id, false).await;
       for cell in cells {
         if let Some(new_cell) = cell.cell.clone() {
           self
@@ -848,7 +848,7 @@ impl DatabaseEditor {
 
   pub async fn get_all_rows(&self, view_id: &str) -> FlowyResult<Vec<Arc<Row>>> {
     let view_editor = self.get_or_init_view_editor(view_id).await?;
-    Ok(view_editor.v_get_all_rows().await)
+    Ok(view_editor.v_get_all_rows(true).await)
   }
 
   pub async fn get_row(&self, view_id: &str, row_id: &RowId) -> Option<Row> {
@@ -1008,14 +1008,19 @@ impl DatabaseEditor {
     })
   }
 
-  pub async fn get_cells_for_field(&self, view_id: &str, field_id: &str) -> Vec<RowCell> {
+  pub async fn get_cells_for_field(
+    &self,
+    view_id: &str,
+    field_id: &str,
+    auto_fetch: bool,
+  ) -> Vec<RowCell> {
     let database = self.database.read().await;
     if let Some(field) = database.get_field(field_id) {
       let field_type = FieldType::from(field.field_type);
       match field_type {
         FieldType::LastEditedTime | FieldType::CreatedTime => {
           database
-            .get_rows_for_view(view_id, 10, None)
+            .get_rows_for_view(view_id, 10, None, auto_fetch)
             .await
             .filter_map(|result| async {
               match result {
@@ -1036,7 +1041,11 @@ impl DatabaseEditor {
             .collect()
             .await
         },
-        _ => database.get_cells_for_field(view_id, field_id).await,
+        _ => {
+          database
+            .get_cells_for_field(view_id, field_id, auto_fetch)
+            .await
+        },
       }
     } else {
       vec![]
@@ -1683,7 +1692,7 @@ impl DatabaseEditor {
         let new_loaded_rows: Vec<Arc<Row>> = database
           .read()
           .await
-          .init_database_rows(row_ids, chunk_row_orders.len(), None)
+          .init_database_rows(row_ids, chunk_row_orders.len(), None, true)
           .filter_map(|result| async {
             let database_row = result.ok()?;
             let read_guard = database_row.read().await;
@@ -1822,7 +1831,7 @@ impl DatabaseEditor {
     match row_ids {
       None => {
         let mut row_data = vec![];
-        let rows_stream = database.get_all_rows(10, None).await;
+        let rows_stream = database.get_all_rows(10, None, true).await;
         pin_mut!(rows_stream);
         while let Some(result) = rows_stream.next().await {
           if let Ok(row) = result {
@@ -1836,7 +1845,7 @@ impl DatabaseEditor {
         Ok(row_data)
       },
       Some(row_ids) => {
-        let row_stream = database.init_database_rows(row_ids, 10, None);
+        let row_stream = database.init_database_rows(row_ids, 10, None, true);
         pin_mut!(row_stream);
         let mut row_data = vec![];
         while let Some(result) = row_stream.next().await {

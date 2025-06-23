@@ -50,7 +50,10 @@ impl DefaultGroupController {
 impl GroupController for DefaultGroupController {
   async fn load_group_data(&mut self) -> FlowyResult<()> {
     let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
-    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
+    let rows = self
+      .row_ops
+      .get_all_rows(&self.view_id, row_orders, true)
+      .await;
     let row_details = self.filter_controller.filter_rows(rows).await;
 
     let rows = row_details

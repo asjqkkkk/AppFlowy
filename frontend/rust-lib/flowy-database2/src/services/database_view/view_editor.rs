@@ -463,17 +463,23 @@ impl DatabaseViewEditor {
   }
 
   #[instrument(level = "info", skip(self))]
-  pub async fn v_get_all_rows(&self) -> Vec<Arc<Row>> {
+  pub async fn v_get_all_rows(&self, auto_fetch: bool) -> Vec<Arc<Row>> {
     let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
-    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
+    let rows = self
+      .row_ops
+      .get_all_rows(&self.view_id, row_orders, auto_fetch)
+      .await;
     let mut rows = self.v_filter_rows(rows).await;
     self.v_sort_rows(&mut rows).await;
     rows
   }
 
-  pub async fn v_get_cells_for_field(&self, field_id: &str) -> Vec<RowCell> {
+  pub async fn v_get_cells_for_field(&self, field_id: &str, auto_fetch: bool) -> Vec<RowCell> {
     let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
-    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
+    let rows = self
+      .row_ops
+      .get_all_rows(&self.view_id, row_orders, auto_fetch)
+      .await;
     let rows = self.v_filter_rows(rows).await;
     let rows = rows
       .into_iter()
@@ -762,7 +768,8 @@ impl DatabaseViewEditor {
       .await?;
 
     let cells = self
-      .v_get_cells_for_field(field_id)
+      .cell_ops
+      .get_cells_for_field(&self.view_id, field_id, false)
       .await
       .into_iter()
       .flat_map(|row_cell| row_cell.cell.map(Arc::new))
@@ -787,7 +794,6 @@ impl DatabaseViewEditor {
 
     None
   }
-
   pub async fn v_calculate_rows(&self, fields: Vec<Field>, rows: Vec<Arc<Row>>) -> FlowyResult<()> {
     let mut updates = vec![];
     // Filter fields to only those with calculations
@@ -943,7 +949,10 @@ impl DatabaseViewEditor {
     }
 
     let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
-    let rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
+    let rows = self
+      .row_ops
+      .get_all_rows(&self.view_id, row_orders, false)
+      .await;
     let fields = self
       .field_ops
       .get_multiple_fields(&self.view_id, None)
@@ -1243,7 +1252,7 @@ impl DatabaseViewEditor {
 
     let mut events: Vec<CalendarEventPB> = vec![];
 
-    let rows = self.v_get_all_rows().await;
+    let rows = self.v_get_all_rows(true).await;
 
     for row in rows {
       let primary_cell = get_cell_for_row(

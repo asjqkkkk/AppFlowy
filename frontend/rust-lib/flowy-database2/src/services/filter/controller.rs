@@ -309,11 +309,14 @@ impl FilterController {
     err
   )]
   pub async fn process(&self, predicate: &str) -> FlowyResult<()> {
-    let event_type = FilterEvent::from_str(predicate).unwrap();
+    let event_type = FilterEvent::from_str(predicate)?;
     match event_type {
       FilterEvent::FilterDidChanged => {
         let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
-        let mut rows = self.row_ops.get_all_rows(&self.view_id, row_orders).await;
+        let mut rows = self
+          .row_ops
+          .get_all_rows(&self.view_id, row_orders, false)
+          .await;
         self.filter_rows_and_notify(&mut rows).await?
       },
       FilterEvent::RowDidChanged(row_id) => self.filter_single_row_handler(row_id).await?,

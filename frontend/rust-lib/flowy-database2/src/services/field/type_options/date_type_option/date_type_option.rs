@@ -67,7 +67,7 @@ impl TypeOptionTransform for DateTypeOption {
     match old_type_option_field_type {
       FieldType::RichText => {
         let rows = database
-          .get_cells_for_field(view_id, field_id)
+          .get_cells_for_field(view_id, field_id, false)
           .await
           .into_iter()
           .filter_map(|row| row.cell.map(|cell| (row.row_id, cell)))

@@ -37,7 +37,7 @@ impl SelectOptionTypeOptionTransformHelper {
         }
         let text_type_option = RichTextTypeOption::from(old_type_option_data);
         let rows = database
-          .get_cells_for_field(view_id, field_id)
+          .get_cells_for_field(view_id, field_id, false)
           .await
           .into_iter()
           .filter_map(|row| row.cell.map(|cell| (row.row_id, cell)))

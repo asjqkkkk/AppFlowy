@@ -95,7 +95,12 @@ pub trait RowOperations: Send + Sync + 'static {
   async fn get_row_detail(&self, view_id: &str, row_id: &RowId) -> Option<(usize, Arc<RowDetail>)>;
 
   /// Returns all the rows in the view
-  async fn get_all_rows(&self, view_id: &str, row_orders: Vec<RowOrder>) -> Vec<Arc<Row>>;
+  async fn get_all_rows(
+    &self,
+    view_id: &str,
+    row_orders: Vec<RowOrder>,
+    auto_fetch: bool,
+  ) -> Vec<Arc<Row>>;
 
   async fn get_all_row_orders(&self, view_id: &str) -> Vec<RowOrder>;
 
@@ -108,7 +113,12 @@ pub trait RowOperations: Send + Sync + 'static {
 /// Use this when working with specific cell values within rows and fields.
 #[async_trait]
 pub trait CellOperations: Send + Sync + 'static {
-  async fn get_cells_for_field(&self, view_id: &str, field_id: &str) -> Vec<RowCell>;
+  async fn get_cells_for_field(
+    &self,
+    view_id: &str,
+    field_id: &str,
+    auto_fetch: bool,
+  ) -> Vec<RowCell>;
 
   async fn get_cell_in_row(&self, field_id: &str, row_id: &RowId) -> Arc<RowCell>;
 }

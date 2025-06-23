@@ -112,7 +112,7 @@ pub async fn get_cells_for_field(
       .get_type_option_cell_handler(&field, type_option_handlers)
       .await
     {
-      let cells = cell_ops.get_cells_for_field(view_id, field_id).await;
+      let cells = cell_ops.get_cells_for_field(view_id, field_id, false).await;
       return cells
         .iter()
         .map(|row_cell| {

@@ -121,10 +121,11 @@ impl DatabaseRowCollabService for DatabaseRowCollabServiceMiddleware {
     &self,
     row_ids: &[String],
     sender: Option<RowChangeSender>,
+    auto_fetch: bool,
   ) -> Result<HashMap<RowId, Arc<RwLock<DatabaseRow>>>, DatabaseError> {
     let encoded_collab_by_id = self
       .inner
-      .batch_get_encode_collab(row_ids.to_vec(), CollabType::DatabaseRow)
+      .batch_get_encode_collab(row_ids.to_vec(), CollabType::DatabaseRow, auto_fetch)
       .await?;
 
     // Prepare concurrent tasks to initialize database rows

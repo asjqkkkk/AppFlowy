@@ -91,10 +91,17 @@ impl DatabaseCollabServiceImpl {
     &self,
     mut object_ids: Vec<String>,
     collab_type: CollabType,
+    auto_fetch: bool,
   ) -> Result<EncodeCollabByOid, DatabaseError> {
     if object_ids.is_empty() {
       return Ok(EncodeCollabByOid::new());
     }
+
+    info!(
+      "Batch building database rows: {}, auto fetch: {}",
+      object_ids.len(),
+      auto_fetch
+    );
 
     let mut encoded_collab_by_id = EncodeCollabByOid::new();
     // 1. Collect local disk collabs into a HashMap
@@ -117,7 +124,7 @@ impl DatabaseCollabServiceImpl {
       encoded_collab_by_id.insert(k, v);
     }
 
-    if !object_ids.is_empty() {
+    if auto_fetch && !object_ids.is_empty() {
       let object_ids = object_ids
         .into_iter()
         .flat_map(|v| Uuid::from_str(&v).ok())
@@ -359,14 +366,6 @@ impl DatabaseCollabService for DatabaseCollabServiceImpl {
       .get_data_source(object_id, collab_type, encoded_collab)
       .await?;
     self.build_collab(object_id, collab_type, data_source).await
-  }
-
-  async fn get_collabs(
-    &self,
-    object_ids: Vec<String>,
-    collab_type: CollabType,
-  ) -> Result<EncodeCollabByOid, DatabaseError> {
-    self.batch_get_encode_collab(object_ids, collab_type).await
   }
 
   fn persistence(&self) -> Option<Arc<dyn DatabaseCollabPersistenceService>> {

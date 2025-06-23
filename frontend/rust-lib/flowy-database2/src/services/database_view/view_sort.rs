@@ -74,7 +74,7 @@ impl SortOperation for SoreOperationImpl {
   async fn get_rows(&self, view_id: &str) -> Vec<Arc<Row>> {
     let view_id = view_id.to_string();
     let row_orders = self.row_ops.get_all_row_orders(&view_id).await;
-    let rows = self.row_ops.get_all_rows(&view_id, row_orders).await;
+    let rows = self.row_ops.get_all_rows(&view_id, row_orders, false).await;
     self.filter_controller.filter_rows(rows).await
   }
 

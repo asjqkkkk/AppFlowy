@@ -66,7 +66,7 @@ impl CalculationsDelegate for DatabaseViewCalculationsDelegateImpl {
   async fn get_cells_for_field(&self, view_id: &str, field_id: &str) -> Vec<Arc<Cell>> {
     self
       .cell_ops
-      .get_cells_for_field(view_id, field_id)
+      .get_cells_for_field(view_id, field_id, false)
       .await
       .into_iter()
       .filter_map(|row_cell| row_cell.cell.map(Arc::new))

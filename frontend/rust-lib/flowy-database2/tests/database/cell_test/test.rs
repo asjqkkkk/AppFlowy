@@ -91,7 +91,7 @@ async fn text_cell_data_test() {
 
   let cells = test
     .editor
-    .get_cells_for_field(&test.view_id, &text_field.id)
+    .get_cells_for_field(&test.view_id, &text_field.id, false)
     .await;
 
   for (i, row_cell) in cells.into_iter().enumerate() {
@@ -114,7 +114,7 @@ async fn url_cell_data_test() {
   let url_field = test.get_first_field(FieldType::URL).await;
   let cells = test
     .editor
-    .get_cells_for_field(&test.view_id, &url_field.id)
+    .get_cells_for_field(&test.view_id, &url_field.id, false)
     .await;
 
   for (i, row_cell) in cells.into_iter().enumerate() {
@@ -155,7 +155,7 @@ async fn update_updated_at_field_on_other_cell_update() {
 
   let cells = test
     .editor
-    .get_cells_for_field(&test.view_id, &updated_at_field.id)
+    .get_cells_for_field(&test.view_id, &updated_at_field.id, false)
     .await;
 
   tokio::time::sleep(Duration::from_millis(500)).await;
@@ -194,7 +194,7 @@ async fn time_cell_data_test() {
   let time_field = test.get_first_field(FieldType::Time).await;
   let cells = test
     .editor
-    .get_cells_for_field(&test.view_id, &time_field.id)
+    .get_cells_for_field(&test.view_id, &time_field.id, false)
     .await;
 
   if let Some(cell) = cells[0].cell.as_ref() {

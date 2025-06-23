@@ -306,7 +306,12 @@ impl RowOperations for RowOperationImpl {
     }
   }
 
-  async fn get_all_rows(&self, view_id: &str, row_orders: Vec<RowOrder>) -> Vec<Arc<Row>> {
+  async fn get_all_rows(
+    &self,
+    view_id: &str,
+    row_orders: Vec<RowOrder>,
+    auto_fetch: bool,
+  ) -> Vec<Arc<Row>> {
     let database = match self.database() {
       Ok(db) => db,
       Err(_) => return vec![],
@@ -317,7 +322,7 @@ impl RowOperations for RowOperationImpl {
     let mut all_rows = vec![];
     let read_guard = database.read().await;
     let rows_stream = read_guard
-      .get_rows_from_row_orders(row_orders, 10, None)
+      .get_rows_from_row_orders(row_orders, 10, None, auto_fetch)
       .await;
     pin_mut!(rows_stream);
 
@@ -376,7 +381,12 @@ impl CellOperationImpl {
 // Implement CellOperations
 #[async_trait]
 impl CellOperations for CellOperationImpl {
-  async fn get_cells_for_field(&self, view_id: &str, field_id: &str) -> Vec<RowCell> {
+  async fn get_cells_for_field(
+    &self,
+    view_id: &str,
+    field_id: &str,
+    auto_fetch: bool,
+  ) -> Vec<RowCell> {
     let database_view_editors = match self.database_view_editors() {
       Ok(editors) => editors,
       Err(_) => return vec![],
@@ -387,7 +397,7 @@ impl CellOperations for CellOperationImpl {
       None => vec![],
       Some(editor) => {
         if let Some(editor) = editor.get_resource().await {
-          editor.v_get_cells_for_field(field_id).await
+          editor.v_get_cells_for_field(field_id, auto_fetch).await
         } else {
           vec![]
         }

@@ -171,7 +171,7 @@ where
     let rows = self
       .context
       .row_ops
-      .get_all_rows(&self.context.view_id, row_orders)
+      .get_all_rows(&self.context.view_id, row_orders, true)
       .await;
     let row_details = self.context.filter_controller.filter_rows(rows).await;
 
