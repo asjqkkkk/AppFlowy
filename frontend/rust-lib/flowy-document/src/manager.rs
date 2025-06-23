@@ -68,7 +68,7 @@ impl DocumentManager {
     storage_service: Weak<dyn StorageService>,
   ) -> Self {
     let base_removal_timeout = if cfg!(debug_assertions) {
-      Duration::from_secs(10) // Shorter timeout for debug builds
+      Duration::from_secs(60) // Shorter timeout for debug builds
     } else {
       Duration::from_secs(60 * 10)
     };
@@ -371,16 +371,17 @@ impl DocumentManager {
     }
 
     if entry.should_initialize().await {
-      trace!("Initializing document: {}", doc_id);
+      trace!("[Document lifecycle]: Initializing document: {}", doc_id);
       match self.initialize_document(doc_id).await {
         Ok(document) => {
           entry.set_resource(document.clone()).await;
+          trace!("[Document lifecycle]: Document initialized: {}", doc_id);
           Ok(document)
         },
         Err(err) => {
           entry
             .mark_initialization_failed(
-              "Document entry disappeared during initialization".to_string(),
+              "[Document lifecycle]: Document entry disappeared during initialization".to_string(),
             )
             .await;
 
@@ -391,6 +392,7 @@ impl DocumentManager {
         },
       }
     } else {
+      trace!("[Document lifecycle]: waiting for document: {}", doc_id);
       entry
         .wait_for_initialization(Duration::from_secs(10))
         .await
@@ -455,11 +457,15 @@ impl DocumentManager {
         if let Some(documents) = weak_documents.upgrade() {
           let mut to_remove = Vec::new();
           let timeout = base_timeout;
+          trace!(
+            "[Document lifecycle]: {} opening documents",
+            documents.len()
+          );
           for entry in documents.iter() {
             let (doc_id, document_entry) = entry.pair();
             if document_entry.can_be_removed(timeout).await {
               trace!(
-                "[Document]: Periodic cleanup document: {} can be removed, timeout duration: {}",
+                "[Document lifecycle]: Periodic cleanup document: {} can be removed, timeout duration: {}",
                 doc_id,
                 timeout.as_secs()
               );

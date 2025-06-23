@@ -14,7 +14,6 @@ use tracing::{error, instrument, trace};
 use crate::entities::{
   CalculationChangesetNotificationPB, CalculationPB, CalculationType, FieldType,
 };
-use crate::services::calculations::CalculationsByFieldIdCache;
 use crate::services::database_view::{DatabaseViewChanged, DatabaseViewChangedNotifier};
 use crate::services::field::TypeOptionHandlerCache;
 use crate::utils::cache::AnyTypeCache;
@@ -31,6 +30,7 @@ pub trait CalculationsDelegate: Send + Sync + 'static {
   async fn remove_calculation(&self, view_id: &str, calculation_id: &str);
 }
 
+pub type CalculationsByFieldIdCache = Arc<AnyTypeCache<String>>;
 pub struct CalculationsController {
   view_id: String,
   handler_id: String,

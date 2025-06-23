@@ -72,7 +72,7 @@ impl DatabaseManager {
     ai_service: Arc<dyn DatabaseAIService>,
   ) -> Self {
     let removal_timeout = if cfg!(debug_assertions) {
-      Duration::from_secs(10) // Shorter timeout for debug builds
+      Duration::from_secs(60) // Shorter timeout for debug builds
     } else {
       Duration::from_secs(60 * 10)
     };
@@ -307,7 +307,7 @@ impl DatabaseManager {
       {
         if let Some(editor) = editor_entry.get_resource().await {
           trace!(
-            "[Database lifecycle]: closing database:{} view: {}",
+            "[Database lifecycle]: close database view:{}/{}",
             database_id, view_id
           );
           editor.close_view(view_id).await;
@@ -797,11 +797,11 @@ impl DatabaseManager {
         if let Some(database_editors) = weak_database_editors.upgrade() {
           let mut to_remove = Vec::new();
           let timeout = base_timeout;
+
           trace!(
-            "[Database lifecycle] {} num opened database",
+            "[Database lifecycle]: {} opening databases",
             database_editors.len()
           );
-
           for entry in database_editors.iter() {
             let database_id = entry.key();
             if entry.value().can_be_removed(timeout).await {

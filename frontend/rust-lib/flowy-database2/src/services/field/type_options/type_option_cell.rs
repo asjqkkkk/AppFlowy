@@ -253,16 +253,11 @@ where
     Some(cell.value().clone())
   }
 
+  #[allow(dead_code)]
   fn set_cell_data_in_cache(&self, cell: &Cell, cell_data: T::CellData, field: &Field) {
     if let Some(cell_data_cache) = self.cell_data_cache.as_ref() {
       let field_type = FieldType::from(field.field_type);
       let key = CellDataCacheKey::new(field, field_type, cell);
-      // tracing::trace!(
-      //   "Cell cache update: field_type:{}, cell: {:?}, cell_data: {:?}",
-      //   field_type,
-      //   cell,
-      //   cell_data
-      // );
       cell_data_cache.insert(key.as_ref(), cell_data);
     }
   }
@@ -275,7 +270,7 @@ where
 
     // If the field type of the cell is the same as the field type of the handler, we can directly decode the cell.
     // Otherwise, we need to transform the cell to the field type of the handler.
-    let cell_data = if field_type_of_cell == self.field_type {
+    if field_type_of_cell == self.field_type {
       Some(self.decode_cell(cell).unwrap_or_default())
     } else if is_type_option_cell_transformable(field_type_of_cell, self.field_type) {
       Some(
@@ -290,13 +285,11 @@ where
       )
     } else {
       None
-    };
-
-    if let Some(data) = &cell_data {
-      self.set_cell_data_in_cache(cell, data.clone(), field);
     }
 
-    cell_data
+    // if let Some(data) = &cell_data {
+    //   self.set_cell_data_in_cache(cell, data.clone(), field);
+    // }
   }
 }
 
@@ -339,11 +332,11 @@ where
     &self,
     cell_changeset: BoxAny,
     old_cell: Option<Cell>,
-    field: &Field,
+    _field: &Field,
   ) -> FlowyResult<Cell> {
     let changeset = cell_changeset.unbox_or_error::<T::CellChangeset>()?;
-    let (cell, cell_data) = self.apply_changeset(changeset, old_cell)?;
-    self.set_cell_data_in_cache(&cell, cell_data, field);
+    let (cell, _) = self.apply_changeset(changeset, old_cell)?;
+    // self.set_cell_data_in_cache(&cell, cell_data, field);
     Ok(cell)
   }
 
