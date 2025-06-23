@@ -247,7 +247,7 @@ class _AFTextFieldDialogState extends State<AFTextFieldDialog> {
               ),
               ValueListenableBuilder(
                 valueListenable: textController,
-                builder: (contex, value, child) {
+                builder: (_, value, child) {
                   return AFFilledTextButton.primary(
                     text: LocaleKeys.button_confirm.tr(),
                     disabled: value.text.trim().isEmpty,

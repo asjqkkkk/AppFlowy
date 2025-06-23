@@ -435,7 +435,7 @@ class _ImportNotionButton extends StatelessWidget {
       child: FlowyButton(
         key: importNotionButtonKey,
         onTap: () {
-          _showImportNotinoDialog(context);
+          _showImportNotionDialog(context);
         },
         margin: const EdgeInsets.symmetric(horizontal: 4.0),
         text: Row(
@@ -481,7 +481,7 @@ class _ImportNotionButton extends StatelessWidget {
     );
   }
 
-  Future<void> _showImportNotinoDialog(BuildContext context) async {
+  Future<void> _showImportNotionDialog(BuildContext context) async {
     final result = await getIt<FilePickerService>().pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],
