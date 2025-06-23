@@ -665,18 +665,55 @@ impl FolderManager {
     let workspace = self.user.get_active_user_workspace()?;
     let role = workspace.role;
 
-    // If the user is a Guest, check if they have access to this view through shared views
-    if let Some(Role::Guest) = role {
-      let flatten_shared_views = self.get_flatten_shared_pages().await?;
-      let has_access = flatten_shared_views
-        .iter()
-        .any(|shared_view| shared_view.id == view_id);
+    // Check access permissions for guests and members
+    if let Some(user_role) = role {
+      match user_role {
+        Role::Guest => {
+          // Guests can only access views they've been explicitly shared with
+          let flatten_shared_views = self.get_flatten_shared_pages().await?;
+          let has_access = flatten_shared_views
+            .iter()
+            .any(|shared_view| shared_view.id == view_id);
 
-      if !has_access {
-        return Err(FlowyError::new(
-          ErrorCode::RecordNotFound,
-          format!("Guest user does not have access to view: {}", view_id),
-        ));
+          if !has_access {
+            return Err(FlowyError::new(
+              ErrorCode::RecordNotFound,
+              format!("Guest user does not have access to view: {}", view_id),
+            ));
+          }
+        },
+        Role::Member => {
+          // Members need to check if they have access to private views
+          let lock = self
+            .mutex_folder
+            .load_full()
+            .ok_or_else(folder_not_init_error)?;
+          let folder = lock.read().await;
+
+          // Check if this is a private view that doesn't belong to the current user
+          let other_private_view_ids = Self::get_other_private_view_ids(&folder);
+          if other_private_view_ids.contains(&view_id.to_string()) {
+            // This is someone else's private view, check if it's been shared with this user
+            drop(folder);
+            let flatten_shared_views = self.get_flatten_shared_pages().await?;
+            let has_access = flatten_shared_views
+              .iter()
+              .any(|shared_view| shared_view.id == view_id);
+
+            if !has_access {
+              return Err(FlowyError::new(
+                ErrorCode::RecordNotFound,
+                format!(
+                  "Member user does not have access to private view: {}",
+                  view_id
+                ),
+              ));
+            }
+          }
+        },
+        Role::Owner => {
+          // Owners have access to everything, no additional checks needed
+        },
       }
     }
 
@@ -1057,23 +1094,60 @@ impl FolderManager {
     self.get_view(view_id).await
   }
 
-  /// Helper function to check if a guest user has permission to access a view
+  /// Helper function to check if a user has permission to access a view
   async fn check_guest_view_permission(&self, view_id: &str) -> FlowyResult<()> {
     let workspace = self.user.get_active_user_workspace()?;
     let role = workspace.role;
 
-    // If the user is a Guest, check if they have access to this view through shared views
-    if let Some(Role::Guest) = role {
-      let flatten_shared_views = self.get_flatten_shared_pages().await?;
-      let has_access = flatten_shared_views
-        .iter()
-        .any(|shared_view| shared_view.id == view_id);
+    // Check access permissions for guests and members
+    if let Some(user_role) = role {
+      match user_role {
+        Role::Guest => {
+          // Guests can only access views they've been explicitly shared with
+          let flatten_shared_views = self.get_flatten_shared_pages().await?;
+          let has_access = flatten_shared_views
+            .iter()
+            .any(|shared_view| shared_view.id == view_id);
 
-      if !has_access {
-        return Err(FlowyError::new(
-          ErrorCode::RecordNotFound,
-          format!("Guest user does not have access to view: {}", view_id),
-        ));
+          if !has_access {
+            return Err(FlowyError::new(
+              ErrorCode::RecordNotFound,
+              format!("Guest user does not have access to view: {}", view_id),
+            ));
+          }
+        },
+        Role::Member => {
+          // Members need to check if they have access to private views
+          let lock = self
+            .mutex_folder
+            .load_full()
+            .ok_or_else(folder_not_init_error)?;
+          let folder = lock.read().await;
+
+          // Check if this is a private view that doesn't belong to the current user
+          let other_private_view_ids = Self::get_other_private_view_ids(&folder);
+          if other_private_view_ids.contains(&view_id.to_string()) {
+            // This is someone else's private view, check if it's been shared with this user
+            drop(folder); // Release the lock before async call
+            let flatten_shared_views = self.get_flatten_shared_pages().await?;
+            let has_access = flatten_shared_views
+              .iter()
+              .any(|shared_view| shared_view.id == view_id);
+
+            if !has_access {
+              return Err(FlowyError::new(
+                ErrorCode::RecordNotFound,
+                format!(
+                  "Member user does not have access to private view: {}",
+                  view_id
+                ),
+              ));
+            }
+          }
+        },
+        Role::Owner => {
+          // Owners have access to everything, no additional checks needed
+        },
       }
     }
 
@@ -1091,36 +1165,94 @@ impl FolderManager {
     let workspace = self.user.get_active_user_workspace()?;
     let role = workspace.role;
 
-    if let Some(Role::Guest) = role {
-      let shared_pages = self.get_shared_pages(false).await?;
+    if let Some(user_role) = role {
+      match user_role {
+        Role::Guest => {
+          let shared_pages = self.get_shared_pages(false).await?;
 
-      let view_access = shared_pages.shared_views.iter().find_map(|shared_view| {
-        if shared_view.view.id == view_id {
-          Some(shared_view.access_level.clone())
-        } else {
-          // Check child views recursively
-          Self::find_view_access_level_in_children(&shared_view.view.child_views, view_id)
-        }
-      });
+          let view_access = shared_pages.shared_views.iter().find_map(|shared_view| {
+            if shared_view.view.id == view_id {
+              Some(shared_view.access_level.clone())
+            } else {
+              // Check child views recursively
+              Self::find_view_access_level_in_children(&shared_view.view.child_views, view_id)
+            }
+          });
 
-      match view_access {
-        Some(access_level) => {
-          if access_level >= minimum_required_access_level {
-            Ok(())
-          } else {
-            Err(FlowyError::new(
+          match view_access {
+            Some(access_level) => {
+              if access_level >= minimum_required_access_level {
+                Ok(())
+              } else {
+                Err(FlowyError::new(
+                  ErrorCode::NotEnoughPermissions,
+                  format!("Guest user has read-only access to view: {}", view_id),
+                ))
+              }
+            },
+            None => Err(FlowyError::new(
               ErrorCode::NotEnoughPermissions,
-              format!("Guest user has read-only access to view: {}", view_id),
-            ))
+              format!("Guest user does not have access to view: {}", view_id),
+            )),
           }
         },
-        None => Err(FlowyError::new(
-          ErrorCode::NotEnoughPermissions,
-          format!("Guest user does not have access to view: {}", view_id),
-        )),
+        Role::Member => {
+          // Check if this is a private view that doesn't belong to the current user
+          let lock = self
+            .mutex_folder
+            .load_full()
+            .ok_or_else(folder_not_init_error)?;
+          let folder = lock.read().await;
+
+          let other_private_view_ids = Self::get_other_private_view_ids(&folder);
+          if other_private_view_ids.contains(&view_id.to_string()) {
+            // This is someone else's private view, check shared access level
+            drop(folder); // Release the lock before async call
+            let shared_pages = self.get_shared_pages(false).await?;
+
+            let view_access = shared_pages.shared_views.iter().find_map(|shared_view| {
+              if shared_view.view.id == view_id {
+                Some(shared_view.access_level.clone())
+              } else {
+                // Check child views recursively
+                Self::find_view_access_level_in_children(&shared_view.view.child_views, view_id)
+              }
+            });
+
+            match view_access {
+              Some(access_level) => {
+                if access_level >= minimum_required_access_level {
+                  Ok(())
+                } else {
+                  Err(FlowyError::new(
+                    ErrorCode::NotEnoughPermissions,
+                    format!(
+                      "Member user has read-only access to private view: {}",
+                      view_id
+                    ),
+                  ))
+                }
+              },
+              None => Err(FlowyError::new(
+                ErrorCode::NotEnoughPermissions,
+                format!(
+                  "Member user does not have access to private view: {}",
+                  view_id
+                ),
+              )),
+            }
+          } else {
+            // This is not a private view from another user, member has full access
+            Ok(())
+          }
+        },
+        Role::Owner => {
+          // Owners have full permissions to everything
+          Ok(())
+        },
       }
     } else {
-      // Non-guest users have full permissions
+      // If role is None, assume full permissions (fallback for compatibility)
       Ok(())
     }
   }
@@ -2481,16 +2613,20 @@ impl FolderManager {
       .map(|view| view.id)
       .collect::<Vec<String>>();
 
-    let all_private_view_ids = folder
+    let other_private_view_ids = folder
       .get_all_private_sections()
       .into_iter()
       .map(|view| view.id)
+      .filter(|id| !my_private_view_ids.contains(id))
       .collect::<Vec<String>>();
 
-    all_private_view_ids
-      .into_iter()
-      .filter(|id| !my_private_view_ids.contains(id))
-      .collect()
+    // Include all child views under other users' private views
+    let mut all_other_private_view_ids = other_private_view_ids.clone();
+    for private_view_id in other_private_view_ids {
+      all_other_private_view_ids.extend(get_all_child_view_ids(folder, &private_view_id));
+    }
+
+    all_other_private_view_ids
   }
 
   /// Get the shared views of the workspace.
