@@ -2694,7 +2694,7 @@
   "favorite": {
     "noFavorite": "No favorite page",
     "noFavoriteHintText": "Swipe the page to the left to add it to your favorites",
-    "removeFromSidebar": "Remove from sidebar",
+    "removeFromSidebar": "Unpin from sidebar",
     "addToSidebar": "Pin to sidebar"
   },
   "cardDetails": {
