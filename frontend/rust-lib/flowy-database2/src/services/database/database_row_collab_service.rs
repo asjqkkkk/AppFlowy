@@ -77,8 +77,8 @@ impl DatabaseRowCollabService for DatabaseRowCollabServiceMiddleware {
       let data = data.map(|v| v.into_encode_collab(client_id));
 
       trace!(
-        "[Database]: build arc database row:{}, collab_type: {:?}, data: {:#?}",
-        object_id, collab_type, data
+        "[Database]: build arc database row:{}, collab_type: {:?}",
+        object_id, collab_type
       );
 
       let source = self

@@ -1,3 +1,5 @@
+pub use client_api::entity::CreateCollabParams;
+pub use client_api::entity::QueryCollab;
 pub use client_api::entity::ai_dto::{TranslateItem, TranslateRowResponse};
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
@@ -57,10 +59,15 @@ pub trait DatabaseCloudService: Send + Sync {
 
   async fn batch_get_database_encode_collab(
     &self,
-    object_ids: Vec<Uuid>,
-    object_ty: CollabType,
+    objects: Vec<QueryCollab>,
     workspace_id: &Uuid,
   ) -> Result<EncodeCollabByOid, FlowyError>;
+
+  async fn batch_create_database_encode_collab(
+    &self,
+    workspace_id: &Uuid,
+    collabs: Vec<CreateCollabParams>,
+  ) -> Result<(), FlowyError>;
 
   async fn get_database_collab_object_snapshots(
     &self,

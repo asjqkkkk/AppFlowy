@@ -116,7 +116,7 @@ pub trait FolderOperationHandler: Send + Sync {
     name: &str,
     import_type: ImportType,
     bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError>;
+  ) -> Result<(), FlowyError>;
 
   /// Create a view by importing data from a file
   async fn import_from_file_path(

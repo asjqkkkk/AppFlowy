@@ -2,11 +2,11 @@ use event_integration_test::EventIntegrationTest;
 use flowy_core::DEFAULT_NAME;
 use flowy_folder::entities::ViewLayoutPB;
 
-use crate::util::unzip;
+use crate::util::test_unzip;
 
 #[tokio::test]
 async fn migrate_historical_empty_document_test() {
-  let user_db_path = unzip(
+  let user_db_path = test_unzip(
     "./tests/user/migration_test/history_user_db",
     "historical_empty_document",
   )

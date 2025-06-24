@@ -29,7 +29,7 @@
             "env": {
                 "RUST_LOG": "trace",
                 "RUST_BACKTRACE": "1",
-                "SYNC_LOG_ENABLE": "true",
+                "SYNC_LOG_ENABLE": "false",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },

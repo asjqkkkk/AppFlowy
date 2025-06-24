@@ -2,12 +2,12 @@ use event_integration_test::EventIntegrationTest;
 use flowy_core::DEFAULT_NAME;
 use std::time::Duration;
 
-use crate::util::unzip;
+use crate::util::test_unzip;
 
 #[tokio::test]
 async fn migrate_036_fav_v1_workspace_array_test() {
   // Used to test migration: FavoriteV1AndWorkspaceArrayMigration
-  let user_db_path = unzip(
+  let user_db_path = test_unzip(
     "./tests/user/migration_test/history_user_db",
     "036_fav_v1_workspace_array",
   )
@@ -28,7 +28,7 @@ async fn migrate_036_fav_v1_workspace_array_test() {
 #[tokio::test]
 async fn migrate_038_trash_test() {
   // Used to test migration: WorkspaceTrashMapToSectionMigration
-  let user_db_path = unzip("./tests/asset", "038_local").unwrap();
+  let user_db_path = test_unzip("./tests/asset", "038_local").unwrap();
   // Getting started
   //  Document1
   //  Document2(deleted)
@@ -63,7 +63,7 @@ async fn migrate_038_trash_test() {
 #[tokio::test]
 async fn migrate_038_trash_test2() {
   // Used to test migration: WorkspaceTrashMapToSectionMigration
-  let user_db_path = unzip("./tests/asset", "038_document_with_grid").unwrap();
+  let user_db_path = test_unzip("./tests/asset", "038_document_with_grid").unwrap();
   // Getting started
   //  document
   //    grid
@@ -89,7 +89,7 @@ async fn migrate_038_trash_test2() {
 #[tokio::test]
 async fn collab_db_backup_test() {
   // Used to test migration: WorkspaceTrashMapToSectionMigration
-  let user_db_path = unzip("./tests/asset", "038_local").unwrap();
+  let user_db_path = test_unzip("./tests/asset", "038_local").unwrap();
   let test =
     EventIntegrationTest::new_with_user_data_path(user_db_path, DEFAULT_NAME.to_string()).await;
 
@@ -109,7 +109,7 @@ async fn collab_db_backup_test() {
 #[tokio::test]
 async fn delete_outdated_collab_db_backup_test() {
   // Used to test migration: WorkspaceTrashMapToSectionMigration
-  let user_db_path = unzip("./tests/asset", "040_collab_backups").unwrap();
+  let user_db_path = test_unzip("./tests/asset", "040_collab_backups").unwrap();
   let test =
     EventIntegrationTest::new_with_user_data_path(user_db_path, DEFAULT_NAME.to_string()).await;
 

@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use collab_database::database::gen_database_view_id;
 use collab_database::fields::Field;
 use collab_database::fields::checkbox_type_option::CheckboxTypeOption;
 use collab_database::fields::checklist_type_option::ChecklistTypeOption;
@@ -19,7 +18,6 @@ use flowy_database2::entities::{DatabasePB, FieldType, FilterPB, RowMetaPB};
 use flowy_database2::services::database::DatabaseEditor;
 use flowy_database2::services::field::checklist_filter::ChecklistCellChangeset;
 use flowy_database2::services::field::{SelectOptionCellChangeset, TypeOptionHandlerCache};
-use flowy_database2::services::share::csv::{CSVFormat, ImportResult};
 use flowy_error::FlowyResult;
 
 use crate::database::mock_data::{
@@ -27,6 +25,7 @@ use crate::database::mock_data::{
 };
 
 pub struct DatabaseEditorTest {
+  #[allow(dead_code)]
   pub sdk: EventIntegrationTest,
   pub view_id: String,
   pub editor: Arc<DatabaseEditor>,
@@ -293,23 +292,5 @@ impl DatabaseEditorTest {
     self
       .update_cell(&field.id, row_id, BoxAny::new(cell_changeset))
       .await
-  }
-
-  pub async fn import(&self, s: String, format: CSVFormat) -> ImportResult {
-    self
-      .sdk
-      .database_manager
-      .import_csv(gen_database_view_id(), s, format)
-      .await
-      .unwrap()
-  }
-
-  pub async fn get_database(&self, database_id: &str) -> Option<Arc<DatabaseEditor>> {
-    self
-      .sdk
-      .database_manager
-      .get_or_init_database_editor(database_id)
-      .await
-      .ok()
   }
 }

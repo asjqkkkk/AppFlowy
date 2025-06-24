@@ -10,6 +10,7 @@ use client_api::entity::{CreateCollabParams, QueryCollab, QueryCollabParams};
 use client_api::error::ErrorCode::RecordNotFound;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
+use flowy_ai_pub::cloud::CollabParams;
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, DatabaseSnapshot, EncodeCollabByOid, SummaryRowContent,
   TranslateRowContent, TranslateRowResponse,
@@ -89,17 +90,12 @@ where
   #[instrument(level = "debug", skip_all)]
   async fn batch_get_database_encode_collab(
     &self,
-    object_ids: Vec<Uuid>,
-    object_ty: CollabType,
+    objects: Vec<QueryCollab>,
     workspace_id: &Uuid,
   ) -> Result<EncodeCollabByOid, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let client = try_get_client?;
-    let params = object_ids
-      .into_iter()
-      .map(|object_id| QueryCollab::new(object_id, object_ty))
-      .collect();
-    let results = client.batch_get_collab(workspace_id, params).await?;
+    let results = client.batch_get_collab(workspace_id, objects).await?;
     check_request_workspace_id_is_match(
       workspace_id,
       &self.logged_user,
@@ -126,6 +122,27 @@ where
         })
         .collect::<EncodeCollabByOid>(),
     )
+  }
+
+  async fn batch_create_database_encode_collab(
+    &self,
+    workspace_id: &Uuid,
+    objects: Vec<CreateCollabParams>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let params = objects
+      .into_iter()
+      .map(|object| CollabParams {
+        object_id: object.object_id,
+        collab_type: object.collab_type,
+        encoded_collab_v1: object.encoded_collab_v1.into(),
+        updated_at: None,
+      })
+      .collect::<Vec<_>>();
+    try_get_client?
+      .create_collab_list(workspace_id, params)
+      .await?;
+    Ok(())
   }
 
   async fn get_database_collab_object_snapshots(

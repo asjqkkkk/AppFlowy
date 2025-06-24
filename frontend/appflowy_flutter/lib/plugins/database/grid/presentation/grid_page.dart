@@ -527,7 +527,10 @@ class _GridRowsState extends State<_GridRows> {
         : state.rowInfos.length + 1;
 
     return ReorderableListView.builder(
-      cacheExtent: 500,
+      cacheExtent: widget.shrinkWrap
+          ? 0.0 // No caching when shrink wrapping
+          : 200.0, // Much smaller cache for better performance
+
       scrollController: widget.scrollController.verticalController,
       physics: const ClampingScrollPhysics(),
       buildDefaultDragHandles: false,

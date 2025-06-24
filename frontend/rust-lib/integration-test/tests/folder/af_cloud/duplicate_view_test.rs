@@ -1,4 +1,4 @@
-use crate::util::unzip;
+use crate::util::test_unzip;
 use anyhow::anyhow;
 use event_integration_test::folder_event::parse_csv_string;
 use event_integration_test::user_event::use_localhost_af_cloud;
@@ -110,7 +110,7 @@ async fn af_cloud_folder_sync_duplicated_database_test() {
 
   let parent_id = Uuid::parse_str(&space.id).unwrap();
   let (database_view, csv_string) = test
-    .import_csv_from_test_asset("csv_49r_17c", parent_id, unzip)
+    .import_csv_from_test_asset("csv_49r_17c", parent_id, test_unzip)
     .await;
 
   let database = test.get_database(&database_view.id).await.unwrap();

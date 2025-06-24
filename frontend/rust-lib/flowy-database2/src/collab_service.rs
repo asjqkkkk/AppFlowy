@@ -17,7 +17,7 @@ use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use flowy_database_pub::ChangedCollab;
-use flowy_database_pub::cloud::DatabaseCloudService;
+use flowy_database_pub::cloud::{DatabaseCloudService, QueryCollab};
 use flowy_error::FlowyError;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use rayon::iter::IntoParallelRefIterator;
@@ -134,9 +134,18 @@ impl DatabaseCollabServiceImpl {
         .user
         .workspace_id()
         .map_err(|err| DatabaseError::Internal(err.into()))?;
+
+      let objects = object_ids
+        .into_iter()
+        .map(|object_id| QueryCollab {
+          object_id,
+          collab_type,
+        })
+        .collect();
+
       let updates = self
         .cloud_service
-        .batch_get_database_encode_collab(object_ids, collab_type, &workspace_id)
+        .batch_get_database_encode_collab(objects, &workspace_id)
         .await
         .map_err(|err| DatabaseError::Internal(err.into()))?;
 

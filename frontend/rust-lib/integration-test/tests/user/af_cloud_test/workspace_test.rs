@@ -1,5 +1,5 @@
 use crate::user::af_cloud_test::util::get_synced_workspaces;
-use crate::util::unzip;
+use crate::util::test_unzip;
 use collab::core::collab::default_client_id;
 use collab::core::collab::DataSource::DocStateV1;
 use collab::core::origin::CollabOrigin;
@@ -581,7 +581,7 @@ async fn af_cloud_create_local_workspace_test() {
 
 #[tokio::test]
 async fn af_cloud_open_089_anon_user_data_folder_test() {
-  let user_db_path = unzip("./tests/asset", "089_local").unwrap();
+  let user_db_path = test_unzip("./tests/asset", "089_local").unwrap();
   use_localhost_af_cloud().await;
   let test =
     EventIntegrationTest::new_with_user_data_path(user_db_path, DEFAULT_NAME.to_string()).await;

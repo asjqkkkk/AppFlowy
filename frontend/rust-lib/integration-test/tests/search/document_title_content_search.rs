@@ -1,4 +1,4 @@
-use crate::util::unzip;
+use crate::util::test_unzip;
 use bytes::Bytes;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::EventIntegrationTest;
@@ -145,7 +145,7 @@ async fn wait_for_document_indexing(
 #[tokio::test]
 async fn anon_user_multiple_workspace_search_test() {
   // SETUP: Initialize test environment with test data
-  let user_db_path = unzip("./tests/asset", "090_anon_search").unwrap();
+  let user_db_path = test_unzip("./tests/asset", "090_anon_search").unwrap();
   let test =
     EventIntegrationTest::new_with_user_data_path(user_db_path, DEFAULT_NAME.to_string()).await;
   let first_workspace_id = test.get_workspace_id().await;

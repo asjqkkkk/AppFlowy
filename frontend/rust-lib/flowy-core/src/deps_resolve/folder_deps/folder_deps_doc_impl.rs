@@ -11,9 +11,7 @@ use flowy_error::FlowyError;
 use flowy_folder::entities::{CreateViewParams, ViewLayoutPB};
 use flowy_folder::manager::FolderUser;
 use flowy_folder::share::ImportType;
-use flowy_folder::view_operation::{
-  FolderOperationHandler, GatherEncodedCollab, ImportedData, ViewData,
-};
+use flowy_folder::view_operation::{FolderOperationHandler, GatherEncodedCollab, ViewData};
 use flowy_search_pub::tantivy_state_init::get_document_tantivy_state;
 use lib_dispatch::prelude::ToBytes;
 use lib_infra::async_trait::async_trait;
@@ -175,7 +173,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
     _name: &str,
     _import_type: ImportType,
     bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     let content = String::from_utf8(bytes).map_err(|_| FlowyError::invalid_data())?;
     let data = MDImporter::new(None)
       .import(&view_id.to_string(), content)
@@ -184,7 +182,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
       .document_manager()?
       .create_document(uid, view_id, Some(data))
       .await?;
-    Ok(vec![(view_id.to_string(), CollabType::Document)])
+    Ok(())
   }
 
   async fn import_from_file_path(

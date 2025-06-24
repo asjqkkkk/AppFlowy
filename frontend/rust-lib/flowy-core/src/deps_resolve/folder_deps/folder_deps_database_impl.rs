@@ -12,7 +12,7 @@ use flowy_folder::entities::{CreateViewParams, ViewLayoutPB};
 use flowy_folder::manager::FolderUser;
 use flowy_folder::share::ImportType;
 use flowy_folder::view_operation::{
-  DatabaseEncodedCollab, FolderOperationHandler, GatherEncodedCollab, ImportedData, ViewData,
+  DatabaseEncodedCollab, FolderOperationHandler, GatherEncodedCollab, ViewData,
 };
 use flowy_user::services::data_import::{load_collab_by_object_id, load_collab_by_object_ids};
 use lib_infra::async_trait::async_trait;
@@ -194,7 +194,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
         ViewData::Data(data) => {
           self
             .database_manager()?
-            .create_database_with_data(&params.view_id.to_string(), data.to_vec())
+            .create_database_with_raw_data(&params.view_id.to_string(), data.to_vec())
             .await?;
           Ok(())
         },
@@ -253,7 +253,10 @@ impl FolderOperationHandler for DatabaseFolderOperation {
         );
       },
     };
-    let result = self.database_manager()?.import_database(data).await;
+    let result = self
+      .database_manager()?
+      .create_database_with_data(data)
+      .await;
     match result {
       Ok(_) => Ok(()),
       Err(err) => {
@@ -273,7 +276,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
     name: &str,
     import_type: ImportType,
     bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     let format = match import_type {
       ImportType::CSV => CSVFormat::Original,
       ImportType::AFDatabase => CSVFormat::META,
@@ -287,13 +290,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
       .database_manager()?
       .import_csv(view_id.to_string(), content, format)
       .await?;
-    Ok(
-      result
-        .encoded_collabs
-        .into_iter()
-        .map(|encoded| (encoded.object_id, encoded.collab_type))
-        .collect(),
-    )
+    Ok(())
   }
 
   async fn import_from_file_path(

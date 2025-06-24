@@ -124,10 +124,10 @@ pub fn zip(src_dir: PathBuf, output_file_path: PathBuf) -> io::Result<()> {
   Ok(())
 }
 pub fn unzip_test_asset(folder_name: &str) -> io::Result<PathBuf> {
-  unzip("./tests/asset", folder_name)
+  test_unzip("./tests/asset", folder_name)
 }
 
-pub fn unzip(test_asset_dir: &str, folder_name: &str) -> io::Result<PathBuf> {
+pub fn test_unzip(test_asset_dir: &str, folder_name: &str) -> io::Result<PathBuf> {
   // Open the zip file
   let zip_file_path = format!("{}/{}.zip", test_asset_dir, folder_name);
   let reader = File::open(zip_file_path)?;

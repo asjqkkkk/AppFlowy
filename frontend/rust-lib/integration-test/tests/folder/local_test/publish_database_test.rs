@@ -1,35 +1,10 @@
 use std::collections::HashMap;
 
-use collab_folder::ViewLayout;
 use event_integration_test::EventIntegrationTest;
-use flowy_folder::entities::{
-  ImportItemPayloadPB, ImportPayloadPB, ImportTypePB, ViewLayoutPB, ViewPB,
-};
+use flowy_folder::entities::{ViewLayoutPB, ViewPB};
 use flowy_folder::view_operation::GatherEncodedCollab;
 
-use crate::util::unzip;
-
-#[tokio::test]
-async fn publish_single_database_test() {
-  let test = EventIntegrationTest::new_anon().await;
-  test.sign_up_as_anon().await;
-
-  // import a csv file and try to get its publish collab
-  let grid = import_csv("publish_grid_primary.csv", &test).await;
-
-  let grid_encoded_collab = test
-    .gather_encode_collab_from_disk(&grid.id, ViewLayout::Grid)
-    .await;
-
-  match grid_encoded_collab {
-    GatherEncodedCollab::Database(encoded_collab) => {
-      // the len of row collabs should be the same as the number of rows in the csv file
-      let rows_len = encoded_collab.database_row_encoded_collabs.len();
-      assert_eq!(rows_len, 18);
-    },
-    _ => panic!("Expected database collab"),
-  }
-}
+use crate::util::test_unzip;
 
 #[tokio::test]
 async fn publish_databases_from_existing_workspace() {
@@ -121,33 +96,11 @@ async fn test_publish_encode_collab_result(
 }
 
 async fn import_workspace(file_name: &str, test: &EventIntegrationTest) -> Vec<ViewPB> {
-  let file_path = unzip("./tests/asset", file_name).unwrap();
+  let file_path = test_unzip("./tests/asset", file_name).unwrap();
   test
     .import_appflowy_data(file_path.to_str().unwrap().to_string(), None)
     .await
     .unwrap();
 
   test.get_all_workspace_views().await
-}
-
-async fn import_csv(file_name: &str, test: &EventIntegrationTest) -> ViewPB {
-  let file_path = unzip("./tests/asset", file_name).unwrap();
-  let csv_string = std::fs::read_to_string(file_path).unwrap();
-  let workspace_id = test.get_current_workspace().await.id;
-  let import_data = gen_import_data(file_name.to_string(), csv_string, workspace_id);
-  let views = test.import_data(import_data).await.unwrap().items;
-  views[0].clone()
-}
-
-fn gen_import_data(file_name: String, csv_string: String, workspace_id: String) -> ImportPayloadPB {
-  ImportPayloadPB {
-    parent_view_id: workspace_id.clone(),
-    items: vec![ImportItemPayloadPB {
-      name: file_name,
-      data: Some(csv_string.as_bytes().to_vec()),
-      file_path: None,
-      view_layout: ViewLayoutPB::Grid,
-      import_type: ImportTypePB::CSV,
-    }],
-  }
 }

@@ -4,7 +4,7 @@ use flowy_ai::ai_manager::AIManager;
 use flowy_error::FlowyError;
 use flowy_folder::entities::CreateViewParams;
 use flowy_folder::share::ImportType;
-use flowy_folder::view_operation::{FolderOperationHandler, ImportedData};
+use flowy_folder::view_operation::FolderOperationHandler;
 use lib_infra::async_trait::async_trait;
 use std::sync::{Arc, Weak};
 use uuid::Uuid;
@@ -69,7 +69,7 @@ impl FolderOperationHandler for ChatFolderOperation {
     _name: &str,
     _import_type: ImportType,
     _bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     Err(FlowyError::not_support().with_context("import from data"))
   }
 

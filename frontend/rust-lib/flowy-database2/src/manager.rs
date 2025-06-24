@@ -3,7 +3,7 @@ use collab::lock::RwLock;
 use collab::preclude::ClientID;
 use collab_database::database::{Database, DatabaseContext, DatabaseData};
 use collab_database::database_trait::DatabaseCollabService;
-use collab_database::entity::{CreateDatabaseParams, CreateViewParams};
+use collab_database::entity::{CreateDatabaseParams, CreateViewParams, EncodedCollabInfo};
 use collab_database::fields::translate_type_option::TranslateTypeOption;
 use collab_database::rows::RowId;
 use collab_database::template::csv::CSVTemplate;
@@ -11,7 +11,10 @@ use collab_database::views::DatabaseLayout;
 use collab_database::workspace_database::{DatabaseMeta, WorkspaceDatabase};
 use collab_entity::CollabType;
 use collab_plugins::CollabKVDB;
+use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use dashmap::DashMap;
+use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
@@ -19,17 +22,20 @@ use std::time::Duration;
 use tracing::{debug, error, info, instrument, trace};
 
 use flowy_database_pub::cloud::{
-  DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateItem, TranslateRowContent,
+  CreateCollabParams, DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateItem,
+  TranslateRowContent,
 };
 use flowy_error::{FlowyError, FlowyResult, internal_error};
 
 use crate::collab_service::DatabaseCollabServiceImpl;
 use crate::entities::{DatabaseLayoutPB, DatabaseSnapshotPB, FieldType, RowMetaPB};
 use crate::services::cell::stringify_cell;
-use crate::services::database::{DatabaseEditor, DatabaseRowCollabServiceMiddleware};
+use crate::services::database::{
+  DatabaseEditor, DatabaseRowCollabServiceMiddleware, ImportDatabaseRowCollabService,
+};
 use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
-use crate::services::share::csv::{CSVFormat, CSVImporter, ImportResult};
+use crate::services::share::csv::{CSVFormat, CSVImporter};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use lib_infra::async_entry::AsyncEntry;
 use lib_infra::box_any::BoxAny;
@@ -344,7 +350,7 @@ impl DatabaseManager {
 
   /// Create a new database with the given data that can be deserialized to [DatabaseData].
   #[tracing::instrument(level = "trace", skip_all, err)]
-  pub async fn create_database_with_data(
+  pub async fn create_database_with_raw_data(
     &self,
     new_database_view_id: &str,
     data: Vec<u8>,
@@ -361,10 +367,24 @@ impl DatabaseManager {
       &database_view_id,
       new_database_view_id,
     );
-
-    self.trace_database(&params).await?;
-    self.create_database(params).await?;
+    self.create_database_with_data(params).await?;
     Ok(())
+  }
+
+  #[tracing::instrument(level = "trace", skip_all, err)]
+  pub async fn create_database_with_data(
+    &self,
+    params: CreateDatabaseParams,
+  ) -> FlowyResult<Arc<RwLock<Database>>> {
+    let database_id = params.database_id.clone();
+    let mut linked_views = HashSet::new();
+    linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
+    self
+      .trace_database(&database_id, linked_views.into_iter().collect())
+      .await?;
+
+    let database = self.create_database(params).await?;
+    Ok(database)
   }
 
   /// When duplicating a database view, it will duplicate all the database views and replace the duplicated
@@ -382,33 +402,137 @@ impl DatabaseManager {
       new_database_view_id,
     );
 
-    self.trace_database(&params).await?;
+    let database_id = params.database_id.clone();
+    let mut linked_views = HashSet::new();
+    linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
+    self
+      .trace_database(&database_id, linked_views.into_iter().collect())
+      .await?;
     self.create_database(params).await?;
     Ok(())
   }
 
   pub async fn import_database(
     &self,
+    workspace_id: &Uuid,
     params: CreateDatabaseParams,
-  ) -> FlowyResult<Arc<RwLock<Database>>> {
-    if params.rows.len() > 500 {
+  ) -> FlowyResult<Vec<EncodedCollabInfo>> {
+    if params.rows.len() > 1000 {
       return Err(
         FlowyError::invalid_data()
-          .with_context("Only support importing csv with less than 500 rows"),
+          .with_context("Only support importing csv with less than 1000 rows"),
       );
     }
-    self.trace_database(&params).await?;
-    let database = self.create_database(params).await?;
-    Ok(database)
+    let collab_service = self.get_collab_service().await?;
+    let client_id = collab_service.database_client_id().await;
+    let uid = self.user.user_id()?;
+    let db = self
+      .user
+      .collab_db(uid)?
+      .upgrade()
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade CollabKVDB"))?;
+    let context = DatabaseContext::new(
+      collab_service.clone(),
+      Arc::new(ImportDatabaseRowCollabService {
+        db: db.clone(),
+        client_id,
+        cache: Arc::new(Default::default()),
+      }),
+    );
+
+    let database = Database::create(context, params).await?;
+    let encoded_database = database.encode_database_collabs().await?;
+    let workspace_id = workspace_id.to_string();
+
+    let encoded_collabs = std::iter::once(encoded_database.encoded_database_collab)
+      .chain(encoded_database.encoded_row_collabs.into_iter())
+      .collect::<Vec<_>>();
+
+    let chunk_size = 50;
+    let total_items = encoded_collabs.len();
+    let total_chunks = total_items.div_ceil(chunk_size);
+    info!(
+      "[DatabaseManager] Processing {} collabs in {} chunks of size {}",
+      total_items, total_chunks, chunk_size
+    );
+
+    for (chunk_idx, chunk) in encoded_collabs.chunks(chunk_size).enumerate() {
+      let db_clone = db.clone();
+      let workspace_id_clone = workspace_id.clone();
+      let chunk_data: Vec<_> = chunk
+        .iter()
+        .map(|collab| {
+          (
+            collab.object_id.to_string(),
+            collab.encoded_collab.state_vector.to_vec(),
+            collab.encoded_collab.doc_state.to_vec(),
+          )
+        })
+        .collect();
+
+      tokio::task::spawn_blocking(move || {
+        trace!(
+          "[DatabaseManager] Processing chunk {}/{} with {} collabs",
+          chunk_idx + 1,
+          total_chunks,
+          chunk_data.len()
+        );
+
+        let write = db_clone.write_txn();
+        for (object_id, state_vector, doc_state) in chunk_data {
+          write
+            .upsert_doc_with_doc_state(
+              uid,
+              &workspace_id_clone,
+              &object_id,
+              state_vector,
+              doc_state,
+            )
+            .map_err(|e| {
+              FlowyError::internal().with_context(format!(
+                "Failed to create collab in chunk {}: {}",
+                chunk_idx + 1,
+                e
+              ))
+            })?;
+        }
+        write.commit_transaction().map_err(|err| {
+          FlowyError::internal().with_context(format!(
+            "Failed to commit chunk {} transaction: {}",
+            chunk_idx + 1,
+            err
+          ))
+        })?;
+
+        trace!(
+          "[DatabaseManager] Successfully processed chunk {}/{}",
+          chunk_idx + 1,
+          total_chunks
+        );
+        Ok::<(), FlowyError>(())
+      })
+      .await
+      .map_err(|e| {
+        FlowyError::internal().with_context(format!(
+          "Chunk {} spawn_blocking task failed: {}",
+          chunk_idx + 1,
+          e
+        ))
+      })??;
+      // Yield control after each chunk to prevent blocking the runtime
+      tokio::task::yield_now().await;
+    }
+    Ok(encoded_collabs)
   }
 
-  async fn trace_database(&self, params: &CreateDatabaseParams) -> FlowyResult<()> {
-    let mut linked_views = HashSet::new();
-    linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
-
+  async fn trace_database(
+    &self,
+    database_id: &str,
+    database_view_ids: Vec<String>,
+  ) -> FlowyResult<()> {
     let lock = self.workspace_database()?;
     let mut wdb = lock.write().await;
-    wdb.add_database(&params.database_id, linked_views.into_iter().collect());
+    wdb.add_database(database_id, database_view_ids);
     Ok(())
   }
 
@@ -465,7 +589,7 @@ impl DatabaseManager {
     view_id: String,
     content: String,
     format: CSVFormat,
-  ) -> FlowyResult<ImportResult> {
+  ) -> FlowyResult<()> {
     let params = match format {
       CSVFormat::Original => {
         let mut csv_template = CSVTemplate::try_from_reader(content.as_bytes(), true, None)?;
@@ -486,19 +610,38 @@ impl DatabaseManager {
     };
 
     let database_id = params.database_id.clone();
-    let database = self.import_database(params).await?;
-    let encoded_database = database.read().await.encode_database_collabs().await?;
-    let encoded_collabs = std::iter::once(encoded_database.encoded_database_collab)
-      .chain(encoded_database.encoded_row_collabs.into_iter())
+    let mut linked_views = HashSet::new();
+    linked_views.extend(params.views.iter().map(|view| view.view_id.clone()));
+
+    // Trace the database
+    let workspace_id = self.user.workspace_id()?;
+    let encoded_collabs = self.import_database(&workspace_id, params).await?;
+    self
+      .trace_database(&database_id, linked_views.into_iter().collect())
+      .await?;
+    let num_of_rows = encoded_collabs.len();
+
+    // Post collab
+    let params = encoded_collabs
+      .into_par_iter()
+      .map(|v| CreateCollabParams {
+        workspace_id,
+        object_id: v.object_id,
+        encoded_collab_v1: v.encoded_collab.encode_to_bytes().unwrap(),
+        collab_type: v.collab_type,
+      })
       .collect::<Vec<_>>();
 
-    let result = ImportResult {
-      database_id,
-      view_id,
-      encoded_collabs,
-    };
-    info!("import csv result: {}", result);
-    Ok(result)
+    info!(
+      "[DatabaseManager] Import CSV with {} rows, database_id:{}",
+      num_of_rows, database_id
+    );
+    self
+      .cloud_service
+      .batch_create_database_encode_collab(&workspace_id, params)
+      .await?;
+
+    Ok(())
   }
 
   pub async fn export_csv(&self, view_id: &str, style: CSVFormat) -> FlowyResult<String> {

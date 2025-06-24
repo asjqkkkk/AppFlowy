@@ -42,7 +42,7 @@ class RowController {
   /// When creating a row controller, calling [initialize] immediately may not be necessary.
   /// Only call [initialize] when the row becomes visible. This approach helps reduce unnecessary sync operations.
   Future<void> initialize() async {
-    await _rowBackendSvc.initRow(rowMeta.id);
+    unawaited(_rowBackendSvc.initRow(rowMeta.id));
     unawaited(
       _rowBackendSvc.getRowMeta(rowId).then(
         (result) {

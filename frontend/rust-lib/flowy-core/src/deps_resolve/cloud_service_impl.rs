@@ -9,8 +9,8 @@ use flowy_ai_pub::cloud::search_dto::{
 };
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  MessageCursor, ModelList, RepeatedChatMessage, ResponseFormat, StreamAnswer, StreamComplete,
-  UpdateChatParams,
+  CreateCollabParams, MessageCursor, ModelList, QueryCollab, RepeatedChatMessage, ResponseFormat,
+  StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, DatabaseSnapshot, EncodeCollabByOid, SummaryRowContent,
@@ -499,15 +499,26 @@ impl DatabaseCloudService for ServerProvider {
 
   async fn batch_get_database_encode_collab(
     &self,
-    object_ids: Vec<Uuid>,
-    object_ty: CollabType,
+    objects: Vec<QueryCollab>,
     workspace_id: &Uuid,
   ) -> Result<EncodeCollabByOid, FlowyError> {
     let server = self.get_server()?;
 
     server
       .database_service()
-      .batch_get_database_encode_collab(object_ids, object_ty, workspace_id)
+      .batch_get_database_encode_collab(objects, workspace_id)
+      .await
+  }
+
+  async fn batch_create_database_encode_collab(
+    &self,
+    workspace_id: &Uuid,
+    collabs: Vec<CreateCollabParams>,
+  ) -> Result<(), FlowyError> {
+    let server = self.get_server()?;
+    server
+      .database_service()
+      .batch_create_database_encode_collab(workspace_id, collabs)
       .await
   }
 
