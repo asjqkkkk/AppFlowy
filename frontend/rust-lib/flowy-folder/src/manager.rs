@@ -567,7 +567,7 @@ impl FolderManager {
     let user_id = self.user.user_id()?;
 
     self
-      .check_guest_permission(
+      .check_user_permission(
         &params.parent_view_id.to_string(),
         AFAccessLevelPB::FullAccess,
       )
@@ -662,60 +662,9 @@ impl FolderManager {
   /// again using the ID of the child view you wish to access.
   #[tracing::instrument(level = "debug", skip(self))]
   pub async fn get_view_pb(&self, view_id: &str) -> FlowyResult<ViewPB> {
-    let workspace = self.user.get_active_user_workspace()?;
-    let role = workspace.role;
-
-    // Check access permissions for guests and members
-    if let Some(user_role) = role {
-      match user_role {
-        Role::Guest => {
-          // Guests can only access views they've been explicitly shared with
-          let flatten_shared_views = self.get_flatten_shared_pages().await?;
-          let has_access = flatten_shared_views
-            .iter()
-            .any(|shared_view| shared_view.id == view_id);
-
-          if !has_access {
-            return Err(FlowyError::new(
-              ErrorCode::RecordNotFound,
-              format!("Guest user does not have access to view: {}", view_id),
-            ));
-          }
-        },
-        Role::Member => {
-          // Members need to check if they have access to private views
-          let lock = self
-            .mutex_folder
-            .load_full()
-            .ok_or_else(folder_not_init_error)?;
-          let folder = lock.read().await;
-
-          // Check if this is a private view that doesn't belong to the current user
-          let other_private_view_ids = Self::get_other_private_view_ids(&folder);
-          if other_private_view_ids.contains(&view_id.to_string()) {
-            // This is someone else's private view, check if it's been shared with this user
-            drop(folder);
-            let flatten_shared_views = self.get_flatten_shared_pages().await?;
-            let has_access = flatten_shared_views
-              .iter()
-              .any(|shared_view| shared_view.id == view_id);
-
-            if !has_access {
-              return Err(FlowyError::new(
-                ErrorCode::RecordNotFound,
-                format!(
-                  "Member user does not have access to private view: {}",
-                  view_id
-                ),
-              ));
-            }
-          }
-        },
-        Role::Owner => {
-          // Owners have access to everything, no additional checks needed
-        },
-      }
-    }
+    self
+      .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
+      .await?;
 
     let view_id = view_id.to_string();
 
@@ -728,13 +677,6 @@ impl FolderManager {
     // trash views and other private views should not be accessed
     let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
     let no_access_view_ids = self.get_no_access_view_ids().await?;
-
-    if view_ids_should_be_filtered.contains(&view_id) {
-      return Err(FlowyError::new(
-        ErrorCode::RecordNotFound,
-        format!("View: {} is in trash or other private sections", view_id),
-      ));
-    }
 
     match folder.get_view(&view_id) {
       None => {
@@ -850,7 +792,7 @@ impl FolderManager {
   pub async fn move_view_to_trash(&self, view_id: &str) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(view_id, AFAccessLevelPB::FullAccess)
+      .check_user_permission(view_id, AFAccessLevelPB::FullAccess)
       .await?;
 
     if let Some(lock) = self.mutex_folder.load_full() {
@@ -945,7 +887,7 @@ impl FolderManager {
 
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(&view_id.to_string(), AFAccessLevelPB::FullAccess)
+      .check_user_permission(&view_id.to_string(), AFAccessLevelPB::FullAccess)
       .await?;
 
     let new_parent_id = params.new_parent_id;
@@ -988,7 +930,7 @@ impl FolderManager {
 
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(view_id, AFAccessLevelPB::FullAccess)
+      .check_user_permission(view_id, AFAccessLevelPB::FullAccess)
       .await?;
 
     let view = self.get_view_pb(view_id).await?;
@@ -1157,7 +1099,7 @@ impl FolderManager {
   /// Helper function to check if a guest user has permission to modify a view
   /// Guest users can modify views only if they have edit access level for that specific view
   #[instrument(level = "debug", skip_all, err)]
-  async fn check_guest_permission(
+  async fn check_user_permission(
     &self,
     view_id: &str,
     minimum_required_access_level: AFAccessLevelPB,
@@ -1280,7 +1222,7 @@ impl FolderManager {
   pub async fn update_view_with_params(&self, params: UpdateViewParams) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(&params.view_id, AFAccessLevelPB::ReadAndWrite)
+      .check_user_permission(&params.view_id, AFAccessLevelPB::ReadAndWrite)
       .await?;
 
     self
@@ -1304,7 +1246,7 @@ impl FolderManager {
   ) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(&params.view_id, AFAccessLevelPB::ReadAndWrite)
+      .check_user_permission(&params.view_id, AFAccessLevelPB::ReadAndWrite)
       .await?;
 
     self
@@ -1318,7 +1260,7 @@ impl FolderManager {
   #[tracing::instrument(level = "trace", skip(self), err)]
   pub async fn pin_or_unpin_favorite(&self, view_id: &str, is_pinned: bool) -> FlowyResult<()> {
     self
-      .check_guest_permission(view_id, AFAccessLevelPB::ReadOnly)
+      .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
       .await?;
 
     let view = self.get_view_pb(view_id).await?;
@@ -1372,7 +1314,7 @@ impl FolderManager {
   ) -> Result<ViewPB, FlowyError> {
     // Check if guest user has permission to modify views (duplicating creates new views)
     self
-      .check_guest_permission(&params.view_id, AFAccessLevelPB::FullAccess)
+      .check_user_permission(&params.view_id, AFAccessLevelPB::FullAccess)
       .await?;
 
     let lock = self
@@ -1613,7 +1555,7 @@ impl FolderManager {
   pub async fn toggle_favorites(&self, view_id: &str) -> FlowyResult<()> {
     // Check if guest user has permission to modify this view
     self
-      .check_guest_permission(view_id, AFAccessLevelPB::ReadOnly)
+      .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
       .await?;
 
     if let Some(lock) = self.mutex_folder.load_full() {
@@ -2556,11 +2498,17 @@ impl FolderManager {
           Section::Recent => folder.get_my_recent_sections(),
           _ => vec![],
         };
-        let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
-        let mut filtered_views = views
-          .into_iter()
-          .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
-          .collect::<Vec<_>>();
+
+        let mut filtered_views = Vec::new();
+        for view in views {
+          let is_accessible = self
+            .check_user_permission(&view.id, AFAccessLevelPB::ReadOnly)
+            .await
+            .is_ok();
+          if is_accessible {
+            filtered_views.push(view);
+          }
+        }
 
         if let Ok(workspace) = self.user.get_active_user_workspace() {
           if let Some(Role::Guest) = workspace.role {
