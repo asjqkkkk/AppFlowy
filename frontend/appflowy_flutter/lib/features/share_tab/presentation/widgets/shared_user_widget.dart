@@ -88,10 +88,6 @@ class SharedUserWidget extends StatelessWidget {
           HSpace(theme.spacing.m),
           const GuestTag(),
         ],
-        if (user.isPending) ...[
-          Spacer(),
-          PendingTag(),
-        ],
       ],
     );
   }
@@ -167,17 +163,29 @@ class SharedUserWidget extends StatelessWidget {
     }
 
     // Managing others
+    Widget child;
     if (currentAccessLevel == ShareAccessLevel.readOnly ||
         currentAccessLevel == ShareAccessLevel.readAndWrite) {
       // Cannot change others' access
-      return disabledAccessButton();
+      child = disabledAccessButton();
     } else {
       // Full access user can manage others
       final supportedAccessLevels = [
         ShareAccessLevel.readOnly,
         ShareAccessLevel.readAndWrite,
       ];
-      return editAccessWidget(supportedAccessLevels);
+      child = editAccessWidget(supportedAccessLevels);
     }
+
+    if (user.isPending) {
+      return Row(
+        children: [
+          PendingTag(),
+          child,
+        ],
+      );
+    }
+
+    return child;
   }
 }

@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/af_role_pb_extension.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/icon_picker.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
@@ -239,6 +240,14 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
         userWorkspaceState.currentWorkspace?.workspaceType ==
             WorkspaceTypePB.ServerW;
 
+    // only workspace owner and the space owner can edit the permission
+    final isWorkspaceOwner =
+        userWorkspaceState.currentWorkspace?.role.isOwner ?? false;
+    final isPageCreator =
+        spaceBloc.state.currentSpace?.createdBy ==
+            context.read<UserProfilePB>().id;
+    final allowToEditPermission = isWorkspaceOwner || isPageCreator;
+
     showDialog(
       context: context,
       builder: (_) {
@@ -249,7 +258,7 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
           child: BlocProvider.value(
             value: spaceBloc,
             child: ManageSpacePopup(
-              allowEditPermission: isCloudWorkspace,
+              allowEditPermission: isCloudWorkspace && allowToEditPermission,
             ),
           ),
         );

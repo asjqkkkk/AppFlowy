@@ -21,7 +21,7 @@ class PendingTag extends StatelessWidget {
         right: theme.spacing.m,
         bottom: 2,
       ),
-      borderRadius: theme.spacing.s,
+      borderRadius: theme.spacing.xxl,
       builder: (context, isHovering, disabled) {
         return FlowyTooltip(
           message: 'Invitation not yet accepted',

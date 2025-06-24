@@ -3436,9 +3436,9 @@
   },
   "shareTab": {
     "accessLevel": {
-      "view": "View",
-      "comment": "Comment",
-      "edit": "Edit",
+      "view": "Can view",
+      "comment": "Can comment",
+      "edit": "Can edit",
       "fullAccess": "Full access"
     },
     "inviteByEmail": "Invite by email",

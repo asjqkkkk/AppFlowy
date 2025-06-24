@@ -159,18 +159,28 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
             return;
           }
 
-          getIt<ActionNavigationBloc>().add(
-            ActionNavigationEvent.performAction(
-              action: NavigationAction(
-                objectId: initialViewId,
+          void openView(String viewId) {
+            getIt<ActionNavigationBloc>().add(
+              ActionNavigationEvent.performAction(
+                action: NavigationAction(
+                  objectId: initialViewId,
+                ),
               ),
-            ),
-          );
+            );
+          }
+
+          openView(initialViewId);
+          Future.delayed(const Duration(milliseconds: 100), () {
+            openView(initialViewId);
+          });
         },
         (e) {},
       );
 
-      openWorkspaceNotifier.value = null;
+      if (openWorkspaceNotifier.value?.workspaceId ==
+          state.currentWorkspace?.workspaceId) {
+        openWorkspaceNotifier.value = null;
+      }
     }
 
     final String? message;
@@ -276,7 +286,9 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
           if (retryCount >= maxRetryCount) {
             openWorkspaceNotifier.value = null;
             retryCount = 0;
-            Log.error('Failed to open workspace from invitation');
+            Log.error(
+              'Failed to open workspace from invitation, clear the notifier',
+            );
             return;
           }
 
@@ -287,6 +299,10 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
 
       return;
     }
+
+    Log.info(
+      'Open workspace from invitation: $workspaceId, name: ${openWorkspace.name}',
+    );
 
     context.read<UserWorkspaceBloc>().add(
           UserWorkspaceEvent.openWorkspace(

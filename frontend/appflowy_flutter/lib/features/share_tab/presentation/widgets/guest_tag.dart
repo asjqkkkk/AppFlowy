@@ -18,7 +18,7 @@ class GuestTag extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: theme.fillColorScheme.warningLight,
-        borderRadius: BorderRadius.circular(theme.spacing.s),
+        borderRadius: BorderRadius.circular(theme.spacing.xxl),
       ),
       child: Text(
         LocaleKeys.shareTab_guest.tr(),
