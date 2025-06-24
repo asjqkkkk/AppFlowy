@@ -121,6 +121,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
                   currentSpace: space,
                 ),
               );
+
               add(SpaceEvent.open(space: space));
               Log.info('open space: ${space.name}(${space.id})');
 
@@ -275,25 +276,27 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             // don't open the page automatically on mobile
             if (UniversalPlatform.isDesktop) {
               // open the first page by default
-              if (currentSpace.childViews.isNotEmpty && openFirstPage) {
-                final firstPage = currentSpace.childViews.first;
-                final result = await ViewBackendService.getView(firstPage.id);
-                final hasPermission = result.fold(
-                  (view) => true,
-                  (error) => false,
-                );
-                if (!hasPermission) {
-                  emit(
-                    state.copyWith(
-                      lastCreatedPage: ViewPB(),
-                    ),
+              if (currentSpace.childViews.isNotEmpty) {
+                if (openFirstPage) {
+                  final firstPage = currentSpace.childViews.first;
+                  final result = await ViewBackendService.getView(firstPage.id);
+                  final hasPermission = result.fold(
+                    (view) => true,
+                    (error) => false,
                   );
-                } else {
-                  emit(
-                    state.copyWith(
-                      lastCreatedPage: firstPage,
-                    ),
-                  );
+                  if (!hasPermission) {
+                    emit(
+                      state.copyWith(
+                        lastCreatedPage: ViewPB(),
+                      ),
+                    );
+                  } else {
+                    emit(
+                      state.copyWith(
+                        lastCreatedPage: firstPage,
+                      ),
+                    );
+                  }
                 }
               } else {
                 emit(
