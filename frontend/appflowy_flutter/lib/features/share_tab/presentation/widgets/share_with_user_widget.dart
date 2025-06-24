@@ -26,6 +26,7 @@ class ShareWithUserWidget extends StatefulWidget {
 
 class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
   late final TextEditingController effectiveController;
+  late final FocusNode focusNode;
   bool isButtonEnabled = false;
 
   @override
@@ -34,6 +35,11 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
 
     effectiveController = widget.controller ?? TextEditingController();
     effectiveController.addListener(_onTextChanged);
+
+    focusNode = FocusNode();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      focusNode.requestFocus();
+    });
   }
 
   @override
@@ -41,6 +47,8 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
     if (widget.controller == null) {
       effectiveController.dispose();
     }
+
+    focusNode.dispose();
 
     super.dispose();
   }
@@ -54,6 +62,7 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
         Expanded(
           child: AFTextField(
             controller: effectiveController,
+            focusNode: focusNode,
             size: AFTextFieldSize.m,
             hintText: LocaleKeys.shareTab_inviteByEmail.tr(),
             onSubmitted: (value) {
