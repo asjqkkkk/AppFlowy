@@ -417,7 +417,7 @@ impl DatabaseManager {
     workspace_id: &Uuid,
     params: CreateDatabaseParams,
   ) -> FlowyResult<Vec<EncodedCollabInfo>> {
-    if params.rows.len() > 1000 {
+    if !cfg!(debug_assertions) && params.rows.len() > 1000 {
       return Err(
         FlowyError::invalid_data()
           .with_context("Only support importing csv with less than 1000 rows"),

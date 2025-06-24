@@ -1672,7 +1672,7 @@ impl DatabaseEditor {
         };
 
       let mut loaded_rows = vec![];
-      const CHUNK_SIZE: usize = 10;
+      const CHUNK_SIZE: usize = 100;
       let row_orders = view_editor.row_orders.read().await;
       let row_orders_chunks = row_orders.chunks(CHUNK_SIZE).collect::<Vec<_>>();
 
@@ -1845,7 +1845,7 @@ impl DatabaseEditor {
         Ok(row_data)
       },
       Some(row_ids) => {
-        let row_stream = database.init_database_rows(row_ids, 10, None, true);
+        let row_stream = database.init_database_rows(row_ids, 100, None, true);
         pin_mut!(row_stream);
         let mut row_data = vec![];
         while let Some(result) = row_stream.next().await {
