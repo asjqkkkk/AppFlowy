@@ -46,7 +46,8 @@ class _MobileFavoriteSpaceState extends State<MobileFavoriteSpace>
             ),
         ),
         BlocProvider(
-          create: (_) => FavoriteBloc()..add(const FavoriteEvent.initial()),
+          create: (_) => FavoriteBloc(workspaceId: workspaceId)
+            ..add(const FavoriteEvent.initial()),
         ),
       ],
       child: BlocListener<UserWorkspaceBloc, UserWorkspaceState>(

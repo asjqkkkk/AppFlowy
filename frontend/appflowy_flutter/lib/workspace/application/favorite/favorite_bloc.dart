@@ -1,8 +1,9 @@
+import 'package:appflowy/core/notification/folder_notification.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_service.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
@@ -12,17 +13,23 @@ import 'favorite_listener.dart';
 part 'favorite_bloc.freezed.dart';
 
 class FavoriteBloc extends Bloc<FavoriteEvent, FavoriteState> {
-  FavoriteBloc() : super(FavoriteState.initial()) {
+  FavoriteBloc({
+    this.workspaceId,
+  }) : super(FavoriteState.initial()) {
     _dispatch();
+    _initFolderNotificationListener();
   }
 
   final _service = FavoriteService();
   final _listener = FavoriteListener();
+  final String? workspaceId;
+  FolderNotificationListener? _folderNotificationListener;
   bool isReordering = false;
 
   @override
   Future<void> close() async {
     await _listener.stop();
+    await _folderNotificationListener?.stop();
     return super.close();
   }
 
@@ -111,6 +118,30 @@ class FavoriteBloc extends Bloc<FavoriteEvent, FavoriteState> {
         (error) => Log.error(error),
       );
     }
+  }
+
+  void _initFolderNotificationListener() {
+    if (workspaceId == null) {
+      return;
+    }
+    _folderNotificationListener = FolderNotificationListener(
+      objectId: workspaceId!,
+      handler: (notification, result) {
+        if (notification == FolderNotification.DidUpdateSharedViews) {
+          final response = result.fold(
+            (payload) {
+              final repeatedSharedViews =
+                  RepeatedSharedViewResponsePB.fromBuffer(payload);
+              return repeatedSharedViews;
+            },
+            (error) => null,
+          );
+          if (response != null) {
+            add(const FavoriteEvent.fetchFavorites());
+          }
+        }
+      },
+    );
   }
 }
 
