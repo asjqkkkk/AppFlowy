@@ -7,6 +7,7 @@ import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -120,10 +121,14 @@ class SubPageTransactionHandler extends BlockTransactionHandler {
           getIt<TabsBloc>().openPlugin(view);
         },
         (error) async {
-          Log.error(error);
+          Log.error('failed to create subpage: $error');
+          final message = error.code == ErrorCode.NotEnoughPermissions
+              ? LocaleKeys.document_plugins_subPage_errors_noAccessToCreatePage
+                  .tr()
+              : LocaleKeys.document_plugins_subPage_errors_failedCreatePage
+                  .tr();
           showToastNotification(
-            message: LocaleKeys.document_plugins_subPage_errors_failedCreatePage
-                .tr(),
+            message: message,
             type: ToastificationType.error,
           );
 

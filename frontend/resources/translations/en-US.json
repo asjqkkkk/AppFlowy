@@ -2091,6 +2091,7 @@
         "errors": {
           "failedDeletePage": "Failed to delete page",
           "failedCreatePage": "Failed to create page",
+          "noAccessToCreatePage": "No permission to create pages with the Can Edit access",
           "failedMovePage": "Failed to move page to this document",
           "failedDuplicatePage": "Failed to duplicate page",
           "failedDuplicateFindView": "Failed to duplicate page - original view not found"
