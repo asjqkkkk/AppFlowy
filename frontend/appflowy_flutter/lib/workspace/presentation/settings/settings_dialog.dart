@@ -1,4 +1,5 @@
 import 'package:appflowy/env/cloud_env.dart';
+import 'package:appflowy/features/profile_setting/presentation/settings_profile_view.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/shared/share/constants.dart';
@@ -131,6 +132,8 @@ class SettingsDialog extends StatelessWidget {
           didLogout: didLogout,
           didLogin: dismissDialog,
         );
+      case SettingsPage.profile:
+        return SettingsProfileView(userProfile: user, workspace: workspace,);
       case SettingsPage.workspace:
         return SettingsWorkspaceView(
           userProfile: user,

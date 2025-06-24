@@ -63,6 +63,16 @@ class SettingsMenu extends StatelessWidget {
             ),
             if (FeatureFlag.membersSettings.isOn &&
                 userProfile.workspaceType == WorkspaceTypePB.ServerW &&
+                currentUserRole != null)
+              SettingsMenuElement(
+                page: SettingsPage.profile,
+                selectedPage: currentPage,
+                label: LocaleKeys.settings_profilePage_menuLabel.tr(),
+                icon: const FlowySvg(FlowySvgs.settings_page_profile_m),
+                changeSelectedPage: changeSelectedPage,
+              ),
+            if (FeatureFlag.membersSettings.isOn &&
+                userProfile.workspaceType == WorkspaceTypePB.ServerW &&
                 currentUserRole != null &&
                 currentUserRole != AFRolePB.Guest)
               SettingsMenuElement(

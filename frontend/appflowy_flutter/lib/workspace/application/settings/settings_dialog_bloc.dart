@@ -21,6 +21,7 @@ enum SettingsPage {
   plan,
   billing,
   sites,
+  profile,
   // OLD
   notifications,
   cloud,
