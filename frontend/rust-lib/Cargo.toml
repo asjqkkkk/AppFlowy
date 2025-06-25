@@ -109,9 +109,12 @@ moka = { version = "0.12.10" }
 # Run the script.add_workspace_members:
 # scripts/tool/update_client_api_rev.sh  new_rev_id
 # ⚠️⚠️⚠️️
-client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "8ceca08682bae46a75a9cf3e9d2dd053ad8f3d9f" }
-client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "8ceca08682bae46a75a9cf3e9d2dd053ad8f3d9f" }
-workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "8ceca08682bae46a75a9cf3e9d2dd053ad8f3d9f" }
+client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "c3aee3b3464355ad608cb71a56a447f425580506" }
+client-api-entity = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "c3aee3b3464355ad608cb71a56a447f425580506" }
+workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "c3aee3b3464355ad608cb71a56a447f425580506" }
+#client-api = { path = "/Users/weidongfu/Documents/AppFlowy-Cloud/libs/client-api" }
+#client-api-entity = { path = "/Users/weidongfu/Documents/AppFlowy-Cloud/libs/client-api-entity" }
+#workspace-template = { path = "/Users/weidongfu/Documents/AppFlowy-Cloud/libs/workspace-template" }
 
 [profile.dev]
 opt-level = 0

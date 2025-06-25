@@ -965,9 +965,8 @@ impl DatabaseManager {
               }
 
               info!(
-                "[Database lifecycle]: Periodic cleanup: database {} can be removed. timeout duration: {}",
-                database_id,
-                timeout.as_secs()
+                "[Database lifecycle]: Periodic cleanup database {}",
+                database_id
               );
               to_remove.push(database_id.clone());
             }

@@ -464,11 +464,7 @@ impl DocumentManager {
           for entry in documents.iter() {
             let (doc_id, document_entry) = entry.pair();
             if document_entry.can_be_removed(timeout).await {
-              trace!(
-                "[Document lifecycle]: Periodic cleanup document: {} can be removed, timeout duration: {}",
-                doc_id,
-                timeout.as_secs()
-              );
+              trace!("[Document lifecycle]: Periodic cleanup document:{}", doc_id,);
               to_remove.push(*doc_id);
             }
           }

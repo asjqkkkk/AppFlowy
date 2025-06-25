@@ -15,7 +15,7 @@ use flowy_user_pub::entities::WorkspaceType;
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use tokio_stream::StreamExt;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 impl UserManager {
@@ -208,6 +208,11 @@ fn spawn_connect(
   access_token: Option<String>,
   workspace_type: &WorkspaceType,
 ) {
+  debug!(
+    "Spawning websocket connect for {} workspace:{}",
+    workspace_type,
+    controller.workspace_id()
+  );
   if matches!(workspace_type, WorkspaceType::Local) {
     return;
   }
@@ -218,6 +223,8 @@ fn spawn_connect(
         error!("spawn connect failed: {:?}", err);
       }
     });
+  } else {
+    warn!("No access token provided for workspace controller connection");
   }
 }
 

@@ -273,6 +273,15 @@ pub enum WorkspaceType {
   Server = 1,
 }
 
+impl Display for WorkspaceType {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      WorkspaceType::Local => write!(f, "Local"),
+      WorkspaceType::Server => write!(f, "Server"),
+    }
+  }
+}
+
 impl Default for WorkspaceType {
   fn default() -> Self {
     Self::Local
