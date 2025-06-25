@@ -675,8 +675,15 @@ impl FolderManager {
     let folder = lock.read().await;
 
     // trash views and other private views should not be accessed
-    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
+    let view_ids_should_be_filtered = Self::get_all_trash_ids(&folder);
     let no_access_view_ids = self.get_no_access_view_ids().await?;
+
+    if view_ids_should_be_filtered.contains(&view_id) {
+      return Err(FlowyError::new(
+        ErrorCode::RecordNotFound,
+        format!("View: {} is in trash or other private sections", view_id),
+      ));
+    }
 
     match folder.get_view(&view_id) {
       None => {
@@ -1097,7 +1104,7 @@ impl FolderManager {
   }
 
   /// Helper function to check if a guest user has permission to modify a view
-  /// Guest users can modify views only if they have edit access level for that specific view
+  /// Guest or members can modify views only if they have edit access level for that specific view
   #[instrument(level = "debug", skip_all, err)]
   async fn check_user_permission(
     &self,
