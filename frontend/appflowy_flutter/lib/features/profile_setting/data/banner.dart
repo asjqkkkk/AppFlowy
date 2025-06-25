@@ -1,21 +1,34 @@
 import 'dart:ui';
 
-abstract class BannerData {}
+import 'package:equatable/equatable.dart';
 
-class EmptyBanner implements BannerData {
-  EmptyBanner();
+abstract class BannerData extends Equatable {
+  const BannerData();
+}
+
+class EmptyBanner extends BannerData {
+  const EmptyBanner();
 
   static final EmptyBanner instance = EmptyBanner();
+
+  @override
+  List<Object?> get props => [];
 }
 
-class ColorBanner implements BannerData {
-  ColorBanner({required this.color});
+class ColorBanner extends BannerData {
+  const ColorBanner({required this.color});
 
   final Color color;
+
+  @override
+  List<Object?> get props => [color];
 }
 
-class AssetImageBanner implements BannerData {
-  AssetImageBanner({required this.path});
+class AssetImageBanner extends BannerData {
+  const AssetImageBanner({required this.path});
 
   final String path;
+
+  @override
+  List<Object?> get props => [path];
 }

@@ -640,23 +640,16 @@
     "profilePage": {
       "menuLabel": "Profile",
       "title": "Profile",
-      "displayName": {
-        "title": "Display name"
-      },
-      "aboutMe": {
-        "title": "About me"
-      },
-      "avatar": {
-        "title": "Avatar"
-      },
-      "bannerImage": {
-        "title": "Banner Image",
-        "upload": "Upload"
-      },
-      "prevoew": {
-        "title": "Preview"
-      },
-      "edit": "Edit"
+      "preview": "Preview",
+      "displayName": "Display Name",
+      "aboutMe": "About Me",
+      "avatar": "Avatar",
+      "bannerImage": "Banner Image",
+      "customImage": "Custom Image",
+      "upload": "Upload",
+      "edit": "Edit",
+      "wallpapers": "Wallpapers",
+      "limitCharacters": "{} characters"
     },
     "workspacePage": {
       "menuLabel": "Workspace",

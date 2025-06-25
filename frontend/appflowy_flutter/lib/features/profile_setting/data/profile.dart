@@ -6,7 +6,7 @@ class Profile {
         email = '',
         name = '',
         avatarUrl = '',
-        about = '',
+        aboutMe = '',
         banner = EmptyBanner.instance;
 
   Profile({
@@ -14,7 +14,7 @@ class Profile {
     required this.email,
     required this.name,
     required this.avatarUrl,
-    required this.about,
+    required this.aboutMe,
     required this.banner,
   });
 
@@ -22,7 +22,7 @@ class Profile {
   final String email;
   final String name;
   final String avatarUrl;
-  final String about;
+  final String aboutMe;
   final BannerData banner;
 
   Profile copyWith({
@@ -30,7 +30,7 @@ class Profile {
     String? email,
     String? name,
     String? avatarUrl,
-    String? about,
+    String? aboutMe,
     BannerData? banner,
   }) {
     return Profile(
@@ -38,7 +38,7 @@ class Profile {
       email: email ?? this.email,
       name: name ?? this.name,
       avatarUrl: avatarUrl ?? this.avatarUrl,
-      about: about ?? this.about,
+      aboutMe: aboutMe ?? this.aboutMe,
       banner: banner ?? this.banner,
     );
   }

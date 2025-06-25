@@ -9,7 +9,8 @@ enum AFAvatarSize {
   s,
   m,
   l,
-  xl;
+  xl,
+  xxl;
 
   double get size {
     switch (this) {
@@ -23,6 +24,8 @@ enum AFAvatarSize {
         return 48.0;
       case AFAvatarSize.xl:
         return 64.0;
+      case AFAvatarSize.xxl:
+        return 80.0;
     }
   }
 
@@ -38,6 +41,8 @@ enum AFAvatarSize {
         return theme.textStyle.heading3.standard(color: color);
       case AFAvatarSize.xl:
         return theme.textStyle.heading2.standard(color: color);
+      case AFAvatarSize.xxl:
+        return theme.textStyle.heading1.standard(color: color);
     }
   }
 }
@@ -56,6 +61,7 @@ class AFAvatar extends StatelessWidget {
     this.backgroundColor,
     this.child,
     this.colorHash,
+    this.radius,
   });
 
   /// The name of the avatar. Used for initials if [child] and [url] are not provided.
@@ -80,6 +86,9 @@ class AFAvatar extends StatelessWidget {
 
   /// The hash value used to pick the color. If it's not provided, the name hash will be used.
   final String? colorHash;
+
+  /// Optional radius for the avatar. If provided, the avatar will be circular with this radius.
+  final double? radius;
 
   @override
   Widget build(BuildContext context) {
@@ -113,8 +122,10 @@ class AFAvatar extends StatelessWidget {
     required Color bgColor,
     required TextStyle textStyle,
   }) {
+    final borderRadius = radius ?? avatarSize / 2;
     if (child != null) {
-      return ClipOval(
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
         child: SizedBox(
           width: avatarSize,
           height: avatarSize,
@@ -122,7 +133,8 @@ class AFAvatar extends StatelessWidget {
         ),
       );
     } else if (url != null && url!.isNotEmpty) {
-      return ClipOval(
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
         child: CachedNetworkImage(
           imageUrl: url!,
           width: avatarSize,
@@ -147,10 +159,13 @@ class AFAvatar extends StatelessWidget {
 
   Widget _buildInitialsCircle(double size, Color bgColor, TextStyle textStyle) {
     final initial = _getInitials(name);
+    final borderRadius = radius ?? size / 2;
     return Container(
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: bgColor,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       alignment: Alignment.center,
       child: Text(

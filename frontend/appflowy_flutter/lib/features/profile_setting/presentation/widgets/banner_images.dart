@@ -1,11 +1,15 @@
 import 'package:appflowy/features/profile_setting/data/banner.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
+import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-List<BannerData> defaultBanners(BuildContext context) {
+List<BannerData> _defaultBanners(BuildContext context) {
   final theme = AppFlowyTheme.of(context), badgeColor = theme.badgeColorScheme;
   return [
     ColorBanner(color: badgeColor.color14Light2),
@@ -24,54 +28,58 @@ class BannerImages extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    final banners = defaultBanners(context);
+    final theme = AppFlowyTheme.of(context),
+        spacing = theme.spacing,
+        bloc = context.read<ProfileSettingBloc>(),
+        state = bloc.state;
+    final banners = _defaultBanners(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        buildTitle(context),
-        VSpace(spacing.l),
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(banners.length ~/ 4, (index) {
-              return Padding(
-                padding: EdgeInsets.only(top: index == 0 ? 0 : spacing.s),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: List.generate(4, (i) {
-                    final currentIndex = i + (4 * index);
-                    final banner = banners[currentIndex];
-                    return Padding(
-                      padding: EdgeInsets.only(left: i == 0 ? 0 : spacing.s),
-                      child: banner.toWidget(
-                        context: context,
-                        selected: currentIndex == 4,
-                      ),
-                    );
-                  }),
-                ),
-              );
-            }),
-          ),
+        Text(
+          LocaleKeys.settings_profilePage_bannerImage.tr(),
+          style: theme.textStyle.body
+              .enhanced(color: theme.textColorScheme.primary),
         ),
         VSpace(spacing.l),
+        Text(
+          LocaleKeys.settings_profilePage_customImage.tr(),
+          style: theme.textStyle.caption
+              .prominent(color: theme.textColorScheme.tertiary),
+        ),
+        VSpace(spacing.xs),
         _UploadButton(onTap: () {}),
+        VSpace(spacing.xxl),
+        Text(
+          LocaleKeys.settings_profilePage_wallpapers.tr(),
+          style: theme.textStyle.caption
+              .prominent(color: theme.textColorScheme.tertiary),
+        ),
+        VSpace(spacing.xs),
+        GridView.count(
+          crossAxisCount: 4,
+          mainAxisSpacing: spacing.s,
+          crossAxisSpacing: spacing.s,
+          childAspectRatio: 160 / 52,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          children: banners.map((banner) {
+            return MouseRegion(
+              cursor: SystemMouseCursors.click,
+              child: GestureDetector(
+                onTap: () {
+                  bloc.add(ProfileSettingSelectBannerEvent(banner));
+                },
+                child: banner.toWidget(
+                  context: context,
+                  selected: banner == state.selectedBanner,
+                ),
+              ),
+            );
+          }).toList(),
+        ),
       ],
-    );
-  }
-
-  Widget buildTitle(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
-    return Text(
-      LocaleKeys.settings_profilePage_bannerImage_title.tr(),
-      style:
-          theme.textStyle.body.enhanced(color: theme.textColorScheme.primary),
-      maxLines: 1,
-      overflow: TextOverflow.ellipsis,
     );
   }
 }
@@ -112,8 +120,8 @@ class ColorBannerWidget extends StatelessWidget {
       ),
     );
     return SizedBox(
-      height: 40,
-      width: 82.5,
+      height: 52,
+      width: 160,
       child: selected ? selectedWidget : unselectedWidget,
     );
   }
@@ -159,8 +167,8 @@ class AssetImageBannerWidget extends StatelessWidget {
       ),
     );
     return SizedBox(
-      height: 40,
-      width: 82.5,
+      height: 52,
+      width: 160,
       child: selected ? selectedWidget : unselectedWidget,
     );
   }
@@ -174,16 +182,26 @@ class _UploadButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    return AFOutlinedTextButton.normal(
-      text: LocaleKeys.settings_profilePage_bannerImage_upload.tr(),
-      textStyle: theme.textStyle.body.enhanced(
-        color: theme.textColorScheme.primary,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 159,
+          height: 52,
+          decoration: BoxDecoration(
+            border: Border.all(color: theme.borderColorScheme.primary),
+            borderRadius: BorderRadius.circular(theme.spacing.m),
+          ),
+          child: Center(
+            child: FlowySvg(
+              FlowySvgs.profile_add_icon_m,
+              size: Size.square(20),
+              color: theme.iconColorScheme.primary,
+            ),
+          ),
+        ),
       ),
-      padding: EdgeInsets.symmetric(
-        horizontal: theme.spacing.l,
-        vertical: theme.spacing.s,
-      ),
-      onTap: onTap,
     );
   }
 }

@@ -8,6 +8,7 @@ sealed class ProfileSettingEvent {
   const factory ProfileSettingEvent.updateAboutMe(String aboutMe) = ProfileSettingUpdateAboutMeEvent;
   const factory ProfileSettingEvent.updateAvatar(String avatarUrl) = ProfileSettingUpdateAvatarEvent;
   const factory ProfileSettingEvent.updateBanner(BannerData banner) = ProfileSettingUpdateBannerEvent;
+  const factory ProfileSettingEvent.selectBanner(BannerData banner) = ProfileSettingSelectBannerEvent;
 }
 
 class ProfileSettingInitialEvent implements ProfileSettingEvent {
@@ -36,6 +37,11 @@ class ProfileSettingUpdateAvatarEvent implements ProfileSettingEvent {
 
 class ProfileSettingUpdateBannerEvent implements ProfileSettingEvent {
   const ProfileSettingUpdateBannerEvent(this.banner);
+
+  final BannerData banner;
+}
+class ProfileSettingSelectBannerEvent implements ProfileSettingEvent {
+  const ProfileSettingSelectBannerEvent(this.banner);
 
   final BannerData banner;
 }

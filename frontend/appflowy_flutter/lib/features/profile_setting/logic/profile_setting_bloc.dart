@@ -15,6 +15,11 @@ class ProfileSettingBloc
   })  : repository = repository ?? MockProfileSettingRepository(),
         super(ProfileSettingState.empty()) {
     on<ProfileSettingInitialEvent>(_onInitial);
+    on<ProfileSettingUpdateNameEvent>(_onUpdateName);
+    on<ProfileSettingUpdateAboutMeEvent>(_onUpdateAboutMe);
+    on<ProfileSettingUpdateAvatarEvent>(_onUpdateAvatarUrl);
+    on<ProfileSettingUpdateBannerEvent>(_onUpdateBanner);
+    on<ProfileSettingSelectBannerEvent>(_onSelectBanner);
   }
 
   final ProfileSettingRepository repository;
@@ -33,5 +38,62 @@ class ProfileSettingBloc
       if (isClosed) return;
       emit(state.copyWith(status: ProfileSettingStatus.failed));
     });
+  }
+
+  Future<void> _onUpdateName(
+    ProfileSettingUpdateNameEvent event,
+    Emitter<ProfileSettingState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        profile: state.profile.copyWith(name: event.name),
+        hasChanged: true,
+      ),
+    );
+  }
+
+  Future<void> _onUpdateAboutMe(
+    ProfileSettingUpdateAboutMeEvent event,
+    Emitter<ProfileSettingState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        profile: state.profile.copyWith(aboutMe: event.aboutMe),
+        hasChanged: true,
+      ),
+    );
+  }
+
+  Future<void> _onUpdateAvatarUrl(
+    ProfileSettingUpdateAvatarEvent event,
+    Emitter<ProfileSettingState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        profile: state.profile.copyWith(avatarUrl: event.avatarUrl),
+        hasChanged: true,
+      ),
+    );
+  }
+
+  Future<void> _onUpdateBanner(
+    ProfileSettingUpdateBannerEvent event,
+    Emitter<ProfileSettingState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        profile: state.profile.copyWith(banner: event.banner),
+        hasChanged: true,
+      ),
+    );
+  }
+
+  Future<void> _onSelectBanner(
+    ProfileSettingSelectBannerEvent event,
+    Emitter<ProfileSettingState> emit,
+  ) async {
+    emit(
+      state.copyWith(selectedBanner: event.banner, hasChanged: true),
+    );
   }
 }
