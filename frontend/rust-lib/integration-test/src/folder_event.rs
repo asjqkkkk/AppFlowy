@@ -5,6 +5,10 @@ use std::sync::Arc;
 use collab_folder::{FolderData, SpaceInfo, View};
 use csv::ReaderBuilder;
 use flowy_folder::entities::icon::UpdateViewIconPayloadPB;
+use flowy_folder::entities::{
+  AFAccessLevelPB, GetSharedUsersPayloadPB, RemoveUserFromSharedPagePayloadPB,
+  RepeatedSharedUserPB, SharePageWithUserPayloadPB,
+};
 use flowy_folder::event_map::FolderEvent;
 use flowy_folder::event_map::FolderEvent::*;
 use flowy_folder::{entities::*, ViewLayout};
@@ -508,6 +512,84 @@ impl EventIntegrationTest {
         .await,
       md_string,
     )
+  }
+
+  pub async fn share_page_with_email(
+    &self,
+    view_id: &str,
+    email: &str,
+    access_level: AFAccessLevelPB,
+  ) -> FlowyResult<()> {
+    // set the auto_confirm to true so the user will have immediate access to the page
+    self
+      .share_page_with_emails(view_id, vec![email.to_string()], access_level, true)
+      .await
+  }
+
+  pub async fn share_page_with_emails(
+    &self,
+    view_id: &str,
+    emails: Vec<String>,
+    access_level: AFAccessLevelPB,
+    auto_confirm: bool,
+  ) -> FlowyResult<()> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::SharePageWithUser)
+      .payload(SharePageWithUserPayloadPB {
+        view_id: view_id.to_string(),
+        emails,
+        access_level,
+        auto_confirm,
+      })
+      .async_send()
+      .await
+      .parse_void()
+  }
+
+  pub async fn get_shared_users(&self, view_id: &str) -> FlowyResult<RepeatedSharedUserPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedUsers)
+      .payload(GetSharedUsersPayloadPB {
+        view_id: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<RepeatedSharedUserPB>()
+  }
+
+  pub async fn remove_user_from_shared_page(
+    &self,
+    view_id: &str,
+    emails: Vec<String>,
+  ) -> FlowyResult<()> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::RemoveUserFromSharedPage)
+      .payload(RemoveUserFromSharedPagePayloadPB {
+        view_id: view_id.to_string(),
+        emails,
+      })
+      .async_send()
+      .await
+      .parse_void()
+  }
+
+  pub async fn get_user_access_level(
+    &self,
+    view_id: &str,
+    user_email: &str,
+  ) -> FlowyResult<AFAccessLevelPB> {
+    let shared_users = self.get_shared_users(view_id).await?;
+
+    for user in shared_users.items {
+      if user.email == user_email {
+        return Ok(user.access_level);
+      }
+    }
+
+    Err(FlowyError::new(
+      flowy_error::ErrorCode::RecordNotFound,
+      format!("User {} not found in shared users", user_email),
+    ))
   }
 }
 
