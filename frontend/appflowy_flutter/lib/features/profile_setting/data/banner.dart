@@ -2,6 +2,12 @@ import 'dart:ui';
 
 abstract class BannerData {}
 
+class EmptyBanner implements BannerData {
+  EmptyBanner();
+
+  static final EmptyBanner instance = EmptyBanner();
+}
+
 class ColorBanner implements BannerData {
   ColorBanner({required this.color});
 
