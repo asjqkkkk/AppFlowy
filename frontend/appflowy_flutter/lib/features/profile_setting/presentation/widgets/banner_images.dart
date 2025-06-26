@@ -14,14 +14,14 @@ import 'package:provider/provider.dart';
 List<BannerData> _defaultBanners(BuildContext context) {
   final theme = AppFlowyTheme.of(context), badgeColor = theme.badgeColorScheme;
   return [
-    ColorBanner(color: badgeColor.color14Light2),
-    ColorBanner(color: badgeColor.color8Light2),
-    ColorBanner(color: badgeColor.color5Light2),
-    ColorBanner(color: badgeColor.color1Light2),
     AssetImageBanner(path: 'assets/images/profile_banner/banner_purple.png'),
     AssetImageBanner(path: 'assets/images/profile_banner/banner_blue.png'),
     AssetImageBanner(path: 'assets/images/profile_banner/banner_yellow.png'),
     AssetImageBanner(path: 'assets/images/profile_banner/banner_pink.png'),
+    ColorBanner(color: badgeColor.color14Light2),
+    ColorBanner(color: badgeColor.color8Light2),
+    ColorBanner(color: badgeColor.color5Light2),
+    ColorBanner(color: badgeColor.color1Light2),
   ];
 }
 
@@ -59,27 +59,38 @@ class BannerImages extends StatelessWidget {
               .prominent(color: theme.textColorScheme.tertiary),
         ),
         VSpace(spacing.xs),
-        GridView.count(
-          crossAxisCount: 4,
-          mainAxisSpacing: spacing.s,
-          crossAxisSpacing: spacing.s,
-          childAspectRatio: 160 / 52,
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          children: banners.map((banner) {
-            return MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: GestureDetector(
-                onTap: () {
-                  bloc.add(ProfileSettingSelectBannerEvent(banner));
-                },
-                child: banner.toWidget(
-                  context: context,
-                  selected: banner == state.selectedBanner,
-                ),
-              ),
-            );
-          }).toList(),
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: 660,
+          ),
+          child: LayoutBuilder(
+            builder: (context, constrains) {
+              final width = constrains.maxWidth;
+              final itemWidth = (width - spacing.s * 3) / 4;
+              return GridView.count(
+                crossAxisCount: 4,
+                mainAxisSpacing: spacing.s,
+                crossAxisSpacing: spacing.s,
+                childAspectRatio: itemWidth / 52,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: banners.map((banner) {
+                  return MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () {
+                        bloc.add(ProfileSettingSelectBannerEvent(banner));
+                      },
+                      child: banner.toWidget(
+                        context: context,
+                        selected: banner == state.selectedBanner,
+                      ),
+                    ),
+                  );
+                }).toList(),
+              );
+            },
+          ),
         ),
       ],
     );
@@ -123,7 +134,6 @@ class ColorBannerWidget extends StatelessWidget {
     );
     return SizedBox(
       height: 52,
-      width: 160,
       child: selected ? selectedWidget : unselectedWidget,
     );
   }
@@ -141,37 +151,49 @@ class AssetImageBannerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    final unselectedWidget = DecoratedBox(
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage(banner.path),
-          fit: BoxFit.cover,
-        ),
-        borderRadius: BorderRadius.circular(spacing.m),
-      ),
-    );
-    final selectedWidget = DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.borderColorScheme.themeThick, width: 2),
-        borderRadius: BorderRadius.circular(spacing.m),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            image: DecorationImage(
-              image: AssetImage(banner.path),
-              fit: BoxFit.cover,
-            ),
-            borderRadius: BorderRadius.circular(spacing.xs),
-          ),
-        ),
-      ),
-    );
     return SizedBox(
       height: 52,
       width: 160,
-      child: selected ? selectedWidget : unselectedWidget,
+      child: Stack(
+        children: [
+          Container(
+            height: 52,
+            width: 160,
+            decoration: BoxDecoration(
+              image: DecorationImage(
+                image: AssetImage(banner.path),
+                fit: BoxFit.cover,
+              ),
+              borderRadius: BorderRadius.circular(spacing.m),
+            ),
+          ),
+          if (selected)
+            Container(
+              height: 52,
+              decoration: BoxDecoration(
+                border: Border.all(
+                  color: theme.borderColorScheme.themeThick,
+                  width: 2,
+                ),
+                borderRadius: BorderRadius.circular(spacing.m),
+              ),
+              child: Container(
+                height: 48,
+                decoration: BoxDecoration(
+                  border: Border.all(
+                    color: Colors.white,
+                    width: 2,
+                  ),
+                  borderRadius: BorderRadius.circular(spacing.s),
+                ),
+                child: SizedBox(
+                  height: 44,
+                  width: 151,
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -194,6 +216,10 @@ class _UploadButtonState extends State<_UploadButton> {
 
   @override
   Widget build(BuildContext context) {
+    return buildButtonWithPlaceHolder();
+  }
+
+  Widget buildPopover() {
     final bloc = context.read<ProfileSettingBloc>();
     return AppFlowyPopover(
       direction: PopoverDirection.bottomWithCenterAligned,
@@ -225,7 +251,6 @@ class _UploadButtonState extends State<_UploadButton> {
           popoverController.show();
         },
         child: Container(
-          width: 159,
           height: 52,
           decoration: BoxDecoration(
             border: Border.all(color: theme.borderColorScheme.primary),
@@ -239,6 +264,38 @@ class _UploadButtonState extends State<_UploadButton> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  Widget buildButtonWithPlaceHolder() {
+    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    final widgets = [
+      buildPopover(),
+      SizedBox.shrink(),
+      SizedBox.shrink(),
+      SizedBox.shrink(),
+    ];
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: 660,
+      ),
+      child: LayoutBuilder(
+        builder: (context, constrains) {
+          final width = constrains.maxWidth;
+          final itemWidth = (width - spacing.s * 3) / 4;
+          return GridView.count(
+            crossAxisCount: 4,
+            mainAxisSpacing: spacing.s,
+            crossAxisSpacing: spacing.s,
+            childAspectRatio: itemWidth / 52,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            children: widgets.map((widget) {
+              return widget;
+            }).toList(),
+          );
+        },
       ),
     );
   }

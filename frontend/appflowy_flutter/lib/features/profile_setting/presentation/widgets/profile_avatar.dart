@@ -1,4 +1,5 @@
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
@@ -44,6 +45,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
           ],
           documentId: bloc.workspace?.workspaceId ?? '',
           onSelectedEmoji: (r) {
+            bloc.add(ProfileSettingEvent.updateAvatar(r.emoji));
             if (!r.keepOpen) popoverController.close();
           },
         );
@@ -56,7 +58,10 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
         spacing = theme.spacing,
         bloc = context.read<ProfileSettingBloc>(),
         state = bloc.state,
-        profile = state.profile;
+        profile = state.profile,
+        avatarUrl = profile.avatarUrl;
+    final isEmojiAvatarUrl =
+        avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (event) => setState(() => hovering = true),
@@ -72,8 +77,8 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
               AFAvatar(
                 radius: spacing.m,
                 size: AFAvatarSize.xxl,
-                name: profile.name,
-                url: profile.avatarUrl,
+                name: isEmojiAvatarUrl ? profile.avatarUrl : profile.name,
+                url: isEmojiAvatarUrl ? '' : profile.avatarUrl,
               ),
               if (hovering)
                 Container(

@@ -1,8 +1,11 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ProfileDisplayName extends StatefulWidget {
   const ProfileDisplayName({
@@ -28,7 +31,9 @@ class _ProfileDisplayNameState extends State<ProfileDisplayName> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    final theme = AppFlowyTheme.of(context),
+        spacing = theme.spacing,
+        bloc = context.read<ProfileSettingBloc>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -46,6 +51,11 @@ class _ProfileDisplayNameState extends State<ProfileDisplayName> {
           child: AFTextField(
             size: AFTextFieldSize.m,
             controller: controller,
+            onChanged: (v) {
+              if (v.trim().isNotEmpty) {
+                bloc.add(ProfileSettingUpdateNameEvent(v.trim()));
+              }
+            },
           ),
         ),
       ],

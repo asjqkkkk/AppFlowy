@@ -33,7 +33,13 @@ class ProfileSettingBloc
     final result = await repository.getProfile(userProfile.id.toString());
     result.fold((v) {
       if (isClosed) return;
-      emit(state.copyWith(profile: v, status: ProfileSettingStatus.idle));
+      emit(
+        state.copyWith(
+          profile: v,
+          status: ProfileSettingStatus.idle,
+          selectedBanner: v.banner,
+        ),
+      );
     }, (e) {
       if (isClosed) return;
       emit(state.copyWith(status: ProfileSettingStatus.failed));
@@ -44,56 +50,44 @@ class ProfileSettingBloc
     ProfileSettingUpdateNameEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        profile: state.profile.copyWith(name: event.name),
-        hasChanged: true,
-      ),
-    );
+    final newProfile = state.profile.copyWith(name: event.name);
+    emit(state.copyWith(profile: newProfile));
+    await repository.updateProfile(newProfile);
   }
 
   Future<void> _onUpdateAboutMe(
     ProfileSettingUpdateAboutMeEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        profile: state.profile.copyWith(aboutMe: event.aboutMe),
-        hasChanged: true,
-      ),
-    );
+    final newProfile = state.profile.copyWith(aboutMe: event.aboutMe);
+    emit(state.copyWith(profile: newProfile));
+    await repository.updateProfile(newProfile);
   }
 
   Future<void> _onUpdateAvatarUrl(
     ProfileSettingUpdateAvatarEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        profile: state.profile.copyWith(avatarUrl: event.avatarUrl),
-        hasChanged: true,
-      ),
-    );
+    final newProfile = state.profile.copyWith(avatarUrl: event.avatarUrl);
+    emit(state.copyWith(profile: newProfile));
+    await repository.updateProfile(newProfile);
   }
 
   Future<void> _onUpdateBanner(
     ProfileSettingUpdateBannerEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        profile: state.profile.copyWith(banner: event.banner),
-        hasChanged: true,
-      ),
-    );
+    final newProfile = state.profile.copyWith(banner: event.banner);
+    emit(state.copyWith(profile: newProfile));
+    await repository.updateProfile(newProfile);
   }
 
   Future<void> _onSelectBanner(
     ProfileSettingSelectBannerEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    emit(
-      state.copyWith(selectedBanner: event.banner, hasChanged: true),
-    );
+    final newProfile = state.profile.copyWith(banner: event.banner);
+    emit(state.copyWith(selectedBanner: event.banner));
+    await repository.updateProfile(newProfile);
   }
 }

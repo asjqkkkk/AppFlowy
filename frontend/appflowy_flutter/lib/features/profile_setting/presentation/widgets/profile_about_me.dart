@@ -1,8 +1,11 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class ProfileAboutMe extends StatefulWidget {
   const ProfileAboutMe({super.key, required this.aboutMe});
@@ -25,7 +28,9 @@ class _ProfileAboutMeState extends State<ProfileAboutMe> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    final theme = AppFlowyTheme.of(context),
+        spacing = theme.spacing,
+        bloc = context.read<ProfileSettingBloc>();
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -47,6 +52,9 @@ class _ProfileAboutMeState extends State<ProfileAboutMe> {
             maxLength: 190,
             textAlignVertical: TextAlignVertical.top,
             keyboardType: TextInputType.multiline,
+            onChanged: (v) {
+              bloc.add(ProfileSettingUpdateAboutMeEvent(v.trim()));
+            },
           ),
         ),
         ValueListenableBuilder(

@@ -180,7 +180,7 @@ class AFAvatar extends StatelessWidget {
     if (name == null || name.trim().isEmpty) return '';
 
     // Always return just the first letter of the name
-    return name.trim()[0].toUpperCase();
+    return Characters(name.trim()).first.toUpperCase();
   }
 
   /// Deterministically pick a color index (1-20) based on the user name

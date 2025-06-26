@@ -37,6 +37,9 @@ class SettingsProfileView extends StatelessWidget {
       )..add(ProfileSettingEvent.initial()),
       child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
         builder: (context, state) {
+          if (state.profile.id.isEmpty) {
+            return Center(child: CircularProgressIndicator.adaptive());
+          }
           return SingleChildScrollView(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,7 +103,7 @@ class SettingsProfileView extends StatelessWidget {
         children: [
           ProfileAvatar(),
           HSpace(spacing.xxl),
-          Flexible(child: ProfileDisplayName(name: name, key: ValueKey(name))),
+          Flexible(child: ProfileDisplayName(name: name)),
         ],
       ),
     );
@@ -109,6 +112,6 @@ class SettingsProfileView extends StatelessWidget {
   Widget buildAboutMe(BuildContext context) {
     final state = context.read<ProfileSettingBloc>().state,
         aboutMe = state.profile.aboutMe;
-    return ProfileAboutMe(aboutMe: aboutMe, key: ValueKey(aboutMe));
+    return ProfileAboutMe(aboutMe: aboutMe);
   }
 }
