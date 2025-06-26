@@ -2,7 +2,6 @@ use crate::util::test_unzip;
 use event_integration_test::folder_event::gen_database_import_data;
 use event_integration_test::EventIntegrationTest;
 use flowy_core::DEFAULT_NAME;
-use flowy_error::ErrorCode;
 
 #[tokio::test]
 async fn import_492_row_csv_file_test() {
