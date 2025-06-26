@@ -215,6 +215,7 @@ class MobileViewBottomSheetBody extends StatelessWidget {
           _divider(),
         ],
         if (!hasFullAccess) ...[
+          _divider(),
           MobileQuickActionButton(
             text: LocaleKeys.shareTab_removeYourOwnAccess.tr(),
             icon: FlowySvgs.leave_workspace_s,
