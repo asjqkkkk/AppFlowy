@@ -181,6 +181,7 @@ class SharedUserWidget extends StatelessWidget {
       return Row(
         children: [
           PendingTag(),
+          HSpace(theme.spacing.xs),
           child,
         ],
       );
