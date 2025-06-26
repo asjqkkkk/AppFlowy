@@ -290,7 +290,10 @@ class CustomImageBlockComponentState extends State<CustomImageBlockComponent>
       );
     }
 
-    return child;
+    return IgnorePointer(
+      ignoring: !editorState.editable,
+      child: child,
+    );
   }
 
   @override
