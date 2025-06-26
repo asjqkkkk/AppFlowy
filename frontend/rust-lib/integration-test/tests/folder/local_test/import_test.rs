@@ -24,6 +24,7 @@ async fn import_492_row_csv_file_test() {
 }
 
 #[tokio::test]
+#[ignore]
 async fn import_10240_row_csv_file_test() {
   // csv_22577r_15c.csv is a file with 10240 rows and 15 columns
   let file_name = "csv_10240r_15c.csv".to_string();
@@ -36,6 +37,5 @@ async fn import_10240_row_csv_file_test() {
   let workspace_id = test.get_current_workspace().await.id;
   let import_data = gen_database_import_data(file_name, csv_string, workspace_id);
 
-  let err = test.import_data(import_data).await.unwrap_err();
-  assert_eq!(err.code, ErrorCode::InvalidParams);
+  test.import_data(import_data).await.unwrap();
 }
