@@ -196,9 +196,9 @@ class FavoriteHeader extends StatelessWidget {
         final textColor = theme.textColorScheme.primary;
         return Row(
           children: [
-            FlowySvg(
-              FlowySvgs.shared_with_me_m,
-              color: theme.badgeColorScheme.color13Thick2,
+            const FlowySvg(
+              FlowySvgs.favorite_header_m,
+              blendMode: null,
             ),
             SizedBox(width: theme.spacing.s),
             Text(
