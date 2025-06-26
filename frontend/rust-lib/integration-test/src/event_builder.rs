@@ -91,6 +91,13 @@ impl EventBuilder {
       },
     }
   }
+  pub fn parse_void(self) -> FlowyResult<()> {
+    if let Some(err) = self.error() {
+      return Err(err);
+    }
+
+    Ok(())
+  }
 
   pub fn try_parse<R>(self) -> Result<R, FlowyError>
   where

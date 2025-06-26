@@ -266,7 +266,13 @@ class HomeSideBar extends StatelessWidget {
         Log.info(
           'Switching space from (${firstAncestor.name}-${firstAncestor.id}) to (${space.name}-${space.id})',
         );
-        spaceBloc.add(SpaceEvent.open(space: space, afterOpen: afterOpen));
+        spaceBloc.add(
+          SpaceEvent.open(
+            space: space,
+            openDefaultPage: kFlutterMemoryAllocationsEnabled,
+            afterOpen: afterOpen,
+          ),
+        );
       }
     }
   }

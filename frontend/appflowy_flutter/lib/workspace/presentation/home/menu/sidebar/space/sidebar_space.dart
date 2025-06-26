@@ -226,6 +226,11 @@ class _SpaceState extends State<_Space> {
       return;
     }
 
-    context.read<SpaceBloc>().add(SpaceEvent.open(space: space));
+    context.read<SpaceBloc>().add(
+          SpaceEvent.open(
+            space: space,
+            openDefaultPage: false,
+          ),
+        );
   }
 }

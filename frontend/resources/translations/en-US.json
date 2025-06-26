@@ -516,7 +516,7 @@
     "clear": "Clear",
     "remove": "Remove",
     "dontRemove": "Don't remove",
-    "copyLink": "Copy Link",
+    "copyLink": "Copy link",
     "align": "Align",
     "login": "Login",
     "logout": "Log out",
@@ -2091,6 +2091,7 @@
         "errors": {
           "failedDeletePage": "Failed to delete page",
           "failedCreatePage": "Failed to create page",
+          "noAccessToCreatePage": "No permission to create pages with the Can Edit access",
           "failedMovePage": "Failed to move page to this document",
           "failedDuplicatePage": "Failed to duplicate page",
           "failedDuplicateFindView": "Failed to duplicate page - original view not found"
@@ -2110,7 +2111,7 @@
           "toUrl": "Convert to URL",
           "toEmbed": "Convert to Embed",
           "toBookmark": "Convert to Bookmark",
-          "copyLink": "Copy Link",
+          "copyLink": "Copy link",
           "replace": "Replace",
           "reload": "Reload",
           "removeLink": "Remove Link",
@@ -2693,7 +2694,7 @@
   "favorite": {
     "noFavorite": "No favorite page",
     "noFavoriteHintText": "Swipe the page to the left to add it to your favorites",
-    "removeFromSidebar": "Remove from sidebar",
+    "removeFromSidebar": "Unpin from sidebar",
     "addToSidebar": "Pin to sidebar"
   },
   "cardDetails": {
@@ -3444,7 +3445,9 @@
     "inviteByEmail": "Invite by email",
     "invite": "Invite",
     "anyoneAtWorkspace": "Anyone at {workspace}",
-    "anyoneInGroupWithLinkCanEdit": "Anyone in this group with the link can edit",
+    "anyoneInGroupWithLinkHasFullAccess": "Anyone in this group with the link has full access",
+    "restricted": "Restricted",
+    "onlyPeopleWithAccessCanOpenWithTheLink": "Only people with access can open with the link",
     "copyLink": "Copy link",
     "copiedLinkToClipboard": "Copied link to clipboard",
     "removeAccess": "Remove access",

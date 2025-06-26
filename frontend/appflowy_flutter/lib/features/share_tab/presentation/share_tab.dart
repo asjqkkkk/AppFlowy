@@ -5,6 +5,7 @@ import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/copy_link_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/general_access_section.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/people_with_access_section.dart';
+import 'package:appflowy/features/share_tab/presentation/widgets/restricted_access_section.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/share_with_user_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/upgrade_to_pro_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -146,6 +147,12 @@ class _ShareTabState extends State<ShareTab> {
                   icon: widget.workspaceIcon,
                 ),
               ),
+            ],
+
+            if (state.sectionType == SharedSectionType.shared ||
+                state.sectionType == SharedSectionType.private) ...[
+              VSpace(theme.spacing.m),
+              RestrictedAccessSection(),
             ],
 
             // copy link

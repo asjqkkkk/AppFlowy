@@ -44,6 +44,11 @@ class SharedSection extends StatelessWidget {
       )..add(const SharedSectionInitEvent()),
       child: BlocConsumer<SharedSectionBloc, SharedSectionState>(
         listener: (context, state) {
+          // When shared views change, refresh favorites to ensure consistency
+          context
+              .read<FavoriteBloc>()
+              .add(const FavoriteEvent.fetchFavorites());
+
           if (!openFirstSharedPage.value) {
             return;
           }
@@ -53,11 +58,6 @@ class SharedSection extends StatelessWidget {
           if (view != null) {
             getIt<TabsBloc>().openPlugin(view);
           }
-
-          // When shared views change, refresh favorites to ensure consistency
-          context
-              .read<FavoriteBloc>()
-              .add(const FavoriteEvent.fetchFavorites());
         },
         builder: (context, state) {
           if (state.isLoading) {

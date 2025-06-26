@@ -92,7 +92,12 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             if (openFirstPage) {
               if (currentSpace != null) {
                 if (!isClosed) {
-                  add(SpaceEvent.open(space: currentSpace));
+                  add(
+                    SpaceEvent.open(
+                      space: currentSpace,
+                      openDefaultPage: false,
+                    ),
+                  );
                 }
               }
             }
@@ -121,7 +126,13 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
                   currentSpace: space,
                 ),
               );
-              add(SpaceEvent.open(space: space));
+
+              add(
+                SpaceEvent.open(
+                  space: space,
+                  openDefaultPage: false,
+                ),
+              );
               Log.info('open space: ${space.name}(${space.id})');
 
               if (createNewPageByDefault) {
@@ -238,7 +249,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
               );
             }
           },
-          open: (space, afterOpen) async {
+          open: (space, openDefaultPage, afterOpen) async {
             // check if the user has space permission
             final result = await ViewBackendService.getView(space.id);
             final hasPermission = result.fold(
@@ -275,25 +286,27 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             // don't open the page automatically on mobile
             if (UniversalPlatform.isDesktop) {
               // open the first page by default
-              if (currentSpace.childViews.isNotEmpty && openFirstPage) {
-                final firstPage = currentSpace.childViews.first;
-                final result = await ViewBackendService.getView(firstPage.id);
-                final hasPermission = result.fold(
-                  (view) => true,
-                  (error) => false,
-                );
-                if (!hasPermission) {
-                  emit(
-                    state.copyWith(
-                      lastCreatedPage: ViewPB(),
-                    ),
+              if (currentSpace.childViews.isNotEmpty) {
+                if (openFirstPage || openDefaultPage) {
+                  final firstPage = currentSpace.childViews.first;
+                  final result = await ViewBackendService.getView(firstPage.id);
+                  final hasPermission = result.fold(
+                    (view) => true,
+                    (error) => false,
                   );
-                } else {
-                  emit(
-                    state.copyWith(
-                      lastCreatedPage: firstPage,
-                    ),
-                  );
+                  if (!hasPermission) {
+                    emit(
+                      state.copyWith(
+                        lastCreatedPage: ViewPB(),
+                      ),
+                    );
+                  } else {
+                    emit(
+                      state.copyWith(
+                        lastCreatedPage: firstPage,
+                      ),
+                    );
+                  }
                 }
               } else {
                 emit(
@@ -382,7 +395,12 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             final currentIndex = spaces.indexOf(currentSpace);
             final nextIndex = (currentIndex + 1) % spaces.length;
             final nextSpace = spaces[nextIndex];
-            add(SpaceEvent.open(space: nextSpace));
+            add(
+              SpaceEvent.open(
+                space: nextSpace,
+                openDefaultPage: false,
+              ),
+            );
           },
           duplicate: (space) async {
             space ??= state.currentSpace;
@@ -399,7 +417,12 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             // open the duplicated space
             if (newSpace != null) {
               add(const SpaceEvent.didReceiveSpaceUpdate());
-              add(SpaceEvent.open(space: newSpace));
+              add(
+                SpaceEvent.open(
+                  space: newSpace,
+                  openDefaultPage: false,
+                ),
+              );
             }
 
             emit(state.copyWith(isDuplicatingSpace: false));
@@ -789,6 +812,7 @@ class SpaceEvent with _$SpaceEvent {
   }) = _Update;
   const factory SpaceEvent.open({
     required ViewPB space,
+    required bool openDefaultPage,
     VoidCallback? afterOpen,
   }) = _Open;
   const factory SpaceEvent.expand(ViewPB space, bool isExpanded) = _Expand;

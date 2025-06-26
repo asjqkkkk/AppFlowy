@@ -21,9 +21,10 @@ class SharedSectionHeader extends StatelessWidget {
       size: AFButtonSize.l,
       onTap: onTap,
       // todo: ask the designer to provide the token.
-      padding: EdgeInsets.symmetric(
-        horizontal: 4,
-        vertical: 6,
+      padding: EdgeInsets.only(
+        left: 6,
+        top: 6,
+        bottom: 6,
       ),
       borderRadius: theme.borderRadius.s,
       iconBuilder: (context, isHover, disabled) => FlowySvg(
