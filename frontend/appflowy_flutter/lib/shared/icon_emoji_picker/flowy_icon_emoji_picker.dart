@@ -112,6 +112,7 @@ class FlowyIconEmojiPicker extends StatefulWidget {
     this.onSelectedEmoji,
     this.initialType,
     this.documentId,
+    this.showRemoveButton = true,
     this.enableBackgroundColorSelection = true,
     this.tabs = const [
       PickerTabType.emoji,
@@ -124,6 +125,7 @@ class FlowyIconEmojiPicker extends StatefulWidget {
   final List<PickerTabType> tabs;
   final PickerTabType? initialType;
   final String? documentId;
+  final bool showRemoveButton;
 
   @override
   State<FlowyIconEmojiPicker> createState() => _FlowyIconEmojiPickerState();
@@ -177,12 +179,13 @@ class _FlowyIconEmojiPickerState extends State<FlowyIconEmojiPicker>
                   onTap: (index) => currentIndex = index,
                 ),
               ),
-              _RemoveIconButton(
-                onTap: () {
-                  widget.onSelectedEmoji
-                      ?.call(EmojiIconData.none().toSelectedResult());
-                },
-              ),
+              if (widget.showRemoveButton)
+                _RemoveIconButton(
+                  onTap: () {
+                    widget.onSelectedEmoji
+                        ?.call(EmojiIconData.none().toSelectedResult());
+                  },
+                ),
             ],
           ),
         ),

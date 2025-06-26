@@ -3,9 +3,11 @@ import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dar
 import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
+import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra_ui/widget/spacing.dart';
+import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -49,7 +51,7 @@ class BannerImages extends StatelessWidget {
               .prominent(color: theme.textColorScheme.tertiary),
         ),
         VSpace(spacing.xs),
-        _UploadButton(onTap: () {}),
+        _UploadButton(),
         VSpace(spacing.xxl),
         Text(
           LocaleKeys.settings_profilePage_wallpapers.tr(),
@@ -174,18 +176,54 @@ class AssetImageBannerWidget extends StatelessWidget {
   }
 }
 
-class _UploadButton extends StatelessWidget {
-  const _UploadButton({required this.onTap});
+class _UploadButton extends StatefulWidget {
+  const _UploadButton();
 
-  final VoidCallback onTap;
+  @override
+  State<_UploadButton> createState() => _UploadButtonState();
+}
+
+class _UploadButtonState extends State<_UploadButton> {
+  final popoverController = PopoverController();
+
+  @override
+  void dispose() {
+    popoverController.close();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final bloc = context.read<ProfileSettingBloc>();
+    return AppFlowyPopover(
+      direction: PopoverDirection.bottomWithCenterAligned,
+      controller: popoverController,
+      offset: const Offset(0, 8),
+      constraints: BoxConstraints.loose(const Size(400, 400)),
+      margin: EdgeInsets.zero,
+      child: buildButton(),
+      popupBuilder: (BuildContext popoverContext) {
+        return FlowyIconEmojiPicker(
+          initialType: PickerTabType.custom,
+          tabs: const [PickerTabType.custom],
+          showRemoveButton: false,
+          documentId: bloc.workspace?.workspaceId ?? '',
+          onSelectedEmoji: (r) {
+            if (!r.keepOpen) popoverController.close();
+          },
+        );
+      },
+    );
+  }
+
+  Widget buildButton() {
     final theme = AppFlowyTheme.of(context);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
-        onTap: onTap,
+        onTap: () {
+          popoverController.show();
+        },
         child: Container(
           width: 159,
           height: 52,
