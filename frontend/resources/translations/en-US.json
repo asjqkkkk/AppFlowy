@@ -3509,5 +3509,10 @@
   },
   "shareSection": {
     "shared": "Shared with me"
+  },
+  "accessLevel": {
+    "noEditPermissionToEdit": "You don't have permission to edit this page",
+    "noPermissionToCreatePage": "You don't have permission to create a page in this workspace",
+    "failedToCreatePage": "Failed to create page"
   }
 }

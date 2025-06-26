@@ -339,6 +339,8 @@ class _SidebarState extends State<_Sidebar> {
   @override
   Widget build(BuildContext context) {
     const menuHorizontalInset = EdgeInsets.symmetric(horizontal: 8);
+    final currentRole =
+        context.watch<UserWorkspaceBloc>().state.currentWorkspace?.role;
     return MouseRegion(
       onEnter: (_) => _isHovered.value = true,
       onExit: (_) => _isHovered.value = false,
@@ -380,12 +382,7 @@ class _SidebarState extends State<_Sidebar> {
               ),
             ],
 
-            if (context
-                    .watch<UserWorkspaceBloc>()
-                    .state
-                    .currentWorkspace
-                    ?.role !=
-                AFRolePB.Guest) ...[
+            if (currentRole != AFRolePB.Guest) ...[
               const VSpace(6.0),
               // new page button
               const SidebarNewPageButton(),
@@ -408,22 +405,25 @@ class _SidebarState extends State<_Sidebar> {
             _renderFolderOrSpace(menuHorizontalInset),
 
             // trash
-            Padding(
-              padding: menuHorizontalInset +
-                  const EdgeInsets.symmetric(horizontal: 4.0),
-              child: const FlowyDivider(),
-            ),
-            const VSpace(8),
+            if (currentRole != AFRolePB.Guest) ...[
+              Padding(
+                padding: menuHorizontalInset +
+                    const EdgeInsets.symmetric(horizontal: 4.0),
+                child: const FlowyDivider(),
+              ),
+              const VSpace(8),
+            ],
 
             _renderUpgradeSpaceButton(menuHorizontalInset),
             _buildUpgradeApplicationButton(menuHorizontalInset),
 
             const VSpace(8),
-            Padding(
-              padding: menuHorizontalInset +
-                  const EdgeInsets.symmetric(horizontal: 4.0),
-              child: const SidebarFooter(),
-            ),
+            if (currentRole != AFRolePB.Guest)
+              Padding(
+                padding: menuHorizontalInset +
+                    const EdgeInsets.symmetric(horizontal: 4.0),
+                child: const SidebarFooter(),
+              ),
 
             if (kDebugMode)
               BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(

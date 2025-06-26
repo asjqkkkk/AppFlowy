@@ -74,6 +74,7 @@ class SharedSection extends StatelessWidget {
             children: [
               // Shared header
               SharedSectionHeader(
+                isExpanded: state.isExpanded,
                 onTap: () {
                   // expand or collapse the shared section
                   context.read<SharedSectionBloc>().add(

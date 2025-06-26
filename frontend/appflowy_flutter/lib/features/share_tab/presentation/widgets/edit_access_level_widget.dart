@@ -75,7 +75,11 @@ class _EditAccessLevelWidgetState extends State<EditAccessLevelWidget> {
       child: AFGhostButton.normal(
         disabled: widget.disabled,
         onTap: () {
-          popoverController.show();
+          if (popoverController.isOpen) {
+            popoverController.hide();
+          } else {
+            popoverController.show();
+          }
         },
         padding: EdgeInsets.symmetric(
           vertical: theme.spacing.s,

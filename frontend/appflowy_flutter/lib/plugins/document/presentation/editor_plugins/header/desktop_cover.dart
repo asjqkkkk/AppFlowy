@@ -1,16 +1,16 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
+import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flowy_infra/theme_extension.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:string_validator/string_validator.dart';
 
@@ -45,11 +45,15 @@ class _DesktopCoverState extends State<DesktopCover> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.view.extra.isEmpty) {
-      return _buildCoverImageV1();
-    }
+    return BlocBuilder<ViewBloc, ViewState>(
+      builder: (context, state) {
+        if (state.view.extra.isEmpty) {
+          return _buildCoverImageV1();
+        }
 
-    return _buildCoverImageV2();
+        return _buildCoverImageV2();
+      },
+    );
   }
 
   // version > 0.5.5

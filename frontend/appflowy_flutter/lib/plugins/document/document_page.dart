@@ -19,6 +19,7 @@ import 'package:appflowy/workspace/application/action_navigation/action_navigati
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -56,6 +57,7 @@ class _DocumentPageState extends State<DocumentPage>
   Selection? initialSelection;
   late final documentBloc = DocumentBloc(documentId: widget.view.id)
     ..add(const DocumentEvent.initial());
+  ToastificationItem? toast;
 
   @override
   void initState() {
@@ -143,7 +145,11 @@ class _DocumentPageState extends State<DocumentPage>
                 child: AiWriterScrollWrapper(
                   viewId: widget.view.id,
                   editorState: editorState,
-                  child: buildEditorPage(context, state),
+                  child: buildEditorPage(
+                    context,
+                    state,
+                    pageAccessLevelState,
+                  ),
                 ),
               );
             },
@@ -156,6 +162,7 @@ class _DocumentPageState extends State<DocumentPage>
   Widget buildEditorPage(
     BuildContext context,
     DocumentState state,
+    PageAccessLevelState pageAccessLevelState,
   ) {
     final editorState = state.editorState;
     if (editorState == null) {
@@ -170,19 +177,33 @@ class _DocumentPageState extends State<DocumentPage>
     final Widget child;
     if (UniversalPlatform.isMobile) {
       child = BlocBuilder<DocumentPageStyleBloc, DocumentPageStyleState>(
-        builder: (context, styleState) => AppFlowyEditorPage(
-          editorState: editorState,
-          // if the view's name is empty, focus on the title
-          autoFocus: widget.view.name.isEmpty ? false : null,
-          styleCustomizer: EditorStyleCustomizer(
-            context: context,
-            width: width,
-            padding: EditorStyleCustomizer.documentPadding,
+        builder: (context, styleState) {
+          Widget child = AppFlowyEditorPage(
             editorState: editorState,
-          ),
-          header: buildCoverAndIcon(context, state),
-          initialSelection: initialSelection,
-        ),
+            // if the view's name is empty, focus on the title
+            autoFocus: widget.view.name.isEmpty ? false : null,
+            styleCustomizer: EditorStyleCustomizer(
+              context: context,
+              width: width,
+              padding: EditorStyleCustomizer.documentPadding,
+              editorState: editorState,
+            ),
+            header: buildCoverAndIcon(context, state),
+            initialSelection: initialSelection,
+          );
+
+          if (pageAccessLevelState.isReadOnly) {
+            child = Listener(
+              behavior: HitTestBehavior.opaque,
+              onPointerDown: (event) {
+                _showNoAccessToast();
+              },
+              child: child,
+            );
+          }
+
+          return child;
+        },
       );
     } else {
       child = EditorDropHandler(
@@ -404,5 +425,17 @@ class _DocumentPageState extends State<DocumentPage>
     }
 
     return null;
+  }
+
+  void _showNoAccessToast() {
+    if (toast != null) {
+      toastification.dismiss(toast!);
+    }
+
+    toast = showToastNotification(
+      context: context,
+      message: LocaleKeys.accessLevel_noEditPermissionToEdit.tr(),
+      type: ToastificationType.error,
+    );
   }
 }
