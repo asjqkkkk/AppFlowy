@@ -72,6 +72,7 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
       viewId: pageId,
       emails: emails,
       accessLevel: accessLevel.accessLevel,
+      // autoConfirm: true,
     );
     final result = await FolderEventSharePageWithUser(request).send();
 
