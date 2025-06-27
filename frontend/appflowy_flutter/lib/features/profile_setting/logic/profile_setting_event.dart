@@ -4,11 +4,16 @@ sealed class ProfileSettingEvent {
   const ProfileSettingEvent();
 
   const factory ProfileSettingEvent.initial() = ProfileSettingInitialEvent;
-  const factory ProfileSettingEvent.updateName(String name) = ProfileSettingUpdateNameEvent;
-  const factory ProfileSettingEvent.updateAboutMe(String aboutMe) = ProfileSettingUpdateAboutMeEvent;
-  const factory ProfileSettingEvent.updateAvatar(String avatarUrl) = ProfileSettingUpdateAvatarEvent;
-  const factory ProfileSettingEvent.updateBanner(BannerData banner) = ProfileSettingUpdateBannerEvent;
-  const factory ProfileSettingEvent.selectBanner(BannerData banner) = ProfileSettingSelectBannerEvent;
+  const factory ProfileSettingEvent.updateName(String name) =
+      ProfileSettingUpdateNameEvent;
+  const factory ProfileSettingEvent.updateAboutMe(String aboutMe) =
+      ProfileSettingUpdateAboutMeEvent;
+  const factory ProfileSettingEvent.updateAvatar(String avatarUrl) =
+      ProfileSettingUpdateAvatarEvent;
+  const factory ProfileSettingEvent.uploadBanner(NetworkImageBanner banner) =
+      ProfileSettingUploadBannerEvent;
+  const factory ProfileSettingEvent.selectBanner(BannerData banner) =
+      ProfileSettingSelectBannerEvent;
 }
 
 class ProfileSettingInitialEvent implements ProfileSettingEvent {
@@ -27,19 +32,18 @@ class ProfileSettingUpdateAboutMeEvent implements ProfileSettingEvent {
   final String aboutMe;
 }
 
-
 class ProfileSettingUpdateAvatarEvent implements ProfileSettingEvent {
   const ProfileSettingUpdateAvatarEvent(this.avatarUrl);
 
   final String avatarUrl;
 }
 
+class ProfileSettingUploadBannerEvent implements ProfileSettingEvent {
+  const ProfileSettingUploadBannerEvent(this.banner);
 
-class ProfileSettingUpdateBannerEvent implements ProfileSettingEvent {
-  const ProfileSettingUpdateBannerEvent(this.banner);
-
-  final BannerData banner;
+  final NetworkImageBanner banner;
 }
+
 class ProfileSettingSelectBannerEvent implements ProfileSettingEvent {
   const ProfileSettingSelectBannerEvent(this.banner);
 

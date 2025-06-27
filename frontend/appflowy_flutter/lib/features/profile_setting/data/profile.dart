@@ -7,7 +7,8 @@ class Profile {
         name = '',
         avatarUrl = '',
         aboutMe = '',
-        banner = EmptyBanner.instance;
+        banner = EmptyBanner.instance,
+        customBanner = null;
 
   Profile({
     required this.id,
@@ -16,6 +17,7 @@ class Profile {
     required this.avatarUrl,
     required this.aboutMe,
     required this.banner,
+    this.customBanner,
   });
 
   final String id;
@@ -24,6 +26,7 @@ class Profile {
   final String avatarUrl;
   final String aboutMe;
   final BannerData banner;
+  final NetworkImageBanner? customBanner;
 
   Profile copyWith({
     String? id,
@@ -32,6 +35,7 @@ class Profile {
     String? avatarUrl,
     String? aboutMe,
     BannerData? banner,
+    NetworkImageBanner? customBanner,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -40,6 +44,7 @@ class Profile {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       aboutMe: aboutMe ?? this.aboutMe,
       banner: banner ?? this.banner,
+      customBanner: customBanner ?? this.customBanner,
     );
   }
 }

@@ -11,6 +11,9 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'custom_banner_button.dart';
+import 'image_banner_widget.dart';
+
 List<BannerData> _defaultBanners(BuildContext context) {
   final theme = AppFlowyTheme.of(context), badgeColor = theme.badgeColorScheme;
   return [
@@ -97,107 +100,6 @@ class BannerImages extends StatelessWidget {
   }
 }
 
-class ColorBannerWidget extends StatelessWidget {
-  const ColorBannerWidget({
-    super.key,
-    required this.banner,
-    this.selected = false,
-  });
-  final ColorBanner banner;
-  final bool selected;
-
-  Color get color => banner.color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    final unselectedWidget = DecoratedBox(
-      decoration: BoxDecoration(
-        color: color,
-        borderRadius: BorderRadius.circular(spacing.m),
-      ),
-    );
-    final selectedWidget = DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border.all(color: theme.borderColorScheme.themeThick, width: 2),
-        borderRadius: BorderRadius.circular(spacing.m),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(4),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: BorderRadius.circular(spacing.xs),
-          ),
-        ),
-      ),
-    );
-    return SizedBox(
-      height: 52,
-      child: selected ? selectedWidget : unselectedWidget,
-    );
-  }
-}
-
-class AssetImageBannerWidget extends StatelessWidget {
-  const AssetImageBannerWidget({
-    super.key,
-    required this.banner,
-    this.selected = false,
-  });
-  final AssetImageBanner banner;
-  final bool selected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    return SizedBox(
-      height: 52,
-      width: 160,
-      child: Stack(
-        children: [
-          Container(
-            height: 52,
-            width: 160,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: AssetImage(banner.path),
-                fit: BoxFit.cover,
-              ),
-              borderRadius: BorderRadius.circular(spacing.m),
-            ),
-          ),
-          if (selected)
-            Container(
-              height: 52,
-              decoration: BoxDecoration(
-                border: Border.all(
-                  color: theme.borderColorScheme.themeThick,
-                  width: 2,
-                ),
-                borderRadius: BorderRadius.circular(spacing.m),
-              ),
-              child: Container(
-                height: 48,
-                decoration: BoxDecoration(
-                  border: Border.all(
-                    color: Colors.white,
-                    width: 2,
-                  ),
-                  borderRadius: BorderRadius.circular(spacing.s),
-                ),
-                child: SizedBox(
-                  height: 44,
-                  width: 151,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
 class _UploadButton extends StatefulWidget {
   const _UploadButton();
 
@@ -220,14 +122,19 @@ class _UploadButtonState extends State<_UploadButton> {
   }
 
   Widget buildPopover() {
-    final bloc = context.read<ProfileSettingBloc>();
+    final bloc = context.read<ProfileSettingBloc>(),
+        state = bloc.state,
+        customBanner = state.profile.customBanner;
+    if (customBanner != null) {
+      return CustomBannerButton(banner: customBanner);
+    }
     return AppFlowyPopover(
       direction: PopoverDirection.bottomWithCenterAligned,
       controller: popoverController,
       offset: const Offset(0, 8),
       constraints: BoxConstraints.loose(const Size(400, 400)),
       margin: EdgeInsets.zero,
-      child: buildButton(),
+      child: buildUploadButton(),
       popupBuilder: (BuildContext popoverContext) {
         return FlowyIconEmojiPicker(
           initialType: PickerTabType.custom,
@@ -235,6 +142,11 @@ class _UploadButtonState extends State<_UploadButton> {
           showRemoveButton: false,
           documentId: bloc.workspace?.workspaceId ?? '',
           onSelectedEmoji: (r) {
+            bloc.add(
+              ProfileSettingEvent.uploadBanner(
+                NetworkImageBanner(url: r.emoji),
+              ),
+            );
             if (!r.keepOpen) popoverController.close();
           },
         );
@@ -242,7 +154,7 @@ class _UploadButtonState extends State<_UploadButton> {
     );
   }
 
-  Widget buildButton() {
+  Widget buildUploadButton() {
     final theme = AppFlowyTheme.of(context);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
@@ -298,20 +210,5 @@ class _UploadButtonState extends State<_UploadButton> {
         },
       ),
     );
-  }
-}
-
-extension BannerWidgetExtension on BannerData {
-  Widget toWidget({
-    required BuildContext context,
-    required bool selected,
-  }) {
-    final banner = this;
-    if (banner is ColorBanner) {
-      return ColorBannerWidget(banner: banner, selected: selected);
-    } else if (banner is AssetImageBanner) {
-      return AssetImageBannerWidget(banner: banner, selected: selected);
-    }
-    throw Exception('Unknown BannerData type');
   }
 }

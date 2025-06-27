@@ -2,7 +2,7 @@ import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dar
 import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/features/profile_setting/presentation/widgets/banner_images.dart';
+import 'package:appflowy/features/profile_setting/presentation/widgets/banner_selector.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';

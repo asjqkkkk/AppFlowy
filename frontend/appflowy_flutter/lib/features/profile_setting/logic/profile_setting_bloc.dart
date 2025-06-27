@@ -18,7 +18,7 @@ class ProfileSettingBloc
     on<ProfileSettingUpdateNameEvent>(_onUpdateName);
     on<ProfileSettingUpdateAboutMeEvent>(_onUpdateAboutMe);
     on<ProfileSettingUpdateAvatarEvent>(_onUpdateAvatarUrl);
-    on<ProfileSettingUpdateBannerEvent>(_onUpdateBanner);
+    on<ProfileSettingUploadBannerEvent>(_onUploadBanner);
     on<ProfileSettingSelectBannerEvent>(_onSelectBanner);
   }
 
@@ -73,12 +73,14 @@ class ProfileSettingBloc
     await repository.updateProfile(newProfile);
   }
 
-  Future<void> _onUpdateBanner(
-    ProfileSettingUpdateBannerEvent event,
+  Future<void> _onUploadBanner(
+    ProfileSettingUploadBannerEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    final newProfile = state.profile.copyWith(banner: event.banner);
-    emit(state.copyWith(profile: newProfile));
+    final newBanner = event.banner;
+    final newProfile =
+        state.profile.copyWith(banner: newBanner, customBanner: newBanner);
+    emit(state.copyWith(profile: newProfile, selectedBanner: newBanner));
     await repository.updateProfile(newProfile);
   }
 
@@ -87,7 +89,7 @@ class ProfileSettingBloc
     Emitter<ProfileSettingState> emit,
   ) async {
     final newProfile = state.profile.copyWith(banner: event.banner);
-    emit(state.copyWith(selectedBanner: event.banner));
+    emit(state.copyWith(profile: newProfile, selectedBanner: event.banner));
     await repository.updateProfile(newProfile);
   }
 }

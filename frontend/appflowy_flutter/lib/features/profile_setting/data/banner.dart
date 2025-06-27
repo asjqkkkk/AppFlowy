@@ -32,3 +32,12 @@ class AssetImageBanner extends BannerData {
   @override
   List<Object?> get props => [path];
 }
+
+class NetworkImageBanner extends BannerData {
+  const NetworkImageBanner({required this.url});
+
+  final String url;
+
+  @override
+  List<Object?> get props => [url];
+}
