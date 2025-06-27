@@ -243,9 +243,8 @@ class _SidebarSpaceHeaderState extends State<SidebarSpaceHeader> {
     // only workspace owner and the space owner can edit the permission
     final isWorkspaceOwner =
         userWorkspaceState.currentWorkspace?.role.isOwner ?? false;
-    final isPageCreator =
-        spaceBloc.state.currentSpace?.createdBy ==
-            context.read<UserProfilePB>().id;
+    final isPageCreator = spaceBloc.state.currentSpace?.createdBy ==
+        context.read<UserProfilePB>().id;
     final allowToEditPermission = isWorkspaceOwner || isPageCreator;
 
     showDialog(

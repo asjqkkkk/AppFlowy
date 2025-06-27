@@ -28,7 +28,12 @@ import 'database_view_quick_actions.dart';
 /// [MobileDatabaseViewList] shows a list of all the views in the database and
 /// adds a button to create a new database view.
 class MobileDatabaseViewList extends StatelessWidget {
-  const MobileDatabaseViewList({super.key});
+  const MobileDatabaseViewList({
+    super.key,
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -59,10 +64,13 @@ class MobileDatabaseViewList extends StatelessWidget {
                     (index, view) => MobileDatabaseViewListButton(
                       view: view,
                       showTopBorder: index == 0,
+                      isEditable: isEditable,
                     ),
                   ),
-                  const VSpace(20),
-                  const MobileNewDatabaseViewButton(),
+                  if (isEditable) ...[
+                    const VSpace(20),
+                    const MobileNewDatabaseViewButton(),
+                  ],
                   VSpace(
                     context.bottomSheetPadding(ignoreViewPadding: false),
                   ),
@@ -136,10 +144,12 @@ class MobileDatabaseViewListButton extends StatelessWidget {
     super.key,
     required this.view,
     required this.showTopBorder,
+    this.isEditable = true,
   });
 
   final ViewPB view;
   final bool showTopBorder;
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -185,11 +195,14 @@ class MobileDatabaseViewListButton extends StatelessWidget {
     );
   }
 
-  Widget _trailing(
+  Widget? _trailing(
     BuildContext context,
     DatabaseController databaseController,
     bool isSelected,
   ) {
+    if (!isEditable) {
+      return null;
+    }
     final more = FlowyIconButton(
       icon: FlowySvg(
         FlowySvgs.three_dots_s,

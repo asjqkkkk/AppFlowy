@@ -76,6 +76,7 @@ class DatabaseTabBarView extends StatefulWidget {
     this.initialRowId,
     this.actionBuilder,
     this.node,
+    this.isEditable = true,
   });
 
   final ViewPB view;
@@ -83,6 +84,7 @@ class DatabaseTabBarView extends StatefulWidget {
   final BlockComponentActionBuilder? actionBuilder;
   final bool showActions;
   final Node? node;
+  final bool isEditable;
 
   /// Used to open a Row on plugin load
   ///
@@ -185,9 +187,19 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                         return const SizedBox.shrink();
                       }
 
-                      Widget child = UniversalPlatform.isDesktop
-                          ? const TabBarHeader()
-                          : const MobileTabBarHeader();
+                      Widget child = BlocSelector<PageAccessLevelBloc,
+                          PageAccessLevelState, bool>(
+                        selector: (state) => state.isEditable,
+                        builder: (context, isEditable) {
+                          return UniversalPlatform.isDesktop
+                              ? TabBarHeader(
+                                  isEditable: isEditable && widget.isEditable,
+                                )
+                              : MobileTabBarHeader(
+                                  isEditable: isEditable && widget.isEditable,
+                                );
+                        },
+                      );
 
                       if (showActionWrapper) {
                         child = BlockComponentActionWrapper(
@@ -212,34 +224,43 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                         );
                       }
 
-                      return BlocBuilder<PageAccessLevelBloc,
-                          PageAccessLevelState>(
-                        builder: (context, state) {
-                          return IgnorePointer(
-                            ignoring: !state.isEditable,
-                            child: child,
-                          );
-                        },
+                      return child;
+                    },
+                  ),
+                  BlocSelector<PageAccessLevelBloc, PageAccessLevelState, bool>(
+                    selector: (state) => state.isEditable,
+                    builder: (context, isEditable) {
+                      return IgnorePointer(
+                        ignoring: !isEditable || !widget.isEditable,
+                        child: pageSettingBarExtensionFromState(context, state),
                       );
                     },
                   ),
-                  pageSettingBarExtensionFromState(context, state),
-                  wrapContent(
-                    layout: layout,
-                    child: Padding(
-                      padding:
-                          (isCalendar && widget.shrinkWrap || showActionWrapper)
-                              ? EdgeInsets.only(left: 42 - horizontalPadding)
-                              : EdgeInsets.zero,
-                      child: Provider(
-                        create: (_) => DatabasePluginWidgetBuilderSize(
-                          horizontalPadding: horizontalPadding,
-                          paddingLeftWithMaxDocumentWidth: paddingLeft,
-                          verticalPadding: databaseBuilderSize.verticalPadding,
+                  BlocSelector<PageAccessLevelBloc, PageAccessLevelState, bool>(
+                    selector: (state) => state.isEditable,
+                    builder: (context, isEditable) {
+                      return wrapContent(
+                          layout: layout,
+                          child: IgnorePointer(
+                        ignoring: !isEditable || !widget.isEditable,
+                        child: Padding(
+                            padding: (isCalendar && widget.shrinkWrap ||
+                                    showActionWrapper)
+                                ? EdgeInsets.only(left: 42 - horizontalPadding)
+                                : EdgeInsets.zero,
+                            child: Provider(
+                              create: (_) => DatabasePluginWidgetBuilderSize(
+                                horizontalPadding: horizontalPadding,
+                                paddingLeftWithMaxDocumentWidth: paddingLeft,
+                                verticalPadding:
+                                    databaseBuilderSize.verticalPadding,
+                              ),
+                              child: pageContentFromState(context, state),
+                            ),
+                          ),
                         ),
-                        child: pageContentFromState(context, state),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               );
@@ -398,6 +419,7 @@ const kDatabasePluginWidgetBuilderHorizontalPadding = 'horizontal_padding';
 const kDatabasePluginWidgetBuilderShowActions = 'show_actions';
 const kDatabasePluginWidgetBuilderActionBuilder = 'action_builder';
 const kDatabasePluginWidgetBuilderNode = 'node';
+const kDatabasePluginWidgetBuilderIsEditable = 'is_editable';
 
 class DatabasePluginWidgetBuilderSize {
   const DatabasePluginWidgetBuilderSize({
@@ -465,6 +487,8 @@ class DatabasePluginWidgetBuilder extends PluginWidgetBuilder {
     final bool showActions =
         data?[kDatabasePluginWidgetBuilderShowActions] ?? false;
     final Node? node = data?[kDatabasePluginWidgetBuilderNode];
+    final bool isEditable =
+        data?[kDatabasePluginWidgetBuilderIsEditable] ?? true;
 
     return Provider(
       create: (context) => DatabasePluginWidgetBuilderSize(
@@ -478,6 +502,7 @@ class DatabasePluginWidgetBuilder extends PluginWidgetBuilder {
         actionBuilder: actionBuilder,
         showActions: showActions,
         node: node,
+        isEditable: isEditable,
       ),
     );
   }

@@ -16,7 +16,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class MobileTabBarHeader extends StatelessWidget {
-  const MobileTabBarHeader({super.key});
+  const MobileTabBarHeader({
+    super.key,
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +34,9 @@ class MobileTabBarHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const _DatabaseViewSelectorButton(),
+          _DatabaseViewSelectorButton(
+            isEditable: isEditable,
+          ),
           const Spacer(),
           BlocConsumer<DatabaseTabBarBloc, DatabaseTabBarState>(
             listener: (context, state) {
@@ -46,19 +53,22 @@ class MobileTabBarHeader extends StatelessWidget {
                 return const SizedBox.shrink();
               }
 
-              return MobileDatabaseControls(
-                controller: state
-                    .tabBarControllerByViewId[currentView.viewId]!.controller,
-                features: switch (currentView.layout) {
-                  ViewLayoutPB.Board || ViewLayoutPB.Calendar => [
-                      MobileDatabaseControlFeatures.filter,
-                    ],
-                  ViewLayoutPB.Grid => [
-                      MobileDatabaseControlFeatures.sort,
-                      MobileDatabaseControlFeatures.filter,
-                    ],
-                  _ => [],
-                },
+              return IgnorePointer(
+                ignoring: !isEditable,
+                child: MobileDatabaseControls(
+                  controller: state
+                      .tabBarControllerByViewId[currentView.viewId]!.controller,
+                  features: switch (currentView.layout) {
+                    ViewLayoutPB.Board || ViewLayoutPB.Calendar => [
+                        MobileDatabaseControlFeatures.filter,
+                      ],
+                    ViewLayoutPB.Grid => [
+                        MobileDatabaseControlFeatures.sort,
+                        MobileDatabaseControlFeatures.filter,
+                      ],
+                    _ => [],
+                  },
+                ),
               );
             },
           ),
@@ -69,7 +79,11 @@ class MobileTabBarHeader extends StatelessWidget {
 }
 
 class _DatabaseViewSelectorButton extends StatelessWidget {
-  const _DatabaseViewSelectorButton();
+  const _DatabaseViewSelectorButton({
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -140,7 +154,9 @@ class _DatabaseViewSelectorButton extends StatelessWidget {
                       value: context.read<PageAccessLevelBloc>(),
                     ),
                   ],
-                  child: const MobileDatabaseViewList(),
+                  child: MobileDatabaseViewList(
+                    isEditable: isEditable,
+                  ),
                 );
               },
             );
