@@ -9,7 +9,6 @@ import 'package:appflowy/workspace/presentation/settings/widgets/members/invitat
 import 'package:appflowy/workspace/presentation/settings/widgets/members/invitation/invite_member_by_link.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
-import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy/workspace/presentation/widgets/user_avatar.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
@@ -491,11 +490,7 @@ class _MemberItem extends StatelessWidget {
   }
 }
 
-enum _MemberMoreAction {
-  delete,
-}
-
-class _MemberMoreActionList extends StatelessWidget {
+class _MemberMoreActionList extends StatefulWidget {
   const _MemberMoreActionList({
     required this.member,
   });
@@ -503,27 +498,38 @@ class _MemberMoreActionList extends StatelessWidget {
   final WorkspaceMemberPB member;
 
   @override
+  State<_MemberMoreActionList> createState() => _MemberMoreActionListState();
+}
+
+class _MemberMoreActionListState extends State<_MemberMoreActionList> {
+  final controller = AFPopoverController();
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return PopoverActionList<_MemberMoreActionWrapper>(
-      asBarrier: true,
-      direction: PopoverDirection.bottomWithCenterAligned,
-      actions: _MemberMoreAction.values
-          .map((e) => _MemberMoreActionWrapper(e, member))
-          .toList(),
-      buildChild: (controller) {
-        return FlowyButton(
-          useIntrinsicWidth: true,
-          text: const FlowySvg(
-            FlowySvgs.three_dots_s,
+    final theme = AppFlowyTheme.of(context);
+
+    return AFPopover(
+      controller: controller,
+      padding: EdgeInsets.all(theme.spacing.m),
+      popover: (_) {
+        return AFBaseButton(
+          padding: EdgeInsets.symmetric(
+            horizontal: theme.spacing.m,
+            vertical: theme.spacing.s,
           ),
+          backgroundColor: (context, isHovering, disabled) => isHovering
+              ? theme.fillColorScheme.contentHover
+              : theme.fillColorScheme.content,
+          borderColor: (context, isHovering, disabled, isFocused) =>
+              Colors.transparent,
+          borderRadius: theme.borderRadius.m,
           onTap: () {
-            controller.show();
-          },
-        );
-      },
-      onSelected: (action, controller) {
-        switch (action.inner) {
-          case _MemberMoreAction.delete:
             showCancelAndConfirmDialog(
               context: context,
               title: LocaleKeys.settings_appearance_members_removeMember.tr(),
@@ -533,30 +539,36 @@ class _MemberMoreActionList extends StatelessWidget {
               confirmLabel: LocaleKeys.button_yes.tr(),
               onConfirm: (_) => context.read<WorkspaceMemberBloc>().add(
                     WorkspaceMemberEvent.removeWorkspaceMemberByEmail(
-                      action.member.email,
+                      widget.member.email,
                     ),
                   ),
             );
-            break;
-        }
-        controller.close();
+            controller.hide();
+          },
+          builder: (context, isHovering, disabled) => Text(
+            LocaleKeys.settings_appearance_members_removeFromWorkspace.tr(),
+            style: theme.textStyle.body.standard(
+              color: isHovering
+                  ? theme.textColorScheme.error
+                  : theme.textColorScheme.primary,
+            ),
+          ),
+        );
       },
+      child: FlowyButton(
+        useIntrinsicWidth: true,
+        text: const FlowySvg(
+          FlowySvgs.three_dots_s,
+        ),
+        onTap: () {
+          if (controller.isOpen) {
+            controller.hide();
+          } else {
+            controller.show();
+          }
+        },
+      ),
     );
-  }
-}
-
-class _MemberMoreActionWrapper extends ActionCell {
-  _MemberMoreActionWrapper(this.inner, this.member);
-
-  final _MemberMoreAction inner;
-  final WorkspaceMemberPB member;
-
-  @override
-  String get name {
-    switch (inner) {
-      case _MemberMoreAction.delete:
-        return LocaleKeys.settings_appearance_members_removeFromWorkspace.tr();
-    }
   }
 }
 

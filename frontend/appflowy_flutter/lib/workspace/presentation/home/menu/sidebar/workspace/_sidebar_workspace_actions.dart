@@ -229,14 +229,18 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
           return Row(
             spacing: theme.spacing.m,
             children: [
-              buildLeftIcon(context, !isSameWorkspaceType, isDestructive),
+              buildLeftIcon(
+                context,
+                !isSameWorkspaceType,
+                isDestructive && isHovering,
+              ),
               Expanded(
                 child: Text(
                   name,
                   style: theme.textStyle.body.standard(
                     color: !isSameWorkspaceType
                         ? theme.textColorScheme.tertiary
-                        : isDestructive
+                        : isDestructive && isHovering
                             ? theme.textColorScheme.error
                             : theme.textColorScheme.primary,
                   ),
