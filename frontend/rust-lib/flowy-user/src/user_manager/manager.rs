@@ -8,7 +8,6 @@ use crate::migrations::document_empty_content::HistoricalEmptyDocumentMigration;
 use crate::migrations::migration::{
   save_migration_record, UserDataMigration, UserLocalDataMigration, FIRST_TIME_INSTALL_VERSION,
 };
-use crate::migrations::workspace_and_favorite_v1::FavoriteV1AndWorkspaceArrayMigration;
 use crate::migrations::workspace_trash_v1::WorkspaceTrashMapToSectionMigration;
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::services::authenticate_user::AuthenticateUser;
@@ -796,7 +795,6 @@ fn collab_migration_list() -> Vec<Box<dyn UserDataMigration>> {
   // it's appended to the end of the list.
   vec![
     Box::new(HistoricalEmptyDocumentMigration),
-    Box::new(FavoriteV1AndWorkspaceArrayMigration),
     Box::new(WorkspaceTrashMapToSectionMigration),
     Box::new(CollabDocKeyWithWorkspaceIdMigration),
     Box::new(AnonUserWorkspaceTableMigration),

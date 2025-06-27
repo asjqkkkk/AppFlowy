@@ -19,7 +19,7 @@ use collab_database::workspace_database::WorkspaceDatabase;
 use collab_document::document_data::default_document_collab_data;
 use collab_entity::CollabType;
 use collab_folder::hierarchy_builder::{NestedChildViewBuilder, NestedViews, ParentChildViews};
-use collab_folder::{Folder, UserId, View, ViewIdentifier, ViewLayout};
+use collab_folder::{Folder, View, ViewIdentifier, ViewLayout};
 use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_folder_pub::cloud::gen_view_id;
@@ -980,14 +980,12 @@ where
         err
       ))
     })?;
-  let other_user_id = UserId::from(imported_session.user_id);
-  let imported_folder =
-    Folder::open(other_user_id, imported_folder_collab, None).map_err(|err| {
-      PersistenceError::Internal(anyhow!("[AppflowyData]:Can't open folder:{}", err))
-    })?;
+  let imported_folder = Folder::open(imported_folder_collab, None).map_err(|err| {
+    PersistenceError::Internal(anyhow!("[AppflowyData]:Can't open folder:{}", err))
+  })?;
 
   let mut imported_folder_data = imported_folder
-    .get_folder_data(&imported_session.workspace_id)
+    .get_folder_data(&imported_session.workspace_id, imported_session.user_id)
     .ok_or(PersistenceError::Internal(anyhow!(
       "[AppflowyData]: Can't read the folder data"
     )))?;

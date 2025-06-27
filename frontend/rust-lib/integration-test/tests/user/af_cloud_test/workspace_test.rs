@@ -435,7 +435,6 @@ async fn af_cloud_open_different_workspace_test() {
     .await
     .unwrap();
   let folder = Folder::from_collab_doc_state(
-    owner_profile.id,
     CollabOrigin::Empty,
     DocStateV1(doc_state),
     &shared_workspace_id,
@@ -444,7 +443,7 @@ async fn af_cloud_open_different_workspace_test() {
   .unwrap();
 
   // Retrieve and verify the views associated with the workspace.
-  let views = folder.get_views_belong_to(&shared_workspace_id);
+  let views = folder.get_views_belong_to(&shared_workspace_id, owner_profile.id);
   let folder_workspace_id = folder.get_workspace_id();
   assert_eq!(folder_workspace_id, Some(shared_workspace_id));
 

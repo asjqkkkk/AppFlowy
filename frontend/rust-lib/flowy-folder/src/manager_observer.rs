@@ -28,13 +28,20 @@ pub(crate) fn subscribe_folder_view_changed(
 ) {
   tokio::spawn(async move {
     while let Ok(value) = rx.recv().await {
-      if let Some(user) = user.upgrade() {
-        if let Ok(actual_workspace_id) = user.workspace_id() {
-          if actual_workspace_id != workspace_id {
-            trace!("Did break the loop when the workspace id is not matched");
-            // break the loop when the workspace id is not matched.
-            break;
-          }
+      let user = match user.upgrade() {
+        Some(user) => user,
+        None => break,
+      };
+
+      let user_id = match user.user_id() {
+        Ok(uid) => uid,
+        Err(_) => break,
+      };
+
+      if let Ok(actual_workspace_id) = user.workspace_id() {
+        if actual_workspace_id != workspace_id {
+          trace!("Did break the loop when the workspace id is not matched");
+          break;
         }
       }
 
@@ -48,7 +55,7 @@ pub(crate) fn subscribe_folder_view_changed(
             );
             let folder = lock.read().await;
             if let Ok(parent_view_id) = Uuid::from_str(&view.parent_view_id) {
-              notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id]);
+              notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id], user_id);
               info!("[Folder] create view: {:?}", view);
             }
           },
@@ -72,7 +79,7 @@ pub(crate) fn subscribe_folder_view_changed(
             );
             let folder = lock.read().await;
             if let Ok(parent_view_id) = Uuid::from_str(&view.parent_view_id) {
-              notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id]);
+              notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id], user_id);
             }
           },
         };
@@ -116,12 +123,19 @@ pub(crate) fn subscribe_folder_trash_changed(
 ) {
   tokio::spawn(async move {
     while let Ok(value) = rx.recv().await {
-      if let Some(user) = user.upgrade() {
-        if let Ok(actual_workspace_id) = user.workspace_id() {
-          if actual_workspace_id != workspace_id {
-            // break the loop when the workspace id is not matched.
-            break;
-          }
+      let user = match user.upgrade() {
+        Some(user) => user,
+        None => break,
+      };
+
+      let user_id = match user.user_id() {
+        Ok(uid) => uid,
+        Err(_) => break,
+      };
+
+      if let Ok(actual_workspace_id) = user.workspace_id() {
+        if actual_workspace_id != workspace_id {
+          break;
         }
       }
 
@@ -136,20 +150,20 @@ pub(crate) fn subscribe_folder_trash_changed(
               TrashSectionChange::TrashItemRemoved { ids } => ids,
             };
             let folder = lock.read().await;
-            let views = folder.get_views(&ids);
+            let views = folder.get_views(&ids, user_id);
             for view in views {
               if let Ok(parent_view_id) = Uuid::from_str(&view.parent_view_id) {
                 unique_ids.insert(parent_view_id);
               }
             }
 
-            let repeated_trash: RepeatedTrashPB = folder.get_my_trash_info().into();
+            let repeated_trash: RepeatedTrashPB = folder.get_my_trash_info(user_id).into();
             folder_notification_builder("trash", FolderNotification::DidUpdateTrash)
               .payload(repeated_trash)
               .send();
 
             let parent_view_ids = unique_ids.into_iter().collect();
-            notify_parent_view_did_change(workspace_id, &folder, parent_view_ids);
+            notify_parent_view_did_change(workspace_id, &folder, parent_view_ids, user_id);
           },
         }
       }
@@ -163,9 +177,10 @@ pub(crate) fn notify_parent_view_did_change(
   workspace_id: Uuid,
   folder: &Folder,
   parent_view_ids: Vec<Uuid>,
+  uid: i64,
 ) -> Option<()> {
   let trash_ids = folder
-    .get_all_trash_sections()
+    .get_all_trash_sections(uid)
     .into_iter()
     .map(|trash| trash.id)
     .collect::<Vec<String>>();
@@ -174,14 +189,14 @@ pub(crate) fn notify_parent_view_did_change(
     // if the view's parent id equal to workspace id. Then it will fetch the current
     // workspace views. Because the workspace is not a view stored in the views map.
     if parent_view_id == workspace_id {
-      notify_did_update_workspace(&workspace_id, folder);
-      notify_did_update_section_views(&workspace_id, folder);
+      notify_did_update_workspace(&workspace_id, folder, uid);
+      notify_did_update_section_views(&workspace_id, folder, uid);
     } else {
       // Parent view can contain a list of child views. Currently, only get the first level
       // child views.
       let parent_view_id = parent_view_id.to_string();
-      let parent_view = folder.get_view(&parent_view_id)?;
-      let mut child_views = folder.get_views_belong_to(&parent_view_id);
+      let parent_view = folder.get_view(&parent_view_id, uid)?;
+      let mut child_views = folder.get_views_belong_to(&parent_view_id, uid);
       child_views.retain(|view| !trash_ids.contains(&view.id));
       event!(Level::DEBUG, child_views_count = child_views.len());
 
@@ -196,9 +211,9 @@ pub(crate) fn notify_parent_view_did_change(
   None
 }
 
-pub(crate) fn notify_did_update_section_views(workspace_id: &Uuid, folder: &Folder) {
-  let public_views = get_workspace_public_view_pbs(workspace_id, folder);
-  let private_views = get_workspace_private_view_pbs(workspace_id, folder);
+pub(crate) fn notify_did_update_section_views(workspace_id: &Uuid, folder: &Folder, uid: i64) {
+  let public_views = get_workspace_public_view_pbs(workspace_id, folder, uid);
+  let private_views = get_workspace_private_view_pbs(workspace_id, folder, uid);
   trace!(
     "Did update section views: public len = {}, private len = {}",
     public_views.len(),
@@ -222,8 +237,9 @@ pub(crate) fn notify_did_update_section_views(workspace_id: &Uuid, folder: &Fold
     .send();
 }
 
-pub(crate) fn notify_did_update_workspace(workspace_id: &Uuid, folder: &Folder) {
-  let repeated_view: RepeatedViewPB = get_workspace_public_view_pbs(workspace_id, folder).into();
+pub(crate) fn notify_did_update_workspace(workspace_id: &Uuid, folder: &Folder, uid: i64) {
+  let repeated_view: RepeatedViewPB =
+    get_workspace_public_view_pbs(workspace_id, folder, uid).into();
   folder_notification_builder(workspace_id, FolderNotification::DidUpdateWorkspaceViews)
     .payload(repeated_view)
     .send();

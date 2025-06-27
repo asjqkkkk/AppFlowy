@@ -70,10 +70,10 @@ impl UserDataMigration for HistoricalEmptyDocumentMigration {
         Err(_) => return Ok(()),
       };
 
-      let folder = Folder::open(user.user_id, folder_collab, None)
-        .map_err(|err| PersistenceError::Internal(err.into()))?;
+      let folder =
+        Folder::open(folder_collab, None).map_err(|err| PersistenceError::Internal(err.into()))?;
       if let Some(workspace_id) = folder.get_workspace_id() {
-        let migration_views = folder.get_views_belong_to(&workspace_id);
+        let migration_views = folder.get_views_belong_to(&workspace_id, user.user_id);
         // For historical reasons, the first level documents are empty. So migrate them by inserting
         // the default document data.
         for view in migration_views {

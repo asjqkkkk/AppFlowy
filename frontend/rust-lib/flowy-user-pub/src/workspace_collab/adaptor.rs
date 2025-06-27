@@ -216,16 +216,17 @@ impl WorkspaceCollabAdaptor {
   #[instrument(level = "trace", skip(self, doc_state, folder_notifier))]
   pub async fn open_folder(
     &self,
+    uid: i64,
     workspace_id: Uuid,
     doc_state: DataSource,
     folder_notifier: Option<FolderNotify>,
   ) -> Result<Arc<RwLock<Folder>>, Error> {
-    let uid = self.user.uid()?;
     let collab_type = CollabType::Folder;
     let collab = self
       .build_collab_with_source(workspace_id, collab_type, doc_state)
       .await?;
-    let folder = Folder::open(uid, collab, folder_notifier)?;
+    let folder = Folder::open(collab, folder_notifier)?;
+    folder.subscribe_view_change(uid).await?;
     let folder = Arc::new(RwLock::new(folder));
     self
       .bind_and_cache_collab(workspace_id, workspace_id, collab_type, folder)
@@ -236,17 +237,18 @@ impl WorkspaceCollabAdaptor {
   #[instrument(level = "trace", skip(self, folder_notifier))]
   pub async fn create_folder_with_folder_data(
     &self,
+    uid: i64,
     workspace_id: Uuid,
     folder_notifier: Option<FolderNotify>,
     data_source: DataSource,
     folder_data: FolderData,
   ) -> Result<Arc<RwLock<Folder>>, Error> {
-    let uid = self.user.uid()?;
     let collab_type = CollabType::Folder;
     let collab = self
       .build_collab_with_source(workspace_id, collab_type, data_source)
       .await?;
-    let folder = Folder::create(uid, collab, folder_notifier, folder_data);
+    let folder = Folder::create(collab, folder_notifier, folder_data);
+    folder.subscribe_view_change(uid).await?;
     let folder = Arc::new(RwLock::new(folder));
     self
       .bind_and_cache_collab(workspace_id, workspace_id, collab_type, folder)

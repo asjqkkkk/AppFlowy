@@ -8,8 +8,8 @@ use crate::entities::{
   view_pb_without_child_views_from_arc,
 };
 use crate::manager_observer::{
-  ChildViewChangeReason, notify_child_views_changed, notify_did_update_workspace,
-  notify_parent_view_did_change,
+  ChildViewChangeReason, notify_child_views_changed, notify_did_update_section_views,
+  notify_did_update_workspace, notify_parent_view_did_change,
 };
 use crate::notification::{FolderNotification, folder_notification_builder};
 use crate::publish_util::{generate_publish_name, view_pb_to_publish_view};
@@ -140,20 +140,18 @@ impl FolderManager {
   #[instrument(level = "debug", skip(self), err)]
   pub async fn get_current_workspace(&self) -> FlowyResult<WorkspacePB> {
     let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
     match self.mutex_folder.load_full() {
-      None => {
-        let uid = self.user.user_id()?;
-        Err(workspace_data_not_sync_error(uid, &workspace_id))
-      },
+      None => Err(workspace_data_not_sync_error(uid, &workspace_id)),
       Some(lock) => {
         let folder = lock.read().await;
         let workspace_pb_from_workspace = |workspace: Workspace, folder: &Folder| {
-          let views = get_workspace_public_view_pbs(&workspace_id, folder);
+          let views = get_workspace_public_view_pbs(&workspace_id, folder, uid);
           let workspace: WorkspacePB = (workspace, views).into();
           Ok::<WorkspacePB, FlowyError>(workspace)
         };
 
-        match folder.get_workspace_info(&workspace_id.to_string()) {
+        match folder.get_workspace_info(&workspace_id.to_string(), uid) {
           None => Err(FlowyError::record_not_found().with_context("Can not find the workspace")),
           Some(workspace) => workspace_pb_from_workspace(workspace, &folder),
         }
@@ -163,13 +161,14 @@ impl FolderManager {
 
   pub async fn get_folder_data(&self) -> FlowyResult<FolderData> {
     let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
     let data = self
       .mutex_folder
       .load_full()
       .ok_or_else(|| internal_error("The folder is not initialized"))?
       .read()
       .await
-      .get_folder_data(&workspace_id.to_string())
+      .get_folder_data(&workspace_id.to_string(), uid)
       .ok_or_else(|| internal_error("Workspace id not match the id in current folder"))?;
     Ok(data)
   }
@@ -195,22 +194,24 @@ impl FolderManager {
 
   pub async fn get_workspace_public_views(&self) -> FlowyResult<Vec<ViewPB>> {
     let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
     match self.mutex_folder.load_full() {
       None => Ok(Vec::default()),
       Some(lock) => {
         let folder = lock.read().await;
-        Ok(get_workspace_public_view_pbs(&workspace_id, &folder))
+        Ok(get_workspace_public_view_pbs(&workspace_id, &folder, uid))
       },
     }
   }
 
   pub async fn get_workspace_private_views(&self) -> FlowyResult<Vec<ViewPB>> {
     let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
     match self.mutex_folder.load_full() {
       None => Ok(Vec::default()),
       Some(folder) => {
         let folder = folder.read().await;
-        Ok(get_workspace_private_view_pbs(&workspace_id, &folder))
+        Ok(get_workspace_private_view_pbs(&workspace_id, &folder, uid))
       },
     }
   }
@@ -235,7 +236,7 @@ impl FolderManager {
     });
 
     let result = collab_builder
-      .open_folder(*workspace_id, data_source, folder_notifier)
+      .open_folder(uid, *workspace_id, data_source, folder_notifier)
       .await;
 
     // If opening the folder fails due to missing required data (indicated by a `FolderError::NoRequiredData`),
@@ -274,7 +275,7 @@ impl FolderManager {
     let data_source =
       CollabPersistenceImpl::new(collab_db.clone(), uid, *workspace_id).into_data_source();
     let folder = collab_builder
-      .create_folder_with_folder_data(*workspace_id, notifier, data_source, folder_data)
+      .create_folder_with_folder_data(uid, *workspace_id, notifier, data_source, folder_data)
       .await?;
     Ok(folder)
   }
@@ -440,8 +441,9 @@ impl FolderManager {
       view.view.extra =
         Some(serde_json::to_string(&ViewExtraBuilder::new().is_space(true).build()).unwrap());
     });
+    let uid = self.user.user_id()?;
     let all_views = views.into_iter().chain(orphan_views.into_iter()).collect();
-    folder.insert_nested_views(all_views);
+    folder.insert_nested_views(all_views, uid);
 
     Ok(())
   }
@@ -464,11 +466,12 @@ impl FolderManager {
 
     // Obtain a write lock on the folder.
     let mut folder = lock.write().await;
+    let uid = self.user.user_id()?;
     let parent_view_id = parent_view_id.as_deref().filter(|id| !id.is_empty());
     // Set the parent view ID for the child views.
     if let Some(parent_view_id) = parent_view_id {
       // If a valid parent_view_id is provided, set it for each child view.
-      if folder.get_view(parent_view_id).is_some() {
+      if folder.get_view(parent_view_id, uid).is_some() {
         info!(
           "[AppFlowyData]: Attach parent-child views with the latest view: {:?}",
           parent_view_id
@@ -481,21 +484,22 @@ impl FolderManager {
           "[AppFlowyData]: The provided parent_view_id: {} is not found in the folder",
           parent_view_id
         );
-        Self::insert_into_latest_view(&mut views, &mut folder)?;
+        Self::insert_into_latest_view(uid, &mut views, &mut folder)?;
       }
     } else {
       // If no parent_view_id is provided, find the latest view in the workspace.
-      Self::insert_into_latest_view(&mut views, &mut folder)?;
+      Self::insert_into_latest_view(uid, &mut views, &mut folder)?;
     }
 
     // Insert the views into the folder.
     let all_views = views.into_iter().chain(orphan_views.into_iter()).collect();
-    folder.insert_nested_views(all_views);
+    folder.insert_nested_views(all_views, uid);
     Ok(())
   }
 
   #[instrument(level = "info", skip_all, err)]
   fn insert_into_latest_view(
+    uid: i64,
     views: &mut [ParentChildViews],
     folder: &mut RwLockWriteGuard<Folder>,
   ) -> Result<(), FlowyError> {
@@ -505,7 +509,7 @@ impl FolderManager {
 
     // Get the latest view based on the last_edited_time in the workspace.
     match folder
-      .get_views_belong_to(&workspace_id)
+      .get_views_belong_to(&workspace_id, uid)
       .iter()
       .max_by_key(|view| view.last_edited_time)
     {
@@ -532,12 +536,13 @@ impl FolderManager {
       .load_full()
       .ok_or_else(|| FlowyError::internal().with_context("folder is not initialized"))?;
     let folder = lock.read().await;
+    let uid = self.user.user_id()?;
     let workspace = folder
-      .get_workspace_info(&workspace_id.to_string())
+      .get_workspace_info(&workspace_id.to_string(), uid)
       .ok_or_else(|| FlowyError::record_not_found().with_context("Can not find the workspace"))?;
 
     let views = folder
-      .get_views_belong_to(&workspace.id)
+      .get_views_belong_to(&workspace.id, uid)
       .into_iter()
       .map(|view| view_pb_without_child_views(view.as_ref().clone()))
       .collect::<Vec<ViewPB>>();
@@ -596,12 +601,12 @@ impl FolderManager {
     let view = create_view(self.user.user_id()?, params, view_layout);
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      folder.insert_view(view.clone(), index);
+      folder.insert_view(view.clone(), index, user_id);
       if is_private {
-        folder.add_private_view_ids(vec![view.id.clone()]);
+        folder.add_private_view_ids(vec![view.id.clone()], user_id);
       }
       if notify_workspace_update {
-        notify_did_update_workspace(&workspace_id, &folder);
+        notify_did_update_workspace(&workspace_id, &folder, user_id);
       }
     }
 
@@ -629,10 +634,10 @@ impl FolderManager {
       )
       .await?;
 
-    let view = create_view(self.user.user_id()?, params, view_layout);
+    let view = create_view(user_id, params, view_layout);
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      folder.insert_view(view.clone(), None);
+      folder.insert_view(view.clone(), None, user_id);
     }
     Ok(view)
   }
@@ -640,8 +645,9 @@ impl FolderManager {
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub(crate) async fn close_view(&self, view_id: &str) -> Result<(), FlowyError> {
     if let Some(lock) = self.mutex_folder.load_full() {
+      let uid = self.user.user_id()?;
       let folder = lock.read().await;
-      if let Some(view) = folder.get_view(view_id) {
+      if let Some(view) = folder.get_view(view_id, uid) {
         // Drop the folder lock explicitly to avoid deadlock when following calls contains 'self'
         drop(folder);
 
@@ -667,7 +673,7 @@ impl FolderManager {
       .await?;
 
     let view_id = view_id.to_string();
-
+    let uid = self.user.user_id()?;
     let lock = self
       .mutex_folder
       .load_full()
@@ -675,7 +681,7 @@ impl FolderManager {
     let folder = lock.read().await;
 
     // trash views and other private views should not be accessed
-    let view_ids_should_be_filtered = Self::get_all_trash_ids(&folder);
+    let view_ids_should_be_filtered = Self::get_all_trash_ids(&folder, uid);
     let no_access_view_ids = self.get_no_access_view_ids().await?;
 
     if view_ids_should_be_filtered.contains(&view_id) {
@@ -685,14 +691,14 @@ impl FolderManager {
       ));
     }
 
-    match folder.get_view(&view_id) {
+    match folder.get_view(&view_id, uid) {
       None => {
         error!("Can't find the view with id: {}", view_id);
         Err(FlowyError::record_not_found())
       },
       Some(view) => {
         let mut child_views = folder
-          .get_views_belong_to(&view.id)
+          .get_views_belong_to(&view.id, uid)
           .into_iter()
           .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
           .collect::<Vec<_>>();
@@ -722,7 +728,8 @@ impl FolderManager {
 
     // trash views and other private views should not be accessed
     let folder = lock.read().await;
-    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
+    let uid = self.user.user_id()?;
+    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder, uid);
 
     let views = view_ids
       .into_iter()
@@ -730,7 +737,7 @@ impl FolderManager {
         if view_ids_should_be_filtered.contains(&view_id) {
           return None;
         }
-        folder.get_view(&view_id)
+        folder.get_view(&view_id, uid)
       })
       .map(view_pb_without_child_views_from_arc)
       .collect::<Vec<_>>();
@@ -753,9 +760,10 @@ impl FolderManager {
 
     // trash views and other private views should not be accessed
     let folder = lock.read().await;
-    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder);
+    let uid = self.user.user_id()?;
+    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder, uid);
 
-    let all_views = folder.get_all_views();
+    let all_views = folder.get_all_views(uid);
     let views = all_views
       .into_iter()
       .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
@@ -777,9 +785,10 @@ impl FolderManager {
   pub async fn get_view_ancestors_pb(&self, view_id: &str) -> FlowyResult<Vec<ViewPB>> {
     let mut ancestors = vec![];
     let mut parent_view_id = view_id.to_string();
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let folder = lock.read().await;
-      while let Some(view) = folder.get_view(&parent_view_id) {
+      while let Some(view) = folder.get_view(&parent_view_id, uid) {
         // If the view is already in the ancestors list, then break the loop
         if ancestors.iter().any(|v: &ViewPB| v.id == view.id) {
           break;
@@ -802,11 +811,12 @@ impl FolderManager {
       .check_user_permission(view_id, AFAccessLevelPB::FullAccess)
       .await?;
 
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
       // Check if the view is already in trash, if not we can move the same
       // view to trash multiple times (duplicates)
-      let trash_info = folder.get_my_trash_info();
+      let trash_info = folder.get_my_trash_info(uid);
       if trash_info.into_iter().any(|info| info.id == view_id) {
         return Err(FlowyError::new(
           ErrorCode::Internal,
@@ -817,14 +827,14 @@ impl FolderManager {
         ));
       }
 
-      if let Some(view) = folder.get_view(view_id) {
+      if let Some(view) = folder.get_view(view_id, uid) {
         // if the view is locked, the view can't be moved to trash
         if view.is_locked.unwrap_or(false) {
           return Err(FlowyError::view_is_locked());
         }
 
-        Self::unfavorite_view_and_decendants(view.clone(), &mut folder);
-        folder.add_trash_view_ids(vec![view_id.to_string()]);
+        Self::unfavorite_view_and_decendants(view.clone(), &mut folder, uid);
+        folder.add_trash_view_ids(vec![view_id.to_string()], uid);
         drop(folder);
 
         // notify the parent view that the view is moved to trash
@@ -845,9 +855,9 @@ impl FolderManager {
     Ok(())
   }
 
-  fn unfavorite_view_and_decendants(view: Arc<View>, folder: &mut Folder) {
+  fn unfavorite_view_and_decendants(view: Arc<View>, folder: &mut Folder, uid: i64) {
     let mut all_descendant_views: Vec<Arc<View>> = vec![view.clone()];
-    all_descendant_views.extend(folder.get_views_belong_to(&view.id));
+    all_descendant_views.extend(folder.get_views_belong_to(&view.id, uid));
 
     let favorite_descendant_views: Vec<ViewPB> = all_descendant_views
       .iter()
@@ -861,6 +871,7 @@ impl FolderManager {
           .iter()
           .map(|v| v.id.clone())
           .collect(),
+        uid,
       );
       folder_notification_builder("favorite", FolderNotification::DidUnfavoriteView)
         .payload(RepeatedViewPB {
@@ -897,6 +908,7 @@ impl FolderManager {
       .check_user_permission(&view_id.to_string(), AFAccessLevelPB::FullAccess)
       .await?;
 
+    let uid = self.user.user_id()?;
     let new_parent_id = params.new_parent_id;
     let prev_view_id = params.prev_view_id;
     let from_section = params.from_section;
@@ -914,15 +926,21 @@ impl FolderManager {
         &view_id.to_string(),
         &new_parent_id.to_string(),
         prev_view_id.map(|s| s.to_string()),
+        uid,
       );
       if from_section != to_section {
         if to_section == Some(ViewSectionPB::Private) {
-          folder.add_private_view_ids(vec![view_id.to_string()]);
+          folder.add_private_view_ids(vec![view_id.to_string()], uid);
         } else {
-          folder.delete_private_view_ids(vec![view_id.to_string()]);
+          folder.delete_private_view_ids(vec![view_id.to_string()], uid);
         }
       }
-      notify_parent_view_did_change(workspace_id, &folder, vec![new_parent_id, old_parent_id]);
+      notify_parent_view_did_change(
+        workspace_id,
+        &folder,
+        vec![new_parent_id, old_parent_id],
+        uid,
+      );
     }
     Ok(())
   }
@@ -946,6 +964,7 @@ impl FolderManager {
       return Err(FlowyError::view_is_locked());
     }
 
+    let uid = self.user.user_id()?;
     if let Some((is_workspace, parent_view_id, child_views)) = self.get_view_relation(view_id).await
     {
       // The display parent view is the view that is displayed in the UI
@@ -978,9 +997,14 @@ impl FolderManager {
         {
           if let Some(lock) = self.mutex_folder.load_full() {
             let mut folder = lock.write().await;
-            folder.move_view(view_id, actual_from_index as u32, actual_to_index as u32);
+            folder.move_view(
+              view_id,
+              actual_from_index as u32,
+              actual_to_index as u32,
+              uid,
+            );
             let parent_view_id = Uuid::from_str(&parent_view_id)?;
-            notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id]);
+            notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id], uid);
           }
         }
       }
@@ -991,8 +1015,9 @@ impl FolderManager {
   /// Return a list of views that belong to the given parent view id.
   #[tracing::instrument(level = "debug", skip(self, parent_view_id), err)]
   pub async fn get_views_belong_to(&self, parent_view_id: &str) -> FlowyResult<Vec<Arc<View>>> {
+    let uid = self.user.user_id()?;
     match self.mutex_folder.load_full() {
-      Some(folder) => Ok(folder.read().await.get_views_belong_to(parent_view_id)),
+      Some(folder) => Ok(folder.read().await.get_views_belong_to(parent_view_id, uid)),
       None => Ok(Vec::default()),
     }
   }
@@ -1003,13 +1028,14 @@ impl FolderManager {
     &self,
     parent_view_id: &str,
   ) -> FlowyResult<Vec<Arc<View>>> {
+    let uid = self.user.user_id()?;
     match self.mutex_folder.load_full() {
       Some(folder) => {
         let folder = folder.read().await;
         let views = folder
-          .get_views_belong_to(parent_view_id)
+          .get_views_belong_to(parent_view_id, uid)
           .into_iter()
-          .filter(|view| !folder.is_view_in_section(Section::Trash, &view.id))
+          .filter(|view| !folder.is_view_in_section(Section::Trash, &view.id, uid))
           .collect();
 
         Ok(views)
@@ -1019,12 +1045,13 @@ impl FolderManager {
   }
 
   pub async fn get_view(&self, view_id: &str) -> FlowyResult<Arc<View>> {
+    let uid = self.user.user_id()?;
     match self.mutex_folder.load_full() {
       Some(folder) => {
         let folder = folder.read().await;
         Ok(
           folder
-            .get_view(view_id)
+            .get_view(view_id, uid)
             .ok_or_else(FlowyError::record_not_found)?,
         )
       },
@@ -1066,6 +1093,7 @@ impl FolderManager {
           }
         },
         Role::Member => {
+          let uid = self.user.user_id()?;
           // Members need to check if they have access to private views
           let lock = self
             .mutex_folder
@@ -1074,7 +1102,7 @@ impl FolderManager {
           let folder = lock.read().await;
 
           // Check if this is a private view that doesn't belong to the current user
-          let other_private_view_ids = Self::get_other_private_view_ids(&folder);
+          let other_private_view_ids = Self::get_other_private_view_ids(&folder, uid);
           if other_private_view_ids.contains(&view_id.to_string()) {
             // This is someone else's private view, check if it's been shared with this user
             drop(folder); // Release the lock before async call
@@ -1146,6 +1174,7 @@ impl FolderManager {
           }
         },
         Role::Member => {
+          let uid = self.user.user_id()?;
           // Check if this is a private view that doesn't belong to the current user
           let lock = self
             .mutex_folder
@@ -1153,7 +1182,7 @@ impl FolderManager {
             .ok_or_else(folder_not_init_error)?;
           let folder = lock.read().await;
 
-          let other_private_view_ids = Self::get_other_private_view_ids(&folder);
+          let other_private_view_ids = Self::get_other_private_view_ids(&folder, uid);
           if other_private_view_ids.contains(&view_id.to_string()) {
             // This is someone else's private view, check shared access level
             drop(folder); // Release the lock before async call
@@ -1324,6 +1353,7 @@ impl FolderManager {
       .check_user_permission(&params.view_id, AFAccessLevelPB::FullAccess)
       .await?;
 
+    let uid = self.user.user_id()?;
     let lock = self
       .mutex_folder
       .load_full()
@@ -1331,7 +1361,7 @@ impl FolderManager {
 
     let folder = lock.read().await;
     let view = folder
-      .get_view(&params.view_id)
+      .get_view(&params.view_id, uid)
       .ok_or_else(|| FlowyError::record_not_found().with_context("Can't duplicate the view"))?;
     // Explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
     drop(folder);
@@ -1370,12 +1400,14 @@ impl FolderManager {
       ));
     }
 
+    let uid = self.user.user_id()?;
+
     // filter the view ids that in the trash or private section
     let filtered_view_ids = match self.mutex_folder.load_full() {
       None => Vec::default(),
       Some(lock) => {
         let folder = lock.read().await;
-        Self::get_view_ids_should_be_filtered(&folder)
+        Self::get_view_ids_should_be_filtered(&folder, uid)
       },
     };
 
@@ -1399,7 +1431,7 @@ impl FolderManager {
       let view = lock
         .read()
         .await
-        .get_view(&current_view_id)
+        .get_view(&current_view_id, uid)
         .ok_or_else(|| {
           FlowyError::record_not_found()
             .with_context(format!("Can't duplicate the view({})", view_id))
@@ -1429,7 +1461,7 @@ impl FolderManager {
 
       let section = {
         let folder = lock.read().await;
-        if folder.is_view_in_section(Section::Private, &view.id) {
+        if folder.is_view_in_section(Section::Private, &view.id, uid) {
           ViewSectionPB::Private
         } else {
           ViewSectionPB::Public
@@ -1493,20 +1525,21 @@ impl FolderManager {
 
     // notify the update here
     let folder = lock.read().await;
-    notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id]);
+    notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id], uid);
     let duplicated_view = self.get_view_pb(&new_view_id).await?;
     Ok(duplicated_view)
   }
 
   #[tracing::instrument(level = "trace", skip(self), err)]
   pub(crate) async fn set_current_view(&self, view_id: String) -> Result<(), FlowyError> {
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      if let Some(current_view_id) = folder.get_current_view() {
+      if let Some(current_view_id) = folder.get_current_view(uid) {
         if current_view_id != view_id {
           info!("Set current view: {}", view_id);
-          folder.set_current_view(view_id.clone());
-          folder.add_recent_view_ids(vec![view_id.clone()]);
+          folder.set_current_view(view_id.clone(), uid);
+          folder.add_recent_view_ids(vec![view_id.clone()], uid);
         }
       }
     } else {
@@ -1538,10 +1571,11 @@ impl FolderManager {
 
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn get_current_view(&self) -> Option<ViewPB> {
+    let uid = self.user.user_id().ok()?;
     let view_id = {
       let lock = self.mutex_folder.load_full()?;
       let folder = lock.read().await;
-      let view = folder.get_current_view()?;
+      let view = folder.get_current_view(uid)?;
       drop(folder);
       view
     };
@@ -1565,13 +1599,14 @@ impl FolderManager {
       .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
       .await?;
 
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      if let Some(old_view) = folder.get_view(view_id) {
+      if let Some(old_view) = folder.get_view(view_id, uid) {
         if old_view.is_favorite {
-          folder.delete_favorite_view_ids(vec![view_id.to_string()]);
+          folder.delete_favorite_view_ids(vec![view_id.to_string()], uid);
         } else {
-          folder.add_favorite_view_ids(vec![view_id.to_string()]);
+          folder.add_favorite_view_ids(vec![view_id.to_string()], uid);
         }
       }
     }
@@ -1582,9 +1617,10 @@ impl FolderManager {
   /// Add the view to the recent view list / history.
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn add_recent_views(&self, view_ids: Vec<String>) -> FlowyResult<()> {
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      folder.add_recent_view_ids(view_ids);
+      folder.add_recent_view_ids(view_ids, uid);
     }
     self.send_update_recent_views_notification().await;
     Ok(())
@@ -1593,9 +1629,10 @@ impl FolderManager {
   /// Add the view to the recent view list / history.
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn remove_recent_views(&self, view_ids: Vec<String>) -> FlowyResult<()> {
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      folder.delete_recent_view_ids(view_ids);
+      folder.delete_recent_view_ids(view_ids, uid);
     }
     self.send_update_recent_views_notification().await;
     Ok(())
@@ -1857,6 +1894,7 @@ impl FolderManager {
     publish_name: Option<String>,
     selected_view_ids: Option<Vec<String>>,
   ) -> FlowyResult<()> {
+    let uid = self.user.user_id()?;
     let view = {
       let lock = match self.mutex_folder.load_full() {
         None => {
@@ -1868,7 +1906,7 @@ impl FolderManager {
         Some(lock) => lock,
       };
       let read_guard = lock.read().await;
-      read_guard.get_view(view_id).ok_or_else(|| {
+      read_guard.get_view(view_id, uid).ok_or_else(|| {
         FlowyError::record_not_found()
           .with_context(format!("Can't find the view with ID: {}", view_id))
       })?
@@ -2197,6 +2235,7 @@ impl FolderManager {
   }
 
   pub async fn get_all_views(&self) -> FlowyResult<Vec<Arc<View>>> {
+    let uid = self.user.user_id()?;
     let lock = self
       .mutex_folder
       .load_full()
@@ -2204,7 +2243,7 @@ impl FolderManager {
     let views = lock
       .read()
       .await
-      .get_all_views()
+      .get_all_views(uid)
       .into_iter()
       .collect::<Vec<_>>();
     Ok(views)
@@ -2219,44 +2258,53 @@ impl FolderManager {
   pub(crate) async fn get_my_trash_info(&self) -> Vec<TrashInfo> {
     match self.mutex_folder.load_full() {
       None => Vec::default(),
-      Some(folder) => folder.read().await.get_my_trash_info(),
+      Some(folder) => match self.user.user_id() {
+        Ok(uid) => folder.read().await.get_my_trash_info(uid),
+        Err(_) => Vec::default(),
+      },
     }
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn restore_all_trash(&self) {
-    if let Some(lock) = self.mutex_folder.load_full() {
-      let mut folder = lock.write().await;
-      folder.remove_all_my_trash_sections();
-      folder_notification_builder("trash", FolderNotification::DidUpdateTrash)
-        .payload(RepeatedTrashPB { items: vec![] })
-        .send();
+    if let Ok(uid) = self.user.user_id() {
+      if let Some(lock) = self.mutex_folder.load_full() {
+        let mut folder = lock.write().await;
+        folder.remove_all_my_trash_sections(uid);
+        folder_notification_builder("trash", FolderNotification::DidUpdateTrash)
+          .payload(RepeatedTrashPB { items: vec![] })
+          .send();
+      }
     }
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn restore_trash(&self, trash_id: &str) {
-    if let Some(lock) = self.mutex_folder.load_full() {
-      let mut folder = lock.write().await;
-      folder.delete_trash_view_ids(vec![trash_id.to_string()]);
+    if let Ok(uid) = self.user.user_id() {
+      if let Some(lock) = self.mutex_folder.load_full() {
+        let mut folder = lock.write().await;
+        folder.delete_trash_view_ids(vec![trash_id.to_string()], uid);
+      }
     }
   }
 
   /// Delete all the trash permanently.
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn delete_my_trash(&self) {
-    if let Some(lock) = self.mutex_folder.load_full() {
-      let deleted_trash = lock.read().await.get_my_trash_info();
+    if let Ok(uid) = self.user.user_id() {
+      if let Some(lock) = self.mutex_folder.load_full() {
+        let deleted_trash = lock.read().await.get_my_trash_info(uid);
 
-      // Explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
-      drop(lock);
+        // Explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
+        drop(lock);
 
-      for trash in deleted_trash {
-        let _ = self.delete_trash(&trash.id).await;
+        for trash in deleted_trash {
+          let _ = self.delete_trash(&trash.id).await;
+        }
+        folder_notification_builder("trash", FolderNotification::DidUpdateTrash)
+          .payload(RepeatedTrashPB { items: vec![] })
+          .send();
       }
-      folder_notification_builder("trash", FolderNotification::DidUpdateTrash)
-        .payload(RepeatedTrashPB { items: vec![] })
-        .send();
     }
   }
 
@@ -2265,11 +2313,12 @@ impl FolderManager {
   /// is a database view. Then the database will be deleted as well.
   #[tracing::instrument(level = "debug", skip(self, view_id), err)]
   pub async fn delete_trash(&self, view_id: &str) -> FlowyResult<()> {
+    let uid = self.user.user_id()?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let view = {
         let mut folder = lock.write().await;
-        let view = folder.get_view(view_id);
-        folder.delete_trash_view_ids(vec![view_id.to_string()]);
+        let view = folder.get_view(view_id, uid);
+        folder.delete_trash_view_ids(vec![view_id.to_string()], uid);
         folder.delete_views(vec![view_id]);
         view
       };
@@ -2330,12 +2379,12 @@ impl FolderManager {
       icon: None,
     };
 
-    let view = create_view(self.user.user_id()?, params, import_data.view_layout);
+    let view = create_view(uid, params, import_data.view_layout);
 
     // Insert the new view into the folder
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
-      folder.insert_view(view.clone(), None);
+      folder.insert_view(view.clone(), None, uid);
     }
 
     Ok(view)
@@ -2349,6 +2398,7 @@ impl FolderManager {
   /// Import function to handle the import of data.
   pub(crate) async fn import(&self, import_data: ImportParams) -> FlowyResult<RepeatedViewPB> {
     let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
     let mut views = vec![];
     for data in import_data.items {
       // Import a single file and get the view and encoded collab data
@@ -2361,7 +2411,7 @@ impl FolderManager {
     // Notify that the parent view has changed
     if let Some(lock) = self.mutex_folder.load_full() {
       let folder = lock.read().await;
-      notify_parent_view_did_change(workspace_id, &folder, vec![import_data.parent_view_id]);
+      notify_parent_view_did_change(workspace_id, &folder, vec![import_data.parent_view_id], uid);
     }
 
     Ok(RepeatedViewPB { items: views })
@@ -2376,19 +2426,19 @@ impl FolderManager {
     F: FnOnce(ViewUpdate) -> Option<View>,
   {
     let workspace_id = self.user.workspace_id()?;
+    let uid = self.user.user_id()?;
     let value = match self.mutex_folder.load_full() {
       None => None,
       Some(lock) => {
         let mut folder = lock.write().await;
-        let old_view = folder.get_view(view_id);
+        let old_view = folder.get_view(view_id, uid);
 
         // Check if the view is locked
         if check_locked && old_view.as_ref().and_then(|v| v.is_locked).unwrap_or(false) {
           return Err(FlowyError::view_is_locked());
         }
 
-        let new_view = folder.update_view(view_id, f);
-
+        let new_view = folder.update_view(view_id, f, uid);
         Some((old_view, new_view))
       },
     };
@@ -2406,7 +2456,8 @@ impl FolderManager {
 
       if let Some(lock) = self.mutex_folder.load_full() {
         let folder = lock.read().await;
-        notify_did_update_workspace(&workspace_id, &folder);
+        notify_did_update_workspace(&workspace_id, &folder, uid);
+        notify_did_update_section_views(&workspace_id, &folder, uid);
       }
     }
 
@@ -2430,12 +2481,13 @@ impl FolderManager {
   /// child view ids of the view.
   async fn get_view_relation(&self, view_id: &str) -> Option<(bool, String, Vec<String>)> {
     let workspace_id = self.user.workspace_id().ok()?;
+    let uid = self.user.user_id().ok()?;
     let lock = self.mutex_folder.load_full()?;
     let folder = lock.read().await;
-    let view = folder.get_view(view_id)?;
-    match folder.get_view(&view.parent_view_id) {
+    let view = folder.get_view(view_id, uid)?;
+    match folder.get_view(&view.parent_view_id, uid) {
       None => folder
-        .get_workspace_info(&workspace_id.to_string())
+        .get_workspace_info(&workspace_id.to_string(), uid)
         .map(|workspace| {
           (
             true,
@@ -2485,24 +2537,32 @@ impl FolderManager {
 
   pub async fn set_views_visibility(&self, view_ids: Vec<String>, is_public: bool) {
     if let Some(lock) = self.mutex_folder.load_full() {
-      let mut folder = lock.write().await;
-      if is_public {
-        folder.delete_private_view_ids(view_ids);
-      } else {
-        folder.add_private_view_ids(view_ids);
+      if let Ok(uid) = self.user.user_id() {
+        let mut folder = lock.write().await;
+        if is_public {
+          folder.delete_private_view_ids(view_ids, uid);
+        } else {
+          folder.add_private_view_ids(view_ids, uid);
+        }
       }
     }
   }
 
   /// Only support getting the Favorite and Recent sections.
   async fn get_sections(&self, section_type: Section) -> Vec<SectionItem> {
+    let uid = match self.user.user_id() {
+      Ok(uid) => uid,
+      Err(_) => {
+        return Vec::default();
+      },
+    };
     match self.mutex_folder.load_full() {
       None => Vec::default(),
       Some(lock) => {
         let folder = lock.read().await;
         let views = match section_type {
-          Section::Favorite => folder.get_my_favorite_sections(),
-          Section::Recent => folder.get_my_recent_sections(),
+          Section::Favorite => folder.get_my_favorite_sections(uid),
+          Section::Recent => folder.get_my_recent_sections(uid),
           _ => vec![],
         };
 
@@ -2541,35 +2601,35 @@ impl FolderManager {
   /// Get all the view that are in the trash, including the child views of the child views.
   /// For example, if A view which is in the trash has a child view B, this function will return
   /// both A and B.
-  fn get_all_trash_ids(folder: &Folder) -> Vec<String> {
+  fn get_all_trash_ids(folder: &Folder, uid: i64) -> Vec<String> {
     let trash_ids = folder
-      .get_all_trash_sections()
+      .get_all_trash_sections(uid)
       .into_iter()
       .map(|trash| trash.id)
       .collect::<Vec<String>>();
     let mut all_trash_ids = trash_ids.clone();
     for trash_id in trash_ids {
-      all_trash_ids.extend(get_all_child_view_ids(folder, &trash_id));
+      all_trash_ids.extend(get_all_child_view_ids(folder, &trash_id, uid));
     }
     all_trash_ids
   }
 
   /// Filter the views that are in the trash and belong to the other private sections.
-  fn get_view_ids_should_be_filtered(folder: &Folder) -> Vec<String> {
-    let trash_ids = Self::get_all_trash_ids(folder);
-    let other_private_view_ids = Self::get_other_private_view_ids(folder);
+  fn get_view_ids_should_be_filtered(folder: &Folder, uid: i64) -> Vec<String> {
+    let trash_ids = Self::get_all_trash_ids(folder, uid);
+    let other_private_view_ids = Self::get_other_private_view_ids(folder, uid);
     [trash_ids, other_private_view_ids].concat()
   }
 
-  fn get_other_private_view_ids(folder: &Folder) -> Vec<String> {
+  fn get_other_private_view_ids(folder: &Folder, uid: i64) -> Vec<String> {
     let my_private_view_ids = folder
-      .get_my_private_sections()
+      .get_my_private_sections(uid)
       .into_iter()
       .map(|view| view.id)
       .collect::<Vec<String>>();
 
     let other_private_view_ids = folder
-      .get_all_private_sections()
+      .get_all_private_sections(uid)
       .into_iter()
       .map(|view| view.id)
       .filter(|id| !my_private_view_ids.contains(id))
@@ -2578,7 +2638,7 @@ impl FolderManager {
     // Include all child views under other users' private views
     let mut all_other_private_view_ids = other_private_view_ids.clone();
     for private_view_id in other_private_view_ids {
-      all_other_private_view_ids.extend(get_all_child_view_ids(folder, &private_view_id));
+      all_other_private_view_ids.extend(get_all_child_view_ids(folder, &private_view_id, uid));
     }
 
     all_other_private_view_ids
@@ -2606,7 +2666,7 @@ impl FolderManager {
       .ok_or_else(folder_not_init_error)?;
     let folder = lock.read().await;
     // filter the views that are in the trash
-    let trash_ids = Self::get_all_trash_ids(&folder);
+    let trash_ids = Self::get_all_trash_ids(&folder, uid);
     let all_views = all_views
       .into_iter()
       .filter(|view| !trash_ids.contains(&view.id))
@@ -2795,11 +2855,11 @@ impl FolderManager {
       .mutex_folder
       .load_full()
       .ok_or_else(folder_not_init_error)?;
+    let uid = self.user.user_id()?;
     let folder = lock.read().await;
 
     // Determine if the view is in a public or private space
     let mut is_public_space = true;
-
     loop {
       if loop_count >= MAX_LOOP_COUNT {
         break;
@@ -2807,7 +2867,7 @@ impl FolderManager {
       loop_count += 1;
 
       let view = folder
-        .get_view(&current_view_id)
+        .get_view(&current_view_id, uid)
         .ok_or_else(|| FlowyError::record_not_found().with_context("View not found"))?;
 
       if let Some(space_info) = view.space_info() {
@@ -2923,22 +2983,26 @@ impl FolderManager {
 }
 
 /// Return the views that belong to the workspace. The views are filtered by the trash and all the private views.
-pub(crate) fn get_workspace_public_view_pbs(workspace_id: &Uuid, folder: &Folder) -> Vec<ViewPB> {
+pub(crate) fn get_workspace_public_view_pbs(
+  workspace_id: &Uuid,
+  folder: &Folder,
+  uid: i64,
+) -> Vec<ViewPB> {
   // get the trash ids
   let trash_ids = folder
-    .get_all_trash_sections()
+    .get_all_trash_sections(uid)
     .into_iter()
     .map(|trash| trash.id)
     .collect::<Vec<String>>();
 
   // get the private view ids
   let private_view_ids = folder
-    .get_all_private_sections()
+    .get_all_private_sections(uid)
     .into_iter()
     .map(|view| view.id)
     .collect::<Vec<String>>();
 
-  let mut views = folder.get_views_belong_to(&workspace_id.to_string());
+  let mut views = folder.get_views_belong_to(&workspace_id.to_string(), uid);
   // filter the views that are in the trash and all the private views
   views.retain(|view| !trash_ids.contains(&view.id) && !private_view_ids.contains(&view.id));
 
@@ -2946,8 +3010,10 @@ pub(crate) fn get_workspace_public_view_pbs(workspace_id: &Uuid, folder: &Folder
     .into_iter()
     .map(|view| {
       // Get child views
-      let mut child_views: Vec<Arc<View>> =
-        folder.get_views_belong_to(&view.id).into_iter().collect();
+      let mut child_views: Vec<Arc<View>> = folder
+        .get_views_belong_to(&view.id, uid)
+        .into_iter()
+        .collect();
       child_views.retain(|view| !trash_ids.contains(&view.id));
       view_pb_with_child_views(view, child_views)
     })
@@ -2955,31 +3021,35 @@ pub(crate) fn get_workspace_public_view_pbs(workspace_id: &Uuid, folder: &Folder
 }
 
 /// Get all the child views belong to the view id, including the child views of the child views.
-fn get_all_child_view_ids(folder: &Folder, view_id: &str) -> Vec<String> {
+fn get_all_child_view_ids(folder: &Folder, view_id: &str, uid: i64) -> Vec<String> {
   folder
-    .get_view_recursively(view_id)
+    .get_view_recursively(view_id, uid)
     .iter()
     .map(|view| view.id.clone())
     .collect()
 }
 
 /// Get the current private views of the user.
-pub(crate) fn get_workspace_private_view_pbs(workspace_id: &Uuid, folder: &Folder) -> Vec<ViewPB> {
+pub(crate) fn get_workspace_private_view_pbs(
+  workspace_id: &Uuid,
+  folder: &Folder,
+  uid: i64,
+) -> Vec<ViewPB> {
   // get the trash ids
   let trash_ids = folder
-    .get_all_trash_sections()
+    .get_all_trash_sections(uid)
     .into_iter()
     .map(|trash| trash.id)
     .collect::<Vec<String>>();
 
   // get the private view ids
   let private_view_ids = folder
-    .get_my_private_sections()
+    .get_my_private_sections(uid)
     .into_iter()
     .map(|view| view.id)
     .collect::<Vec<String>>();
 
-  let mut views = folder.get_views_belong_to(&workspace_id.to_string());
+  let mut views = folder.get_views_belong_to(&workspace_id.to_string(), uid);
   // filter the views that are in the trash and not in the private view ids
   views.retain(|view| !trash_ids.contains(&view.id) && private_view_ids.contains(&view.id));
 
@@ -2987,8 +3057,10 @@ pub(crate) fn get_workspace_private_view_pbs(workspace_id: &Uuid, folder: &Folde
     .into_iter()
     .map(|view| {
       // Get child views
-      let mut child_views: Vec<Arc<View>> =
-        folder.get_views_belong_to(&view.id).into_iter().collect();
+      let mut child_views: Vec<Arc<View>> = folder
+        .get_views_belong_to(&view.id, uid)
+        .into_iter()
+        .collect();
       child_views.retain(|view| !trash_ids.contains(&view.id));
       view_pb_with_child_views(view, child_views)
     })

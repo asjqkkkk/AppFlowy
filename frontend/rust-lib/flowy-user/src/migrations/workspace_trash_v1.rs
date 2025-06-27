@@ -54,8 +54,8 @@ impl UserDataMigration for WorkspaceTrashMapToSectionMigration {
         &user.workspace_id,
         &user.workspace_id,
       ) {
-        let mut folder = Folder::open(user.user_id, collab, None)
-          .map_err(|err| PersistenceError::Internal(err.into()))?;
+        let mut folder =
+          Folder::open(collab, None).map_err(|err| PersistenceError::Internal(err.into()))?;
         let trash_ids = folder
           .get_trash_v1()
           .into_iter()
@@ -63,7 +63,7 @@ impl UserDataMigration for WorkspaceTrashMapToSectionMigration {
           .collect::<Vec<String>>();
 
         if !trash_ids.is_empty() {
-          folder.add_trash_view_ids(trash_ids);
+          folder.add_trash_view_ids(trash_ids, user.user_id);
         }
 
         let encode = folder

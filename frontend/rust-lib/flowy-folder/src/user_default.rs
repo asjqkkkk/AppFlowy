@@ -60,6 +60,7 @@ impl DefaultFolderBuilder {
     };
 
     FolderData {
+      uid,
       workspace,
       current_view: first_view.id,
       views: FlattedViews::flatten_views(views.into_inner()),
