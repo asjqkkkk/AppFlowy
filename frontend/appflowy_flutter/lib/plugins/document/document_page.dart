@@ -299,8 +299,10 @@ class _DocumentPageState extends State<DocumentPage>
         userProfilePB: userProfilePB,
       );
 
+      final isEditable = context.read<PageAccessLevelBloc>().state.isEditable;
+
       child = IgnorePointer(
-        ignoring: context.read<PageAccessLevelBloc>().state.isEditable,
+        ignoring: !isEditable,
         child: child,
       );
 

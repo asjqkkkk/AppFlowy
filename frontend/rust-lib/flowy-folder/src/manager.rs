@@ -2566,6 +2566,8 @@ impl FolderManager {
           _ => vec![],
         };
 
+        drop(folder);
+
         let mut filtered_views = Vec::new();
         for view in views {
           let is_accessible = self
@@ -2579,8 +2581,6 @@ impl FolderManager {
 
         if let Ok(workspace) = self.user.get_active_user_workspace() {
           if let Some(Role::Guest) = workspace.role {
-            drop(folder);
-
             if let Ok(flatten_shared_views) = self.get_flatten_shared_pages().await {
               let accessible_view_ids: std::collections::HashSet<String> = flatten_shared_views
                 .into_iter()
@@ -2884,6 +2884,8 @@ impl FolderManager {
 
       current_view_id = parent_view_id;
     }
+
+    drop(folder);
 
     // If the page is in public space, always return PublicSection
     if is_public_space {
