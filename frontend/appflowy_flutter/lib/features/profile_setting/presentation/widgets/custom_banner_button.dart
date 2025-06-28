@@ -60,7 +60,11 @@ class _CustomBannerButtonState extends State<CustomBannerButton> {
                 offset: const Offset(0, 8),
                 constraints: BoxConstraints.loose(const Size(400, 400)),
                 margin: EdgeInsets.zero,
-                child: banner.toWidget(context: context, selected: selected),
+                child: NetworkImageBannerWidget(
+                  banner: banner,
+                  selected: selected,
+                  hovering: hovering,
+                ),
                 popupBuilder: (BuildContext popoverContext) {
                   return FlowyIconEmojiPicker(
                     initialType: PickerTabType.custom,
