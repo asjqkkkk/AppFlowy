@@ -5,7 +5,7 @@ use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
 use client_api::v2::{
-  ConnectState, DisconnectedReason, WorkspaceController, WorkspaceControllerOptions,
+  ConnectState, DisconnectedReason, RetryConfig, WorkspaceController, WorkspaceControllerOptions,
 };
 use dashmap::Entry;
 use flowy_error::{FlowyError, FlowyResult};
@@ -19,6 +19,20 @@ use tracing::{debug, error, info, trace, warn};
 use uuid::Uuid;
 
 impl UserManager {
+  pub fn update_network_reachable(&self, reachable: bool) {
+    if reachable {
+      if let Ok(workspace_id) = self.workspace_id() {
+        if let Some(c) = self.controller_by_wid.get(&workspace_id).map(|v| v.clone()) {
+          info!(
+            "Network is reachable, reconnecting workspace: {}",
+            workspace_id
+          );
+          c.controller.reconnect();
+        }
+      }
+    }
+  }
+
   #[cfg(debug_assertions)]
   pub async fn disconnect_workspace_ws_conn(&self, workspace_id: &Uuid) -> FlowyResult<()> {
     if let Some(c) = self.controller_by_wid.get(workspace_id) {
@@ -41,22 +55,25 @@ impl UserManager {
   }
 
   pub(crate) fn spawn_periodically_check_workspace_control(&self) {
-    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(120));
+    let secs = if cfg!(debug_assertions) { 30 } else { 60 };
+    let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(secs));
     let weak_controller_by_wid = Arc::downgrade(&self.controller_by_wid);
     tokio::spawn(async move {
       loop {
         interval.tick().await;
         match weak_controller_by_wid.upgrade() {
           None => {
+            info!("exit periodically check active/inactive workspace");
             break;
           },
           Some(c) => {
             let ids = c.iter().map(|v| *v.key()).collect::<Vec<_>>();
+            debug!("current connected workspace ids: {:?}", ids);
             for id in ids {
               let removed = c.remove_if(&id, |_, w| w.is_inactive());
               if let Some((id, w)) = removed {
                 let _ = w.disconnect().await;
-                info!("Drop workspace {} collab controller", id);
+                info!("remove inactive workspace {} collab controller", id);
               }
             }
           },
@@ -79,6 +96,7 @@ impl UserManager {
   ) -> Result<Weak<WorkspaceController>, FlowyError> {
     let access_token = cloud_service.get_access_token();
     let entry = self.controller_by_wid.entry(*workspace_id);
+    let retry_config = RetryConfig::default();
     let controller = match entry {
       Entry::Occupied(mut value) => {
         value.get_mut().mark_active();
@@ -97,8 +115,11 @@ impl UserManager {
           device_id,
           sync_eagerly: true,
         };
-        let workspace_controller =
-          Arc::new(WorkspaceController::new_with_rocksdb(options, collab_db)?);
+        let workspace_controller = Arc::new(WorkspaceController::new_with_rocksdb(
+          options,
+          collab_db,
+          retry_config,
+        )?);
         let controller = WorkspaceControllerLifeCycle::new(
           *workspace_type,
           workspace_controller.clone(),
@@ -153,7 +174,7 @@ impl UserManager {
 
     if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
       info!(
-        "Start ws connect state manually for workspace: {}",
+        "Start websocket connect state manually for workspace: {}",
         workspace_id
       );
       controller.connect_with_access_token(access_token).await?;
@@ -273,16 +294,37 @@ impl WorkspaceControllerLifeCycle {
   }
 
   fn is_inactive(&self) -> bool {
+    trace!(
+      "Check if workspace {} is inactive, inactive_since: {:?}, inactive seconds: {}",
+      self.workspace_id(),
+      self.inactive_since,
+      self
+        .inactive_since
+        .as_ref()
+        .map(|t| Utc::now().signed_duration_since(*t).num_seconds())
+        .unwrap_or(0)
+    );
     match &self.inactive_since {
       None => false,
-      Some(t) => t.signed_duration_since(Utc::now()).num_minutes() > 10,
+      Some(t) => {
+        if cfg!(debug_assertions) {
+          Utc::now().signed_duration_since(*t).num_seconds() > 60
+        } else {
+          Utc::now().signed_duration_since(*t).num_seconds() > 120
+        }
+      },
     }
   }
   fn mark_active(&mut self) {
+    info!("Set workspace {} as active workspace", self.workspace_id());
     self.inactive_since = None;
   }
 
   fn mark_inactive(&mut self) {
+    info!(
+      "Set workspace {} as inactive workspace",
+      self.workspace_id()
+    );
     self.inactive_since = Some(Utc::now());
   }
 
@@ -294,7 +336,7 @@ impl WorkspaceControllerLifeCycle {
       while let Ok(notification) = rx.recv().await {
         match weak_interceptors.upgrade() {
           None => {
-            trace!("Exit observe workspace notification");
+            info!("Exit observe workspace notification");
             break;
           },
           Some(v) => {

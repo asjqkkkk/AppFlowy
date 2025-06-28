@@ -21,7 +21,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
         return FlowyResult.success(view);
       },
       (error) {
-        Log.error('failed to get view, error: $error');
         return FlowyResult.failure(error);
       },
     );
@@ -70,7 +69,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
         return FlowyResult.success(success.accessLevel.shareAccessLevel);
       },
       (failure) {
-        Log.error('failed to get access level: $failure, in page: $pageId');
         return FlowyResult.failure(failure);
       },
     );
@@ -88,10 +86,6 @@ class RustPageAccessLevelRepositoryImpl implements PageAccessLevelRepository {
         return FlowyResult.success(sectionType);
       },
       (failure) {
-        Log.error(
-          'failed to get shared section type: $failure, in page: $pageId',
-        );
-
         return FlowyResult.failure(failure);
       },
     );

@@ -514,7 +514,11 @@ impl AppLifeCycle for AppLifeCycleImpl {
   fn on_network_status_changed(&self, reachable: bool) {
     info!("Notify did update network: reachable: {}", reachable);
     if let Some(collab_builder) = self.workspace_collab_manager.upgrade() {
-      collab_builder.update_network(reachable);
+      collab_builder.update_network_reachable(reachable);
+    }
+
+    if let Some(user_manager) = self.user_manager.upgrade() {
+      user_manager.update_network_reachable(reachable);
     }
 
     if let Ok(storage) = self.storage_manager() {

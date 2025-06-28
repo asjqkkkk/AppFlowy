@@ -34,7 +34,7 @@ fn upgrade_store_preferences(
   Ok(store)
 }
 
-#[tracing::instrument(level = "debug", name = "sign_in", skip(data, manager), fields(
+#[tracing::instrument(level = "info", name = "sign_in", skip(data, manager), fields(
     email = % data.email
 ), err)]
 pub async fn sign_in_with_email_password_handler(
@@ -54,7 +54,7 @@ pub async fn sign_in_with_email_password_handler(
 }
 
 #[tracing::instrument(
-    level = "debug",
+    level = "info",
     name = "sign_up",
     skip(data, manager),
     fields(
@@ -119,7 +119,7 @@ pub async fn get_user_profile_handler(
   data_result_ok(user_profile.into())
 }
 
-#[tracing::instrument(level = "debug", skip(manager))]
+#[tracing::instrument(level = "info", skip(manager))]
 pub async fn sign_out_handler(manager: AFPluginState<Weak<UserManager>>) -> Result<(), FlowyError> {
   let (tx, rx) = tokio::sync::oneshot::channel();
   tokio::spawn(async move {
@@ -135,7 +135,7 @@ pub async fn sign_out_handler(manager: AFPluginState<Weak<UserManager>>) -> Resu
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(manager))]
+#[tracing::instrument(level = "info", skip(manager))]
 pub async fn delete_account_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> Result<(), FlowyError> {
@@ -144,7 +144,7 @@ pub async fn delete_account_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(data, manager))]
+#[tracing::instrument(level = "info", skip(data, manager))]
 pub async fn update_user_profile_handler(
   data: AFPluginData<UpdateUserProfilePayloadPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -292,7 +292,7 @@ pub async fn import_appflowy_data_folder_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn get_user_setting(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<UserSettingPB, FlowyError> {
@@ -301,7 +301,7 @@ pub async fn get_user_setting(
   data_result_ok(user_setting)
 }
 
-#[tracing::instrument(level = "debug", skip(data, manager), err)]
+#[tracing::instrument(level = "info", skip(data, manager), err)]
 pub async fn sign_in_with_magic_link_handler(
   data: AFPluginData<MagicLinkSignInPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -314,7 +314,7 @@ pub async fn sign_in_with_magic_link_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(data, manager), err)]
+#[tracing::instrument(level = "info", skip(data, manager), err)]
 pub async fn sign_in_with_passcode_handler(
   data: AFPluginData<PasscodeSignInPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -327,7 +327,7 @@ pub async fn sign_in_with_passcode_handler(
   data_result_ok(response.into())
 }
 
-#[tracing::instrument(level = "debug", skip(data, manager), err)]
+#[tracing::instrument(level = "info", skip(data, manager), err)]
 pub async fn oauth_sign_in_handler(
   data: AFPluginData<OauthSignInPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -341,7 +341,7 @@ pub async fn oauth_sign_in_handler(
   data_result_ok(user_profile.into())
 }
 
-#[tracing::instrument(level = "debug", skip(data, manager), err)]
+#[tracing::instrument(level = "info", skip(data, manager), err)]
 pub async fn gen_sign_in_url_handler(
   data: AFPluginData<SignInUrlPayloadPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -355,7 +355,7 @@ pub async fn gen_sign_in_url_handler(
   data_result_ok(SignInUrlPB { sign_in_url })
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn sign_in_with_provider_handler(
   data: AFPluginData<OauthProviderPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -407,7 +407,7 @@ pub async fn set_cloud_config_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "info", skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 pub async fn get_cloud_config_handler(
   manager: AFPluginState<Weak<UserManager>>,
   store_preferences: AFPluginState<Weak<KVStorePreferences>>,
@@ -469,7 +469,7 @@ pub async fn get_user_workspace_handler(
   data_result_ok(UserWorkspacePB::from(user_workspace))
 }
 
-#[tracing::instrument(level = "debug", skip(data, manager), err)]
+#[tracing::instrument(level = "trace", skip(data, manager), err)]
 pub async fn update_network_state_handler(
   data: AFPluginData<NetworkStatePB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -485,7 +485,7 @@ pub async fn update_network_state_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all)]
+#[tracing::instrument(level = "trace", skip_all)]
 pub async fn get_anon_user_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<UserProfilePB, FlowyError> {
@@ -494,7 +494,7 @@ pub async fn get_anon_user_handler(
   data_result_ok(user_profile)
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 pub async fn open_anon_user_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> Result<(), FlowyError> {
@@ -519,7 +519,7 @@ pub async fn push_realtime_event_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 pub async fn create_reminder_event_handler(
   data: AFPluginData<ReminderPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -530,7 +530,7 @@ pub async fn create_reminder_event_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 pub async fn get_all_reminder_event_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<RepeatedReminderPB, FlowyError> {
@@ -679,7 +679,7 @@ pub async fn change_workspace_icon_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn invite_workspace_member_handler(
   param: AFPluginData<WorkspaceMemberInvitationPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -693,7 +693,7 @@ pub async fn invite_workspace_member_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn list_workspace_invitations_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<RepeatedWorkspaceInvitationPB, FlowyError> {
@@ -730,7 +730,7 @@ pub async fn leave_workspace_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn subscribe_workspace_handler(
   params: AFPluginData<SubscribeWorkspacePB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -754,7 +754,6 @@ pub async fn get_workspace_subscription_info_handler(
   data_result_ok(subs)
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
 pub async fn cancel_workspace_subscription_handler(
   param: AFPluginData<CancelWorkspaceSubscriptionPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -767,7 +766,7 @@ pub async fn cancel_workspace_subscription_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 pub async fn get_workspace_usage_handler(
   param: AFPluginData<UserWorkspaceIdPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -778,7 +777,7 @@ pub async fn get_workspace_usage_handler(
   data_result_ok(WorkspaceUsagePB::from(workspace_usage))
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "trace", skip_all, err)]
 pub async fn get_billing_portal_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<BillingPortalPB, FlowyError> {
@@ -787,7 +786,7 @@ pub async fn get_billing_portal_handler(
   data_result_ok(BillingPortalPB { url })
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn update_workspace_subscription_payment_period_handler(
   params: AFPluginData<UpdateWorkspaceSubscriptionPaymentPeriodPB>,
   manager: AFPluginState<Weak<UserManager>>,
@@ -818,7 +817,7 @@ pub async fn get_subscription_plan_details_handler(
   data_result_ok(RepeatedSubscriptionPlanDetailPB { items: plans })
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
+#[tracing::instrument(level = "info", skip_all, err)]
 pub async fn get_workspace_member_info(
   param: AFPluginData<WorkspaceMemberIdPB>,
   manager: AFPluginState<Weak<UserManager>>,

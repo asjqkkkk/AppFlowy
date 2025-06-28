@@ -156,12 +156,14 @@ impl EditingCollabDataProvider {
                     }
                   },
                   Err(err) => {
-                    error!(
-                      "[Indexing] Consumer {} failed on {}: {}",
-                      consumer.consumer_id(),
-                      id,
-                      err
-                    );
+                    if !err.is_record_not_found() {
+                      error!(
+                        "[Indexing] Consumer {} failed on {}: {}",
+                        consumer.consumer_id(),
+                        id,
+                        err
+                      );
+                    }
                   },
                 }
               }

@@ -502,7 +502,7 @@ impl UserManager {
     select_user_profile(uid, workspace_id, &mut conn)
   }
 
-  #[tracing::instrument(level = "info", skip_all, err)]
+  #[tracing::instrument(level = "trace", skip_all, err)]
   pub async fn refresh_user_profile(
     &self,
     old_user_profile: &UserProfile,
@@ -868,7 +868,7 @@ async fn observe_token_change(
   controller_by_wid: Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
 ) {
   while let Some(token_state) = token_state_rx.next().await {
-    debug!("Token state changed: {:?}", token_state);
+    debug!("Token state changed: {}", token_state);
     let auth_user = match weak_authenticate_user.upgrade() {
       None => {
         info!("AuthenticateUser dropped, stopping token observation.");

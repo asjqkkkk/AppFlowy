@@ -160,9 +160,8 @@ impl UserManager {
   ) -> FlowyResult<()> {
     let current_workspace_id = self.workspace_id()?;
     if current_workspace_id != *workspace_id {
-      trace!("close workspace: {:?}", current_workspace_id);
+      info!("close workspace: {:?}", current_workspace_id);
       self.inactive_controller(&current_workspace_id);
-
       if let Err(err) = self
         .app_life_cycle
         .read()
@@ -175,8 +174,8 @@ impl UserManager {
     }
 
     info!(
-      "open workspace: {}, auth type:{:?}",
-      workspace_id, workspace_type
+      "previous workspace:{}, open workspace: {}, auth type:{:?}",
+      current_workspace_id, workspace_id, workspace_type
     );
     let workspace_id_str = workspace_id.to_string();
     let auth_type = AuthType::from(workspace_type);

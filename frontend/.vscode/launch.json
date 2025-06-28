@@ -12,8 +12,7 @@
             "program": "./lib/main.dart",
             "type": "dart",
             "env": {
-                "RUST_LOG": "debug",
-                "SYNC_LOG_ENABLE": "false",
+                "RUST_LOG": "flowy_user=trace",
             },
             // uncomment the following line to testing performance.
             // "flutterMode": "profile",
@@ -27,9 +26,25 @@
             "type": "dart",
             "preLaunchTask": "AF: Build Appflowy Core",
             "env": {
-                "RUST_LOG": "debug",
+                // RUST_LOG Configuration:
+                // Available crates and their purposes:
+                //   - flowy_user: User authentication and management
+                //   - flowy_core: Core application logic
+                //   - flowy_folder: Folder and workspace management
+                //   - flowy_database2: Database operations
+                //   - flowy_chat: Chat functionality
+                //   - flowy_search: Search features
+                //   - flowy_ai: AI integration
+                //   - client_api: API client communications
+                //   - sync_log: Synchronization logging
+                //
+                // Log levels: error, warn, info, debug, trace
+                // Usage examples:
+                //   - Single crate: "flowy_user=debug"
+                //   - Multiple crates: "flowy_user=debug,flowy_core=trace"
+                //   - All crates: "trace"
+                "RUST_LOG": "flowy_user=debug,flowy_core=trace,sync_log=debug",
                 "RUST_BACKTRACE": "1",
-                "SYNC_LOG_ENABLE": "true",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },

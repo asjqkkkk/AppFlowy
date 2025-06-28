@@ -191,7 +191,7 @@ impl WorkspaceCollabAdaptor {
     *self.index_task_handle.write().await = Some(handle);
   }
 
-  pub fn update_network(&self, _reachable: bool) {}
+  pub fn update_network_reachable(&self, _reachable: bool) {}
 
   #[instrument(level = "trace", skip(self, data_source,))]
   pub async fn create_document(

@@ -534,7 +534,7 @@ pub(crate) async fn remove_default_publish_view_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "info", skip(data, folder), err)]
 pub(crate) async fn lock_view_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -545,7 +545,7 @@ pub(crate) async fn lock_view_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "info", skip(data, folder), err)]
 pub(crate) async fn unlock_view_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -614,7 +614,7 @@ pub(crate) async fn get_flatten_shared_pages_handler(
   })
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "info", skip(data, folder))]
 pub(crate) async fn get_shared_view_section_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -625,7 +625,7 @@ pub(crate) async fn get_shared_view_section_handler(
   data_result_ok(GetSharedViewSectionResponsePB { section })
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder), err)]
+#[tracing::instrument(level = "info", skip(data, folder), err)]
 pub(crate) async fn get_access_level_handler(
   data: AFPluginData<GetAccessLevelPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,

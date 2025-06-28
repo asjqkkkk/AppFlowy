@@ -382,6 +382,18 @@ pub enum UserTokenState {
   Invalid,
 }
 
+impl Display for UserTokenState {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      UserTokenState::Init => write!(f, "Init"),
+      UserTokenState::Refresh { .. } => {
+        write!(f, "Refresh")
+      },
+      UserTokenState::Invalid => write!(f, "Invalid"),
+    }
+  }
+}
+
 // Workspace Role
 #[derive(Clone, Copy, Debug, Serialize_repr, Deserialize_repr, Eq, PartialEq)]
 #[repr(u8)]

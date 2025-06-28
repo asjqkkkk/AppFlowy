@@ -478,7 +478,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
             ),
           );
         },
-        (e) => Log.error('fetch workspace subscription info error: $e'),
+        (e) => {},
       ),
     );
   }

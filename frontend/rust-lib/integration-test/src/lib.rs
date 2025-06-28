@@ -94,14 +94,7 @@ impl EventIntegrationTest {
       "test".to_string(),
       name,
     )
-    .log_filter(
-      LOG_LEVEL,
-      vec![
-        "flowy_test".to_string(),
-        "tokio".to_string(),
-        // "lib_dispatch".to_string(),
-      ],
-    );
+    .log_filter(LOG_LEVEL);
 
     if let Some(cloud_config) = config.cloud_config.as_mut() {
       cloud_config.maximum_upload_file_size_in_bytes = Some(SINGLE_FILE_UPLOAD_SIZE as u64);
