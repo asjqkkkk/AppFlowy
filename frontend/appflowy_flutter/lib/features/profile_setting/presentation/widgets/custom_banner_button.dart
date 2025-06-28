@@ -9,7 +9,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'image_banner_widget.dart';
+import 'banner_widget.dart';
 
 class CustomBannerButton extends StatefulWidget {
   const CustomBannerButton({

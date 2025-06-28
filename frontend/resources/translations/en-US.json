@@ -649,6 +649,7 @@
       "upload": "Upload",
       "edit": "Edit",
       "wallpapers": "Wallpapers",
+      "default": "Default",
       "limitCharacters": "{} characters"
     },
     "workspacePage": {

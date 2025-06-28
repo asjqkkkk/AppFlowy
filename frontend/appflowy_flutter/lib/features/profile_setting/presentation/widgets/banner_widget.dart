@@ -1,6 +1,8 @@
 import 'package:appflowy/features/profile_setting/data/banner.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 
 class NetworkImageBannerWidget extends StatelessWidget {
@@ -46,9 +48,11 @@ class AssetImageBannerWidget extends StatelessWidget {
     super.key,
     required this.banner,
     this.selected = false,
+    this.isDefault = false,
   });
   final AssetImageBanner banner;
   final bool selected;
+  final bool isDefault;
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +77,7 @@ class AssetImageBannerWidget extends StatelessWidget {
                 ),
               ),
               context._buildBorder(hovering: hovering, selected: selected),
+              if (isDefault) context._defaultBanner(),
             ],
           ),
         );
@@ -86,9 +91,11 @@ class ColorBannerWidget extends StatelessWidget {
     super.key,
     required this.banner,
     this.selected = false,
+    this.isDefault = false,
   });
   final ColorBanner banner;
   final bool selected;
+  final bool isDefault;
 
   Color get color => banner.color;
 
@@ -112,6 +119,7 @@ class ColorBannerWidget extends StatelessWidget {
                 ),
               ),
               context._buildBorder(hovering: hovering, selected: selected),
+              if (isDefault) context._defaultBanner(),
             ],
           ),
         );
@@ -156,12 +164,21 @@ extension BannerWidgetExtension on BannerData {
   Widget toWidget({
     required BuildContext context,
     required bool selected,
+    bool isDefault = false,
   }) {
     final banner = this;
     if (banner is ColorBanner) {
-      return ColorBannerWidget(banner: banner, selected: selected);
+      return ColorBannerWidget(
+        banner: banner,
+        selected: selected,
+        isDefault: isDefault,
+      );
     } else if (banner is AssetImageBanner) {
-      return AssetImageBannerWidget(banner: banner, selected: selected);
+      return AssetImageBannerWidget(
+        banner: banner,
+        selected: selected,
+        isDefault: isDefault,
+      );
     }
     throw Exception('Unknown BannerData type');
   }
@@ -192,6 +209,30 @@ extension on BuildContext {
           borderRadius: BorderRadius.circular(spacing.s),
         ),
         child: SizedBox(height: height, width: width),
+      ),
+    );
+  }
+
+  Widget _defaultBanner() {
+    final theme = AppFlowyTheme.of(this), spacing = theme.spacing;
+    return Positioned(
+      top: spacing.m,
+      right: spacing.m,
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.surfaceColorScheme.primary,
+          borderRadius: BorderRadius.circular(spacing.xs),
+        ),
+        padding: EdgeInsets.symmetric(
+          vertical: spacing.xs,
+          horizontal: spacing.s,
+        ),
+        child: Text(
+          LocaleKeys.settings_profilePage_default.tr(),
+          style: theme.textStyle.caption
+              .standard(color: theme.textColorScheme.primary)
+              .copyWith(fontSize: 10, height: 1.2),
+        ),
       ),
     );
   }

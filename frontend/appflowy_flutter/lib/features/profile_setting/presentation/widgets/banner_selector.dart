@@ -12,7 +12,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'custom_banner_button.dart';
-import 'image_banner_widget.dart';
+import 'banner_widget.dart';
 
 List<BannerData> _defaultBanners(BuildContext context) {
   final theme = AppFlowyTheme.of(context), badgeColor = theme.badgeColorScheme;
@@ -77,7 +77,8 @@ class BannerImages extends StatelessWidget {
                 childAspectRatio: itemWidth / 52,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                children: banners.map((banner) {
+                children: List.generate(banners.length, (index) {
+                  final banner = banners[index];
                   return MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
@@ -87,10 +88,11 @@ class BannerImages extends StatelessWidget {
                       child: banner.toWidget(
                         context: context,
                         selected: banner == state.selectedBanner,
+                        isDefault: index == 0,
                       ),
                     ),
                   );
-                }).toList(),
+                }),
               );
             },
           ),
