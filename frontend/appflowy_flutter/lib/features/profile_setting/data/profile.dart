@@ -1,3 +1,4 @@
+import 'package:appflowy/features/share_tab/data/models/share_role.dart';
 import 'banner.dart';
 
 class Profile {
@@ -7,6 +8,7 @@ class Profile {
         name = '',
         avatarUrl = '',
         aboutMe = '',
+        role = ShareRole.member,
         banner = EmptyBanner.instance,
         customBanner = null;
 
@@ -17,6 +19,7 @@ class Profile {
     required this.avatarUrl,
     required this.aboutMe,
     required this.banner,
+    required this.role,
     this.customBanner,
   });
 
@@ -25,6 +28,7 @@ class Profile {
   final String name;
   final String avatarUrl;
   final String aboutMe;
+  final ShareRole role;
   final BannerData banner;
   final NetworkImageBanner? customBanner;
 
@@ -34,6 +38,7 @@ class Profile {
     String? name,
     String? avatarUrl,
     String? aboutMe,
+    ShareRole? role,
     BannerData? banner,
     NetworkImageBanner? customBanner,
   }) {
@@ -43,6 +48,7 @@ class Profile {
       name: name ?? this.name,
       avatarUrl: avatarUrl ?? this.avatarUrl,
       aboutMe: aboutMe ?? this.aboutMe,
+      role: role ?? this.role,
       banner: banner ?? this.banner,
       customBanner: customBanner ?? this.customBanner,
     );

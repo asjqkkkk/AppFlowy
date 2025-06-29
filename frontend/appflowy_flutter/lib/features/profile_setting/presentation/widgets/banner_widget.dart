@@ -205,7 +205,8 @@ extension on BuildContext {
       child: Container(
         height: height - 4,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.white, width: 2),
+          border:
+              Border.all(color: theme.backgroundColorScheme.primary, width: 2),
           borderRadius: BorderRadius.circular(spacing.s),
         ),
         child: SizedBox(height: height, width: width),
