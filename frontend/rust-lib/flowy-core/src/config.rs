@@ -87,11 +87,11 @@ impl fmt::Debug for AppFlowyCoreConfig {
     debug.field("app_version", &self.app_version);
     debug.field("storage_path", &self.storage_path);
     debug.field("application_path", &self.application_path);
+    debug.field("log_filter", &self.log_filter);
     if let Some(config) = &self.cloud_config {
       debug.field("base_url", &config.base_url);
       debug.field("ws_url", &config.ws_base_url);
       debug.field("gotrue_url", &config.gotrue_url);
-      debug.field("enable_sync_trace", &config.enable_sync_trace);
     }
     debug.finish()
   }

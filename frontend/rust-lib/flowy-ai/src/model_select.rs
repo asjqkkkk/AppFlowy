@@ -150,7 +150,7 @@ impl ModelSelectionControl {
     if let Some(storage) = self.local_storage.load_full() {
       trace!("[Model Selection] Checking local storage");
       if let Some(local_model) = storage.get_selected_model(workspace_id, source_key).await {
-        trace!("[Model Selection] Found local model: {}", local_model.name);
+        trace!("[Model Selection] Found active model: {}", local_model.name);
         if available.iter().any(|m| m.name == local_model.name) {
           return local_model;
         } else {

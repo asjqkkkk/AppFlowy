@@ -12,7 +12,7 @@
             "program": "./lib/main.dart",
             "type": "dart",
             "env": {
-                "RUST_LOG": "flowy_user=trace",
+                "RUST_LOG": "flowy_core=debug,flowy_chat=debug,client_api=debug,sync_log=debug",
             },
             // uncomment the following line to testing performance.
             // "flutterMode": "profile",
@@ -43,7 +43,7 @@
                 //   - Single crate: "flowy_user=debug"
                 //   - Multiple crates: "flowy_user=debug,flowy_core=trace"
                 //   - All crates: "trace"
-                "RUST_LOG": "flowy_user=debug,flowy_core=trace,sync_log=debug",
+                "RUST_LOG": "flowy_core=trace,flowy_document=debug,flowy_database2=debug",
                 "RUST_BACKTRACE": "1",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"

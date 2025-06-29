@@ -189,6 +189,10 @@ impl AIUserService for ChatUserServiceImpl {
     self.upgrade_user()?.user_id()
   }
 
+  async fn is_anon(&self) -> Result<bool, FlowyError> {
+    self.upgrade_user()?.is_anon().await
+  }
+
   async fn is_local_model(&self) -> FlowyResult<bool> {
     self.upgrade_user()?.is_local_mode().await
   }

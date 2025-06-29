@@ -581,7 +581,6 @@ pub async fn use_localhost_af_cloud() {
     base_url,
     ws_base_url,
     gotrue_url,
-    enable_sync_trace: true,
     maximum_upload_file_size_in_bytes: None,
   }
   .write_env();

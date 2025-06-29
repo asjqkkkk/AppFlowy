@@ -12,9 +12,11 @@ use collab_plugins::CollabKVDB;
 use flowy_error::{internal_error, ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::DBConnection;
-use flowy_user_pub::entities::{UserWorkspace, WorkspaceType};
+use flowy_user_pub::entities::{AuthType, UserWorkspace, WorkspaceType};
 use flowy_user_pub::session::Session;
-use flowy_user_pub::sql::{select_user_workspace, select_user_workspace_type};
+use flowy_user_pub::sql::{
+  select_user_auth_type, select_user_workspace, select_user_workspace_type,
+};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -75,6 +77,13 @@ impl AuthenticateUser {
     let mut conn = self.get_sqlite_connection(session.user_id)?;
     let workspace_type = select_user_workspace_type(&session.workspace_id, &mut conn)?;
     Ok(matches!(workspace_type, WorkspaceType::Local))
+  }
+
+  pub async fn is_anon(&self) -> FlowyResult<bool> {
+    let uid = self.user_id()?;
+    let mut conn = self.get_sqlite_connection(uid)?;
+    let auth_type = select_user_auth_type(uid, &mut conn)?;
+    Ok(matches!(auth_type, AuthType::Local))
   }
 
   pub fn device_id(&self) -> FlowyResult<String> {

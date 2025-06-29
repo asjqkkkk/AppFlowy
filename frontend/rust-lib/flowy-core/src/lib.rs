@@ -93,6 +93,7 @@ impl AppFlowyCore {
     runtime: Arc<AFPluginRuntime>,
     stream_log_sender: Option<Arc<dyn StreamLogSender>>,
   ) -> Self {
+    dbg!(&config);
     let platform = OperatingSystem::from(&config.platform);
 
     #[allow(clippy::if_same_then_else)]
@@ -372,6 +373,10 @@ impl LoggedUser for ServerUserImpl {
 
   async fn is_local_mode(&self) -> FlowyResult<bool> {
     self.upgrade_user()?.is_local_mode().await
+  }
+
+  async fn is_anon(&self) -> FlowyResult<bool> {
+    self.upgrade_user()?.is_anon().await
   }
 
   fn get_sqlite_db(&self, uid: i64) -> Result<DBConnection, FlowyError> {

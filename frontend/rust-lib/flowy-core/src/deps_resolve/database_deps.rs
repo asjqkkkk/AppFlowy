@@ -56,7 +56,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
   ) -> Result<String, FlowyError> {
     if self
       .ai_manager
-      .local_ai
+      .local_ai_controller
       .is_enabled_on_workspace(&workspace_id.to_string())
     {
       let model = self
@@ -65,7 +65,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
         .await;
       self
         .ai_manager
-        .local_ai
+        .local_ai_controller
         .summarize_database_row(&model.name, summary_row)
         .await
     } else {
@@ -84,7 +84,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
   ) -> Result<TranslateRowResponse, FlowyError> {
     if self
       .ai_manager
-      .local_ai
+      .local_ai_controller
       .is_enabled_on_workspace(&workspace_id.to_string())
     {
       let model = self
@@ -93,7 +93,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
         .await;
       self
         .ai_manager
-        .local_ai
+        .local_ai_controller
         .translate_database_row(&model.name, translate_row, language)
         .await
     } else {

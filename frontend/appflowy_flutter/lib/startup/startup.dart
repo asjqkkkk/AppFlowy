@@ -263,7 +263,7 @@ class AppLauncher {
         final startTaskTime = Stopwatch()..start();
         await task.initialize(context);
         final endTaskTime = startTaskTime.elapsed.inMilliseconds;
-        Log.info(
+        Log.debug(
           'AppLauncher: task ${task.runtimeType} initialized in $endTaskTime ms',
         );
       }

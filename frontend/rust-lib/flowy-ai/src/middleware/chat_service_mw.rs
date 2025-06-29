@@ -21,7 +21,7 @@ use uuid::Uuid;
 pub struct ChatServiceMiddleware {
   cloud_service: Arc<dyn ChatCloudService>,
   user_service: Arc<dyn AIUserService>,
-  local_ai: Arc<LocalAIController>,
+  local_ai_controller: Arc<LocalAIController>,
   #[allow(dead_code)]
   storage_service: Weak<dyn StorageService>,
 }
@@ -36,7 +36,7 @@ impl ChatServiceMiddleware {
     Self {
       user_service,
       cloud_service,
-      local_ai,
+      local_ai_controller: local_ai,
       storage_service,
     }
   }
@@ -106,10 +106,10 @@ impl ChatCloudService for ChatServiceMiddleware {
   ) -> Result<StreamAnswer, FlowyError> {
     info!("stream_answer use model: {:?}", ai_model);
     if ai_model.is_local {
-      if self.local_ai.is_ready().await {
+      if self.local_ai_controller.is_ready().await {
         let content = self.get_message_content(question_id)?;
         self
-          .local_ai
+          .local_ai_controller
           .stream_question(chat_id, &content, format, &ai_model.name)
           .await
       } else {
@@ -129,9 +129,12 @@ impl ChatCloudService for ChatServiceMiddleware {
     chat_id: &Uuid,
     question_id: i64,
   ) -> Result<ChatMessage, FlowyError> {
-    if self.local_ai.is_ready().await {
+    if self.local_ai_controller.is_ready().await {
       let content = self.get_message_content(question_id)?;
-      let answer = self.local_ai.ask_question(chat_id, &content).await?;
+      let answer = self
+        .local_ai_controller
+        .ask_question(chat_id, &content)
+        .await?;
 
       let message = self
         .cloud_service
@@ -179,9 +182,9 @@ impl ChatCloudService for ChatServiceMiddleware {
     ai_model: AIModel,
   ) -> Result<RepeatedRelatedQuestion, FlowyError> {
     if ai_model.is_local {
-      if self.local_ai.is_ready().await {
+      if self.local_ai_controller.is_ready().await {
         let questions = self
-          .local_ai
+          .local_ai_controller
           .get_related_question(&ai_model.name, chat_id, message_id)
           .await?;
         trace!("LocalAI related questions: {:?}", questions);
@@ -216,8 +219,11 @@ impl ChatCloudService for ChatServiceMiddleware {
   ) -> Result<StreamComplete, FlowyError> {
     info!("stream_complete use custom model: {:?}", ai_model);
     if ai_model.is_local {
-      if self.local_ai.is_ready().await {
-        self.local_ai.complete_text(&ai_model.name, params).await
+      if self.local_ai_controller.is_ready().await {
+        self
+          .local_ai_controller
+          .complete_text(&ai_model.name, params)
+          .await
       } else {
         Err(FlowyError::local_ai_not_ready())
       }
@@ -236,9 +242,9 @@ impl ChatCloudService for ChatServiceMiddleware {
     chat_id: &Uuid,
     metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
-    if self.local_ai.is_ready().await {
+    if self.local_ai_controller.is_ready().await {
       self
-        .local_ai
+        .local_ai_controller
         .embed_file(chat_id, file_path.to_path_buf(), metadata)
         .await?;
       Ok(())

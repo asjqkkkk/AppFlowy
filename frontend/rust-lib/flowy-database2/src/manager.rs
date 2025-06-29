@@ -114,7 +114,7 @@ impl DatabaseManager {
         database.close_all_views().await;
       }
     }
-    trace!("[Database lifecycle] Clear all existing database editors");
+    debug!("[Database lifecycle] Clear all existing database editors");
 
     self.database_editors.clear();
     // 3. Clear the workspace database
@@ -312,7 +312,7 @@ impl DatabaseManager {
         .map(|e| e.value().clone())
       {
         if let Some(editor) = editor_entry.get_resource().await {
-          trace!(
+          debug!(
             "[Database lifecycle]: close database view:{}/{}",
             database_id, view_id
           );
@@ -852,7 +852,7 @@ impl DatabaseManager {
 
           // Store the database in the entry
           entry.set_resource(editor.clone()).await;
-          trace!(
+          debug!(
             "[Database lifecycle] Database opened and stored: {}",
             database_id
           );
@@ -933,9 +933,12 @@ impl DatabaseManager {
   /// Start a periodic cleanup task to remove old entries from removing_editor
   fn start_periodic_cleanup(&self) {
     let weak_database_editors = Arc::downgrade(&self.database_editors);
-    let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
+    let cleanup_interval = if cfg!(debug_assertions) {
+      Duration::from_secs(30)
+    } else {
+      Duration::from_secs(120)
+    };
     let base_timeout = self.removal_timeout;
-
     tokio::spawn(async move {
       let mut interval = tokio::time::interval(cleanup_interval);
       interval.tick().await;
@@ -945,8 +948,11 @@ impl DatabaseManager {
         if let Some(database_editors) = weak_database_editors.upgrade() {
           let mut to_remove = Vec::new();
           let timeout = base_timeout;
+          if database_editors.is_empty() {
+            continue;
+          }
 
-          trace!(
+          debug!(
             "[Database lifecycle]: {} opening databases",
             database_editors.len()
           );
@@ -955,7 +961,7 @@ impl DatabaseManager {
             if entry.value().can_be_removed(timeout).await {
               if let Some(resource) = entry.value().get_resource().await {
                 let num_views = resource.num_of_opening_views().await;
-                trace!(
+                debug!(
                   "[Database lifecycle]: Periodic cleanup: database {} has {} opening views",
                   database_id, num_views
                 );
@@ -964,7 +970,7 @@ impl DatabaseManager {
                 }
               }
 
-              info!(
+              debug!(
                 "[Database lifecycle]: Periodic cleanup database {}",
                 database_id
               );

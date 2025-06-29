@@ -27,7 +27,7 @@ use flowy_storage_pub::storage::{CreatedUpload, StorageService};
 use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
 use lib_infra::async_entry::AsyncEntry;
 use lib_infra::util::timestamp;
-use tracing::{event, instrument};
+use tracing::{debug, event, instrument};
 use tracing::{info, trace};
 use uuid::Uuid;
 
@@ -70,7 +70,7 @@ impl DocumentManager {
     let base_removal_timeout = if cfg!(debug_assertions) {
       Duration::from_secs(60) // Shorter timeout for debug builds
     } else {
-      Duration::from_secs(60 * 10)
+      Duration::from_secs(60 * 30)
     };
     let manager = Self {
       user_service,
@@ -125,7 +125,7 @@ impl DocumentManager {
   }
 
   pub async fn initialize(&self, _uid: i64) -> FlowyResult<()> {
-    trace!("initialize document manager");
+    debug!("initialize document manager");
     self.clear_all_documents().await;
     Ok(())
   }
@@ -371,11 +371,11 @@ impl DocumentManager {
     }
 
     if entry.should_initialize().await {
-      trace!("[Document lifecycle]: Initializing document: {}", doc_id);
+      debug!("[Document lifecycle]: Initializing document: {}", doc_id);
       match self.initialize_document(doc_id).await {
         Ok(document) => {
           entry.set_resource(document.clone()).await;
-          trace!("[Document lifecycle]: Document initialized: {}", doc_id);
+          debug!("[Document lifecycle]: Document initialized: {}", doc_id);
           Ok(document)
         },
         Err(err) => {
@@ -392,7 +392,7 @@ impl DocumentManager {
         },
       }
     } else {
-      trace!("[Document lifecycle]: waiting for document: {}", doc_id);
+      debug!("[Document lifecycle]: waiting for document: {}", doc_id);
       entry
         .wait_for_initialization(Duration::from_secs(10))
         .await
@@ -446,7 +446,11 @@ impl DocumentManager {
   /// Start a periodic cleanup task to remove old entries
   fn start_periodic_cleanup(&self) {
     let weak_documents = Arc::downgrade(&self.documents);
-    let cleanup_interval = Duration::from_secs(30); // Check every 30 seconds
+    let cleanup_interval = if cfg!(debug_assertions) {
+      Duration::from_secs(30)
+    } else {
+      Duration::from_secs(120)
+    };
     let base_timeout = self.base_removal_timeout;
     tokio::spawn(async move {
       let mut interval = tokio::time::interval(cleanup_interval);
@@ -457,14 +461,18 @@ impl DocumentManager {
         if let Some(documents) = weak_documents.upgrade() {
           let mut to_remove = Vec::new();
           let timeout = base_timeout;
-          trace!(
+          if documents.is_empty() {
+            continue;
+          }
+
+          debug!(
             "[Document lifecycle]: {} opening documents",
             documents.len()
           );
           for entry in documents.iter() {
             let (doc_id, document_entry) = entry.pair();
             if document_entry.can_be_removed(timeout).await {
-              trace!("[Document lifecycle]: Periodic cleanup document:{}", doc_id,);
+              info!("[Document lifecycle]: Periodic cleanup document:{}", doc_id);
               to_remove.push(*doc_id);
             }
           }

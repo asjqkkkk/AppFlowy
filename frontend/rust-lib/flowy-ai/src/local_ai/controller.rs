@@ -222,13 +222,12 @@ impl LocalAIController {
       summary,
     };
     self.current_chat_id.store(Some(Arc::new(*chat_id)));
-    trace!("[Chat] open chat: {}", chat_id);
     self.llm_controller.open_chat(info).await?;
     Ok(())
   }
 
   pub fn close_chat(&self, chat_id: &Uuid) {
-    info!("[Local AI] notify close chat: {}", chat_id);
+    info!("[Chat] notify close chat: {}", chat_id);
     self.llm_controller.close_chat(chat_id);
   }
 

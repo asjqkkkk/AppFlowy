@@ -7,6 +7,7 @@ use uuid::Uuid;
 #[async_trait]
 pub trait AIUserService: Send + Sync + 'static {
   fn user_id(&self) -> Result<i64, FlowyError>;
+  async fn is_anon(&self) -> Result<bool, FlowyError>;
   async fn is_local_model(&self) -> FlowyResult<bool>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
 

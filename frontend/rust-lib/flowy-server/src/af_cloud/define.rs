@@ -31,6 +31,7 @@ pub trait LoggedUser: Send + Sync {
 
   fn user_id(&self) -> FlowyResult<i64>;
   async fn is_local_mode(&self) -> FlowyResult<bool>;
+  async fn is_anon(&self) -> FlowyResult<bool>;
 
   fn get_sqlite_db(&self, uid: i64) -> Result<DBConnection, FlowyError>;
 
@@ -57,6 +58,10 @@ impl AIUserServiceImpl {
 impl AIUserService for AIUserServiceImpl {
   fn user_id(&self) -> Result<i64, FlowyError> {
     self.logged_user()?.user_id()
+  }
+
+  async fn is_anon(&self) -> Result<bool, FlowyError> {
+    self.logged_user()?.is_anon().await
   }
 
   async fn is_local_model(&self) -> FlowyResult<bool> {

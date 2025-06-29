@@ -29,7 +29,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::warn;
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 type OllamaClientRef = Arc<RwLock<Option<Weak<Ollama>>>>;
@@ -82,6 +82,10 @@ impl LLMChatController {
   }
 
   pub async fn set_rag_ids(&self, chat_id: &Uuid, rag_ids: &[String]) {
+    debug!(
+      "[Chat] Setting RAG IDs for chat:{}, rag_ids:{:?}",
+      chat_id, rag_ids
+    );
     if let Some(chat) = self.get_chat(chat_id) {
       chat.write().await.set_rag_ids(rag_ids.to_vec());
     }
@@ -107,6 +111,7 @@ impl LLMChatController {
       .map(Arc::downgrade)
       .collect();
     if let Entry::Vacant(e) = entry {
+      info!("[Chat] Creating new chat with id: {}", info.chat_id);
       let chat = LLMChat::new(
         info,
         client,
@@ -125,6 +130,7 @@ impl LLMChatController {
   }
 
   pub fn close_chat(&self, chat_id: &Uuid) {
+    info!("[Chat] Closing chat with id: {}", chat_id);
     self.chat_by_id.remove(chat_id);
   }
 
