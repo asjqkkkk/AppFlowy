@@ -61,9 +61,7 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_workspace_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (FeatureFlag.membersSettings.isOn &&
-                userProfile.workspaceType == WorkspaceTypePB.ServerW &&
-                currentUserRole != null)
+            if (FeatureFlag.membersSettings.isOn)
               SettingsMenuElement(
                 page: SettingsPage.profile,
                 selectedPage: currentPage,

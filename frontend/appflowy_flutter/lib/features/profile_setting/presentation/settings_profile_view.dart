@@ -4,6 +4,7 @@ import 'package:appflowy/features/profile_setting/logic/profile_setting_state.da
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/features/profile_setting/presentation/widgets/banner_selector.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
@@ -29,7 +30,8 @@ class SettingsProfileView extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context),
         spacing = theme.spacing,
-        xxl = spacing.xxl;
+        xxl = spacing.xxl,
+        isLocal = userProfile.workspaceType == WorkspaceTypePB.LocalW;
     return BlocProvider(
       create: (context) => ProfileSettingBloc(
         userProfile: userProfile,
@@ -54,10 +56,12 @@ class SettingsProfileView extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       buildAvatarAndName(context),
-                      VSpace(spacing.xxl),
-                      buildAboutMe(context),
-                      VSpace(spacing.xxl),
-                      BannerImages(),
+                      if (!isLocal) ...[
+                        VSpace(spacing.xxl),
+                        buildAboutMe(context),
+                        VSpace(spacing.xxl),
+                        BannerImages(),
+                      ],
                     ],
                   ),
                 ),

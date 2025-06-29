@@ -3,6 +3,7 @@ import 'package:appflowy/features/profile_setting/logic/profile_setting_event.da
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/widgets.dart';
@@ -27,7 +28,8 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
 
   @override
   Widget build(BuildContext context) {
-    final bloc = context.read<ProfileSettingBloc>();
+    final bloc = context.read<ProfileSettingBloc>(),
+        isLocal = bloc.userProfile.workspaceType == WorkspaceTypePB.LocalW;
 
     return AppFlowyPopover(
       direction: PopoverDirection.bottomWithCenterAligned,
@@ -38,9 +40,9 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
       child: buildUploadButton(),
       popupBuilder: (BuildContext popoverContext) {
         return FlowyIconEmojiPicker(
-          initialType: PickerTabType.custom,
-          tabs: const [
-            PickerTabType.custom,
+          initialType: isLocal ? PickerTabType.emoji : PickerTabType.custom,
+          tabs: [
+            if (!isLocal) PickerTabType.custom,
             PickerTabType.emoji,
           ],
           documentId: bloc.workspace?.workspaceId ?? '',
