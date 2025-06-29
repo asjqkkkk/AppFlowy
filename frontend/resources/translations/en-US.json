@@ -3472,12 +3472,12 @@
     "toProPlanToInviteGuests": " to the Pro plan to invite guests to this page",
     "upgradeToInviteGuest": {
       "title": {
-        "owner": "Upgrade to invite guest",
-        "member": "Upgrade to invite guest",
-        "guest": "Upgrade to invite guest"
+        "owner": "Upgrade to invite guest editors",
+        "member": "Upgrade to invite guest editors",
+        "guest": "Upgrade to invite guest editors"
       },
       "description": {
-        "owner": "Your workspace is currently on the Free plan. Upgrade to the Pro plan to allow external users to access this page as guests.",
+        "owner": "Upgrade to Pro to collaborate with non-members on this page.",
         "member": "Some invitees are outside your workspace. To invite them as guests, please contact your workspace owner to upgrade to the Pro plan.",
         "guest": "Some invitees are outside your workspace. To invite them as guests, please contact your workspace owner to upgrade to the Pro plan."
       }

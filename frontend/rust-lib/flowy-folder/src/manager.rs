@@ -1064,71 +1064,12 @@ impl FolderManager {
   /// when the operation is user-facing and needs permission validation.
   pub async fn get_view_with_permission_check(&self, view_id: &str) -> FlowyResult<Arc<View>> {
     // Check guest permissions first
-    self.check_guest_view_permission(view_id).await?;
+    self
+      .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
+      .await?;
 
     // If permission check passes, get the view
     self.get_view(view_id).await
-  }
-
-  /// Helper function to check if a user has permission to access a view
-  async fn check_guest_view_permission(&self, view_id: &str) -> FlowyResult<()> {
-    let workspace = self.user.get_active_user_workspace()?;
-    let role = workspace.role;
-
-    // Check access permissions for guests and members
-    if let Some(user_role) = role {
-      match user_role {
-        Role::Guest => {
-          // Guests can only access views they've been explicitly shared with
-          let flatten_shared_views = self.get_flatten_shared_pages().await?;
-          let has_access = flatten_shared_views
-            .iter()
-            .any(|shared_view| shared_view.id == view_id);
-
-          if !has_access {
-            return Err(FlowyError::new(
-              ErrorCode::RecordNotFound,
-              format!("Guest user does not have access to view: {}", view_id),
-            ));
-          }
-        },
-        Role::Member => {
-          let uid = self.user.user_id()?;
-          // Members need to check if they have access to private views
-          let lock = self
-            .mutex_folder
-            .load_full()
-            .ok_or_else(folder_not_init_error)?;
-          let folder = lock.read().await;
-
-          // Check if this is a private view that doesn't belong to the current user
-          let other_private_view_ids = Self::get_other_private_view_ids(&folder, uid);
-          if other_private_view_ids.contains(&view_id.to_string()) {
-            // This is someone else's private view, check if it's been shared with this user
-            drop(folder); // Release the lock before async call
-            let flatten_shared_views = self.get_flatten_shared_pages().await?;
-            let has_access = flatten_shared_views
-              .iter()
-              .any(|shared_view| shared_view.id == view_id);
-
-            if !has_access {
-              return Err(FlowyError::new(
-                ErrorCode::RecordNotFound,
-                format!(
-                  "Member user does not have access to private view: {}",
-                  view_id
-                ),
-              ));
-            }
-          }
-        },
-        Role::Owner => {
-          // Owners have access to everything, no additional checks needed
-        },
-      }
-    }
-
-    Ok(())
   }
 
   /// Helper function to check if a guest user has permission to modify a view
@@ -1173,7 +1114,7 @@ impl FolderManager {
             )),
           }
         },
-        Role::Member => {
+        Role::Member | Role::Owner => {
           let uid = self.user.user_id()?;
           // Check if this is a private view that doesn't belong to the current user
           let lock = self
@@ -1223,10 +1164,6 @@ impl FolderManager {
             // This is not a private view from another user, member has full access
             Ok(())
           }
-        },
-        Role::Owner => {
-          // Owners have full permissions to everything
-          Ok(())
         },
       }
     } else {

@@ -1,3 +1,4 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/share_tab/presentation/share_tab.dart'
     as share_section;
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
@@ -8,9 +9,8 @@ import 'package:appflowy/plugins/shared/share/export_tab.dart';
 import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/plugins/shared/share/share_tab.dart' as share_plugin;
 import 'package:appflowy/shared/feature_flags.dart';
-import 'package:appflowy/workspace/application/settings/plan/settings_plan_bloc.dart';
+import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/settings_plan_comparison_dialog.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
@@ -178,9 +178,7 @@ class _ShareMenuState extends State<ShareMenu>
       return;
     }
 
-    final workspaceId = workspace.workspaceId;
     final subscriptionInfo = state.workspaceSubscriptionInfo;
-    final userProfile = state.userProfile;
     if (subscriptionInfo == null) {
       Log.error('subscriptionInfo is null');
       return;
@@ -231,22 +229,26 @@ class _ShareMenuState extends State<ShareMenu>
       );
 
       if (!context.mounted || !isConfirmed) {
+        widget.showDialogCallback(false);
         return;
       }
 
-      await showDialog(
-        context: context,
-        builder: (_) => BlocProvider<SettingsPlanBloc>(
-          create: (_) => SettingsPlanBloc(
-            workspaceId: workspaceId,
-            userId: userProfile.id,
-          )..add(const SettingsPlanEvent.started()),
-          child: SettingsPlanComparisonDialog(
-            workspaceId: workspaceId,
-            subscriptionInfo: subscriptionInfo,
-          ),
-        ),
-      );
+      // Keep this logic here, we may reuse it in the future.
+      // Now, we redirect to the payment page.
+      // await showDialog(
+      //   context: context,
+      //   builder: (_) => BlocProvider<SettingsPlanBloc>(
+      //     create: (_) => SettingsPlanBloc(
+      //       workspaceId: workspaceId,
+      //       userId: userProfile.id,
+      //     )..add(const SettingsPlanEvent.started()),
+      //     child: SettingsPlanComparisonDialog(
+      //       workspaceId: workspaceId,
+      //       subscriptionInfo: subscriptionInfo,
+      //     ),
+      //   ),
+      // );
+      await _redirectToPaymentPage(context);
     } else {
       await showConfirmDialog(
         context: Navigator.of(context, rootNavigator: true).context,
@@ -262,6 +264,30 @@ class _ShareMenuState extends State<ShareMenu>
     }
 
     widget.showDialogCallback(false);
+  }
+
+  Future<void> _redirectToPaymentPage(BuildContext context) async {
+    final userProfile = context.read<UserWorkspaceBloc>().state.userProfile;
+    final workspaceId =
+        context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceId;
+    if (workspaceId == null) {
+      Log.error('workspaceId is null');
+      return;
+    }
+    final userService = UserBackendService(userId: userProfile.id);
+    final result = await userService.createSubscription(
+      workspaceId,
+      SubscriptionPlanPB.Pro,
+    );
+
+    result.fold(
+      (pl) => afLaunchUrlString(pl.paymentLink),
+      (f) => showToastNotification(
+        message: 'Failed to create subscription',
+        description: f.msg,
+        type: ToastificationType.error,
+      ),
+    );
   }
 }
 

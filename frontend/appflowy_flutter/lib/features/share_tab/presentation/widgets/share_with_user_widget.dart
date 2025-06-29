@@ -38,7 +38,9 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
 
     focusNode = FocusNode();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      focusNode.requestFocus();
+      if (!widget.disabled) {
+        focusNode.requestFocus();
+      }
     });
   }
 
@@ -64,6 +66,7 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
             controller: effectiveController,
             focusNode: focusNode,
             size: AFTextFieldSize.m,
+            readOnly: widget.disabled,
             hintText: LocaleKeys.shareTab_inviteByEmail.tr(),
             onSubmitted: (value) {
               widget.onInvite(effectiveController.text.trim().split(','));

@@ -62,12 +62,15 @@ class HomePageSettingsPopupMenu extends StatelessWidget {
             text: LocaleKeys.settings_popupMenuItem_members.tr(),
           ),
         ],
-        const PopupMenuDivider(height: 0.5),
-        _buildItem(
-          value: _MobileSettingsPopupMenuItem.trash,
-          svg: FlowySvgs.trash_s,
-          text: LocaleKeys.settings_popupMenuItem_trash.tr(),
-        ),
+        // hide the trash button if the user is a guest
+        if (!isGuest) ...[
+          const PopupMenuDivider(height: 0.5),
+          _buildItem(
+            value: _MobileSettingsPopupMenuItem.trash,
+            svg: FlowySvgs.trash_s,
+            text: LocaleKeys.settings_popupMenuItem_trash.tr(),
+          ),
+        ],
         const PopupMenuDivider(height: 0.5),
         _buildItem(
           value: _MobileSettingsPopupMenuItem.helpAndDocumentation,
