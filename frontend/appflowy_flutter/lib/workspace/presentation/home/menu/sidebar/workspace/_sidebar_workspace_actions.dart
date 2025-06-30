@@ -3,7 +3,6 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/af_role_pb_extension.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -194,19 +193,24 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
                 },
               );
             case WorkspaceMoreAction.leave:
-              await showConfirmDialog(
+              await showSimpleAFDialog(
                 context: context,
                 title: LocaleKeys.workspace_leaveCurrentWorkspace.tr(),
-                description:
-                    LocaleKeys.workspace_leaveCurrentWorkspacePrompt.tr(),
-                confirmLabel: LocaleKeys.button_yes.tr(),
-                onConfirm: (_) {
-                  workspaceBloc.add(
-                    UserWorkspaceEvent.leaveWorkspace(
-                      workspaceId: workspace.workspaceId,
-                    ),
-                  );
-                },
+                content: LocaleKeys.workspace_leaveCurrentWorkspacePrompt.tr(),
+                primaryAction: (
+                  LocaleKeys.button_yes.tr(),
+                  (_) {
+                    workspaceBloc.add(
+                      UserWorkspaceEvent.leaveWorkspace(
+                        workspaceId: workspace.workspaceId,
+                      ),
+                    );
+                  },
+                ),
+                secondaryAction: (
+                  LocaleKeys.button_cancel.tr(),
+                  (_) {},
+                ),
               );
           }
         },

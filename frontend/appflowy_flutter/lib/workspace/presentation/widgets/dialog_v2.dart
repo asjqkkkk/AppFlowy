@@ -40,6 +40,7 @@ Future<void> showSimpleAFDialog({
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             AFModalHeader(
               leading: Text(
@@ -59,24 +60,20 @@ Future<void> showSimpleAFDialog({
               ],
             ),
             Flexible(
-              child: ConstrainedBox(
-                // AFModalDimension.dialogHeight - header - footer
-                constraints: BoxConstraints(minHeight: 108.0),
-                child: AFModalBody(
-                  child: content != null
-                      ? Text(
-                          content,
-                          style: theme.textStyle.body.standard(
-                            color: theme.textColorScheme.primary,
-                          ),
-                        )
-                      : Text.rich(
-                          contentSpans!,
-                          style: theme.textStyle.body.standard(
-                            color: theme.textColorScheme.primary,
-                          ),
+              child: AFModalBody(
+                child: content != null
+                    ? Text(
+                        content,
+                        style: theme.textStyle.body.standard(
+                          color: theme.textColorScheme.primary,
                         ),
-                ),
+                      )
+                    : Text.rich(
+                        contentSpans!,
+                        style: theme.textStyle.body.standard(
+                          color: theme.textColorScheme.primary,
+                        ),
+                      ),
               ),
             ),
             AFModalFooter(
