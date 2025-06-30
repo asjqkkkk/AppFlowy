@@ -54,13 +54,6 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_user_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            SettingsMenuElement(
-              page: SettingsPage.workspace,
-              selectedPage: currentPage,
-              label: LocaleKeys.settings_workspacePage_menuLabel.tr(),
-              icon: const FlowySvg(FlowySvgs.settings_page_workspace_m),
-              changeSelectedPage: changeSelectedPage,
-            ),
             if (FeatureFlag.membersSettings.isOn)
               SettingsMenuElement(
                 page: SettingsPage.profile,
@@ -69,6 +62,13 @@ class SettingsMenu extends StatelessWidget {
                 icon: const FlowySvg(FlowySvgs.settings_page_profile_m),
                 changeSelectedPage: changeSelectedPage,
               ),
+            SettingsMenuElement(
+              page: SettingsPage.workspace,
+              selectedPage: currentPage,
+              label: LocaleKeys.settings_workspacePage_menuLabel.tr(),
+              icon: const FlowySvg(FlowySvgs.settings_page_workspace_m),
+              changeSelectedPage: changeSelectedPage,
+            ),
             if (FeatureFlag.membersSettings.isOn &&
                 userProfile.workspaceType == WorkspaceTypePB.ServerW &&
                 currentUserRole != null &&

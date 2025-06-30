@@ -43,6 +43,7 @@ class SettingsProfileView extends StatelessWidget {
             return Center(child: CircularProgressIndicator.adaptive());
           }
           return SingleChildScrollView(
+            physics: ClampingScrollPhysics(),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,

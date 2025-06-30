@@ -24,7 +24,10 @@ const _acceptableConfirmTexts = [
 class AccountDeletionButton extends StatefulWidget {
   const AccountDeletionButton({
     super.key,
+    this.showDescription = true,
   });
+
+  final bool showDescription;
 
   @override
   State<AccountDeletionButton> createState() => _AccountDeletionButtonState();
@@ -46,7 +49,7 @@ class _AccountDeletionButtonState extends State<AccountDeletionButton> {
     final theme = AppFlowyTheme.of(context);
     return Row(
       children: [
-        Expanded(
+       if(widget.showDescription) Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,

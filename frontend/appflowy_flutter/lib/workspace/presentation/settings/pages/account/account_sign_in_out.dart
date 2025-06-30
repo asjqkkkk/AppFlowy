@@ -95,7 +95,7 @@ class AccountSignInOutButton extends StatelessWidget {
         create: (context) => getIt<SignInBloc>(),
         child: const FlowyDialog(
           constraints: BoxConstraints(maxHeight: 485, maxWidth: 375),
-          child: _SignInDialogContent(),
+          child: SignInDialogContent(),
         ),
       ),
     );
@@ -196,8 +196,8 @@ class ChangePasswordSection extends StatelessWidget {
   }
 }
 
-class _SignInDialogContent extends StatelessWidget {
-  const _SignInDialogContent();
+class SignInDialogContent extends StatelessWidget {
+  const SignInDialogContent({super.key});
 
   @override
   Widget build(BuildContext context) {

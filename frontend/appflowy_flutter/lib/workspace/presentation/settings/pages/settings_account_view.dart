@@ -1,19 +1,19 @@
-import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/startup/tasks/device_info_task.dart';
 import 'package:appflowy/workspace/application/user/settings_user_bloc.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/about/app_version.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/account/account.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/account/email/email_section.dart';
-import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
-import 'package:appflowy/workspace/presentation/settings/shared/settings_category.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/account/account_deletion.dart';
+import 'package:appflowy/workspace/presentation/settings/widgets/account_and_app/password_button.dart';
+import 'package:appflowy/workspace/presentation/settings/widgets/account_and_app/sign_in_out_button.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class SettingsAccountView extends StatefulWidget {
+class SettingsAccountView extends StatelessWidget {
   const SettingsAccountView({
     super.key,
     required this.userProfile,
@@ -30,101 +30,142 @@ class SettingsAccountView extends StatefulWidget {
   final VoidCallback didLogout;
 
   @override
-  State<SettingsAccountView> createState() => _SettingsAccountViewState();
-}
-
-class _SettingsAccountViewState extends State<SettingsAccountView> {
-  late String userName = widget.userProfile.name;
-
-  @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context),
+        spacing = theme.spacing,
+        xxl = spacing.xxl;
     return BlocProvider<SettingsUserViewBloc>(
-      create: (context) =>
-          getIt<SettingsUserViewBloc>(param1: widget.userProfile)
-            ..add(const SettingsUserEvent.initial()),
+      create: (context) => getIt<SettingsUserViewBloc>(param1: userProfile)
+        ..add(const SettingsUserEvent.initial()),
       child: BlocBuilder<SettingsUserViewBloc, SettingsUserState>(
         builder: (context, state) {
-          return SettingsBody(
-            title: LocaleKeys.newSettings_myAccount_title.tr(),
-            children: [
-              // user profile
-              SettingsCategory(
-                title: LocaleKeys.newSettings_myAccount_myProfile.tr(),
-                children: [
-                  AccountUserProfile(
-                    name: userName,
-                    iconUrl: state.userProfile.iconUrl,
-                    onSave: (newName) {
-                      // Pseudo change the name to update the UI before the backend
-                      // processes the request. This is to give the user a sense of
-                      // immediate feedback, and avoid UI flickering.
-                      setState(() => userName = newName);
-                      context
-                          .read<SettingsUserViewBloc>()
-                          .add(SettingsUserEvent.updateUserName(name: newName));
-                    },
+          return SingleChildScrollView(
+            physics: ClampingScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                buildTitle(context),
+                AFDivider(color: theme.borderColorScheme.primary),
+                Padding(
+                  padding: EdgeInsets.all(xxl),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _commonLayout(
+                        title: LocaleKeys.settings_accountPage_email_title.tr(),
+                        subtitle: userProfile.email,
+                        context: context,
+                      ),
+                      _commonLayout(
+                        title: LocaleKeys.newSettings_myAccount_password_title
+                            .tr(),
+                        subtitle: LocaleKeys
+                            .settings_accountPage_passwordDescription
+                            .tr(),
+                        context: context,
+                        button: PasswordButton(userProfile: state.userProfile),
+                      ),
+                      _commonLayout(
+                        title: LocaleKeys.settings_accountPage_login_title.tr(),
+                        subtitle: LocaleKeys
+                            .settings_accountPage_loginDescription
+                            .tr(),
+                        context: context,
+                        button: SignInOutButton(
+                          userProfile: state.userProfile,
+                          onAction:
+                              state.userProfile.userAuthType == AuthTypePB.Local
+                                  ? didLogin
+                                  : didLogout,
+                          signIn: state.userProfile.userAuthType ==
+                              AuthTypePB.Local,
+                        ),
+                      ),
+                      _commonLayout(
+                        title: LocaleKeys.button_deleteAccount.tr(),
+                        subtitle: LocaleKeys
+                            .settings_accountPage_deleteAccountDescription
+                            .tr(),
+                        context: context,
+                        button: AccountDeletionButton(showDescription: false),
+                      ),
+                      VSpace(20),
+                      AFDivider(color: theme.borderColorScheme.primary),
+                      VSpace(20),
+                      _commonLayout(
+                        title:
+                            LocaleKeys.newSettings_myAccount_aboutAppFlowy.tr(),
+                        subtitle:
+                            LocaleKeys.settings_accountPage_officialVersion.tr(
+                          namedArgs: {
+                            'version': ApplicationInfo.applicationVersion,
+                          },
+                        ),
+                        context: context,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-
-              // user email
-              // Only show email if the user is authenticated and not using local auth
-              if (isAuthEnabled &&
-                  state.userProfile.userAuthType != AuthTypePB.Local) ...[
-                SettingsCategory(
-                  title: LocaleKeys.newSettings_myAccount_myAccount.tr(),
-                  children: [
-                    SettingsEmailSection(
-                      userProfile: state.userProfile,
-                    ),
-                    ChangePasswordSection(
-                      userProfile: state.userProfile,
-                    ),
-                    AccountSignInOutSection(
-                      userProfile: state.userProfile,
-                      onAction:
-                          state.userProfile.userAuthType == AuthTypePB.Local
-                              ? widget.didLogin
-                              : widget.didLogout,
-                      signIn:
-                          state.userProfile.userAuthType == AuthTypePB.Local,
-                    ),
-                  ],
                 ),
               ],
-
-              if (isAuthEnabled &&
-                  state.userProfile.userAuthType == AuthTypePB.Local) ...[
-                SettingsCategory(
-                  title: LocaleKeys.settings_accountPage_login_title.tr(),
-                  children: [
-                    AccountSignInOutSection(
-                      userProfile: state.userProfile,
-                      onAction:
-                          state.userProfile.userAuthType == AuthTypePB.Local
-                              ? widget.didLogin
-                              : widget.didLogout,
-                      signIn:
-                          state.userProfile.userAuthType == AuthTypePB.Local,
-                    ),
-                  ],
-                ),
-              ],
-
-              // App version
-              SettingsCategory(
-                title: LocaleKeys.newSettings_myAccount_aboutAppFlowy.tr(),
-                children: const [
-                  SettingsAppVersion(),
-                ],
-              ),
-
-              // user deletion
-              if (widget.userProfile.userAuthType == AuthTypePB.Server)
-                const AccountDeletionButton(),
-            ],
+            ),
           );
         },
+      ),
+    );
+  }
+
+  Widget buildTitle(BuildContext context) {
+    final theme = AppFlowyTheme.of(context),
+        spacing = theme.spacing,
+        xxl = spacing.xxl;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(xxl, 28, xxl, xxl),
+      child: Text(
+        LocaleKeys.newSettings_myAccount_title.tr(),
+        style: theme.textStyle.heading2
+            .enhanced(color: theme.textColorScheme.primary),
+      ),
+    );
+  }
+
+  Widget _commonLayout({
+    required String title,
+    required String subtitle,
+    required BuildContext context,
+    Widget? button,
+  }) {
+    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    return Padding(
+      padding: EdgeInsets.only(bottom: spacing.xxl),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  style: theme.textStyle.body
+                      .enhanced(color: theme.textColorScheme.primary),
+                ),
+                VSpace(spacing.xs),
+                Text(
+                  subtitle,
+                  style: theme.textStyle.caption
+                      .standard(color: theme.textColorScheme.secondary),
+                ),
+              ],
+            ),
+          ),
+          if (button != null) ...[
+            HSpace(spacing.m),
+            button,
+          ],
+        ],
       ),
     );
   }

@@ -635,7 +635,10 @@
         "logoutLabel": "Log out"
       },
       "isUpToDate": "@:appName is up to date!",
-      "officialVersion": "Version {version} (Official build)"
+      "officialVersion": "Version {version} (Official build)",
+      "passwordDescription": "Securely sign-in with on-device biometric authentication.",
+      "loginDescription": "Log out of all other active sessions on other devices besides this one.",
+      "deleteAccountDescription": "Permanently delete your account and remove access from all workspaces."
     },
     "profilePage": {
       "menuLabel": "Profile",
