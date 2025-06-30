@@ -263,6 +263,12 @@ class ViewBackendService {
     return FolderEventGetAllViews().send();
   }
 
+  /// Fetches a flattened list of all Views with permission check.
+  static Future<FlowyResult<RepeatedViewPB, FlowyError>>
+      getAllViewsWithPermissionCheck() async {
+    return FolderEventGetAllViewsWithPermission().send();
+  }
+
   static Future<FlowyResult<ViewPB, FlowyError>> getView(
     String viewId,
   ) async {

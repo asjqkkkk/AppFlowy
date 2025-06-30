@@ -1,5 +1,6 @@
 import 'package:appflowy/features/shared_section/presentation/m_shared_section.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/mobile/presentation/home/favorite_folder/favorite_space.dart';
 import 'package:appflowy/mobile/presentation/home/home_space/home_space.dart';
@@ -17,6 +18,7 @@ import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
     hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -230,8 +232,9 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
     final role = context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;
     if (role == AFRolePB.Guest) {
       showToastNotification(
-        // todo: i18n
-        message: 'You don\'t have permission to create a page as a guest',
+        message: layout == ViewLayoutPB.Chat
+            ? LocaleKeys.accessLevel_noPermissionToCreateAnAIChat.tr()
+            : LocaleKeys.accessLevel_noPermissionToCreatePage.tr(),
         type: ToastificationType.error,
       );
       return;

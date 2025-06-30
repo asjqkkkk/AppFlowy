@@ -62,6 +62,8 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::GetFlattenSharedPages, get_flatten_shared_pages_handler)
     .event(FolderEvent::GetSharedViewSection, get_shared_view_section_handler)
     .event(FolderEvent::GetAccessLevel, get_access_level_handler)
+    .event(FolderEvent::BatchPermissionCheck, batch_permission_check_handler)
+    .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -247,9 +249,6 @@ pub enum FolderEvent {
   #[event(output = "RepeatedSharedViewResponsePB")]
   GetSharedViews = 59,
 
-  #[event(output = "RepeatedViewPB")]
-  GetFlattenSharedPages = 63,
-
   #[event(input = "ViewIdPB", output = "GetSharedViewSectionResponsePB")]
   GetSharedViewSection = 60,
 
@@ -258,4 +257,13 @@ pub enum FolderEvent {
 
   #[event(input = "PinOrUnpinFavoritePayloadPB")]
   PinOrUnpinFavorite = 62,
+
+  #[event(output = "RepeatedViewPB")]
+  GetFlattenSharedPages = 63,
+
+  #[event(input = "RepeatedViewIdPB", output = "RepeatedAccessLevelPB")]
+  BatchPermissionCheck = 64,
+
+  #[event(output = "RepeatedViewPB")]
+  GetAllViewsWithPermission = 65,
 }

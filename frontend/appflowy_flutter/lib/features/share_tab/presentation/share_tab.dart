@@ -21,6 +21,11 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+enum ShareTabUpgradeToProFrom {
+  banner,
+  backendError,
+}
+
 class ShareTab extends StatefulWidget {
   const ShareTab({
     super.key,
@@ -41,7 +46,7 @@ class ShareTab extends StatefulWidget {
   final String workspaceIcon;
 
   final bool isInProPlan;
-  final VoidCallback onUpgradeToPro;
+  final void Function(ShareTabUpgradeToProFrom from) onUpgradeToPro;
   final void Function(bool value) showDialogCallback;
 
   @override
@@ -122,7 +127,9 @@ class _ShareTabState extends State<ShareTab> {
                         ShareTabEvent.upgradeToProClicked(),
                       );
                 },
-                onUpgrade: widget.onUpgradeToPro,
+                onUpgrade: () => widget.onUpgradeToPro(
+                  ShareTabUpgradeToProFrom.banner,
+                ),
               ),
             ],
 
@@ -244,7 +251,9 @@ class _ShareTabState extends State<ShareTab> {
       }, (error) {
         String message;
         if (error.code == ErrorCode.FreePlanGuestLimitExceeded) {
-          widget.onUpgradeToPro();
+          widget.onUpgradeToPro(
+            ShareTabUpgradeToProFrom.backendError,
+          );
           return;
         }
         switch (error.code) {

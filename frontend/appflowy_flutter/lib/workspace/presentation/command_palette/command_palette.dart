@@ -10,8 +10,10 @@ import 'package:appflowy/workspace/presentation/command_palette/widgets/recent_v
 import 'package:appflowy/workspace/presentation/command_palette/widgets/search_field.dart';
 import 'package:appflowy/workspace/presentation/command_palette/widgets/search_results_list.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart'
+    hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -185,8 +187,23 @@ class CommandPaletteModal extends StatelessWidget {
     return BlocListener<CommandPaletteBloc, CommandPaletteState>(
       listener: (_, state) {
         if (state.askAI && context.mounted) {
+          final currentWorkspace = workspaceState?.currentWorkspace;
+
+          // Guest don't have permission to create page, so we don't need to create page here.
+          if (currentWorkspace?.role == AFRolePB.Guest) {
+            showToastNotification(
+              context: context,
+              message: LocaleKeys.accessLevel_noPermissionToCreateAnAIChat.tr(),
+              type: ToastificationType.error,
+            );
+            context.read<CommandPaletteBloc>().add(
+                  CommandPaletteEvent.askedAI(),
+                );
+            return;
+          }
+
           if (Navigator.canPop(context)) FlowyOverlay.pop(context);
-          final currentWorkspace = workspaceState?.workspaces;
+
           final spaceBloc = context.read<SpaceBloc?>();
           if (currentWorkspace != null && spaceBloc != null) {
             spaceBloc.add(

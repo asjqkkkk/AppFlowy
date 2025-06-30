@@ -303,7 +303,11 @@ pub(crate) async fn read_recent_views_handler(
     .skip(start as usize)
     .take(limit as usize)
     .collect::<Vec<_>>();
-  let views = folder.get_view_pbs_without_children(ids).await?;
+  let mut views = Vec::new();
+  for id in ids {
+    let view = folder.get_view_pb(&id).await?;
+    views.push(view);
+  }
   let items = views
     .into_iter()
     .zip(recent_items.into_iter().rev())
@@ -636,4 +640,24 @@ pub(crate) async fn get_access_level_handler(
     .get_access_level(&payload.view_id, &payload.user_email)
     .await?;
   data_result_ok(GetAccessLevelResponsePB { access_level })
+}
+
+#[tracing::instrument(level = "info", skip(data, folder), err)]
+pub(crate) async fn batch_permission_check_handler(
+  data: AFPluginData<RepeatedViewIdPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<RepeatedAccessLevelPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let view_ids = data.into_inner().items;
+  let results = folder.batch_permission_check(&view_ids).await?;
+  data_result_ok(RepeatedAccessLevelPB { results })
+}
+
+#[tracing::instrument(level = "info", skip(folder), err)]
+pub(crate) async fn get_all_views_with_permission_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<RepeatedViewPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let views = folder.get_all_view_pbs_with_permission().await?;
+  data_result_ok(RepeatedViewPB::from(views))
 }
