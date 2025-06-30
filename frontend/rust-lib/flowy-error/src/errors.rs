@@ -57,6 +57,10 @@ impl FlowyError {
     self.code == ErrorCode::RecordNotFound
   }
 
+  pub fn is_feature_not_available(&self) -> bool {
+    self.code == ErrorCode::FeatureNotAvailable
+  }
+
   pub fn is_already_exists(&self) -> bool {
     self.code == ErrorCode::RecordAlreadyExists
   }

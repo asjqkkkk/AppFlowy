@@ -311,7 +311,7 @@ where
     Ok(details)
   }
 
-  #[instrument(level = "debug", skip_all, err)]
+  #[instrument(level = "debug", skip_all)]
   async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let resp = try_get_client?

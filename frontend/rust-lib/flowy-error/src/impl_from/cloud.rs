@@ -71,7 +71,7 @@ impl From<AppResponseError> for FlowyError {
       AppErrorCode::MemberNotFound => ErrorCode::Internal,
       AppErrorCode::InvalidBlock => ErrorCode::Internal,
       AppErrorCode::AIResponseError => ErrorCode::Internal,
-      AppErrorCode::FeatureNotAvailable => ErrorCode::Internal,
+      AppErrorCode::FeatureNotAvailable => ErrorCode::FeatureNotAvailable,
       AppErrorCode::InvalidInvitationCode => ErrorCode::Internal,
       AppErrorCode::FreePlanGuestLimitExceeded => ErrorCode::FreePlanGuestLimitExceeded,
       AppErrorCode::InvalidGuest => ErrorCode::InvalidGuest,

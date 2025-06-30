@@ -416,6 +416,9 @@ pub enum ErrorCode {
 
   #[error("Limit exceeded")]
   LimitExceed = 142,
+
+  #[error("Feature not available")]
+  FeatureNotAvailable = 143,
 }
 
 impl ErrorCode {

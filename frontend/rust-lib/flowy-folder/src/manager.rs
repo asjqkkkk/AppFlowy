@@ -62,7 +62,7 @@ use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLockWriteGuard;
-use tracing::{debug, error, info, instrument};
+use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 pub trait FolderUser: Send + Sync {
@@ -753,24 +753,24 @@ impl FolderManager {
   ///
   #[tracing::instrument(level = "debug", skip(self))]
   pub async fn get_all_views_pb(&self) -> FlowyResult<Vec<ViewPB>> {
-    let lock = self
-      .mutex_folder
-      .load_full()
-      .ok_or_else(folder_not_init_error)?;
+    let result = self.mutex_folder.load_full();
+    match result {
+      None => Ok(vec![]),
+      Some(lock) => {
+        let folder = lock.read().await;
+        let uid = self.user.user_id()?;
+        let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder, uid);
 
-    // trash views and other private views should not be accessed
-    let folder = lock.read().await;
-    let uid = self.user.user_id()?;
-    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder, uid);
-
-    let all_views = folder.get_all_views(uid);
-    let views = all_views
-      .into_iter()
-      .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
-      .map(view_pb_without_child_views_from_arc)
-      .collect::<Vec<_>>();
-
-    Ok(views)
+        let all_views = folder.get_all_views(uid);
+        let views = all_views
+          .into_iter()
+          .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
+          .map(view_pb_without_child_views_from_arc)
+          .collect::<Vec<_>>();
+        // trash views and other private views should not be accessed
+        Ok(views)
+      },
+    }
   }
 
   /// Retrieves the ancestors of the view corresponding to the specified view ID, including the view itself.
@@ -1804,7 +1804,11 @@ impl FolderManager {
               }
             },
             Err(e) => {
-              error!("Failed to get shared page details: {:?}", e);
+              if e.is_feature_not_available() {
+                warn!("{}", e);
+              } else {
+                error!("Failed to get shared page details: {:?}", e);
+              }
             },
           }
         }
@@ -2108,15 +2112,15 @@ impl FolderManager {
         let database_collab = v.database_encoded_collab.doc_state.to_vec();
         let database_relations = v.database_relations;
         let database_row_collabs = v
-        .database_row_encoded_collabs
-        .into_iter()
-        .map(|v| (v.0, v.1.doc_state.to_vec())) // Convert to HashMap
-        .collect::<HashMap<String, Vec<u8>>>();
+                    .database_row_encoded_collabs
+                    .into_iter()
+                    .map(|v| (v.0, v.1.doc_state.to_vec())) // Convert to HashMap
+                    .collect::<HashMap<String, Vec<u8>>>();
         let database_row_document_collabs = v
-          .database_row_document_encoded_collabs
-          .into_iter()
-          .map(|v| (v.0, v.1.doc_state.to_vec())) // Convert to HashMap
-          .collect::<HashMap<String, Vec<u8>>>();
+                    .database_row_document_encoded_collabs
+                    .into_iter()
+                    .map(|v| (v.0, v.1.doc_state.to_vec())) // Convert to HashMap
+                    .collect::<HashMap<String, Vec<u8>>>();
 
         let data = PublishDatabaseData {
           database_collab,

@@ -614,7 +614,7 @@ pub(crate) async fn get_flatten_shared_pages_handler(
   })
 }
 
-#[tracing::instrument(level = "info", skip(data, folder))]
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
 pub(crate) async fn get_shared_view_section_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -625,7 +625,7 @@ pub(crate) async fn get_shared_view_section_handler(
   data_result_ok(GetSharedViewSectionResponsePB { section })
 }
 
-#[tracing::instrument(level = "info", skip(data, folder), err)]
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
 pub(crate) async fn get_access_level_handler(
   data: AFPluginData<GetAccessLevelPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,
