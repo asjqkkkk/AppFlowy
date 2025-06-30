@@ -3,7 +3,6 @@ import 'package:appflowy/ai/service/ai_prompt_database_selector_cubit.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_item.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
@@ -180,6 +179,7 @@ class _Header extends StatefulWidget {
 }
 
 class _HeaderState extends State<_Header> {
+  final key = GlobalKey<ViewSelectorWidgetState>();
   final popoverController = AFPopoverController();
 
   @override
@@ -235,78 +235,68 @@ class _HeaderState extends State<_Header> {
               Expanded(
                 child: Center(
                   child: ViewSelector(
-                    viewSelectorCubit: BlocProvider(
-                      create: (context) => ViewSelectorCubit(
-                        getIgnoreViewType: getIgnoreViewType,
-                      ),
+                    key: key,
+                    viewSelectorCubit: ViewSelectorCubit(
+                      getIgnoreViewType: getIgnoreViewType,
                     ),
-                    child: BlocSelector<SpaceBloc, SpaceState,
-                        (List<ViewPB>, ViewPB?)>(
-                      selector: (state) => (state.spaces, state.currentSpace),
-                      builder: (context, state) {
-                        return AFPopover(
-                          controller: popoverController,
-                          decoration: BoxDecoration(
-                            color: theme.surfaceColorScheme.primary,
-                            borderRadius:
-                                BorderRadius.circular(theme.borderRadius.l),
-                            border: Border.all(
-                              color: theme.borderColorScheme.primary,
-                            ),
-                            boxShadow: theme.shadow.medium,
-                          ),
-                          padding: EdgeInsets.zero,
-                          anchor: AFAnchor(
-                            childAlignment: Alignment.topCenter,
-                            overlayAlignment: Alignment.bottomCenter,
-                            offset: Offset(0, theme.spacing.xs),
-                          ),
-                          popover: (context) {
-                            return _PopoverContent(
-                              onSelectViewItem: (item) {
-                                context
-                                    .read<AiPromptDatabaseSelectorCubit>()
-                                    .selectDatabaseView(item.view.id);
-                                popoverController.hide();
-                              },
-                            );
+                    child: AFPopover(
+                      controller: popoverController,
+                      decoration: BoxDecoration(
+                        color: theme.surfaceColorScheme.primary,
+                        borderRadius:
+                            BorderRadius.circular(theme.borderRadius.l),
+                        border: Border.all(
+                          color: theme.borderColorScheme.primary,
+                        ),
+                        boxShadow: theme.shadow.medium,
+                      ),
+                      padding: EdgeInsets.zero,
+                      anchor: AFAnchor(
+                        childAlignment: Alignment.topCenter,
+                        overlayAlignment: Alignment.bottomCenter,
+                        offset: Offset(0, theme.spacing.xs),
+                      ),
+                      popover: (context) {
+                        return _PopoverContent(
+                          onSelectViewItem: (item) {
+                            context
+                                .read<AiPromptDatabaseSelectorCubit>()
+                                .selectDatabaseView(item.view.id);
+                            popoverController.hide();
                           },
-                          child: AFOutlinedButton.normal(
-                            onTap: () {
-                              context
-                                  .read<ViewSelectorCubit>()
-                                  .refreshSources(state.$1, state.$2);
-                              popoverController.toggle();
-                            },
-                            builder: (context, isHovering, disabled) {
-                              return Row(
-                                mainAxisSize: MainAxisSize.min,
-                                spacing: theme.spacing.s,
-                                children: [
-                                  Flexible(
-                                    child: Text(
-                                      viewName ??
-                                          LocaleKeys
-                                              .ai_customPrompt_selectDatabase
-                                              .tr(),
-                                      style: theme.textStyle.body.enhanced(
-                                        color: theme.textColorScheme.primary,
-                                      ),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                  FlowySvg(
-                                    FlowySvgs.toolbar_arrow_down_m,
-                                    color: theme.iconColorScheme.primary,
-                                    size: Size(12, 20),
-                                  ),
-                                ],
-                              );
-                            },
-                          ),
                         );
                       },
+                      child: AFOutlinedButton.normal(
+                        onTap: () {
+                          key.currentState?.refreshViews();
+                          popoverController.toggle();
+                        },
+                        builder: (context, isHovering, disabled) {
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            spacing: theme.spacing.s,
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  viewName ??
+                                      LocaleKeys.ai_customPrompt_selectDatabase
+                                          .tr(),
+                                  style: theme.textStyle.body.enhanced(
+                                    color: theme.textColorScheme.primary,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              FlowySvg(
+                                FlowySvgs.toolbar_arrow_down_m,
+                                color: theme.iconColorScheme.primary,
+                                size: Size(12, 20),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
                   ),
                 ),

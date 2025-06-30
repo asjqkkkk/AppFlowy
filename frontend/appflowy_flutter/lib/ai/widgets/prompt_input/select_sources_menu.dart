@@ -3,7 +3,6 @@ import 'dart:math';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
-import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_item.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
@@ -38,6 +37,8 @@ class PromptInputDesktopSelectSourcesButton extends StatefulWidget {
 
 class _PromptInputDesktopSelectSourcesButtonState
     extends State<PromptInputDesktopSelectSourcesButton> {
+  final key = GlobalKey<ViewSelectorWidgetState>();
+
   late final cubit = ViewSelectorCubit(
     maxSelectedParentPageCount: 3,
     getIgnoreViewType: (item) {
@@ -77,11 +78,10 @@ class _PromptInputDesktopSelectSourcesButtonState
   @override
   Widget build(BuildContext context) {
     return ViewSelector(
-      viewSelectorCubit: BlocProvider.value(
-        value: cubit,
-      ),
-      child: BlocBuilder<SpaceBloc, SpaceState>(
-        builder: (context, state) {
+      key: key,
+      viewSelectorCubit: cubit,
+      child: Builder(
+        builder: (context) {
           return AppFlowyPopover(
             constraints: BoxConstraints.loose(const Size(320, 380)),
             offset: const Offset(0.0, -10.0),
@@ -89,15 +89,11 @@ class _PromptInputDesktopSelectSourcesButtonState
             margin: EdgeInsets.zero,
             controller: popoverController,
             onOpen: () {
-              context
-                  .read<ViewSelectorCubit>()
-                  .refreshSources(state.spaces, state.currentSpace);
+              key.currentState?.refreshViews();
             },
             onClose: () {
               widget.onUpdateSelectedSources(cubit.selectedSourceIds);
-              context
-                  .read<ViewSelectorCubit>()
-                  .refreshSources(state.spaces, state.currentSpace);
+              key.currentState?.refreshViews();
             },
             popupBuilder: (_) {
               return BlocProvider.value(

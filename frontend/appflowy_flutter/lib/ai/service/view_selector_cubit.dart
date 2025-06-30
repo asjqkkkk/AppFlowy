@@ -123,7 +123,7 @@ class ViewSelectorCubit extends Cubit<ViewSelectorState> {
 
   Future<void> refreshSources(
     List<ViewPB> spaceViews,
-    ViewPB? currentSpace,
+    String? initialOpenViewId,
   ) async {
     filterTextController.clear();
 
@@ -135,9 +135,9 @@ class ViewSelectorCubit extends Cubit<ViewSelectorState> {
 
     _restrictSelectionIfNecessary(newSources);
 
-    if (currentSpace != null) {
+    if (initialOpenViewId != null) {
       newSources
-          .firstWhereOrNull((e) => e.view.id == currentSpace.id)
+          .firstWhereOrNull((e) => e.view.id == initialOpenViewId)
           ?.toggleIsExpanded();
     }
 

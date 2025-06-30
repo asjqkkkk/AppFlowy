@@ -240,10 +240,10 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                     selector: (state) => state.isEditable,
                     builder: (context, isEditable) {
                       return wrapContent(
-                          layout: layout,
-                          child: IgnorePointer(
-                        ignoring: !isEditable || !widget.isEditable,
-                        child: Padding(
+                        layout: layout,
+                        child: IgnorePointer(
+                          ignoring: !isEditable || !widget.isEditable,
+                          child: Padding(
                             padding: (isCalendar && widget.shrinkWrap ||
                                     showActionWrapper)
                                 ? EdgeInsets.only(left: 42 - horizontalPadding)

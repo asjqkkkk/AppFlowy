@@ -83,7 +83,7 @@ void main() {
       ),
       act: (cubit) async {
         final views = createTestViews();
-        await cubit.refreshSources(views, views.first);
+        await cubit.refreshSources(views, views.first.id);
       },
       verify: (cubit) {
         final s = cubit.state;

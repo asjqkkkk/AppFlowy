@@ -5,7 +5,6 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/work
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 
-
 // open page callback deeplink example:
 // appflowy-flutter://open-page?workspace_id=3694e181-2717-4b24-8177-e790e3663b1b&view_id=9625afb4-cb98-48d7-89be-5ba304df37adf3&email=tsuiyuenhong@gmail.com
 class OpenPageDeepLinkHandler extends DeepLinkHandler<void> {
