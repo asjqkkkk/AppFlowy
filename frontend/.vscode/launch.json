@@ -43,7 +43,7 @@
                 //   - Single crate: "flowy_user=debug"
                 //   - Multiple crates: "flowy_user=debug,flowy_core=trace"
                 //   - All crates: "trace"
-                "RUST_LOG": "flowy_core=trace,flowy_document=debug,flowy_database2=debug",
+                "RUST_LOG": "sync_log=debug",
                 "RUST_BACKTRACE": "1",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"

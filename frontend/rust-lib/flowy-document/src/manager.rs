@@ -261,7 +261,7 @@ impl DocumentManager {
     self.documents.clear();
   }
 
-  #[instrument(level = "debug", skip_all, err)]
+  #[instrument(level = "trace", skip_all, err)]
   pub async fn set_document_awareness_local_state(
     &self,
     doc_id: &Uuid,
