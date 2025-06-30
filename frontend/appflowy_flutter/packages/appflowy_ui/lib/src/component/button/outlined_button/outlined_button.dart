@@ -29,6 +29,7 @@ class AFOutlinedButton extends StatelessWidget {
     required VoidCallback onTap,
     AFButtonSize size = AFButtonSize.m,
     EdgeInsetsGeometry? padding,
+    AFBaseButtonColorBuilder? backgroundColor,
     double? borderRadius,
     bool disabled = false,
     MouseCursor? cursor,
@@ -53,16 +54,17 @@ class AFOutlinedButton extends StatelessWidget {
             }
             return theme.borderColorScheme.primary;
           },
-      backgroundColor: (context, isHovering, disabled) {
-        final theme = AppFlowyTheme.of(context);
-        if (disabled) {
-          return theme.fillColorScheme.content;
-        }
-        if (isHovering) {
-          return theme.fillColorScheme.contentHover;
-        }
-        return theme.fillColorScheme.content;
-      },
+      backgroundColor: backgroundColor ??
+          (context, isHovering, disabled) {
+            final theme = AppFlowyTheme.of(context);
+            if (disabled) {
+              return theme.fillColorScheme.content;
+            }
+            if (isHovering) {
+              return theme.fillColorScheme.contentHover;
+            }
+            return theme.fillColorScheme.content;
+          },
       builder: builder,
     );
   }

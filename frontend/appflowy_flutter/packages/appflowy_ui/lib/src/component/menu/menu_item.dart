@@ -7,6 +7,13 @@ typedef AFMenuItemBuilder = Widget? Function(
   bool disabled,
 );
 
+typedef AFMenuItemColorBuilder = Color Function(
+  BuildContext context,
+  bool isHovering,
+  bool selected,
+  bool disabled,
+);
+
 /// Menu item widget
 class AFMenuItem extends StatelessWidget {
   /// Creates a menu item.
@@ -21,6 +28,7 @@ class AFMenuItem extends StatelessWidget {
     this.selected = false,
     this.trailing,
     this.padding,
+    this.backgroundColor,
     this.showSelectedBackground = true,
     this.cursor,
     this.isDisabled = false,
@@ -56,6 +64,9 @@ class AFMenuItem extends StatelessWidget {
   /// Whether the menu item is disabled.
   final bool isDisabled;
 
+  /// background color of the menu item.
+  final AFMenuItemColorBuilder? backgroundColor;
+
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
@@ -76,6 +87,9 @@ class AFMenuItem extends StatelessWidget {
         return Colors.transparent;
       },
       backgroundColor: (context, isHovering, disabled) {
+        final color =
+            backgroundColor?.call(context, isHovering, selected, disabled);
+        if (color != null) return color;
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
