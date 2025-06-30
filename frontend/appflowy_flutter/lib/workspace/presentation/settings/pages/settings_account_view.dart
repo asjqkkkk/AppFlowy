@@ -39,6 +39,7 @@ class SettingsAccountView extends StatelessWidget {
         ..add(const SettingsUserEvent.initial()),
       child: BlocBuilder<SettingsUserViewBloc, SettingsUserState>(
         builder: (context, state) {
+          final isLocal = state.userProfile.userAuthType == AuthTypePB.Local;
           return SingleChildScrollView(
             physics: ClampingScrollPhysics(),
             child: Column(
@@ -53,44 +54,47 @@ class SettingsAccountView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _commonLayout(
-                        title: LocaleKeys.settings_accountPage_email_title.tr(),
-                        subtitle: userProfile.email,
-                        context: context,
-                      ),
-                      _commonLayout(
-                        title: LocaleKeys.newSettings_myAccount_password_title
-                            .tr(),
-                        subtitle: LocaleKeys
-                            .settings_accountPage_passwordDescription
-                            .tr(),
-                        context: context,
-                        button: PasswordButton(userProfile: state.userProfile),
-                      ),
+                      if (!isLocal)
+                        _commonLayout(
+                          title:
+                              LocaleKeys.settings_accountPage_email_title.tr(),
+                          subtitle: userProfile.email,
+                          context: context,
+                        ),
+                      if (!isLocal)
+                        _commonLayout(
+                          title: LocaleKeys.newSettings_myAccount_password_title
+                              .tr(),
+                          subtitle: LocaleKeys
+                              .settings_accountPage_passwordDescription
+                              .tr(),
+                          context: context,
+                          button:
+                              PasswordButton(userProfile: state.userProfile),
+                        ),
                       _commonLayout(
                         title: LocaleKeys.settings_accountPage_login_title.tr(),
-                        subtitle: LocaleKeys
-                            .settings_accountPage_loginDescription
-                            .tr(),
+                        subtitle: isLocal
+                            ? LocaleKeys.settings_accountPage_loginDescription
+                                .tr()
+                            : LocaleKeys.settings_accountPage_logoutDescription
+                                .tr(),
                         context: context,
                         button: SignInOutButton(
                           userProfile: state.userProfile,
-                          onAction:
-                              state.userProfile.userAuthType == AuthTypePB.Local
-                                  ? didLogin
-                                  : didLogout,
-                          signIn: state.userProfile.userAuthType ==
-                              AuthTypePB.Local,
+                          onAction: isLocal ? didLogin : didLogout,
+                          signIn: isLocal,
                         ),
                       ),
-                      _commonLayout(
-                        title: LocaleKeys.button_deleteAccount.tr(),
-                        subtitle: LocaleKeys
-                            .settings_accountPage_deleteAccountDescription
-                            .tr(),
-                        context: context,
-                        button: AccountDeletionButton(showDescription: false),
-                      ),
+                      if (!isLocal)
+                        _commonLayout(
+                          title: LocaleKeys.button_deleteAccount.tr(),
+                          subtitle: LocaleKeys
+                              .settings_accountPage_deleteAccountDescription
+                              .tr(),
+                          context: context,
+                          button: AccountDeletionButton(showDescription: false),
+                        ),
                       VSpace(20),
                       AFDivider(color: theme.borderColorScheme.primary),
                       VSpace(20),
