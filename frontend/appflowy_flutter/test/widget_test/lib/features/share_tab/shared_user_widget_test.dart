@@ -1,12 +1,9 @@
 import 'package:appflowy/features/share_tab/data/models/models.dart';
-import 'package:appflowy/features/share_tab/presentation/widgets/access_level_list_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/edit_access_level_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/shared_user_widget.dart';
-import 'package:appflowy/features/share_tab/presentation/widgets/turn_into_member_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -138,52 +135,6 @@ void main() {
       expect(find.text(ShareAccessLevel.readOnly.title), findsWidgets);
       expect(find.text(ShareAccessLevel.readAndWrite.title), findsWidgets);
       expect(find.text(LocaleKeys.shareTab_removeAccess.tr()), findsOneWidget);
-    });
-
-    testWidgets('full access user can turn a guest into member',
-        (WidgetTester tester) async {
-      bool turnedIntoMember = false;
-      final guestUser = SharedUser(
-        name: 'Guest User',
-        email: 'guest@user.com',
-        accessLevel: ShareAccessLevel.readOnly,
-        role: ShareRole.guest,
-        isPending: false,
-      );
-      final currentUser = SharedUser(
-        name: 'Full Access User',
-        email: 'full@user.com',
-        accessLevel: ShareAccessLevel.fullAccess,
-        role: ShareRole.member,
-      );
-      await tester.pumpWidget(
-        WidgetTestWrapper(
-          child: SharedUserWidget(
-            isInPublicPage: true,
-            user: guestUser,
-            currentUser: currentUser,
-            callbacks: AccessLevelListCallbacks(
-              onSelectAccessLevel: (_) {},
-              onTurnIntoMember: () {
-                turnedIntoMember = true;
-              },
-              onRemoveAccess: () {},
-            ),
-          ),
-        ),
-      );
-
-      // Hover over the SharedUserWidget to make TurnIntoMemberWidget visible
-      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
-      await gesture.addPointer(location: Offset.zero);
-      addTearDown(gesture.removePointer);
-      await gesture.moveTo(tester.getCenter(find.byType(SharedUserWidget)));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(TurnIntoMemberWidget), findsOneWidget);
-      await tester.tap(find.byType(TurnIntoMemberWidget));
-      await tester.pumpAndSettle();
-      expect(turnedIntoMember, isTrue);
     });
 
     // Additional tests for more coverage

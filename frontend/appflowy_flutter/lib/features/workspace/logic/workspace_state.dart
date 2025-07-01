@@ -1,6 +1,7 @@
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
+import 'package:collection/collection.dart';
 
 enum WorkspaceActionType {
   none,
@@ -77,7 +78,7 @@ class UserWorkspaceState {
     if (identical(this, other)) return true;
     return other is UserWorkspaceState &&
         other.currentWorkspace == currentWorkspace &&
-        other.workspaces == workspaces &&
+        DeepCollectionEquality().equals(other.workspaces, workspaces) &&
         other.actionResult == actionResult &&
         other.isCollabWorkspaceOn == isCollabWorkspaceOn &&
         other.userProfile == userProfile &&

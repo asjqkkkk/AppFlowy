@@ -132,9 +132,9 @@ class SharedUserWidget extends StatelessWidget {
       return disabledAccessButton();
     }
 
-    // Full access user can turn a guest into a member
+    // Only owner can turn a guest into a member
     if (user.role == ShareRole.guest &&
-        currentAccessLevel == ShareAccessLevel.fullAccess &&
+        currentUser.role == ShareRole.owner &&
         !user.isPending) {
       return Row(
         children: [

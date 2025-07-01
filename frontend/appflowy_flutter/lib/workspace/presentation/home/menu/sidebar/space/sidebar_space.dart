@@ -15,6 +15,7 @@ import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
     hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:collection/collection.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,58 +34,61 @@ class SidebarSpace extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentWorkspace =
-        context.watch<UserWorkspaceBloc>().state.currentWorkspace;
-    final currentWorkspaceId = currentWorkspace?.workspaceId ?? '';
+    return BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+      builder: (context, state) {
+        final currentWorkspace = state.currentWorkspace;
+        final currentWorkspaceId = currentWorkspace?.workspaceId ?? '';
+        final currentUserRole = state.workspaces.firstWhereOrNull(
+          (e) => e.workspaceId == currentWorkspaceId,
+        )?.role ?? state.currentWorkspace?.role;
+        // only show spaces if the user role is member or owner
+        final shouldShowSpaces = [
+          AFRolePB.Member,
+          AFRolePB.Owner,
+        ].contains(currentUserRole);
+        return ValueListenableBuilder(
+          valueListenable: getIt<MenuSharedState>().notifier,
+          builder: (_, __, ___) => Provider.value(
+            value: userProfile,
+            child: Column(
+              children: [
+                const VSpace(4.0),
+                // favorite
+                BlocBuilder<FavoriteBloc, FavoriteState>(
+                  builder: (context, state) {
+                    if (state.views.isEmpty) {
+                      return const SizedBox.shrink();
+                    }
 
-    // only show spaces if the user role is member or owner
-    final currentUserRole = currentWorkspace?.role;
-    final shouldShowSpaces = [
-      AFRolePB.Member,
-      AFRolePB.Owner,
-    ].contains(currentUserRole);
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14.0),
+                      child: FavoriteFolder(
+                        views: state.views.map((e) => e.item).toList(),
+                      ),
+                    );
+                  },
+                ),
 
-    return ValueListenableBuilder(
-      valueListenable: getIt<MenuSharedState>().notifier,
-      builder: (_, __, ___) => Provider.value(
-        value: userProfile,
-        child: Column(
-          children: [
-            const VSpace(4.0),
-            // favorite
-            BlocBuilder<FavoriteBloc, FavoriteState>(
-              builder: (context, state) {
-                if (state.views.isEmpty) {
-                  return const SizedBox.shrink();
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 14.0),
-                  child: FavoriteFolder(
-                    views: state.views.map((e) => e.item).toList(),
+                // shared
+                if (FeatureFlag.sharedSection.isOn) ...[
+                  SharedSection(
+                    key: ValueKey(currentWorkspaceId),
+                    workspaceId: currentWorkspaceId,
                   ),
-                );
-              },
+                ],
+
+                // spaces
+                if (shouldShowSpaces) ...[
+                  // spaces
+                  const _Space(),
+                ],
+
+                const VSpace(200),
+              ],
             ),
-
-            // shared
-            if (FeatureFlag.sharedSection.isOn) ...[
-              SharedSection(
-                key: ValueKey(currentWorkspaceId),
-                workspaceId: currentWorkspaceId,
-              ),
-            ],
-
-            // spaces
-            if (shouldShowSpaces) ...[
-              // spaces
-              const _Space(),
-            ],
-
-            const VSpace(200),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 }

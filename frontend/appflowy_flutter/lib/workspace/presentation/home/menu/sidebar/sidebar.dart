@@ -448,7 +448,10 @@ class _SidebarState extends State<_Sidebar> {
     final workspaceState = context.read<UserWorkspaceBloc>().state;
 
     if (!spaceState.isInitialized) {
-      return const SizedBox.shrink();
+      // always expand the section to allow the templates and trash button show at the bottom of the sidebar
+      return const Expanded(
+        child: SizedBox.shrink(),
+      );
     }
 
     // there's no space or the workspace is not collaborative,

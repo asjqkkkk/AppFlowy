@@ -220,6 +220,7 @@ class _ShareMenuState extends State<ShareMenu>
     if (role == AFRolePB.Owner) {
       // if user click the upgrade button in the banner, we redirect to the payment page directly
       if (from == share_section.ShareTabUpgradeToProFrom.banner) {
+        widget.showDialogCallback(false);
         await _redirectToPaymentPage(context);
         return;
       }
