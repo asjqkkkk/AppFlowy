@@ -103,9 +103,17 @@ class CommandPaletteState {
     if (identical(this, other)) return true;
     return other is CommandPaletteState &&
         other.query == query &&
+        other.serverResponseItems == serverResponseItems &&
+        other.localResponseItems == localResponseItems &&
+        other.combinedResponseItems == combinedResponseItems &&
+        other.cachedViews == cachedViews &&
+        other.resultSummaries == resultSummaries &&
+        other.searchResponseStream == searchResponseStream &&
         other.searching == searching &&
         other.generatingAIOverview == generatingAIOverview &&
         other.askAI == askAI &&
+        other.askAISources == askAISources &&
+        other.trash == trash &&
         other.searchId == searchId;
   }
 

@@ -90,7 +90,8 @@ class InlinePageReferenceService extends InlineActionsDelegate {
 
     _viewsInitialized = true;
 
-    final viewResult = await ViewBackendService.getAllViews();
+    final viewResult =
+        await ViewBackendService.getAllViewsWithPermissionCheck();
     return _allViews = viewResult
             .toNullable()
             ?.items

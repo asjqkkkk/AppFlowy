@@ -1,4 +1,5 @@
 import 'package:appflowy/features/shared_section/models/shared_page.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/default_mobile_action_pane.dart';
 import 'package:appflowy/mobile/presentation/page_item/mobile_view_item.dart';
 import 'package:appflowy/workspace/application/sidebar/folder/folder_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
@@ -31,6 +32,17 @@ class MSharedPageList extends StatelessWidget {
           leftPadding: HomeSpaceViewSizes.leftPadding,
           isFeedback: false,
           onSelected: onSelected,
+          endActionPane: (context) {
+            return buildEndActionPane(
+              context,
+              [
+                MobilePaneActionType.more,
+              ],
+              spaceType: FolderSpaceType.public,
+              needSpace: false,
+              spaceRatio: 5,
+            );
+          },
         );
       }).toList(),
     );

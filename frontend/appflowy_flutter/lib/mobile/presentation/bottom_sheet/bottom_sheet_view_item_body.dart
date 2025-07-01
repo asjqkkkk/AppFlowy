@@ -15,6 +15,7 @@ enum MobileViewItemBottomSheetBodyAction {
   removeFromFavorites,
   divider,
   removeFromRecent,
+  removeFromShared,
 }
 
 class MobileViewItemBottomSheetBody extends StatelessWidget {
@@ -153,6 +154,20 @@ class MobileViewItemBottomSheetBody extends StatelessWidget {
         return const Padding(
           padding: EdgeInsets.symmetric(horizontal: 12.0),
           child: Divider(height: 0.5),
+        );
+      case MobileViewItemBottomSheetBodyAction.removeFromShared:
+        return FlowyOptionTile.text(
+          height: 52.0,
+          text: LocaleKeys.shareTab_removeYourOwnAccess.tr(),
+          leftIcon: const FlowySvg(
+            FlowySvgs.leave_workspace_s,
+            size: Size.square(18),
+          ),
+          showTopBorder: false,
+          showBottomBorder: false,
+          onTap: () => onAction(
+            MobileViewItemBottomSheetBodyAction.removeFromShared,
+          ),
         );
     }
   }

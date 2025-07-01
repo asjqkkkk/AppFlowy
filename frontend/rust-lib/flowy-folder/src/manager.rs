@@ -2513,24 +2513,9 @@ impl FolderManager {
         for view in views {
           let is_accessible = self
             .check_user_permission(&view.id, AFAccessLevelPB::ReadOnly)
-            .await
-            .is_ok();
-          if is_accessible {
+            .await;
+          if is_accessible.is_ok() {
             filtered_views.push(view);
-          }
-        }
-
-        if let Ok(workspace) = self.user.get_active_user_workspace() {
-          if let Some(Role::Guest) = workspace.role {
-            if let Ok(flatten_shared_views) = self.get_flatten_shared_pages().await {
-              let accessible_view_ids: std::collections::HashSet<String> = flatten_shared_views
-                .into_iter()
-                .map(|view| view.id)
-                .collect();
-              filtered_views.retain(|view| accessible_view_ids.contains(&view.id));
-            } else {
-              filtered_views.clear();
-            }
           }
         }
 
@@ -2922,6 +2907,35 @@ impl FolderManager {
         Ok(AFAccessLevelPB::ReadOnly)
       },
     }
+  }
+
+  pub async fn batch_permission_check(&self, view_ids: &[String]) -> FlowyResult<Vec<bool>> {
+    let results = future::join_all(view_ids.iter().map(|view_id| async move {
+      self
+        .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
+        .await
+        .is_ok()
+    }))
+    .await;
+    Ok(results)
+  }
+
+  /// Return all the views that the user has permission to access.
+  pub async fn get_all_view_pbs_with_permission(&self) -> FlowyResult<Vec<ViewPB>> {
+    let views = self.get_all_views_pb().await?;
+    let shared_views = self.get_flatten_shared_pages().await?;
+    let mut views_with_permission = Vec::new();
+    for view in views {
+      if self
+        .check_user_permission(&view.id, AFAccessLevelPB::ReadOnly)
+        .await
+        .is_ok()
+      {
+        views_with_permission.push(view);
+      }
+    }
+    let combined_views = [views_with_permission, shared_views].concat();
+    Ok(combined_views)
   }
 }
 

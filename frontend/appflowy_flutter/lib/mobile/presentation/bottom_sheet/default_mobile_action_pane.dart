@@ -1,4 +1,6 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
+import 'package:appflowy/features/shared_section/logic/shared_section_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -117,6 +119,7 @@ enum MobilePaneActionType {
             final viewBloc = context.read<ViewBloc>();
             final favoriteBloc = context.read<FavoriteBloc>();
             final recentViewsBloc = context.read<RecentViewsBloc?>();
+            final sharedSectionBloc = context.read<SharedSectionBloc?>();
             showMobileBottomSheet(
               context,
               showDragHandle: true,
@@ -135,12 +138,23 @@ enum MobilePaneActionType {
                           PageAccessLevelBloc(view: viewBloc.state.view)
                             ..add(const PageAccessLevelEvent.initial()),
                     ),
+                    if (sharedSectionBloc != null)
+                      BlocProvider.value(value: sharedSectionBloc),
                   ],
                   child: BlocBuilder<ViewBloc, ViewState>(
                     builder: (context, state) {
-                      return MobileViewItemBottomSheet(
-                        view: viewBloc.state.view,
-                        actions: _buildActions(state.view, cardType: cardType),
+                      return BlocBuilder<PageAccessLevelBloc,
+                          PageAccessLevelState>(
+                        builder: (context, pageAccessLevelState) {
+                          return MobileViewItemBottomSheet(
+                            view: viewBloc.state.view,
+                            actions: _buildActions(
+                              state.view,
+                              cardType: cardType,
+                              pageAccessLevelState: pageAccessLevelState,
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -155,6 +169,7 @@ enum MobilePaneActionType {
   List<MobileViewItemBottomSheetBodyAction> _buildActions(
     ViewPB view, {
     MobilePageCardType? cardType,
+    PageAccessLevelState? pageAccessLevelState,
   }) {
     final isFavorite = view.isFavorite;
 
@@ -179,12 +194,50 @@ enum MobilePaneActionType {
       }
     }
 
+    if (pageAccessLevelState != null) {
+      switch (pageAccessLevelState.accessLevel) {
+        case ShareAccessLevel.fullAccess:
+          return [
+            isFavorite
+                ? MobileViewItemBottomSheetBodyAction.removeFromFavorites
+                : MobileViewItemBottomSheetBodyAction.addToFavorites,
+            MobileViewItemBottomSheetBodyAction.divider,
+            MobileViewItemBottomSheetBodyAction.rename,
+            MobileViewItemBottomSheetBodyAction.divider,
+            if (view.layout != ViewLayoutPB.Chat)
+              MobileViewItemBottomSheetBodyAction.duplicate,
+            MobileViewItemBottomSheetBodyAction.divider,
+            MobileViewItemBottomSheetBodyAction.delete,
+          ];
+        case ShareAccessLevel.readOnly:
+          return [
+            isFavorite
+                ? MobileViewItemBottomSheetBodyAction.removeFromFavorites
+                : MobileViewItemBottomSheetBodyAction.addToFavorites,
+            MobileViewItemBottomSheetBodyAction.divider,
+            MobileViewItemBottomSheetBodyAction.removeFromShared,
+          ];
+        case ShareAccessLevel.readAndComment:
+        case ShareAccessLevel.readAndWrite:
+          return [
+            isFavorite
+                ? MobileViewItemBottomSheetBodyAction.removeFromFavorites
+                : MobileViewItemBottomSheetBodyAction.addToFavorites,
+            MobileViewItemBottomSheetBodyAction.divider,
+            MobileViewItemBottomSheetBodyAction.rename,
+            MobileViewItemBottomSheetBodyAction.divider,
+            MobileViewItemBottomSheetBodyAction.removeFromShared,
+          ];
+      }
+    }
+
     return [
       isFavorite
           ? MobileViewItemBottomSheetBodyAction.removeFromFavorites
           : MobileViewItemBottomSheetBodyAction.addToFavorites,
       MobileViewItemBottomSheetBodyAction.divider,
       MobileViewItemBottomSheetBodyAction.rename,
+      MobileViewItemBottomSheetBodyAction.divider,
       if (view.layout != ViewLayoutPB.Chat)
         MobileViewItemBottomSheetBodyAction.duplicate,
       MobileViewItemBottomSheetBodyAction.divider,

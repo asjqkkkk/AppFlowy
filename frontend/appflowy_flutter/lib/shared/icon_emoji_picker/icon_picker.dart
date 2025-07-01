@@ -12,6 +12,7 @@ import 'package:appflowy/shared/icon_emoji_picker/recent_icons.dart';
 import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon_popup.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -284,7 +285,7 @@ class IconPicker extends StatefulWidget {
 
 class _IconPickerState extends State<IconPicker> {
   final mutex = PopoverMutex();
-  PopoverController? childPopoverController;
+  AFPopoverController? childPopoverController;
 
   @override
   void dispose() {
@@ -384,7 +385,7 @@ class _IconPickerState extends State<IconPicker> {
   }
 
   void hideColorSelector() {
-    childPopoverController?.close();
+    childPopoverController?.hide();
     childPopoverController = null;
   }
 
@@ -444,50 +445,64 @@ class _Icon extends StatefulWidget {
   final Icon icon;
   final PopoverMutex mutex;
   final void Function(BuildContext context, String color) onSelectedColor;
-  final ValueChanged<PopoverController>? onOpen;
+  final ValueChanged<AFPopoverController>? onOpen;
 
   @override
   State<_Icon> createState() => _IconState();
 }
 
 class _IconState extends State<_Icon> {
-  final PopoverController _popoverController = PopoverController();
   bool isSelected = false;
+
+  final controller = AFPopoverController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    controller.addListener(() {
+      if (!controller.isOpen) {
+        updateIsSelected(false);
+      }
+    });
+  }
 
   @override
   void dispose() {
+    controller.dispose();
+
     super.dispose();
-    _popoverController.close();
   }
 
   @override
   Widget build(BuildContext context) {
-    return AppFlowyPopover(
-      direction: PopoverDirection.bottomWithCenterAligned,
-      controller: _popoverController,
-      offset: const Offset(0, 6),
-      mutex: widget.mutex,
-      onClose: () {
-        updateIsSelected(false);
-      },
-      clickHandler: PopoverClickHandler.gestureDetector,
+    return AFPopover(
+      controller: controller,
+      decoration: BoxDecoration(),
+      anchor: AFAnchorAuto(
+        offset: const Offset(0, -4),
+      ),
       child: _IconNoBackground(
         icon: widget.icon,
         isSelected: isSelected,
         onSelectedIcon: () {
           updateIsSelected(true);
-          _popoverController.show();
-          widget.onOpen?.call(_popoverController);
+          controller.show();
+          widget.onOpen?.call(controller);
         },
       ),
-      popupBuilder: (context) {
-        return Container(
-          padding: const EdgeInsets.all(6.0),
-          child: IconColorPicker(
-            onSelected: (color) => widget.onSelectedColor(context, color),
+      popover: (context) => AFMenu(
+        width: 240,
+        backgroundColor: Theme.of(context).cardColor,
+        children: [
+          Container(
+            color: Theme.of(context).cardColor,
+            child: IconColorPicker(
+              onSelected: (color) => widget.onSelectedColor(context, color),
+            ),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 

@@ -11,7 +11,6 @@ import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart'
     hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:bloc/bloc.dart';
 import 'package:flutter/foundation.dart';
 
@@ -43,7 +42,6 @@ class CommandPaletteBloc
   final TrashService _trashService = TrashService();
   final TrashListener _trashListener = TrashListener();
   String? _activeQuery;
-  AFRolePB? _myRole;
 
   @override
   Future<void> close() {
@@ -77,10 +75,10 @@ class CommandPaletteBloc
     /// Sometimes non-existent views appear in the search results
     /// and the icon data for the search results is empty
     /// Fetching all views can temporarily resolve these issues
-    final repeatedViewPB =
-        (await ViewBackendService.getAllViews()).toNullable();
-    if (repeatedViewPB == null || isClosed) return;
-    add(CommandPaletteEvent.updateCachedViews(views: repeatedViewPB.items));
+    final result = await ViewBackendService.getAllViewsWithPermissionCheck();
+    final views = result.toNullable()?.items ?? [];
+    if (views.isEmpty || isClosed) return;
+    add(CommandPaletteEvent.updateCachedViews(views: views));
   }
 
   FutureOr<void> _onRefreshCachedViews(
@@ -108,7 +106,6 @@ class CommandPaletteBloc
     _searchDebounce.call(
       () {
         if (!isClosed) {
-          _myRole = event.role;
           add(CommandPaletteEvent.performSearch(search: event.search));
         }
       },
@@ -228,7 +225,7 @@ class CommandPaletteBloc
   ) async {
     if (state.searchId != event.searchId) return;
 
-    final Map<String, SearchResultItem> combinedItems = {};
+    Map<String, SearchResultItem> combinedItems = {};
     for (final item in event.serverItems ?? state.serverResponseItems) {
       combinedItems[item.id] = SearchResultItem(
         id: item.id,
@@ -252,15 +249,7 @@ class CommandPaletteBloc
       );
     }
 
-    if (_myRole == AFRolePB.Guest) {
-      final result = await FolderEventGetFlattenSharedPages().send();
-      final flattenViewIds = result.fold(
-        (views) => views.items.map((e) => e.id).toList(),
-        (error) => [],
-      );
-      // remove the views that are not in the flattenViewIds
-      combinedItems.removeWhere((key, value) => !flattenViewIds.contains(key));
-    }
+    combinedItems = await _removeItemsWithoutPermission(combinedItems);
 
     emit(
       state.copyWith(
@@ -331,4 +320,30 @@ class CommandPaletteBloc
 
   bool _isActiveSearch(String searchId) =>
       !isClosed && state.searchId == searchId;
+
+  Future<Map<String, SearchResultItem>> _removeItemsWithoutPermission(
+    Map<String, SearchResultItem> combinedItems,
+  ) async {
+    final request = RepeatedViewIdPB(
+      items: combinedItems.keys.map((e) => e).toList(),
+    );
+    final batchPermissionResult =
+        await FolderEventBatchPermissionCheck(request).send();
+    final batchPermission = batchPermissionResult.fold(
+      (permission) => permission.results,
+      (error) => [],
+    );
+    final removedItems = <String>[];
+    for (var i = 0; i < combinedItems.length; i++) {
+      final combinedItem = combinedItems.values.elementAt(i);
+      final hasPermission =
+          i < batchPermission.length && batchPermission[i] == true;
+      if (!hasPermission) {
+        removedItems.add(combinedItem.id);
+      }
+    }
+
+    return combinedItems
+      ..removeWhere((key, value) => removedItems.contains(key));
+  }
 }

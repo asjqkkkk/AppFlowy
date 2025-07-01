@@ -106,7 +106,7 @@ class _SharedPageActionsButtonState extends State<SharedPageActionsButton> {
               constraints: BoxConstraints.loose(const Size(364, 356)),
               decoration: BoxDecoration(
                 color: Theme.of(context).cardColor,
-                borderRadius: BorderRadius.circular(24),
+                borderRadius: BorderRadius.circular(12),
               ),
               child: FlowyIconEmojiPicker(
                 tabs: const [
@@ -130,9 +130,6 @@ class _SharedPageActionsButtonState extends State<SharedPageActionsButton> {
                 size: const Size.square(16),
               ),
               title: actionType.name,
-              titleColor: actionType == ViewMoreActionType.delete
-                  ? Theme.of(context).colorScheme.error
-                  : null,
               trailing: (context, isHovering, disabled) => actionType.rightIcon,
               onTap: () {
                 changeIconController.show();

@@ -299,6 +299,12 @@ pub struct RepeatedViewIdPB {
 }
 
 #[derive(Default, ProtoBuf)]
+pub struct RepeatedAccessLevelPB {
+  #[pb(index = 1)]
+  pub results: Vec<bool>,
+}
+
+#[derive(Default, ProtoBuf)]
 pub struct CreateViewPayloadPB {
   #[pb(index = 1)]
   pub parent_view_id: String,

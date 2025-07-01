@@ -160,8 +160,8 @@ class _ShareMenuState extends State<ShareMenu>
             workspaceIcon: workspace?.icon ?? '',
             isInProPlan: isInProPlan,
             showDialogCallback: widget.showDialogCallback,
-            onUpgradeToPro: () async {
-              await _showUpgradeToProDialog(context);
+            onUpgradeToPro: (from) async {
+              await _showUpgradeToProDialog(context, from: from);
             },
           );
         }
@@ -170,7 +170,10 @@ class _ShareMenuState extends State<ShareMenu>
     }
   }
 
-  Future<void> _showUpgradeToProDialog(BuildContext context) async {
+  Future<void> _showUpgradeToProDialog(
+    BuildContext context, {
+    required share_section.ShareTabUpgradeToProFrom from,
+  }) async {
     final state = context.read<UserWorkspaceBloc>().state;
     final workspace = state.currentWorkspace;
     if (workspace == null) {
@@ -215,6 +218,12 @@ class _ShareMenuState extends State<ShareMenu>
     widget.showDialogCallback(true);
 
     if (role == AFRolePB.Owner) {
+      // if user click the upgrade button in the banner, we redirect to the payment page directly
+      if (from == share_section.ShareTabUpgradeToProFrom.banner) {
+        await _redirectToPaymentPage(context);
+        return;
+      }
+
       bool isConfirmed = false;
       await showConfirmDialog(
         context: context,
@@ -235,6 +244,7 @@ class _ShareMenuState extends State<ShareMenu>
 
       // Keep this logic here, we may reuse it in the future.
       // Now, we redirect to the payment page.
+
       // await showDialog(
       //   context: context,
       //   builder: (_) => BlocProvider<SettingsPlanBloc>(
@@ -248,6 +258,7 @@ class _ShareMenuState extends State<ShareMenu>
       //     ),
       //   ),
       // );
+
       await _redirectToPaymentPage(context);
     } else {
       await showConfirmDialog(

@@ -1,3 +1,4 @@
+import 'package:appflowy/features/shared_section/logic/shared_section_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/widgets/show_flowy_mobile_confirm_dialog.dart';
@@ -56,6 +57,17 @@ class _MobileViewItemBottomSheetState extends State<MobileViewItemBottomSheet> {
           isFavorite: widget.view.isFavorite,
           onAction: (action) {
             switch (action) {
+              case MobileViewItemBottomSheetBodyAction.removeFromShared:
+                final sharedSectionBloc = context.read<SharedSectionBloc?>();
+                if (sharedSectionBloc != null) {
+                  sharedSectionBloc.add(
+                    SharedSectionEvent.leaveSharedPage(
+                      pageId: widget.view.id,
+                    ),
+                  );
+                }
+                Navigator.pop(context);
+                break;
               case MobileViewItemBottomSheetBodyAction.rename:
                 setState(() {
                   type = MobileBottomSheetType.rename;
