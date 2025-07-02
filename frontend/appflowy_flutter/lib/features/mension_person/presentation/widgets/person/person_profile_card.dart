@@ -263,8 +263,6 @@ extension PersonProfileCardWidgetExtension on BuildContext {
                   ? theme.textColorScheme.tertiary
                   : theme.textColorScheme.primary,
             ),
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
           ),
         ),
       ),

@@ -96,7 +96,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
               ),
               enable: UniversalPlatform.isDesktop,
               menuConstraints: BoxConstraints(
-                maxHeight: 372,
+                maxHeight: 420,
                 maxWidth: 280,
                 minWidth: 280,
               ),

@@ -156,7 +156,7 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
       height: 68,
       child: menuState.buildDescriptionField(
         onChanged: (text) {
-          final detail = menuState.detail.copyWith(description: text);
+          final detail = menuState.detail.copyWith(description: text.trim());
           updateInfo(info.copyWith(contactDetail: () => detail));
         },
       ),
