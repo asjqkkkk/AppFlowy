@@ -2924,16 +2924,15 @@ impl FolderManager {
   pub async fn get_all_view_pbs_with_permission(&self) -> FlowyResult<Vec<ViewPB>> {
     let views = self.get_all_views_pb().await?;
     let shared_views = self.get_flatten_shared_pages().await?;
-    let mut views_with_permission = Vec::new();
-    for view in views {
-      if self
-        .check_user_permission(&view.id, AFAccessLevelPB::ReadOnly)
-        .await
-        .is_ok()
-      {
-        views_with_permission.push(view);
-      }
-    }
+
+    let view_ids: Vec<String> = views.iter().map(|view| view.id.clone()).collect();
+    let permission_results = self.batch_permission_check(&view_ids).await?;
+    let views_with_permission: Vec<ViewPB> = views
+      .into_iter()
+      .zip(permission_results.into_iter())
+      .filter_map(|(view, has_permission)| if has_permission { Some(view) } else { None })
+      .collect();
+
     let combined_views = [views_with_permission, shared_views].concat();
     Ok(combined_views)
   }
