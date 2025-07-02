@@ -282,17 +282,21 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     final hasAccess = personState.access,
         isContact = person.role == PersonRole.contact;
     if (isContact) {
-      return AFOutlinedButton.normal(
-        padding:
-            EdgeInsets.all(UniversalPlatform.isMobile ? 10 : theme.spacing.s),
-        builder: (context, hovering, disabled) {
-          return FlowySvg(
-            FlowySvgs.mention_send_email_m,
-            size: Size.square(20),
-            color: theme.iconColorScheme.primary,
-          );
-        },
-        onTap: () => afLaunchUrlString('mailto:${person.email}'),
+      return FlowyTooltip(
+        message: LocaleKeys.document_mentionMenu_emailButtonTooltip.tr(),
+        preferBelow: false,
+        child: AFOutlinedButton.normal(
+          padding:
+              EdgeInsets.all(UniversalPlatform.isMobile ? 10 : theme.spacing.s),
+          builder: (context, hovering, disabled) {
+            return FlowySvg(
+              FlowySvgs.mention_send_email_m,
+              size: Size.square(20),
+              color: theme.iconColorScheme.primary,
+            );
+          },
+          onTap: () => afLaunchUrlString('mailto:${person.email}'),
+        ),
       );
     }
     if (!hasAccess) {

@@ -2276,7 +2276,8 @@
       "notificationButtonTooltip": "Notify them about this mention",
       "inviteButtonTooltip": "Grant view access and notify them about this mention",
       "noAccessTooltip": "The user has no access to read this document.",
-      "threeDotButtonTooltip": "Share and more actions"
+      "threeDotButtonTooltip": "Share and more actions",
+      "emailButtonTooltip": "Email this contact"
     },
     "toolbar": {
       "resetToDefaultFont": "Reset to default",
