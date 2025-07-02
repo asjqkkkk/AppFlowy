@@ -10,7 +10,6 @@ import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/data/models/mention_menu_item.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -18,6 +17,7 @@ import 'package:universal_platform/universal_platform.dart';
 import '../invite/person_list_invite_item.dart';
 import '../item_visibility_detector.dart';
 import '../more_results_item.dart';
+import 'person_send_notification_toggle.dart';
 import 'person_tooltip.dart';
 
 class PersonList extends StatelessWidget {
@@ -76,7 +76,7 @@ class PersonList extends StatelessWidget {
           padding: EdgeInsets.all(spacing.m),
           child: AFMenuSection(
             title: LocaleKeys.document_mentionMenu_people.tr(),
-            titleTrailing: sendNotificationSwitch(context),
+            titleTrailing: SendNotificationToggle(),
             children: [
               ...List.generate(displayPersons.length, (index) {
                 final person = displayPersons[index];
@@ -109,33 +109,6 @@ class PersonList extends StatelessWidget {
           ),
         ),
         AFDivider(),
-      ],
-    );
-  }
-
-  Widget sendNotificationSwitch(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
-    final bloc = context.read<MentionBloc>(), state = bloc.state;
-
-    return Row(
-      children: [
-        Text(
-          LocaleKeys.document_mentionMenu_sendNotification.tr(),
-          style: theme.textStyle.caption
-              .standard(color: theme.textColorScheme.secondary)
-              .copyWith(letterSpacing: 0.1),
-        ),
-        SizedBox(width: 4),
-        Toggle(
-          value: state.sendNotification,
-          style: ToggleStyle(width: 34, height: 18, thumbRadius: 17),
-          padding: EdgeInsets.zero,
-          duration: Duration.zero,
-          inactiveBackgroundColor: theme.fillColorScheme.secondary,
-          onChanged: (v) {
-            bloc.add(MentionEvent.toggleSendNotification());
-          },
-        ),
       ],
     );
   }

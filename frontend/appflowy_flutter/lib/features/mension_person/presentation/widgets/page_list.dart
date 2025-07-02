@@ -92,6 +92,10 @@ class PageList extends StatelessWidget {
             );
           }
 
+          if (displayedViews.isEmpty && query.isEmpty) {
+            return const SizedBox.shrink();
+          }
+
           return Padding(
             padding: EdgeInsets.all(theme.spacing.m),
             child: AFMenuSection(
