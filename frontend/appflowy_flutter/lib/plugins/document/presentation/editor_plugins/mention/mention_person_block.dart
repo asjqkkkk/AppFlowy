@@ -15,6 +15,7 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
@@ -159,6 +160,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         ? GestureDetector(
             behavior: HitTestBehavior.opaque,
             onTap: () {
+              /// hide the keyboard if [MobilePersonProfileCard] is open
+              SystemChannels.textInput.invokeMethod('TextInput.hide');
               showMobileBottomSheet(
                 context,
                 dragHandleBuilder: (_) => const DragHandleV2(),
