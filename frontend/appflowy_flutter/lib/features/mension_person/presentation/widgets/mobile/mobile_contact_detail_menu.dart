@@ -92,6 +92,7 @@ class _MobileContactDetailMenuState extends State<MobileContactDetailMenu> {
               buildSubtitle(LocaleKeys.document_mentionMenu_email.tr()),
               VSpace(spacing.xs),
               buildEmailField(),
+              VSpace(spacing.xl),
               buildSubtitle(LocaleKeys.document_mentionMenu_name.tr()),
               VSpace(spacing.m),
               buildNameField(),
@@ -149,6 +150,7 @@ class _MobileContactDetailMenuState extends State<MobileContactDetailMenu> {
       width: MediaQuery.of(context).size.width,
       child: menuState.buildEmailField(
         onChanged: (text) => updateInfo(info.copyWith(email: text)),
+        size: AFTextFieldSize.l,
       ),
     );
   }
@@ -161,6 +163,7 @@ class _MobileContactDetailMenuState extends State<MobileContactDetailMenu> {
           final detail = menuState.detail.copyWith(name: text);
           updateInfo(info.copyWith(contactDetail: () => detail));
         },
+        size: AFTextFieldSize.l,
       ),
     );
   }

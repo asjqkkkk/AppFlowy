@@ -238,22 +238,28 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
 }
 
 extension ContactDetailMenuStateWidgetExtension on ContactDetailMenuState {
-  Widget buildEmailField({ValueChanged<String>? onChanged}) {
+  Widget buildEmailField({
+    ValueChanged<String>? onChanged,
+    AFTextFieldSize size = AFTextFieldSize.m,
+  }) {
     return AFTextField(
       key: emailKey,
       hintText: LocaleKeys.document_mentionMenu_emailInputHint.tr(),
-      size: AFTextFieldSize.m,
+      size: size,
       focusNode: emailFocusNode,
       controller: emailController,
       onChanged: onChanged,
     );
   }
 
-  Widget buildNameField({ValueChanged<String>? onChanged}) {
+  Widget buildNameField({
+    ValueChanged<String>? onChanged,
+    AFTextFieldSize size = AFTextFieldSize.m,
+  }) {
     return AFTextField(
       key: nameKey,
       hintText: LocaleKeys.document_mentionMenu_contactInputHint.tr(),
-      size: AFTextFieldSize.m,
+      size: size,
       focusNode: nameFocusNode,
       controller: nameController,
       onChanged: onChanged,
