@@ -60,7 +60,6 @@ class SettingsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.6;
     final theme = AppFlowyTheme.of(context);
     final currentWorkspaceMemberRole =
         context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;
@@ -79,51 +78,57 @@ class SettingsDialog extends StatelessWidget {
 
           return true;
         },
-        builder: (context, state) => FlowyDialog(
-          width: width,
-          constraints: const BoxConstraints(minWidth: 564),
-          child: ScaffoldMessenger(
-            child: Scaffold(
-              backgroundColor: theme.backgroundColorScheme.primary,
-              body: BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
-                builder: (context, userWorkspaceState) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 204,
-                        child: SettingsMenu(
-                          userProfile: user,
-                          changeSelectedPage: (index) => context
-                              .read<SettingsDialogBloc>()
-                              .add(SettingsDialogEvent.setSelectedPage(index)),
-                          currentPage:
-                              context.read<SettingsDialogBloc>().state.page,
-                          currentUserRole: currentWorkspaceMemberRole,
-                          workspaceType: userWorkspaceState
-                              .currentWorkspace?.workspaceType,
-                          isBillingEnabled: state.isBillingEnabled,
+        builder: (context, state) {
+          return AFModal(
+            constraints: BoxConstraints(
+              maxWidth: 900,
+              maxHeight: 640,
+            ),
+            child: ScaffoldMessenger(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                body: BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+                  builder: (context, userWorkspaceState) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 204,
+                          child: SettingsMenu(
+                            userProfile: user,
+                            changeSelectedPage: (index) => context
+                                .read<SettingsDialogBloc>()
+                                .add(
+                                  SettingsDialogEvent.setSelectedPage(index),
+                                ),
+                            currentPage:
+                                context.read<SettingsDialogBloc>().state.page,
+                            currentUserRole: currentWorkspaceMemberRole,
+                            workspaceType: userWorkspaceState
+                                .currentWorkspace?.workspaceType,
+                            isBillingEnabled: state.isBillingEnabled,
+                          ),
                         ),
-                      ),
-                      AFDivider(
-                        axis: Axis.vertical,
-                        color: theme.borderColorScheme.primary,
-                      ),
-                      Expanded(
-                        child: getSettingsView(
-                          userWorkspaceState.currentWorkspace!,
-                          context.read<SettingsDialogBloc>().state.page,
-                          state.userProfile,
-                          userWorkspaceState.currentWorkspace?.role,
+                        AFDivider(
+                          axis: Axis.vertical,
+                          color: theme.borderColorScheme.primary,
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        Expanded(
+                          child: getSettingsView(
+                            userWorkspaceState.currentWorkspace!,
+                            context.read<SettingsDialogBloc>().state.page,
+                            state.userProfile,
+                            userWorkspaceState.currentWorkspace?.role,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

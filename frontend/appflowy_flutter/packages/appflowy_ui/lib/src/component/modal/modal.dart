@@ -21,7 +21,7 @@ class AFModal extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(theme.spacing.xl),
+        padding: const EdgeInsets.all(60),
         child: ConstrainedBox(
           constraints: constraints,
           child: DecoratedBox(

@@ -205,7 +205,7 @@ class AIModelStateNotifier {
       type: AiType.local,
       hintText: hintKey.tr(),
       tooltip: tooltipKey?.tr(),
-      isEditable: running,
+      isEditable: enabled && running,
       localAIEnabled: enabled,
     );
   }

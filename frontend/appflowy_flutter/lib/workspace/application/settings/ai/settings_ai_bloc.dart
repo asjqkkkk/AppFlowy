@@ -69,6 +69,7 @@ class SettingsAIBloc extends Bloc<SettingsAIEvent, SettingsAIState> {
     );
     _loadModelList();
     _loadUserWorkspaceSetting();
+    _getLocalAiState();
   }
 
   void _onToggleAISearch(
@@ -175,6 +176,17 @@ class SettingsAIBloc extends Bloc<SettingsAIEvent, SettingsAIState> {
         Log.error(err);
       });
     });
+  }
+
+  void _getLocalAiState() {
+    AIEventGetLocalAIState().send().fold(
+      (aiState) {
+        if (!isClosed) {
+          add(SettingsAIEvent.didReceiveAiState(aiState));
+        }
+      },
+      Log.error,
+    );
   }
 }
 
