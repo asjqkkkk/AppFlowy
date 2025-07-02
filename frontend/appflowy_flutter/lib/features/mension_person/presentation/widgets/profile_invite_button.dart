@@ -16,34 +16,18 @@ class ProfileInviteButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    final theme = AppFlowyTheme.of(context);
     return FlowyTooltip(
       preferBelow: false,
       message: LocaleKeys.document_mentionMenu_inviteButtonTooltip.tr(),
       child: AFOutlinedButton.normal(
         onTap: onTap,
-        padding: EdgeInsets.zero,
-        builder: (context, isHovering, disabled) => Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: spacing.l,
-            vertical: UniversalPlatform.isMobile ? 10 : spacing.s,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              FlowySvg(
-                FlowySvgs.mention_invite_user_m,
-                size: Size.square(20),
-                color: theme.iconColorScheme.primary,
-              ),
-              HSpace(spacing.s),
-              Text(
-                LocaleKeys.document_mentionMenu_invite.tr(),
-                style: theme.textStyle.body
-                    .enhanced(color: theme.textColorScheme.primary),
-              ),
-            ],
-          ),
+        padding:
+            EdgeInsets.all(UniversalPlatform.isMobile ? 10 : theme.spacing.s),
+        builder: (context, isHovering, disabled) => FlowySvg(
+          FlowySvgs.mention_invite_user_m,
+          size: Size.square(20),
+          color: theme.iconColorScheme.primary,
         ),
       ),
     );

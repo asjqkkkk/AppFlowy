@@ -260,20 +260,11 @@ extension PersonProfileCardWidgetExtension on BuildContext {
   Widget? buildSuffixIcon() {
     final personState = read<PersonBloc>().state,
         person = personState.person,
-        access = personState.access,
         theme = AppFlowyTheme.of(this);
     if (person.isEmpty) return null;
     if (person.role == PersonRole.contact) {
       return FlowySvg(
         FlowySvgs.contact_suffix_icon_m,
-        color: theme.iconColorScheme.tertiary,
-        blendMode: null,
-        size: Size.square(20),
-      );
-    }
-    if (!access && !person.deleted) {
-      return FlowySvg(
-        FlowySvgs.no_access_suffix_icon_m,
         color: theme.iconColorScheme.tertiary,
         blendMode: null,
         size: Size.square(20),
@@ -368,6 +359,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
                   child: FlowySvg(
                     FlowySvgs.profile_card_avatar_no_access_m,
                     size: Size.square(20),
+                    color: theme.iconColorScheme.onFill,
                   ),
                 ),
               ),
