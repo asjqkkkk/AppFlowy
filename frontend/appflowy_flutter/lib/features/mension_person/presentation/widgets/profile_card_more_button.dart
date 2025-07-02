@@ -51,24 +51,28 @@ class ProfileCardMoreButton extends StatelessWidget {
           ),
         ),
       ),
-      child: AFOutlinedButton.normal(
-        backgroundColor: (context, isHovering, disabled) {
-          final theme = AppFlowyTheme.of(context);
-          if (isHovering) {
-            return theme.fillColorScheme.contentHover;
-          }
-          return theme.fillColorScheme.content;
-        },
-        padding:
-            EdgeInsets.all(UniversalPlatform.isMobile ? 10 : theme.spacing.s),
-        builder: (context, hovering, disabled) {
-          return FlowySvg(
-            FlowySvgs.mention_more_results_m,
-            size: Size.square(20),
-            color: theme.iconColorScheme.primary,
-          );
-        },
-        onTap: show,
+      child: FlowyTooltip(
+        preferBelow: false,
+        message: LocaleKeys.document_mentionMenu_threeDotButtonTooltip.tr(),
+        child: AFOutlinedButton.normal(
+          backgroundColor: (context, isHovering, disabled) {
+            final theme = AppFlowyTheme.of(context);
+            if (isHovering) {
+              return theme.fillColorScheme.contentHover;
+            }
+            return theme.fillColorScheme.content;
+          },
+          padding:
+              EdgeInsets.all(UniversalPlatform.isMobile ? 10 : theme.spacing.s),
+          builder: (context, hovering, disabled) {
+            return FlowySvg(
+              FlowySvgs.mention_more_results_m,
+              size: Size.square(20),
+              color: theme.iconColorScheme.primary,
+            );
+          },
+          onTap: show,
+        ),
       ),
     );
   }
