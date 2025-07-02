@@ -126,23 +126,23 @@ class _Menu extends StatelessWidget {
     final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
     final isMyself = userProfile?.email == person.email;
     return [
-      AFMenuItem(
+      context._buildItem(
         title:
             context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
         onTap: () {},
       ),
-      AFMenuItem(
+      context._buildItem(
         title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
         onTap: () {},
       ),
       if (isMyself)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_editInfomation.tr()),
           onTap: () {},
         ),
       if (isMyself)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
           onTap: () {},
@@ -154,28 +154,28 @@ class _Menu extends StatelessWidget {
     final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
     final isMyself = userProfile?.email == person.email;
     return [
-      AFMenuItem(
+      context._buildItem(
         title:
             context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
         onTap: () {},
       ),
-      AFMenuItem(
+      context._buildItem(
         title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
         onTap: () {},
       ),
-      AFMenuItem(
+      context._buildItem(
         title: context
             ._title(LocaleKeys.document_mentionMenu_convertToAMenber.tr()),
         onTap: () {},
       ),
       if (isMyself)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_editInfomation.tr()),
           onTap: () {},
         ),
       if (isMyself)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
           onTap: () {},
@@ -186,30 +186,30 @@ class _Menu extends StatelessWidget {
   List<Widget> buildContactItems(Person person, BuildContext context) {
     final invited = person.invited == true;
     return [
-      AFMenuItem(
+      context._buildItem(
         title:
             context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
         onTap: () {},
       ),
       if (!invited)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_inviteAsMember.tr()),
           onTap: () {},
         ),
       if (!invited)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_inviteAsGuest.tr()),
           onTap: () {},
         ),
-      AFMenuItem(
+      context._buildItem(
         title: context
             ._title(LocaleKeys.document_mentionMenu_editContactInfomation.tr()),
         onTap: () {},
       ),
       if (invited)
-        AFMenuItem(
+        context._buildItem(
           title: context
               ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
           onTap: () {},
@@ -226,6 +226,20 @@ extension ProfileCardMenuContextExtension on BuildContext {
       style: theme.textStyle.body.standard(
         color: theme.textColorScheme.primary,
       ),
+    );
+  }
+
+  Widget _buildItem({required Widget title, required VoidCallback onTap}) {
+    final theme = AppFlowyTheme.of(this), spacing = theme.spacing;
+    return AFMenuItem(
+      title: title,
+      onTap: onTap,
+      padding: UniversalPlatform.isMobile
+          ? EdgeInsets.symmetric(
+              vertical: 10,
+              horizontal: spacing.m,
+            )
+          : EdgeInsets.all(spacing.m),
     );
   }
 }

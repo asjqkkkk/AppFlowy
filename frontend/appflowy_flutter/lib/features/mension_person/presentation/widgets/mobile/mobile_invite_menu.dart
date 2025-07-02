@@ -8,6 +8,7 @@ import 'package:appflowy/features/mension_person/presentation/widgets/invite/per
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -130,25 +131,12 @@ class _MobileInviteMenuState extends State<MobileInviteMenu> {
       showRemoveButton: false,
       title: LocaleKeys.document_mentionMenu_invitePerson.tr(),
       doneButtonBuilder: (context) {
-        final theme = AppFlowyTheme.of(context);
         final isContact = info.role == PersonRole.contact;
-
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onApply,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: theme.spacing.xl,
-              vertical: theme.spacing.xs,
-            ),
-            child: Text(
-              isContact
-                  ? LocaleKeys.button_add.tr()
-                  : LocaleKeys.document_mentionMenu_invite.tr(),
-              style: theme.textStyle.body
-                  .standard(color: theme.textColorScheme.action),
-            ),
-          ),
+        return BottomSheetDoneButton(
+          text: isContact
+              ? LocaleKeys.button_add.tr()
+              : LocaleKeys.document_mentionMenu_invite.tr(),
+          onDone: onApply,
         );
       },
     );

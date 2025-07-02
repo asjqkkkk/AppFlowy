@@ -2,6 +2,7 @@ import 'package:appflowy/features/mension_person/data/models/invite.dart';
 import 'package:appflowy/features/mension_person/presentation/menu_extension.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/invite/contact_detail_menu.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -116,21 +117,9 @@ class _MobileContactDetailMenuState extends State<MobileContactDetailMenu> {
       showRemoveButton: false,
       title: LocaleKeys.document_mentionMenu_contactDetail.tr(),
       doneButtonBuilder: (context) {
-        final theme = AppFlowyTheme.of(context);
-        return GestureDetector(
-          behavior: HitTestBehavior.opaque,
-          onTap: onApply,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: theme.spacing.xl,
-              vertical: theme.spacing.xs,
-            ),
-            child: Text(
-              LocaleKeys.button_add.tr(),
-              style: theme.textStyle.body
-                  .standard(color: theme.textColorScheme.action),
-            ),
-          ),
+        return BottomSheetDoneButton(
+          text: LocaleKeys.button_add.tr(),
+          onDone: onApply,
         );
       },
     );
