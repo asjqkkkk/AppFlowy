@@ -141,7 +141,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         ) ??
         theme.textStyle.body.standard(color: color);
     final richText = Padding(
-      padding: EdgeInsets.symmetric(horizontal: theme.spacing.xs),
+      padding: EdgeInsets.only(right: theme.spacing.xs),
       child: RichText(
         text: TextSpan(
           children: [
