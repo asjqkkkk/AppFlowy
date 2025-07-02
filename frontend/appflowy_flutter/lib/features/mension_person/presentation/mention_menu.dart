@@ -40,39 +40,44 @@ class MentionMenu extends StatelessWidget {
     final workspaceId =
         context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceId ??
             '';
-    return BlocProvider(
-      create: (_) => MentionBloc(
-        repository: MockMentionRepository(),
-        workspaceId: workspaceId,
-        query: query,
-        sendNotification: sendNotification,
-        personListCache: getIt<PersonListCache>(),
-      )..add(MentionEvent.init()),
-      child: BlocBuilder<MentionBloc, MentionState>(
-        builder: (context, state) {
-          final itemMap = MentionItemMap();
-          final child = Provider<MentionItemMap>.value(
-            value: itemMap,
-            child: MentionMenuScroller(
-              builder: (_, controller) {
-                return BlocListener<MentionBloc, MentionState>(
-                  listener: (context, state) {
-                    if (!controller.hasClients || !context.mounted) return;
-                    controller.jumpTo(0);
-                  },
-                  listenWhen: (previous, current) =>
-                      previous.query != current.query,
-                  child: MentionMenuShortcuts(
-                    scrollController: controller,
-                    itemMap: itemMap,
-                    child: buildMenu(context, controller),
-                  ),
-                );
-              },
-            ),
-          );
-          return builder?.call(context, child) ?? child;
-        },
+    return GestureDetector(
+      /// avoid the menu being dismissed when tapping inside it
+      onTap: () {},
+      behavior: HitTestBehavior.opaque,
+      child: BlocProvider(
+        create: (_) => MentionBloc(
+          repository: MockMentionRepository(),
+          workspaceId: workspaceId,
+          query: query,
+          sendNotification: sendNotification,
+          personListCache: getIt<PersonListCache>(),
+        )..add(MentionEvent.init()),
+        child: BlocBuilder<MentionBloc, MentionState>(
+          builder: (context, state) {
+            final itemMap = MentionItemMap();
+            final child = Provider<MentionItemMap>.value(
+              value: itemMap,
+              child: MentionMenuScroller(
+                builder: (_, controller) {
+                  return BlocListener<MentionBloc, MentionState>(
+                    listener: (context, state) {
+                      if (!controller.hasClients || !context.mounted) return;
+                      controller.jumpTo(0);
+                    },
+                    listenWhen: (previous, current) =>
+                        previous.query != current.query,
+                    child: MentionMenuShortcuts(
+                      scrollController: controller,
+                      itemMap: itemMap,
+                      child: buildMenu(context, controller),
+                    ),
+                  );
+                },
+              ),
+            );
+            return builder?.call(context, child) ?? child;
+          },
+        ),
       ),
     );
   }
