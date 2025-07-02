@@ -35,15 +35,9 @@ class PersonListInviteItem extends StatelessWidget {
       id: id,
       child: AFTextMenuItem(
         selected: state.selectedId == id,
-        leading: SizedBox(
-          width: 24,
-          height: 20,
-          child: Center(
-            child: FlowySvg(
-              FlowySvgs.mention_invite_user_m,
-              size: const Size.square(20.0),
-            ),
-          ),
+        leading: FlowySvg(
+          FlowySvgs.mention_menu_invite_icon_m,
+          size: const Size(24, 20),
         ),
         title: LocaleKeys.document_mentionMenu_add.tr(args: [displayQuery]),
         backgroundColor: context.mentionItemBGColor,
