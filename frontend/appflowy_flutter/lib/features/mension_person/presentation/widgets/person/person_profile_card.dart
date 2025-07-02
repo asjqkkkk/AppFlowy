@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
@@ -44,13 +46,25 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 
   @override
   Widget build(BuildContext context) {
-    final mouseRegionPlaceHolder = MouseRegion(
-      cursor: SystemMouseCursors.click,
-      child: Container(
-        width: widget.triggerSize.width,
-        height: widget.triggerSize.height,
-        color: Colors.black.withAlpha(1),
-      ),
+    final mouseRegionPlaceHolder = Row(
+      children: [
+        MouseRegion(
+          cursor: SystemMouseCursors.click,
+          child: Container(
+            width: widget.triggerSize.width,
+            height: widget.triggerSize.height,
+            color: Colors.black.withAlpha(1),
+          ),
+        ),
+        MouseRegion(
+          onEnter: (e) => widget.onExit?.call(PointerExitEvent()),
+          child: Container(
+            width: max(0, 280 - widget.triggerSize.width),
+            height: widget.triggerSize.height,
+            color: Colors.black.withAlpha(1),
+          ),
+        ),
+      ],
     );
     return GestureDetector(
       onTap: hidePopover,
