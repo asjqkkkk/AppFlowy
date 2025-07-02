@@ -43,6 +43,7 @@ class MobileMentionMenuService extends MentionMenuService {
       editorState.service.keyboardService?.enable();
       editorState.service.scrollService?.enable();
       keepEditorFocusNotifier.decrease();
+      super.dismiss();
     }
 
     _menuEntry?.remove();
@@ -51,6 +52,7 @@ class MobileMentionMenuService extends MentionMenuService {
 
   @override
   Future<void> show() async {
+    await super.show();
     final completer = Completer<void>();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       final screenSize = MediaQuery.of(context).size;

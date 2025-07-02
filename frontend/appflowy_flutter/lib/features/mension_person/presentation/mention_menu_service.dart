@@ -17,6 +17,20 @@ import 'mention_menu.dart';
 
 abstract class MentionMenuService implements InlineActionsMenuService {
   MultiBlocProvider buildMultiBlocProvider(WidgetBuilder builder);
+
+  bool _isShowing = false;
+
+  bool get isShowing => _isShowing;
+
+  @override
+  Future<void> show() async {
+    _isShowing = true;
+  }
+
+  @override
+  void dismiss() {
+    _isShowing = false;
+  }
 }
 
 class DesktopMentionMenuService extends MentionMenuService {
@@ -44,6 +58,7 @@ class DesktopMentionMenuService extends MentionMenuService {
       editorState.service.keyboardService?.enable();
       editorState.service.scrollService?.enable();
       keepEditorFocusNotifier.decrease();
+      super.dismiss();
     }
 
     _menuEntry?.remove();
@@ -52,6 +67,7 @@ class DesktopMentionMenuService extends MentionMenuService {
 
   @override
   Future<void> show() async {
+    await super.show();
     final completer = Completer<void>();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
       final sendNotification = await getIt<KeyValueStorage>()

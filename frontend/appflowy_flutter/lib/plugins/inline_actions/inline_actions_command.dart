@@ -55,6 +55,12 @@ Future<bool> inlineActionsCommandHandler(
       documentBloc != null &&
       reminderBloc != null) {
     keepEditorFocusNotifier.increase();
+    final service = selectionMenuService;
+
+    /// If the service is already showing, we don't need to create a new one.
+    if (service is MentionMenuService && service.isShowing) {
+      return true;
+    }
     selectionMenuService?.dismiss();
     selectionMenuService = UniversalPlatform.isMobile
         ? MobileMentionMenuService(
