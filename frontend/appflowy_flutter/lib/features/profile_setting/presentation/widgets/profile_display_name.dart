@@ -46,17 +46,42 @@ class _ProfileDisplayNameState extends State<ProfileDisplayName> {
           overflow: TextOverflow.ellipsis,
         ),
         VSpace(spacing.xs),
-        SizedBox(
-          width: 300,
-          child: AFTextField(
-            size: AFTextFieldSize.m,
-            controller: controller,
-            onChanged: (v) {
-              if (v.trim().isNotEmpty) {
-                bloc.add(ProfileSettingUpdateNameEvent(v.trim()));
-              }
-            },
-          ),
+        Row(
+          children: [
+            Flexible(
+              child: SizedBox(
+                width: 300,
+                child: AFTextField(
+                  size: AFTextFieldSize.m,
+                  controller: controller,
+                  counterText: '',
+                  maxLength: 72,
+                  onChanged: (v) {
+                    if (v.trim().isNotEmpty) {
+                      bloc.add(ProfileSettingUpdateNameEvent(v.trim()));
+                    }
+                  },
+                ),
+              ),
+            ),
+            ValueListenableBuilder(
+              valueListenable: controller,
+              builder: (_, __, ___) {
+                final text = controller.text.trim();
+                if (text.length < 72) return const SizedBox.shrink();
+                return Padding(
+                  padding: EdgeInsets.only(left: spacing.m),
+                  child: Text(
+                    '72 / 72',
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: theme.textStyle.body
+                        .standard(color: theme.textColorScheme.tertiary),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ],
     );

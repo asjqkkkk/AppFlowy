@@ -37,6 +37,7 @@ class AFTextField extends StatefulWidget {
     this.textAlignVertical,
     this.readOnly = false,
     this.maxLines = 1,
+    this.counterText,
     this.inputFormatters,
   });
 
@@ -99,6 +100,9 @@ class AFTextField extends StatefulWidget {
 
   /// The maximum length of the text field.
   final int? maxLength;
+
+  /// The counter text to display below the text field.
+  final String? counterText;
 
   /// The input formatters to apply to the text field.
   final List<TextInputFormatter>? inputFormatters;
@@ -215,7 +219,7 @@ class _AFTextFieldState extends AFTextFieldState {
         hintStyle: theme.textStyle.body.standard(
           color: theme.textColorScheme.tertiary,
         ),
-        counterText: '',
+        counterText: widget.counterText,
         isDense: true,
         constraints: BoxConstraints(),
         contentPadding: contentPadding,

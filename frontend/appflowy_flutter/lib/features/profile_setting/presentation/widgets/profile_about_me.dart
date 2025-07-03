@@ -52,6 +52,7 @@ class _ProfileAboutMeState extends State<ProfileAboutMe> {
             maxLines: null,
             expands: true,
             maxLength: 190,
+            counterText: '',
             textAlignVertical: TextAlignVertical.top,
             keyboardType: TextInputType.multiline,
             onChanged: (v) {
