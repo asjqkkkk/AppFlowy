@@ -29,7 +29,14 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<ProfileSettingBloc>(),
+        profile = bloc.state.profile,
         isLocal = bloc.userProfile.workspaceType == WorkspaceTypePB.LocalW;
+    final isNetworkImageAvatar =
+        profile.avatarUrl.isNotEmpty && profile.avatarUrl.startsWith('http');
+    PickerTabType initialType = PickerTabType.emoji;
+    if (!isLocal && isNetworkImageAvatar) {
+      initialType = PickerTabType.custom;
+    }
 
     return AppFlowyPopover(
       direction: PopoverDirection.bottomWithCenterAligned,
@@ -40,7 +47,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
       child: buildUploadButton(),
       popupBuilder: (BuildContext popoverContext) {
         return FlowyIconEmojiPicker(
-          initialType: isLocal ? PickerTabType.emoji : PickerTabType.custom,
+          initialType: initialType,
           tabs: [
             if (!isLocal) PickerTabType.custom,
             PickerTabType.emoji,
