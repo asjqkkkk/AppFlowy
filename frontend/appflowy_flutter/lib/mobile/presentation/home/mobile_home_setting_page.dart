@@ -1,5 +1,8 @@
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/env/env.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
+import 'package:appflowy/features/profile_setting/presentation/widgets/mobile/mobile_account_profile.dart';
 import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -15,6 +18,7 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -84,11 +88,15 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
       child: BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
         builder: (context, state) {
           final currentWorkspaceId = state.currentWorkspace?.workspaceId ?? '';
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
+          return BlocProvider(
+            create: (context) => ProfileSettingBloc(
+              userProfile: userProfile,
+              workspace: state.currentWorkspace,
+            )..add(ProfileSettingEvent.initial()),
+            child: SingleChildScrollView(
               child: Column(
                 children: [
+                  MobileAccountProfile(userProfile: state.userProfile),
                   PersonalInfoSettingGroup(
                     userProfile: userProfile,
                   ),
@@ -118,4 +126,11 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
       ),
     );
   }
+
+  Widget buildPadding(Widget child) => Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: AppFlowyTheme.of(context).spacing.xl,
+        ),
+        child: child,
+      );
 }

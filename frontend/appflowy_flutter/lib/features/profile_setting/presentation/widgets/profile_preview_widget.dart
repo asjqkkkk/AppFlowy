@@ -36,7 +36,7 @@ class ProfilePreviewWidget extends StatelessWidget {
                 buildEmail(context),
                 if (hasDescription) ...[
                   VSpace(spacing.m),
-                  buildDescription(context),
+                  context.buildDescription(),
                 ],
                 VSpace(spacing.xxl),
                 buildRoleBadgeAndActions(context),
@@ -47,7 +47,7 @@ class ProfilePreviewWidget extends StatelessWidget {
         Positioned(
           top: 38,
           left: 20,
-          child: buildAvatar(context),
+          child: context.buildAvatar(),
         ),
       ],
     );
@@ -64,30 +64,6 @@ class ProfilePreviewWidget extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(theme.spacing.m),
         child: _Banner(banner: profile.banner),
-      ),
-    );
-  }
-
-  Widget buildAvatar(BuildContext context) {
-    final theme = AppFlowyTheme.of(context),
-        profile = context.read<ProfileSettingBloc>().state.profile;
-    return Container(
-      width: 100,
-      height: 100,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(46),
-        color: theme.surfaceColorScheme.layer01,
-      ),
-      child: Center(
-        child: Transform.scale(
-          scale: 90 / AFAvatarSize.xxl.size,
-          child: AFAvatar(
-            url: profile.avatarUrl,
-            radius: 41,
-            size: AFAvatarSize.xxl,
-            name: profile.name,
-          ),
-        ),
       ),
     );
   }
@@ -113,30 +89,6 @@ class ProfilePreviewWidget extends StatelessWidget {
           theme.textStyle.body.standard(color: theme.textColorScheme.secondary),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget buildDescription(BuildContext context) {
-    final theme = AppFlowyTheme.of(context),
-        profile = context.read<ProfileSettingBloc>().state.profile;
-    return SizedBox(
-      width: double.infinity,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.fillColorScheme.contentVisible,
-          borderRadius: BorderRadius.circular(theme.spacing.m),
-        ),
-        child: Padding(
-          padding: EdgeInsets.all(theme.spacing.l),
-          child: Text(
-            profile.aboutMe,
-            style: theme.textStyle.caption
-                .standard(color: theme.textColorScheme.primary),
-            maxLines: 4,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ),
-      ),
     );
   }
 
@@ -211,5 +163,54 @@ class _Banner extends StatelessWidget {
       return CachedNetworkImage(imageUrl: banner.url, fit: BoxFit.cover);
     }
     return const SizedBox.shrink();
+  }
+}
+
+extension ProfileCardBuildContextExtension on BuildContext {
+  Widget buildAvatar() {
+    final theme = AppFlowyTheme.of(this),
+        profile = read<ProfileSettingBloc>().state.profile;
+    return Container(
+      width: 100,
+      height: 100,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(46),
+        color: theme.surfaceColorScheme.layer01,
+      ),
+      child: Center(
+        child: Transform.scale(
+          scale: 90 / AFAvatarSize.xxl.size,
+          child: AFAvatar(
+            url: profile.avatarUrl,
+            radius: 41,
+            size: AFAvatarSize.xxl,
+            name: profile.name,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildDescription({TextAlign? textAlign}) {
+    final theme = AppFlowyTheme.of(this),
+        profile = read<ProfileSettingBloc>().state.profile;
+    return SizedBox(
+      width: double.infinity,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.fillColorScheme.contentVisible,
+          borderRadius: BorderRadius.circular(theme.spacing.m),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(theme.spacing.l),
+          child: Text(
+            profile.aboutMe,
+            textAlign: textAlign,
+            style: theme.textStyle.caption
+                .standard(color: theme.textColorScheme.primary),
+          ),
+        ),
+      ),
+    );
   }
 }

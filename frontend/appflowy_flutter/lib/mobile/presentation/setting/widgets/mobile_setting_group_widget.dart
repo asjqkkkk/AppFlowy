@@ -16,19 +16,29 @@ class MobileSettingGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
+    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        VSpace(theme.spacing.s),
-        Text(
-          groupTitle,
-          style: theme.textStyle.heading4.enhanced(
-            color: theme.textColorScheme.primary,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: spacing.xl),
+          child: Text(
+            groupTitle,
+            style: theme.textStyle.heading4.enhanced(
+              color: theme.textColorScheme.primary,
+            ),
           ),
         ),
         VSpace(theme.spacing.s),
-        ...settingItemList,
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: spacing.xl),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: settingItemList,
+          ),
+        ),
         showDivider
             ? AFDivider(spacing: theme.spacing.m)
             : const SizedBox.shrink(),
