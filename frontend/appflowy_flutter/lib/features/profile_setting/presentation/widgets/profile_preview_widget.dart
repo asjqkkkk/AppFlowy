@@ -14,7 +14,11 @@ class ProfilePreviewWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    final theme = AppFlowyTheme.of(context),
+        spacing = theme.spacing,
+        profile = context.read<ProfileSettingBloc>().state.profile;
+
+    final hasDescription = profile.aboutMe.isNotEmpty;
 
     return Stack(
       children: [
@@ -30,8 +34,10 @@ class ProfilePreviewWidget extends StatelessWidget {
               children: [
                 buildName(context),
                 buildEmail(context),
-                VSpace(spacing.m),
-                buildDescription(context),
+                if (hasDescription) ...[
+                  VSpace(spacing.m),
+                  buildDescription(context),
+                ],
                 VSpace(spacing.xxl),
                 buildRoleBadgeAndActions(context),
               ],

@@ -60,10 +60,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
         spacing = theme.spacing,
         bloc = context.read<ProfileSettingBloc>(),
         state = bloc.state,
-        profile = state.profile,
-        avatarUrl = profile.avatarUrl;
-    final isEmojiAvatarUrl =
-        avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
+        profile = state.profile;
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (event) => setState(() => hovering = true),
@@ -79,8 +76,8 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
               AFAvatar(
                 radius: spacing.m,
                 size: AFAvatarSize.xxl,
-                name: isEmojiAvatarUrl ? profile.avatarUrl : profile.name,
-                url: isEmojiAvatarUrl ? '' : profile.avatarUrl,
+                name: profile.name,
+                url: profile.avatarUrl,
               ),
               if (hovering)
                 Container(

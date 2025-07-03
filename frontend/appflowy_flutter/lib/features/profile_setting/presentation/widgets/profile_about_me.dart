@@ -5,6 +5,7 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 class ProfileAboutMe extends StatefulWidget {
@@ -45,6 +46,7 @@ class _ProfileAboutMeState extends State<ProfileAboutMe> {
           height: 92,
           width: 400,
           child: AFTextField(
+            inputFormatters: [FilteringTextInputFormatter.deny(RegExp(r"\n"))],
             size: AFTextFieldSize.m,
             controller: controller,
             maxLines: null,

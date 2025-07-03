@@ -654,7 +654,8 @@
       "edit": "Edit",
       "wallpapers": "Wallpapers",
       "default": "Default",
-      "limitCharacters": "{} characters"
+      "limitCharacters": "{} characters",
+      "replaceImage": "Replace image"
     },
     "workspacePage": {
       "menuLabel": "Workspace",

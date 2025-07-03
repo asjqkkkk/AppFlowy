@@ -37,6 +37,7 @@ class AFTextField extends StatefulWidget {
     this.textAlignVertical,
     this.readOnly = false,
     this.maxLines = 1,
+    this.inputFormatters,
   });
 
   /// The hint text to display when the text field is empty.
@@ -98,6 +99,9 @@ class AFTextField extends StatefulWidget {
 
   /// The maximum length of the text field.
   final int? maxLength;
+
+  /// The input formatters to apply to the text field.
+  final List<TextInputFormatter>? inputFormatters;
 
   @override
   State<AFTextField> createState() => _AFTextFieldState();
@@ -204,6 +208,7 @@ class _AFTextFieldState extends AFTextFieldState {
       onSubmitted: widget.onSubmitted,
       autofocus: widget.autoFocus ?? false,
       maxLength: widget.maxLength,
+      inputFormatters: widget.inputFormatters,
       maxLengthEnforcement: MaxLengthEnforcement.truncateAfterCompositionEnds,
       decoration: InputDecoration(
         hintText: widget.hintText,

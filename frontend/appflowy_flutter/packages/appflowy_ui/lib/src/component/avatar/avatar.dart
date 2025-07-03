@@ -158,7 +158,10 @@ class AFAvatar extends StatelessWidget {
   }
 
   Widget _buildInitialsCircle(double size, Color bgColor, TextStyle textStyle) {
-    final initial = _getInitials(name);
+    final avatarUrl = url ?? '';
+    final isEmojiAvatarUrl =
+        avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
+    final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
     final borderRadius = radius ?? size / 2;
     return Container(
       width: size,
