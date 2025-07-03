@@ -13,7 +13,7 @@ async fn af_cloud_database_import_csv_test() {
 
   let workspace_id = test.get_workspace_id().await;
   let space = test
-    .create_space(workspace_id, "imported space".to_string())
+    .create_public_space(workspace_id, "imported space".to_string())
     .await;
   let parent_id = Uuid::parse_str(&space.id).unwrap();
 

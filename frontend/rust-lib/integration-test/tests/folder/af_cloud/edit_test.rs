@@ -1,9 +1,10 @@
-use crate::util::unzip;
 use event_integration_test::folder_event::parse_csv_string;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::{retry_with_backoff, EventIntegrationTest};
 use flowy_folder::entities::ViewPB;
 use uuid::Uuid;
+
+use crate::util::test_unzip;
 
 #[tokio::test]
 async fn af_cloud_two_client_offline_edit_then_sync_space_test() {
@@ -47,12 +48,12 @@ async fn setup_two_clients() -> (EventIntegrationTest, EventIntegrationTest, Str
 
 async fn create_markdown_content_offline(test: &EventIntegrationTest) -> (ViewPB, String, ViewPB) {
   let space_1 = test
-    .create_space(test.get_workspace_id().await, "Test space 1".to_string())
+    .create_public_space(test.get_workspace_id().await, "Test space 1".to_string())
     .await;
   let space_1_id = Uuid::parse_str(&space_1.id).unwrap();
 
   let (document, content) = test
-    .import_md_from_test_asset("japan_trip", space_1_id, unzip)
+    .import_md_from_test_asset("japan_trip", space_1_id, test_unzip)
     .await;
 
   // Verify initial content
@@ -71,12 +72,12 @@ async fn create_csv_content_offline(
   test2: &EventIntegrationTest,
 ) -> (ViewPB, Vec<Vec<String>>, ViewPB) {
   let space_2 = test2
-    .create_space(test2.get_workspace_id().await, "Test space 2".to_string())
+    .create_public_space(test2.get_workspace_id().await, "Test space 2".to_string())
     .await;
   let parent_id = Uuid::parse_str(&space_2.id).unwrap();
 
   let (database_view, csv_string) = test2
-    .import_csv_from_test_asset("csv_10r_17c", parent_id, unzip)
+    .import_csv_from_test_asset("csv_10r_17c", parent_id, test_unzip)
     .await;
 
   // Verify initial content

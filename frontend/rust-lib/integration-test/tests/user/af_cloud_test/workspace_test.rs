@@ -190,8 +190,8 @@ async fn setup_first_workspace(
   let workspace_id = test.get_workspace_id().await;
 
   // Create spaces in the first workspace
-  test.create_space(workspace_id, "A").await;
-  test.create_space(workspace_id, "B").await;
+  test.create_public_space(workspace_id, "A").await;
+  test.create_public_space(workspace_id, "B").await;
 
   let current_workspace = test.get_current_workspace().await;
   test.get_user_workspace(&current_workspace.id).await
@@ -223,8 +223,8 @@ async fn setup_second_workspace(
 
   // Create spaces in the second workspace
   let workspace_id = test.get_workspace_id().await;
-  test.create_space(workspace_id, "C").await;
-  test.create_space(workspace_id, "D").await;
+  test.create_public_space(workspace_id, "C").await;
+  test.create_public_space(workspace_id, "D").await;
 
   let current_workspace = test.get_current_workspace().await;
   test.get_user_workspace(&current_workspace.id).await
