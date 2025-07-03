@@ -11,9 +11,9 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'banner_upload_button.dart';
 import 'custom_banner_button.dart';
 import 'banner_widget.dart';
+import 'profile_buttons.dart';
 
 List<BannerData> _defaultBanners(BuildContext context) {
   final theme = AppFlowyTheme.of(context), badgeColor = theme.badgeColorScheme;

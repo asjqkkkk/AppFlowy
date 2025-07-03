@@ -12,8 +12,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'widgets/profile_about_me.dart';
+import 'widgets/profile_buttons.dart';
 import 'widgets/profile_display_name.dart';
-import 'widgets/preview_button.dart';
 import 'widgets/profile_avatar.dart';
 
 class SettingsProfileView extends StatelessWidget {

@@ -14,6 +14,7 @@ import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy/util/default_extensions.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -354,30 +355,9 @@ class _ChangeIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    return SizedBox(
-      height: 32,
-      width: 84,
-      child: FlowyButton(
-        text: FlowyText(
-          LocaleKeys.emojiIconPicker_iconUploader_change.tr(),
-          fontSize: 14.0,
-          fontWeight: FontWeight.w500,
-          figmaLineHeight: 20.0,
-          color: isDark ? Colors.white : Color(0xff1F2329),
-          textAlign: TextAlign.center,
-          overflow: TextOverflow.ellipsis,
-        ),
-        margin: const EdgeInsets.symmetric(horizontal: 14.0),
-        backgroundColor: Theme.of(context).colorScheme.surface,
-        hoverColor:
-            (isDark ? Colors.white : Color(0xffD1D8E0)).withValues(alpha: 0.9),
-        decoration: BoxDecoration(
-          border: Border.all(color: isDark ? Colors.white : Color(0xffD1D8E0)),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        onTap: onTap,
-      ),
+    return AFOutlinedTextButton.normal(
+      text: LocaleKeys.emojiIconPicker_iconUploader_change.tr(),
+      onTap: onTap,
     );
   }
 }

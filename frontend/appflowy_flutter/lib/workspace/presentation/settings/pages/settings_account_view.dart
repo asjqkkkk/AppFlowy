@@ -94,6 +94,7 @@ class SettingsAccountView extends StatelessWidget {
                               .tr(),
                           context: context,
                           button: AccountDeletionButton(showDescription: false),
+                          padding: EdgeInsets.zero,
                         ),
                       VSpace(20),
                       AFDivider(color: theme.borderColorScheme.primary),
@@ -139,10 +140,11 @@ class SettingsAccountView extends StatelessWidget {
     required String subtitle,
     required BuildContext context,
     Widget? button,
+    EdgeInsetsGeometry? padding,
   }) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
     return Padding(
-      padding: EdgeInsets.only(bottom: spacing.xxl),
+      padding: padding ?? EdgeInsets.only(bottom: spacing.xxl),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
