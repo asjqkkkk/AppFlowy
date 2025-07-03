@@ -11,6 +11,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'banner_upload_button.dart';
 import 'custom_banner_button.dart';
 import 'banner_widget.dart';
 
@@ -136,7 +137,7 @@ class _UploadButtonState extends State<_UploadButton> {
       offset: const Offset(0, 8),
       constraints: BoxConstraints.loose(const Size(400, 400)),
       margin: EdgeInsets.zero,
-      child: buildUploadButton(),
+      child: BannerUploadButton(onTap: () => popoverController.show()),
       popupBuilder: (BuildContext popoverContext) {
         return FlowyIconEmojiPicker(
           initialType: PickerTabType.custom,
