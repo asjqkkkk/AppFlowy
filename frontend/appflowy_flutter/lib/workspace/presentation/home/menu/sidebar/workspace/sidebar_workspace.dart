@@ -255,8 +255,25 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
 
     final state = context.read<UserWorkspaceBloc>().state;
     final currentWorkspace = state.currentWorkspace;
+    // if the user is already in the workspace, we should open the initial view directly
     if (currentWorkspace?.workspaceId == workspaceId) {
-      Log.info('Already in the workspace');
+      Log.info('Already in the workspace, opening the initial view');
+
+      final initialViewId = value?.initialViewId;
+      if (initialViewId == null) {
+        Log.info('No initial view id to open');
+        return;
+      }
+
+      getIt<ActionNavigationBloc>().add(
+        ActionNavigationEvent.performAction(
+          action: NavigationAction(
+            objectId: initialViewId,
+          ),
+        ),
+      );
+
+      openWorkspaceNotifier.value = null;
       return;
     }
 
