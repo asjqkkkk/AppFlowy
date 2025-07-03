@@ -34,9 +34,11 @@ class BottomSheetDoneButton extends StatelessWidget {
   const BottomSheetDoneButton({
     super.key,
     this.onDone,
+    this.text,
   });
 
   final VoidCallback? onDone;
+  final String? text;
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +47,7 @@ class BottomSheetDoneButton extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12.0),
         child: FlowyText(
-          LocaleKeys.button_done.tr(),
+          text ?? LocaleKeys.button_done.tr(),
           color: Theme.of(context).colorScheme.primary,
           fontWeight: FontWeight.w500,
           textAlign: TextAlign.right,

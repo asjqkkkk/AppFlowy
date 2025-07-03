@@ -1,4 +1,6 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -21,27 +23,24 @@ class EditUsernameBottomSheet extends StatefulWidget {
 }
 
 class _EditUsernameBottomSheetState extends State<EditUsernameBottomSheet> {
-  late TextEditingController _textFieldController;
-
   final _formKey = GlobalKey<FormState>();
 
-  @override
-  void initState() {
-    super.initState();
-    _textFieldController = TextEditingController(text: widget.userName);
-  }
+  late final TextEditingController textEditingController =
+      TextEditingController(text: widget.userName);
 
   @override
   void dispose() {
-    _textFieldController.dispose();
+    textEditingController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     void submitUserName() {
       if (_formKey.currentState!.validate()) {
-        final value = _textFieldController.text;
+        final value = textEditingController.text;
+        if (value.isEmpty) return;
         widget.onSubmitted.call(value);
         widget.context.pop();
       }
@@ -50,27 +49,41 @@ class _EditUsernameBottomSheetState extends State<EditUsernameBottomSheet> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: <Widget>[
+        BottomSheetHeader(
+          showBackButton: false,
+          showDoneButton: true,
+          showCloseButton: true,
+          showRemoveButton: false,
+          title: LocaleKeys.settings_profilePage_displayName.tr(),
+          doneButtonBuilder: (context) {
+            return BottomSheetDoneButton(
+              text: LocaleKeys.button_save.tr(),
+              onDone: submitUserName,
+            );
+          },
+        ),
         Form(
           key: _formKey,
-          child: TextFormField(
-            controller: _textFieldController,
+          child: AFTextField(
+            autoFocus: true,
+            controller: textEditingController,
             keyboardType: TextInputType.text,
-            validator: (value) {
-              if (value == null || value.isEmpty) {
-                return LocaleKeys.settings_mobile_usernameEmptyError.tr();
+            maxLength: 72,
+            counterText: '',
+            validator: (controller) {
+              final value = controller.text.trim();
+              if (value.isEmpty) {
+                return (
+                  true,
+                  LocaleKeys.settings_mobile_usernameEmptyError.tr()
+                );
               }
-              return null;
+              return (false, '');
             },
             onEditingComplete: submitUserName,
           ),
         ),
-        const VSpace(16),
-        AFFilledTextButton.primary(
-          text: LocaleKeys.button_update.tr(),
-          onTap: submitUserName,
-          size: AFButtonSize.l,
-          alignment: Alignment.center,
-        ),
+        VSpace(theme.spacing.xl),
       ],
     );
   }

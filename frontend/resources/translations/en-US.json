@@ -655,7 +655,8 @@
       "wallpapers": "Wallpapers",
       "default": "Default",
       "limitCharacters": "{} characters",
-      "replaceImage": "Replace image"
+      "replaceImage": "Replace image",
+      "accountAndPage": "Account & Profile"
     },
     "workspacePage": {
       "menuLabel": "Workspace",

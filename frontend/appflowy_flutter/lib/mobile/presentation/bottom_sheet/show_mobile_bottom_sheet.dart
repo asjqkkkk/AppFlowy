@@ -216,6 +216,9 @@ class BottomSheetHeader extends StatelessWidget {
     required this.showRemoveButton,
     required this.title,
     required this.showDoneButton,
+    this.backButtonBuilder,
+    this.doneButtonBuilder,
+    this.doneText,
     this.onRemove,
     this.onDone,
     this.onBack,
@@ -223,6 +226,7 @@ class BottomSheetHeader extends StatelessWidget {
   });
 
   final String title;
+  final String? doneText;
 
   final bool showBackButton;
   final bool showCloseButton;
@@ -233,7 +237,9 @@ class BottomSheetHeader extends StatelessWidget {
   final VoidCallback? onBack;
   final VoidCallback? onClose;
 
-  final void Function(BuildContext context)? onDone;
+  final ValueChanged<BuildContext>? onDone;
+  final WidgetBuilder? backButtonBuilder;
+  final WidgetBuilder? doneButtonBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -279,15 +285,16 @@ class BottomSheetHeader extends StatelessWidget {
             if (showDoneButton)
               Align(
                 alignment: Alignment.centerRight,
-                child: BottomSheetDoneButton(
-                  onDone: () {
-                    if (onDone != null) {
-                      onDone?.call(context);
-                    } else {
-                      Navigator.pop(context);
-                    }
-                  },
-                ),
+                child: doneButtonBuilder?.call(context) ??
+                    BottomSheetDoneButton(
+                      onDone: () {
+                        if (onDone != null) {
+                          onDone?.call(context);
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
               ),
           ],
         ),

@@ -39,6 +39,7 @@ class AFTextField extends StatefulWidget {
     this.maxLines = 1,
     this.counterText,
     this.inputFormatters,
+    this.onEditingComplete,
   });
 
   /// The hint text to display when the text field is empty.
@@ -106,6 +107,9 @@ class AFTextField extends StatefulWidget {
 
   /// The input formatters to apply to the text field.
   final List<TextInputFormatter>? inputFormatters;
+
+  /// The callback to call when the editing is complete.
+  final VoidCallback? onEditingComplete;
 
   @override
   State<AFTextField> createState() => _AFTextFieldState();
@@ -232,6 +236,7 @@ class _AFTextFieldState extends AFTextFieldState {
         suffixIcon: widget.suffixIconBuilder?.call(context, isObscured),
         suffixIconConstraints: widget.suffixIconConstraints,
       ),
+      onEditingComplete: widget.onEditingComplete,
     );
 
     if (hasError && errorText.isNotEmpty) {
