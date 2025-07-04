@@ -90,12 +90,16 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     final currentWorkspace = result.currentWorkspace;
     final workspaces = result.workspaces;
     Log.info(
-      'fetch workspaces: current workspace: ${currentWorkspace?.workspaceId}, workspaces: ${workspaces.map((e) => e.workspaceId)}',
+      'fetch workspaces, open the workspace: ${currentWorkspace?.workspaceId} - ${currentWorkspace?.name}',
+    );
+    Log.info(
+      'fetch workspaces, your workspaces: ${workspaces.map((e) => '${e.workspaceId} - ${e.name}')}',
     );
 
     emit(
       state.copyWith(
         workspaces: workspaces,
+        clearActionResult: true,
       ),
     );
 

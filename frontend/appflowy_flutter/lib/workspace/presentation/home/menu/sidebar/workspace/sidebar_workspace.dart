@@ -1,3 +1,4 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -142,11 +143,17 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
     if (actionType == WorkspaceActionType.create &&
         result.isFailure &&
         result.getFailure().code == ErrorCode.WorkspaceLimitExceeded) {
-      showDialog(
+      showCancelAndConfirmDialog(
         context: context,
-        builder: (context) => NavigatorOkCancelDialog(
-          message: LocaleKeys.workspace_createLimitExceeded.tr(),
-        ),
+        title: LocaleKeys.workspace_createLimitExceededTitle.tr(),
+        description: LocaleKeys.workspace_createLimitExceededDesc.tr(),
+        confirmLabel: LocaleKeys.workspace_createLimitExceededButton.tr(),
+        onConfirm: (context) {
+          // redirect to the Github page
+          afLaunchUrlString(
+            'https://github.com/AppFlowy-IO/AppFlowy/issues',
+          );
+        },
       );
       return;
     }

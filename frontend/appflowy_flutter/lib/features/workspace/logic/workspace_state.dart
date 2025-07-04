@@ -61,11 +61,13 @@ class UserWorkspaceState {
     bool? isCollabWorkspaceOn,
     UserProfilePB? userProfile,
     WorkspaceSubscriptionInfoPB? workspaceSubscriptionInfo,
+    bool clearActionResult = false,
   }) {
     return UserWorkspaceState(
       currentWorkspace: currentWorkspace ?? this.currentWorkspace,
       workspaces: workspaces ?? this.workspaces,
-      actionResult: actionResult ?? this.actionResult,
+      actionResult:
+          clearActionResult ? null : actionResult ?? this.actionResult,
       isCollabWorkspaceOn: isCollabWorkspaceOn ?? this.isCollabWorkspaceOn,
       userProfile: userProfile ?? this.userProfile,
       workspaceSubscriptionInfo:
