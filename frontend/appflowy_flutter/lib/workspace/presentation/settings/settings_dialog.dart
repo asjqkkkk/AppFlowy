@@ -148,7 +148,10 @@ class SettingsDialog extends StatelessWidget {
           didLogin: dismissDialog,
         );
       case SettingsPage.profile:
-        return SettingsProfileView(userProfile: user, workspace: workspace,);
+        return SettingsProfileView(
+          userProfile: user,
+          workspace: workspace,
+        );
       case SettingsPage.workspace:
         return SettingsWorkspaceView(
           userProfile: user,

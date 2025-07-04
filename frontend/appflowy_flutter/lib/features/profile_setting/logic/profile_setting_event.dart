@@ -10,7 +10,7 @@ sealed class ProfileSettingEvent {
       ProfileSettingUpdateAboutMeEvent;
   const factory ProfileSettingEvent.updateAvatar(String avatarUrl) =
       ProfileSettingUpdateAvatarEvent;
-  const factory ProfileSettingEvent.uploadBanner(NetworkImageBanner banner) =
+  const factory ProfileSettingEvent.uploadBanner(NetworkImageBanner? banner) =
       ProfileSettingUploadBannerEvent;
   const factory ProfileSettingEvent.selectBanner(BannerData banner) =
       ProfileSettingSelectBannerEvent;
@@ -41,7 +41,7 @@ class ProfileSettingUpdateAvatarEvent implements ProfileSettingEvent {
 class ProfileSettingUploadBannerEvent implements ProfileSettingEvent {
   const ProfileSettingUploadBannerEvent(this.banner);
 
-  final NetworkImageBanner banner;
+  final NetworkImageBanner? banner;
 }
 
 class ProfileSettingSelectBannerEvent implements ProfileSettingEvent {

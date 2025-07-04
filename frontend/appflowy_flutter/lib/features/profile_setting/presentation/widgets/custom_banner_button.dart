@@ -50,6 +50,7 @@ class _CustomBannerButtonState extends State<CustomBannerButton> {
       }),
       child: GestureDetector(
         onTap: () {
+          if (selected) return;
           bloc.add(ProfileSettingEvent.selectBanner(banner));
         },
         behavior: HitTestBehavior.opaque,

@@ -1,3 +1,4 @@
+import 'package:appflowy/features/profile_setting/data/banner.dart';
 import 'package:appflowy/features/profile_setting/data/repository/mock_profile_setting.repository.dart';
 import 'package:appflowy/features/profile_setting/data/repository/profile_setting_repository.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
@@ -78,9 +79,20 @@ class ProfileSettingBloc
     Emitter<ProfileSettingState> emit,
   ) async {
     final newBanner = event.banner;
-    final newProfile =
-        state.profile.copyWith(banner: newBanner, customBanner: newBanner);
-    emit(state.copyWith(profile: newProfile, selectedBanner: newBanner));
+    final newProfile = state.profile.copyWith(
+      banner: newBanner ?? defaultBanners.first,
+      customBanner: () => newBanner,
+    );
+    if (newBanner == null) {
+      emit(
+        state.copyWith(
+          profile: newProfile,
+          selectedBanner: defaultBanners.first,
+        ),
+      );
+    } else {
+      emit(state.copyWith(profile: newProfile, selectedBanner: newBanner));
+    }
     await repository.updateProfile(newProfile);
   }
 

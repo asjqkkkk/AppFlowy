@@ -62,25 +62,29 @@ class _EditUsernameBottomSheetState extends State<EditUsernameBottomSheet> {
             );
           },
         ),
-        Form(
-          key: _formKey,
-          child: AFTextField(
-            autoFocus: true,
-            controller: textEditingController,
-            keyboardType: TextInputType.text,
-            maxLength: 72,
-            counterText: '',
-            validator: (controller) {
-              final value = controller.text.trim();
-              if (value.isEmpty) {
-                return (
-                  true,
-                  LocaleKeys.settings_mobile_usernameEmptyError.tr()
-                );
-              }
-              return (false, '');
-            },
-            onEditingComplete: submitUserName,
+        VSpace(theme.spacing.xl),
+        Padding(
+          padding: EdgeInsets.symmetric(horizontal: theme.spacing.xl),
+          child: Form(
+            key: _formKey,
+            child: AFTextField(
+              autoFocus: true,
+              controller: textEditingController,
+              keyboardType: TextInputType.text,
+              maxLength: 72,
+              counterText: '',
+              validator: (controller) {
+                final value = controller.text.trim();
+                if (value.isEmpty) {
+                  return (
+                    true,
+                    LocaleKeys.settings_mobile_usernameEmptyError.tr()
+                  );
+                }
+                return (false, '');
+              },
+              onEditingComplete: submitUserName,
+            ),
           ),
         ),
         VSpace(theme.spacing.xl),

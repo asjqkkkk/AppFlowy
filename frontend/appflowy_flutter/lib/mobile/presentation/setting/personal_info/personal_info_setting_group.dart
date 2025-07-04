@@ -2,7 +2,6 @@ import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dar
 import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
-import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/mobile/presentation/setting/widgets/mobile_setting_trailing.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
@@ -31,6 +30,8 @@ class PersonalInfoSettingGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final bloc = context.read<ProfileSettingBloc>(),
+        profile = bloc.state.profile;
     return MultiBlocProvider(
       providers: [
         BlocProvider<SettingsUserViewBloc>(
@@ -44,43 +45,36 @@ class PersonalInfoSettingGroup extends StatelessWidget {
             ..add(PasswordEvent.checkHasPassword()),
         ),
       ],
-      child: BlocSelector<SettingsUserViewBloc, SettingsUserState, String>(
-        selector: (state) => state.userProfile.name,
-        builder: (context, userName) {
-          return MobileSettingGroup(
-            groupTitle: LocaleKeys.settings_profilePage_accountAndPage.tr(),
-            settingItemList: [
-              MobileSettingItem(
-                name: LocaleKeys.settings_profilePage_displayName.tr(),
-                trailing: ConstrainedBox(
-                  constraints: BoxConstraints(maxWidth: 200),
-                  child: MobileSettingTrailing(text: userName),
-                ),
-                onTap: () {
-                  showMobileBottomSheet(
+      child: MobileSettingGroup(
+        groupTitle: LocaleKeys.settings_profilePage_accountAndPage.tr(),
+        settingItemList: [
+          MobileSettingItem(
+            name: LocaleKeys.settings_profilePage_displayName.tr(),
+            trailing: ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: 200),
+              child: MobileSettingTrailing(text: profile.name),
+            ),
+            onTap: () {
+              showMobileBottomSheet(
+                context,
+                showDragHandle: true,
+                showDivider: false,
+                builder: (_) {
+                  return EditUsernameBottomSheet(
                     context,
-                    showDragHandle: true,
-                    showDivider: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    builder: (_) {
-                      return EditUsernameBottomSheet(
-                        context,
-                        userName: userName,
-                        onSubmitted: (value) => context
-                            .read<SettingsUserViewBloc>()
-                            .add(SettingsUserEvent.updateUserName(name: value)),
-                      );
-                    },
+                    userName: profile.name,
+                    onSubmitted: (value) =>
+                        bloc.add(ProfileSettingEvent.updateName(value)),
                   );
                 },
-              ),
-              userProfile.userAuthType == AuthTypePB.Server
-                  ? _buildPasswordItem(context, userProfile)
-                  : _buildLoginItem(context, userProfile),
-              _buildDescriptionItem(context, userProfile),
-            ],
-          );
-        },
+              );
+            },
+          ),
+          userProfile.userAuthType == AuthTypePB.Server
+              ? _buildPasswordItem(context, userProfile)
+              : _buildLoginItem(context, userProfile),
+          _buildDescriptionItem(context, userProfile),
+        ],
       ),
     );
   }
@@ -156,7 +150,6 @@ class PersonalInfoSettingGroup extends StatelessWidget {
           context,
           showDragHandle: true,
           showDivider: false,
-          padding: const EdgeInsets.symmetric(horizontal: 16),
           builder: (context) {
             return EditDescriptionBottomSheet(
               context,
@@ -194,23 +187,6 @@ class PersonalInfoSettingGroup extends StatelessWidget {
         ),
         VSpace(theme.spacing.m),
       ],
-    );
-  }
-
-  Widget buildSheetHeader({
-    required VoidCallback onApply,
-    required String title,
-    required String applyText,
-  }) {
-    return BottomSheetHeader(
-      showBackButton: true,
-      showDoneButton: true,
-      showCloseButton: false,
-      showRemoveButton: false,
-      title: title,
-      doneButtonBuilder: (context) {
-        return BottomSheetDoneButton(text: applyText, onDone: onApply);
-      },
     );
   }
 }

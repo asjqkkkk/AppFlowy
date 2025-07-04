@@ -59,6 +59,7 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
         return Scaffold(
           appBar: FlowyAppBar(
             titleText: LocaleKeys.settings_title.tr(),
+            showDivider: false,
           ),
           body: userProfile == null
               ? _buildErrorWidget(errorMsg)
@@ -89,6 +90,7 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
         builder: (context, state) {
           final currentWorkspaceId = state.currentWorkspace?.workspaceId ?? '';
           return BlocProvider(
+            key: ValueKey(currentWorkspaceId),
             create: (context) => ProfileSettingBloc(
               userProfile: userProfile,
               workspace: state.currentWorkspace,
@@ -96,7 +98,8 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  MobileAccountProfile(userProfile: state.userProfile),
+                  if (state.userProfile.userAuthType == AuthTypePB.Server)
+                    MobileAccountProfile(userProfile: state.userProfile),
                   PersonalInfoSettingGroup(userProfile: userProfile),
                   if (state.userProfile.userAuthType == AuthTypePB.Server)
                     const WorkspaceSettingGroup(),

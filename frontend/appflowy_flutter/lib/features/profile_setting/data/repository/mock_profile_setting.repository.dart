@@ -27,5 +27,6 @@ Profile _mockProfile = Profile(
       'https://m.media-amazon.com/images/S/pv-target-images/ae4816cade1a5b7f29787d0b89610132c72c7747041481c6619b9cc3302c0101.jpg',
   aboutMe: 'This is a mock user profile for testing purposes.',
   role: ShareRole.member,
-  banner: AssetImageBanner(path: 'assets/images/profile_banner/banner_purple.png'),
+  banner:
+      AssetImageBanner(path: 'assets/images/profile_banner/banner_purple.png'),
 );

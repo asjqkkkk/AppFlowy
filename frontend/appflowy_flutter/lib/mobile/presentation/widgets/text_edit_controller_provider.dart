@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class TextEditControllerProvider extends StatefulWidget {
-
   const TextEditControllerProvider({
     super.key,
     required this.builder,
@@ -19,7 +18,7 @@ class TextEditControllerProvider extends StatefulWidget {
 class _TextEditControllerProviderState
     extends State<TextEditControllerProvider> {
   late final TextEditingController controller =
-      TextEditingController(text: widget.initialText  ?? '');
+      TextEditingController(text: widget.initialText ?? '');
 
   @override
   void dispose() {

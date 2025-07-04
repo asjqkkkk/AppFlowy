@@ -1,4 +1,5 @@
 import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:flutter/material.dart';
 import 'banner.dart';
 
 class Profile {
@@ -40,7 +41,7 @@ class Profile {
     String? aboutMe,
     ShareRole? role,
     BannerData? banner,
-    NetworkImageBanner? customBanner,
+    ValueGetter<NetworkImageBanner?>? customBanner,
   }) {
     return Profile(
       id: id ?? this.id,
@@ -50,7 +51,7 @@ class Profile {
       aboutMe: aboutMe ?? this.aboutMe,
       role: role ?? this.role,
       banner: banner ?? this.banner,
-      customBanner: customBanner ?? this.customBanner,
+      customBanner: customBanner != null ? customBanner() : this.customBanner,
     );
   }
 }

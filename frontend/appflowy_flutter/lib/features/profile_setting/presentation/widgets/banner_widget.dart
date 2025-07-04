@@ -11,23 +11,24 @@ class NetworkImageBannerWidget extends StatelessWidget {
     required this.banner,
     this.selected = false,
     this.hovering = false,
+    this.size = const Size(160.5, 52.0),
   });
   final NetworkImageBanner banner;
   final bool selected;
   final bool hovering;
+  final Size size;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    const width = 160.5, height = 52.0;
-    return SizedBox(
-      height: height,
-      width: width,
+
+    return SizedBox.fromSize(
+      size: size,
       child: Stack(
         children: [
           Container(
-            height: height,
-            width: width,
+            height: size.height,
+            width: size.width,
             decoration: BoxDecoration(
               image: DecorationImage(
                 image: CachedNetworkImageProvider(banner.url),
@@ -36,7 +37,11 @@ class NetworkImageBannerWidget extends StatelessWidget {
               borderRadius: BorderRadius.circular(spacing.m),
             ),
           ),
-          context._buildBorder(hovering: hovering, selected: selected),
+          context._buildBorder(
+            hovering: hovering,
+            selected: selected,
+            size: size,
+          ),
         ],
       ),
     );
@@ -49,25 +54,25 @@ class AssetImageBannerWidget extends StatelessWidget {
     required this.banner,
     this.selected = false,
     this.isDefault = false,
+    this.size = const Size(160.5, 52.0),
   });
   final AssetImageBanner banner;
   final bool selected;
   final bool isDefault;
+  final Size size;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    const width = 160.5, height = 52.0;
     return _HoverBuilderWidget(
       builder: (context, hovering) {
-        return SizedBox(
-          height: height,
-          width: width,
+        return SizedBox.fromSize(
+          size: size,
           child: Stack(
             children: [
               Container(
-                height: height,
-                width: width,
+                height: size.height,
+                width: size.width,
                 decoration: BoxDecoration(
                   image: DecorationImage(
                     image: AssetImage(banner.path),
@@ -76,7 +81,11 @@ class AssetImageBannerWidget extends StatelessWidget {
                   borderRadius: BorderRadius.circular(spacing.m),
                 ),
               ),
-              context._buildBorder(hovering: hovering, selected: selected),
+              context._buildBorder(
+                hovering: hovering,
+                selected: selected,
+                size: size,
+              ),
               if (isDefault) context._defaultBanner(),
             ],
           ),
@@ -92,33 +101,37 @@ class ColorBannerWidget extends StatelessWidget {
     required this.banner,
     this.selected = false,
     this.isDefault = false,
+    this.size = const Size(160.5, 52.0),
   });
   final ColorBanner banner;
   final bool selected;
   final bool isDefault;
+  final Size size;
 
   Color get color => banner.color;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    const width = 160.5, height = 52.0;
     return _HoverBuilderWidget(
       builder: (context, hovering) {
-        return SizedBox(
-          height: height,
-          width: width,
+        return SizedBox.fromSize(
+          size: size,
           child: Stack(
             children: [
               Container(
-                height: height,
-                width: width,
+                height: size.height,
+                width: size.width,
                 decoration: BoxDecoration(
                   color: color,
                   borderRadius: BorderRadius.circular(spacing.m),
                 ),
               ),
-              context._buildBorder(hovering: hovering, selected: selected),
+              context._buildBorder(
+                hovering: hovering,
+                selected: selected,
+                size: size,
+              ),
               if (isDefault) context._defaultBanner(),
             ],
           ),
@@ -165,6 +178,7 @@ extension BannerWidgetExtension on BannerData {
     required BuildContext context,
     required bool selected,
     bool isDefault = false,
+    Size size = const Size(160.5, 52.0),
   }) {
     final banner = this;
     if (banner is ColorBanner) {
@@ -172,12 +186,14 @@ extension BannerWidgetExtension on BannerData {
         banner: banner,
         selected: selected,
         isDefault: isDefault,
+        size: size,
       );
     } else if (banner is AssetImageBanner) {
       return AssetImageBannerWidget(
         banner: banner,
         selected: selected,
         isDefault: isDefault,
+        size: size,
       );
     }
     throw Exception('Unknown BannerData type');
@@ -188,28 +204,29 @@ extension on BuildContext {
   Widget _buildBorder({
     required bool selected,
     required bool hovering,
+    required Size size,
   }) {
     if (!selected && !hovering) return SizedBox.shrink();
     final theme = AppFlowyTheme.of(this), spacing = theme.spacing;
-    const width = 160.5, height = 52.0;
+
     Color borderColor = theme.borderColorScheme.themeThick;
     if (!selected && hovering) {
       borderColor = theme.borderColorScheme.primaryHover;
     }
     return Container(
-      height: height,
+      height: size.height,
       decoration: BoxDecoration(
         border: Border.all(color: borderColor, width: 2),
         borderRadius: BorderRadius.circular(spacing.m),
       ),
       child: Container(
-        height: height - 4,
+        height: size.height - 4,
         decoration: BoxDecoration(
           border:
               Border.all(color: theme.backgroundColorScheme.primary, width: 2),
           borderRadius: BorderRadius.circular(spacing.s),
         ),
-        child: SizedBox(height: height, width: width),
+        child: SizedBox(height: size.height, width: size.width),
       ),
     );
   }

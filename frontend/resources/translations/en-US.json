@@ -669,6 +669,8 @@
       "aboutMe": "About Me",
       "avatar": "Avatar",
       "bannerImage": "Banner Image",
+      "editBannerImage": "Edit Banner Image",
+      "editAvatar": "Edit Avatar",
       "customImage": "Custom Image",
       "upload": "Upload",
       "edit": "Edit",
@@ -676,7 +678,9 @@
       "default": "Default",
       "limitCharacters": "{} characters",
       "replaceImage": "Replace image",
-      "accountAndPage": "Account & Profile"
+      "accountAndPage": "Account & Profile",
+      "pressTo": "Press to",
+      "anImage": "an image"
     },
     "workspacePage": {
       "menuLabel": "Workspace",

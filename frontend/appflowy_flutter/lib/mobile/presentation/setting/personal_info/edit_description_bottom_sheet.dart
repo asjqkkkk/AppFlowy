@@ -65,24 +65,28 @@ class _EditDescriptionBottomSheetState
             );
           },
         ),
+        VSpace(theme.spacing.xl),
         SizedBox(
           height: 132,
-          child: Form(
-            key: _formKey,
-            child: AFTextField(
-              autoFocus: true,
-              inputFormatters: [
-                FilteringTextInputFormatter.deny(RegExp(r"\n")),
-              ],
-              size: AFTextFieldSize.m,
-              controller: textEditingController,
-              maxLines: null,
-              expands: true,
-              maxLength: 190,
-              counterText: '',
-              textAlignVertical: TextAlignVertical.top,
-              keyboardType: TextInputType.multiline,
-              onEditingComplete: submitDescription,
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: theme.spacing.xl),
+            child: Form(
+              key: _formKey,
+              child: AFTextField(
+                autoFocus: true,
+                inputFormatters: [
+                  FilteringTextInputFormatter.deny(RegExp(r"\n")),
+                ],
+                size: AFTextFieldSize.m,
+                controller: textEditingController,
+                maxLines: null,
+                expands: true,
+                maxLength: 190,
+                counterText: '',
+                textAlignVertical: TextAlignVertical.top,
+                keyboardType: TextInputType.multiline,
+                onEditingComplete: submitDescription,
+              ),
             ),
           ),
         ),
@@ -90,18 +94,21 @@ class _EditDescriptionBottomSheetState
           valueListenable: textEditingController,
           builder: (_, __, ___) {
             final text = textEditingController.text.trim();
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                VSpace(spacing.xs),
-                Text(
-                  LocaleKeys.settings_profilePage_limitCharacters
-                      .tr(args: ['${text.length} / 190']),
-                  style: theme.textStyle.body
-                      .standard(color: theme.textColorScheme.tertiary),
-                ),
-              ],
+            return Padding(
+              padding: EdgeInsets.symmetric(horizontal: theme.spacing.xl),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  VSpace(spacing.xs),
+                  Text(
+                    LocaleKeys.settings_profilePage_limitCharacters
+                        .tr(args: ['${text.length} / 190']),
+                    style: theme.textStyle.body
+                        .standard(color: theme.textColorScheme.tertiary),
+                  ),
+                ],
+              ),
             );
           },
         ),

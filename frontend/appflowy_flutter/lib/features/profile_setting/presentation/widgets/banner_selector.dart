@@ -15,20 +15,6 @@ import 'custom_banner_button.dart';
 import 'banner_widget.dart';
 import 'profile_buttons.dart';
 
-List<BannerData> _defaultBanners(BuildContext context) {
-  final theme = AppFlowyTheme.of(context), badgeColor = theme.badgeColorScheme;
-  return [
-    AssetImageBanner(path: 'assets/images/profile_banner/banner_purple.png'),
-    AssetImageBanner(path: 'assets/images/profile_banner/banner_blue.png'),
-    AssetImageBanner(path: 'assets/images/profile_banner/banner_yellow.png'),
-    AssetImageBanner(path: 'assets/images/profile_banner/banner_pink.png'),
-    ColorBanner(color: badgeColor.color14Light2),
-    ColorBanner(color: badgeColor.color8Light2),
-    ColorBanner(color: badgeColor.color5Light2),
-    ColorBanner(color: badgeColor.color1Light2),
-  ];
-}
-
 class BannerImages extends StatelessWidget {
   const BannerImages({super.key});
 
@@ -38,7 +24,6 @@ class BannerImages extends StatelessWidget {
         spacing = theme.spacing,
         bloc = context.read<ProfileSettingBloc>(),
         state = bloc.state;
-    final banners = _defaultBanners(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -78,8 +63,8 @@ class BannerImages extends StatelessWidget {
                 childAspectRatio: itemWidth / 52,
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                children: List.generate(banners.length, (index) {
-                  final banner = banners[index];
+                children: List.generate(defaultBanners.length, (index) {
+                  final banner = defaultBanners[index];
                   return MouseRegion(
                     cursor: SystemMouseCursors.click,
                     child: GestureDetector(
