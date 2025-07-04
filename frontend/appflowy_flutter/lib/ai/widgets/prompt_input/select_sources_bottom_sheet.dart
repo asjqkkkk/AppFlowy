@@ -1,14 +1,10 @@
-import 'dart:async';
-
 import 'package:appflowy/ai/service/view_selector_cubit.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/flowy_search_text_field.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
-import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_item.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
@@ -18,6 +14,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../view_selector.dart';
 import 'select_sources_menu.dart';
 
 class PromptInputMobileSelectSourcesButton extends StatefulWidget {
@@ -37,6 +34,8 @@ class PromptInputMobileSelectSourcesButton extends StatefulWidget {
 
 class _PromptInputMobileSelectSourcesButtonState
     extends State<PromptInputMobileSelectSourcesButton> {
+  final key = GlobalKey<ViewSelectorWidgetState>();
+
   late final cubit = ViewSelectorCubit(
     maxSelectedParentPageCount: 3,
     getIgnoreViewType: (item) {
@@ -70,96 +69,71 @@ class _PromptInputMobileSelectSourcesButtonState
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
-    return BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
-      builder: (context, state) {
-        final userProfile = context.read<UserWorkspaceBloc>().state.userProfile;
-        final workspaceId = state.currentWorkspace?.workspaceId ?? '';
-        return MultiBlocProvider(
-          providers: [
-            BlocProvider(
-              key: ValueKey(workspaceId),
-              create: (context) => SpaceBloc(
-                userProfile: userProfile,
-                workspaceId: workspaceId,
-              )..add(const SpaceEvent.initial(openFirstPage: false)),
+    return ViewSelector(
+      key: key,
+      viewSelectorCubit: cubit,
+      child: FlowyButton(
+        margin: const EdgeInsetsDirectional.fromSTEB(4, 6, 2, 6),
+        expandText: false,
+        text: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            FlowySvg(
+              FlowySvgs.ai_page_s,
+              color: Theme.of(context).iconTheme.color,
+              size: const Size.square(20.0),
             ),
-            BlocProvider.value(
-              value: cubit,
+            const HSpace(2.0),
+            ValueListenableBuilder(
+              valueListenable: widget.selectedSourcesNotifier,
+              builder: (context, selectedSourceIds, _) {
+                final documentId = context.read<DocumentBloc?>()?.documentId;
+                final label = documentId != null &&
+                        selectedSourceIds.length == 1 &&
+                        selectedSourceIds[0] == documentId
+                    ? LocaleKeys.chat_currentPage.tr()
+                    : selectedSourceIds.length.toString();
+                return FlowyText(
+                  label,
+                  fontSize: 14,
+                  figmaLineHeight: 20,
+                  color: Theme.of(context).hintColor,
+                );
+              },
+            ),
+            const HSpace(2.0),
+            FlowySvg(
+              FlowySvgs.ai_source_drop_down_s,
+              color: Theme.of(context).hintColor,
+              size: const Size.square(10),
             ),
           ],
-          child: BlocBuilder<SpaceBloc, SpaceState>(
-            builder: (context, state) {
-              return FlowyButton(
-                margin: const EdgeInsetsDirectional.fromSTEB(4, 6, 2, 6),
-                expandText: false,
-                text: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    FlowySvg(
-                      FlowySvgs.ai_page_s,
-                      color: Theme.of(context).iconTheme.color,
-                      size: const Size.square(20.0),
-                    ),
-                    const HSpace(2.0),
-                    ValueListenableBuilder(
-                      valueListenable: widget.selectedSourcesNotifier,
-                      builder: (context, selectedSourceIds, _) {
-                        final documentId =
-                            context.read<DocumentBloc?>()?.documentId;
-                        final label = documentId != null &&
-                                selectedSourceIds.length == 1 &&
-                                selectedSourceIds[0] == documentId
-                            ? LocaleKeys.chat_currentPage.tr()
-                            : selectedSourceIds.length.toString();
-                        return FlowyText(
-                          label,
-                          fontSize: 14,
-                          figmaLineHeight: 20,
-                          color: Theme.of(context).hintColor,
-                        );
-                      },
-                    ),
-                    const HSpace(2.0),
-                    FlowySvg(
-                      FlowySvgs.ai_source_drop_down_s,
-                      color: Theme.of(context).hintColor,
-                      size: const Size.square(10),
-                    ),
-                  ],
-                ),
-                onTap: () async {
-                  unawaited(
-                    context
-                        .read<ViewSelectorCubit>()
-                        .refreshSources(state.spaces, state.currentSpace),
-                  );
+        ),
+        onTap: () async {
+          key.currentState?.refreshViews();
 
-                  await showMobileBottomSheet<void>(
-                    context,
-                    backgroundColor: theme.surfaceColorScheme.primary,
-                    maxChildSize: 0.98,
-                    enableDraggableScrollable: true,
-                    scrollableWidgetBuilder: (_, scrollController) {
-                      return Expanded(
-                        child: BlocProvider.value(
-                          value: cubit,
-                          child: _MobileSelectSourcesSheetBody(
-                            scrollController: scrollController,
-                          ),
-                        ),
-                      );
-                    },
-                    builder: (context) => const SizedBox.shrink(),
-                  );
-                  if (context.mounted) {
-                    widget.onUpdateSelectedSources(cubit.selectedSourceIds);
-                  }
-                },
+          await showMobileBottomSheet<void>(
+            context,
+            backgroundColor: theme.surfaceColorScheme.primary,
+            maxChildSize: 0.98,
+            enableDraggableScrollable: true,
+            scrollableWidgetBuilder: (_, scrollController) {
+              return Expanded(
+                child: BlocProvider.value(
+                  value: cubit,
+                  child: _MobileSelectSourcesSheetBody(
+                    scrollController: scrollController,
+                  ),
+                ),
               );
             },
-          ),
-        );
-      },
+            builder: (context) => const SizedBox.shrink(),
+          );
+          if (context.mounted) {
+            widget.onUpdateSelectedSources(cubit.selectedSourceIds);
+          }
+        },
+      ),
     );
   }
 

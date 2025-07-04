@@ -133,7 +133,7 @@ class AFGhostIconTextButton extends StatelessWidget {
               isHovering,
               disabled,
             ),
-            SizedBox(width: theme.spacing.m),
+            SizedBox(width: theme.spacing.s),
             Text(
               text,
               style: size.buildTextStyle(context).copyWith(

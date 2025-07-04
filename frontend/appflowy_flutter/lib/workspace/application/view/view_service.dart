@@ -148,13 +148,11 @@ class ViewBackendService {
     required bool includeChildren,
     String? parentViewId,
     String? suffix,
-    required bool syncAfterDuplicate,
   }) {
     final payload = DuplicateViewPayloadPB.create()
       ..viewId = view.id
       ..openAfterDuplicate = openAfterDuplicate
-      ..includeChildren = includeChildren
-      ..syncAfterCreate = syncAfterDuplicate;
+      ..includeChildren = includeChildren;
 
     if (parentViewId != null) {
       payload.parentViewId = parentViewId;
@@ -263,6 +261,12 @@ class ViewBackendService {
   ///
   static Future<FlowyResult<RepeatedViewPB, FlowyError>> getAllViews() async {
     return FolderEventGetAllViews().send();
+  }
+
+  /// Fetches a flattened list of all Views with permission check.
+  static Future<FlowyResult<RepeatedViewPB, FlowyError>>
+      getAllViewsWithPermissionCheck() async {
+    return FolderEventGetAllViewsWithPermission().send();
   }
 
   static Future<FlowyResult<ViewPB, FlowyError>> getView(

@@ -28,7 +28,8 @@ class SidebarUser extends StatelessWidget {
         context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceId ??
             '';
     return BlocProvider<MenuUserBloc>(
-      create: (_) => MenuUserBloc(userProfile, workspaceId),
+      create: (_) =>
+          MenuUserBloc(userProfile, workspaceId)..add(MenuUserEvent.initial()),
       child: BlocBuilder<MenuUserBloc, MenuUserState>(
         builder: (context, state) => Row(
           children: [
@@ -37,13 +38,6 @@ class SidebarUser extends StatelessWidget {
               iconUrl: state.userProfile.iconUrl,
               name: state.userProfile.name,
               size: AFAvatarSize.s,
-              decoration: ShapeDecoration(
-                color: const Color(0xFFFBE8FB),
-                shape: RoundedRectangleBorder(
-                  side: const BorderSide(width: 0.50, color: Color(0x19171717)),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
             ),
             const HSpace(8),
             Expanded(child: _buildUserName(context, state)),

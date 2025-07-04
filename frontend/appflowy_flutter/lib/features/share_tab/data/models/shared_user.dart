@@ -11,6 +11,7 @@ class SharedUser {
     required this.role,
     required this.accessLevel,
     this.avatarUrl,
+    this.isPending = true,
   });
 
   final String email;
@@ -29,12 +30,16 @@ class SharedUser {
   /// if the avatar is not set, it will be the first letter of the name.
   final String? avatarUrl;
 
+  /// Whether the user is in pending state.
+  final bool isPending;
+
   SharedUser copyWith({
     String? email,
     String? name,
     ShareRole? role,
     ShareAccessLevel? accessLevel,
     String? avatarUrl,
+    bool? isPending,
   }) {
     return SharedUser(
       email: email ?? this.email,
@@ -42,6 +47,12 @@ class SharedUser {
       role: role ?? this.role,
       accessLevel: accessLevel ?? this.accessLevel,
       avatarUrl: avatarUrl ?? this.avatarUrl,
+      isPending: isPending ?? this.isPending,
     );
+  }
+
+  @override
+  String toString() {
+    return 'SharedUser(email: $email, name: $name, role: $role, accessLevel: $accessLevel, avatarUrl: $avatarUrl, isPending: $isPending)';
   }
 }

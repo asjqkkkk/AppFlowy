@@ -1,3 +1,4 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_transition_bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/database/view/database_view_list.dart';
@@ -15,7 +16,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class MobileTabBarHeader extends StatelessWidget {
-  const MobileTabBarHeader({super.key});
+  const MobileTabBarHeader({
+    super.key,
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -28,9 +34,16 @@ class MobileTabBarHeader extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const _DatabaseViewSelectorButton(),
+          _DatabaseViewSelectorButton(
+            isEditable: isEditable,
+          ),
           const Spacer(),
-          BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
+          BlocConsumer<DatabaseTabBarBloc, DatabaseTabBarState>(
+            listener: (context, state) {
+              if (state.tabBars.isEmpty) {
+                context.read<ViewBloc>().add(const ViewEvent.initial());
+              }
+            },
             builder: (context, state) {
               final currentView = state.tabBars.firstWhereIndexedOrNull(
                 (index, tabBar) => index == state.selectedIndex,
@@ -40,19 +53,22 @@ class MobileTabBarHeader extends StatelessWidget {
                 return const SizedBox.shrink();
               }
 
-              return MobileDatabaseControls(
-                controller: state
-                    .tabBarControllerByViewId[currentView.viewId]!.controller,
-                features: switch (currentView.layout) {
-                  ViewLayoutPB.Board || ViewLayoutPB.Calendar => [
-                      MobileDatabaseControlFeatures.filter,
-                    ],
-                  ViewLayoutPB.Grid => [
-                      MobileDatabaseControlFeatures.sort,
-                      MobileDatabaseControlFeatures.filter,
-                    ],
-                  _ => [],
-                },
+              return IgnorePointer(
+                ignoring: !isEditable,
+                child: MobileDatabaseControls(
+                  controller: state
+                      .tabBarControllerByViewId[currentView.viewId]!.controller,
+                  features: switch (currentView.layout) {
+                    ViewLayoutPB.Board || ViewLayoutPB.Calendar => [
+                        MobileDatabaseControlFeatures.filter,
+                      ],
+                    ViewLayoutPB.Grid => [
+                        MobileDatabaseControlFeatures.sort,
+                        MobileDatabaseControlFeatures.filter,
+                      ],
+                    _ => [],
+                  },
+                ),
               );
             },
           ),
@@ -63,7 +79,11 @@ class MobileTabBarHeader extends StatelessWidget {
 }
 
 class _DatabaseViewSelectorButton extends StatelessWidget {
-  const _DatabaseViewSelectorButton();
+  const _DatabaseViewSelectorButton({
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -130,8 +150,13 @@ class _DatabaseViewSelectorButton extends StatelessWidget {
                     BlocProvider<DatabaseTabBarBloc>.value(
                       value: context.read<DatabaseTabBarBloc>(),
                     ),
+                    BlocProvider<PageAccessLevelBloc>.value(
+                      value: context.read<PageAccessLevelBloc>(),
+                    ),
                   ],
-                  child: const MobileDatabaseViewList(),
+                  child: MobileDatabaseViewList(
+                    isEditable: isEditable,
+                  ),
                 );
               },
             );

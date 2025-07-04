@@ -14,6 +14,7 @@ class SharedPageList extends StatelessWidget {
   const SharedPageList({
     super.key,
     required this.sharedPages,
+    required this.noAccessViewIds,
     required this.onAction,
     required this.onSelected,
     required this.onTertiarySelected,
@@ -21,6 +22,7 @@ class SharedPageList extends StatelessWidget {
   });
 
   final SharedPages sharedPages;
+  final List<String> noAccessViewIds;
   final ViewItemOnSelected onSelected;
   final ViewItemOnSelected onTertiarySelected;
   final SharedPageActionsButtonCallback onAction;
@@ -44,6 +46,13 @@ class SharedPageList extends StatelessWidget {
           isFeedback: false,
           onSelected: onSelected,
           onTertiarySelected: onTertiarySelected,
+          shouldIgnoreView: (childView) {
+            if (noAccessViewIds.contains(childView.id)) {
+              return IgnoreViewType.hide;
+            }
+
+            return IgnoreViewType.none;
+          },
           rightIconsBuilder: (context, view) => [
             IntrinsicWidth(
               child: _buildSharedPageMoreActionButton(

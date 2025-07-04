@@ -9,19 +9,20 @@ import 'package:appflowy_result/appflowy_result.dart';
 
 class RustSharePagesRepositoryImpl implements SharedPagesRepository {
   @override
-  Future<FlowyResult<SharedPages, FlowyError>> getSharedPages() async {
+  Future<FlowyResult<SharedPageResponse, FlowyError>> getSharedPages() async {
     final result = await FolderEventGetSharedViews().send();
     return result.fold(
       (success) {
         final sharedPages = success.sharedPages;
-
-        Log.debug('get shared pages success, len: ${sharedPages.length}');
-
-        return FlowyResult.success(sharedPages);
+        return FlowyResult.success(
+          SharedPageResponse(
+            sharedPages: sharedPages,
+            noAccessViewIds: success.noAccessViewIds,
+          ),
+        );
       },
       (error) {
         Log.error('failed to get shared pages, error: $error');
-
         return FlowyResult.failure(error);
       },
     );
@@ -47,15 +48,12 @@ class RustSharePagesRepositoryImpl implements SharedPagesRepository {
 
     return result.fold(
       (success) {
-        Log.debug('remove user($userEmail) from shared page($pageId)');
-
         return FlowySuccess(success);
       },
       (failure) {
         Log.error(
           'remove user($userEmail) from shared page($pageId): $failure',
         );
-
         return FlowyFailure(failure);
       },
     );

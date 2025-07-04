@@ -55,6 +55,7 @@ class DocumentPlugin extends Plugin {
     required PluginType pluginType,
     this.initialSelection,
     this.initialBlockId,
+    this.initialPageAccessLevelBloc,
   }) : notifier = ViewPluginNotifier(view: view) {
     _pluginType = pluginType;
   }
@@ -71,6 +72,9 @@ class DocumentPlugin extends Plugin {
 
   // the initial block id of the document
   final String? initialBlockId;
+
+  // initial page access level bloc
+  final PageAccessLevelBloc? initialPageAccessLevelBloc;
 
   @override
   PluginWidgetBuilder get widgetBuilder => DocumentPluginWidgetBuilder(
@@ -91,14 +95,17 @@ class DocumentPlugin extends Plugin {
   void init() {
     _viewInfoBloc = ViewInfoBloc(view: notifier.view)
       ..add(const ViewInfoEvent.started());
-    _pageAccessLevelBloc = PageAccessLevelBloc(view: notifier.view)
-      ..add(const PageAccessLevelEvent.initial());
+    _pageAccessLevelBloc = initialPageAccessLevelBloc ??
+        (PageAccessLevelBloc(view: notifier.view)
+          ..add(const PageAccessLevelEvent.initial()));
   }
 
   @override
   void dispose() {
     _viewInfoBloc.close();
-    _pageAccessLevelBloc.close();
+    if (initialPageAccessLevelBloc == null) {
+      _pageAccessLevelBloc.close();
+    }
     notifier.dispose();
   }
 }

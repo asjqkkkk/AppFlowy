@@ -1,16 +1,18 @@
 use std::sync::{Arc, Weak};
 
+use collab::core::collab::{default_client_id, CollabOptions};
 use collab::core::origin::{CollabClient, CollabOrigin};
 use collab::preclude::Collab;
 use collab_document::document::Document;
 use collab_document::document_data::default_document_data;
 use collab_folder::{Folder, View};
-use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
 use semver::Version;
 use tracing::{event, instrument};
 
-use collab_integrate::{CollabKVAction, CollabKVDB, PersistenceError};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::AuthType;
@@ -68,10 +70,10 @@ impl UserDataMigration for HistoricalEmptyDocumentMigration {
         Err(_) => return Ok(()),
       };
 
-      let folder = Folder::open(user.user_id, folder_collab, None)
-        .map_err(|err| PersistenceError::Internal(err.into()))?;
+      let folder =
+        Folder::open(folder_collab, None).map_err(|err| PersistenceError::Internal(err.into()))?;
       if let Some(workspace_id) = folder.get_workspace_id() {
-        let migration_views = folder.get_views_belong_to(&workspace_id);
+        let migration_views = folder.get_views_belong_to(&workspace_id, user.user_id);
         // For historical reasons, the first level documents are empty. So migrate them by inserting
         // the default document data.
         for view in migration_views {
@@ -107,7 +109,8 @@ where
 {
   // If the document is not exist, we don't need to migrate it.
   if load_collab(user_id, write_txn, workspace_id, &view.id).is_err() {
-    let collab = Collab::new_with_origin(origin.clone(), &view.id, vec![], false);
+    let options = CollabOptions::new(view.id.clone(), default_client_id());
+    let collab = Collab::new_with_options(origin.clone(), options)?;
     let document = Document::create_with_data(collab, default_document_data(&view.id))?;
     let encode = document.encode_collab_v1(|_| Ok::<(), PersistenceError>(()))?;
     write_txn.flush_doc(

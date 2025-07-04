@@ -1,4 +1,4 @@
-use crate::entities::{DatabaseSyncStatePB, DidFetchRowPB, RowsChangePB};
+use crate::entities::{DidFetchRowPB, RowsChangePB};
 use crate::notification::{
   DATABASE_OBSERVABLE_SOURCE, DatabaseNotification, database_notification_builder,
 };
@@ -12,31 +12,10 @@ use collab_database::rows::{RowChange, RowId};
 use collab_database::views::{DatabaseViewChange, RowOrder};
 use dashmap::DashMap;
 use flowy_notification::{DebounceNotificationSender, NotificationBuilder};
-use futures::StreamExt;
 
 use std::sync::Arc;
 use tracing::{error, trace, warn};
 use uuid::Uuid;
-
-pub(crate) async fn observe_sync_state(database_id: &str, database: &Arc<RwLock<Database>>) {
-  let weak_database = Arc::downgrade(database);
-  let mut sync_state = database.read().await.subscribe_sync_state();
-  let database_id = database_id.to_string();
-  tokio::spawn(async move {
-    while let Some(sync_state) = sync_state.next().await {
-      if weak_database.upgrade().is_none() {
-        break;
-      }
-
-      database_notification_builder(
-        &database_id,
-        DatabaseNotification::DidUpdateDatabaseSyncUpdate,
-      )
-      .payload(DatabaseSyncStatePB::from(sync_state))
-      .send();
-    }
-  });
-}
 
 pub(crate) async fn observe_rows_change(
   database_id: &str,
@@ -195,10 +174,15 @@ async fn handle_did_update_row_orders(
   // Delete row: Next, we delete a from its original position at index 0.
   // Delete row indexes: [0]
   // Final state after delete: [b, a, c]
-  let row_changes = DashMap::new();
+  warn!("insert row orders: {:?}", insert_row_orders);
+  let row_changes = DashMap::<String, RowsChangePB>::new();
   // 1. handle insert row orders
   for (row_order, index) in insert_row_orders {
-    let row = match database_editor.init_database_row(&row_order.id).await {
+    let (tx, rx) = tokio::sync::oneshot::channel();
+    let _ = database_editor
+      .init_database_row(&row_order.id, Some(tx))
+      .await;
+    let row = match rx.await {
       Ok(database_row) => database_row.read().await.get_row().map(Arc::new),
       Err(err) => {
         error!("Failed to init row: {:?}", err);
@@ -206,11 +190,7 @@ async fn handle_did_update_row_orders(
       },
     };
 
-    if let Some(view_editor) = database_editor
-      .database_views
-      .get_view_editor(view_id)
-      .await
-    {
+    if let Ok(view_editor) = database_editor.get_view_editor(view_id).await {
       trace!(
         "[RowOrder]: insert row:{} at index:{}, is_local:{}",
         row_order.id, index, is_local_change
@@ -218,7 +198,6 @@ async fn handle_did_update_row_orders(
 
       // insert row order in database view cache
       view_editor.insert_row(row.clone(), index, &row_order).await;
-
       let is_move_row = is_move_row(&view_editor, &row_order, &delete_row_indexes).await;
       if let Some((index, row_detail)) = view_editor.v_get_row(&row_order.id).await {
         view_editor
@@ -237,11 +216,7 @@ async fn handle_did_update_row_orders(
   // handle delete row orders
   for index in delete_row_indexes {
     let index = index as usize;
-    if let Some(view_editor) = database_editor
-      .database_views
-      .get_view_editor(view_id)
-      .await
-    {
+    if let Ok(view_editor) = database_editor.get_or_init_view_editor(view_id).await {
       let mut view_row_orders = view_editor.row_orders.write().await;
       if view_row_orders.len() > index {
         let lazy_row = view_row_orders.remove(index);

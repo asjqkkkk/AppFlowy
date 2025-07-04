@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 
 class AppFlowySurfaceContainerColorScheme {
   const AppFlowySurfaceContainerColorScheme({
+    required this.layer00,
     required this.layer01,
     required this.layer02,
     required this.layer03,
   });
 
+  final Color layer00;
   final Color layer01;
   final Color layer02;
   final Color layer03;
@@ -16,6 +18,11 @@ class AppFlowySurfaceContainerColorScheme {
     double t,
   ) {
     return AppFlowySurfaceContainerColorScheme(
+      layer00: Color.lerp(
+        layer00,
+        other.layer00,
+        t,
+      )!,
       layer01: Color.lerp(
         layer01,
         other.layer01,

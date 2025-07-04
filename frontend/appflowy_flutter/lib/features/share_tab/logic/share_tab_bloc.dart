@@ -4,11 +4,7 @@ import 'package:appflowy/features/share_tab/data/repositories/share_with_user_re
 import 'package:appflowy/features/share_tab/logic/share_tab_event.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_state.dart';
 import 'package:appflowy/features/util/extensions.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
-import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/shared/feature_flags.dart';
-import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:bloc/bloc.dart';
@@ -20,7 +16,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
   ShareTabBloc({
     required this.repository,
     required this.pageId,
-    required this.workspaceId,
+    this.workspaceId,
   }) : super(ShareTabState.initial()) {
     on<ShareTabEventInitialize>(_onInitial);
     on<ShareTabEventLoadSharedUsers>(_onGetSharedUsers);
@@ -30,22 +26,23 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     on<ShareTabEventUpdateGeneralAccessLevel>(_onUpdateGeneralAccess);
     on<ShareTabEventCopyShareLink>(_onCopyLink);
     on<ShareTabEventSearchAvailableUsers>(_onSearchAvailableUsers);
-    on<ShareTabEventConvertToMember>(_onTurnIntoMember);
+    on<ShareTabEventTurnIntoMember>(_onTurnIntoMember);
     on<ShareTabEventClearState>(_onClearState);
     on<ShareTabEventUpdateSharedUsers>(_onUpdateSharedUsers);
     on<ShareTabEventUpgradeToProClicked>(_onUpgradeToProClicked);
   }
 
   final ShareWithUserRepository repository;
-  final String workspaceId;
+  final String? workspaceId;
   final String pageId;
 
   // Used to listen for shared view updates.
   FolderNotificationListener? _folderNotificationListener;
+  late final String _effectiveWorkspaceId;
 
   @override
   Future<void> close() async {
-      await _folderNotificationListener?.stop();
+    await _folderNotificationListener?.stop();
     await super.close();
   }
 
@@ -66,6 +63,8 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
 
     _initFolderNotificationListener();
 
+    _effectiveWorkspaceId = await _getWorkspaceId();
+
     final result = await repository.getCurrentUserProfile();
     final currentUser = result.fold(
       (user) => user,
@@ -80,8 +79,8 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
       (error) => SharedSectionType.unknown,
     );
 
-    final shareLink = ShareConstants.buildShareUrl(
-      workspaceId: workspaceId,
+    final shareLink = repository.buildShareUrl(
+      workspaceId: _effectiveWorkspaceId,
       viewId: pageId,
     );
 
@@ -89,7 +88,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
 
     final hasClickedUpgradeToPro =
         await repository.getUpgradeToProButtonClicked(
-      workspaceId: workspaceId,
+      workspaceId: _effectiveWorkspaceId,
     );
 
     emit(
@@ -111,11 +110,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
       return;
     }
 
-    emit(
-      state.copyWith(
-        errorMessage: '',
-      ),
-    );
+    _clearErrorMessage(emit);
 
     final result = await repository.getSharedUsersInPage(
       pageId: pageId,
@@ -141,11 +136,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     ShareTabEventInviteUsers event,
     Emitter<ShareTabState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        errorMessage: '',
-      ),
-    );
+    _clearErrorMessage(emit);
 
     final result = await repository.sharePageWithUser(
       pageId: pageId,
@@ -179,23 +170,22 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     ShareTabEventRemoveUsers event,
     Emitter<ShareTabState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        errorMessage: '',
-      ),
-    );
+    _clearErrorMessage(emit);
 
     final result = await repository.removeSharedUserFromPage(
       pageId: pageId,
       emails: event.emails,
     );
 
+    await repository.refreshSharedPages();
+
     await result.fold(
       (_) async {
         final users = await _getSharedUsers();
+        final isRemovingSelf = event.emails.contains(state.currentUser?.email);
         emit(
           state.copyWith(
-            removeResult: FlowySuccess(null),
+            removeResult: FlowySuccess(isRemovingSelf),
             users: users,
           ),
         );
@@ -215,9 +205,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     ShareTabEventUpdateUserAccessLevel event,
     Emitter<ShareTabState> emit,
   ) async {
-    emit(
-      state.copyWith(),
-    );
+    _clearErrorMessage(emit);
 
     final result = await repository.sharePageWithUser(
       pageId: pageId,
@@ -261,15 +249,29 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     ShareTabEventCopyShareLink event,
     Emitter<ShareTabState> emit,
   ) {
-    getIt<ClipboardService>().setData(
-      ClipboardServiceData(
-        plainText: event.link,
-      ),
+    final shareSection = state.sectionType;
+    final collaborators = state.users;
+    final containsGuest = collaborators.any(
+      (user) => user.role == ShareRole.guest,
     );
+    CopyLinkToastType toastType;
+    if (shareSection == SharedSectionType.public && containsGuest) {
+      toastType = CopyLinkToastType.publicPage;
+    } else if (shareSection == SharedSectionType.private &&
+            collaborators.length > 1 ||
+        shareSection == SharedSectionType.shared) {
+      toastType = CopyLinkToastType.privateOrSharedPage;
+    } else {
+      toastType = CopyLinkToastType.none;
+    }
 
     emit(
       state.copyWith(
-        linkCopied: true,
+        copyLinkResult: CopyLinkResult(
+          link: event.link,
+          result: FlowySuccess(null),
+          toastType: toastType,
+        ),
       ),
     );
   }
@@ -278,11 +280,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     ShareTabEventSearchAvailableUsers event,
     Emitter<ShareTabState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        errorMessage: '',
-      ),
-    );
+    _clearErrorMessage(emit);
 
     final result = await repository.getAvailableSharedUsers(pageId: pageId);
 
@@ -310,17 +308,13 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
   }
 
   Future<void> _onTurnIntoMember(
-    ShareTabEventConvertToMember event,
+    ShareTabEventTurnIntoMember event,
     Emitter<ShareTabState> emit,
   ) async {
-    emit(
-      state.copyWith(
-        errorMessage: '',
-      ),
-    );
+    _clearErrorMessage(emit);
 
     final result = await repository.changeRole(
-      workspaceId: workspaceId,
+      workspaceId: _effectiveWorkspaceId,
       email: event.email,
       role: ShareRole.member,
     );
@@ -330,7 +324,11 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         final users = await _getSharedUsers();
         emit(
           state.copyWith(
-            turnIntoMemberResult: FlowySuccess(null),
+            turnIntoMemberResult: TurnIntoMemberResult(
+              email: event.email,
+              name: event.name,
+              result: FlowySuccess(null),
+            ),
             users: users,
           ),
         );
@@ -339,7 +337,11 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         emit(
           state.copyWith(
             errorMessage: error.msg,
-            turnIntoMemberResult: FlowyFailure(error),
+            turnIntoMemberResult: TurnIntoMemberResult(
+              email: event.email,
+              name: event.name,
+              result: FlowyFailure(error),
+            ),
           ),
         );
       },
@@ -360,11 +362,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     ShareTabEventClearState event,
     Emitter<ShareTabState> emit,
   ) {
-    emit(
-      state.copyWith(
-        errorMessage: '',
-      ),
-    );
+    _clearErrorMessage(emit);
   }
 
   void _onUpdateSharedUsers(
@@ -378,12 +376,20 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     );
   }
 
+  void _clearErrorMessage(Emitter<ShareTabState> emit) {
+    emit(
+      state.copyWith(
+        errorMessage: '',
+      ),
+    );
+  }
+
   Future<void> _onUpgradeToProClicked(
     ShareTabEventUpgradeToProClicked event,
     Emitter<ShareTabState> emit,
   ) async {
     await repository.setUpgradeToProButtonClicked(
-      workspaceId: workspaceId,
+      workspaceId: _effectiveWorkspaceId,
     );
     emit(
       state.copyWith(
@@ -405,7 +411,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
             },
             (error) => null,
           );
-          Log.debug('update shared users: $response');
+
           if (response != null) {
             add(
               ShareTabEvent.updateSharedUsers(
@@ -416,5 +422,17 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         }
       },
     );
+  }
+
+  Future<String> _getWorkspaceId() async {
+    if (workspaceId != null) {
+      return workspaceId!;
+    }
+    final result = await repository.getCurrentWorkspaceId();
+    final id = result.fold(
+      (id) => id,
+      (err) => '',
+    );
+    return id;
   }
 }

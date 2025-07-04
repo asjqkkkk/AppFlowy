@@ -1,7 +1,12 @@
+use std::sync::Arc;
+
 use collab_database::{fields::Field, rows::Cell};
 use flowy_derive::ProtoBuf;
 
-use crate::services::filter::{ParseFilterData, PreFillCellsWithFilter};
+use crate::services::{
+  field::TypeOptionHandlerCache,
+  filter::{ParseFilterData, PreFillCellsWithFilter},
+};
 
 #[derive(Eq, PartialEq, ProtoBuf, Debug, Default, Clone)]
 pub struct RelationFilterPB {
@@ -16,7 +21,11 @@ impl ParseFilterData for RelationFilterPB {
 }
 
 impl PreFillCellsWithFilter for RelationFilterPB {
-  fn get_compliant_cell(&self, _field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     None
   }
 }

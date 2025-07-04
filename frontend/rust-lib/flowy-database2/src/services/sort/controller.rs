@@ -18,13 +18,13 @@ use crate::entities::SortChangesetNotificationPB;
 use crate::entities::{FieldType, SortWithIndexPB};
 use crate::services::cell::CellCache;
 use crate::services::database_view::{DatabaseViewChanged, DatabaseViewChangedNotifier};
-use crate::services::field::{TypeOptionCellExt, default_order};
+use crate::services::field::{TypeOptionCellExt, TypeOptionHandlerCache, default_order};
 use crate::services::sort::{
   ReorderAllRowsResult, ReorderSingleRowResult, Sort, SortChangeset, SortCondition,
 };
 
 #[async_trait]
-pub trait SortDelegate: Send + Sync {
+pub trait SortOperation: Send + Sync {
   async fn get_sort(&self, view_id: &str, sort_id: &str) -> Option<Arc<Sort>>;
   /// Returns all the rows after applying grid's filter
   async fn get_rows(&self, view_id: &str) -> Vec<Arc<Row>>;
@@ -36,12 +36,13 @@ pub trait SortDelegate: Send + Sync {
 pub struct SortController {
   view_id: String,
   handler_id: String,
-  delegate: Box<dyn SortDelegate>,
+  ops: Box<dyn SortOperation>,
   task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
   sorts: Vec<Arc<Sort>>,
   cell_cache: CellCache,
   row_index_cache: HashMap<RowId, usize>,
   notifier: DatabaseViewChangedNotifier,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 }
 
 impl Drop for SortController {
@@ -51,6 +52,7 @@ impl Drop for SortController {
 }
 
 impl SortController {
+  #[allow(clippy::too_many_arguments)]
   pub fn new<T>(
     view_id: &str,
     handler_id: &str,
@@ -59,19 +61,21 @@ impl SortController {
     task_scheduler: Arc<TokioRwLock<TaskDispatcher>>,
     cell_cache: CellCache,
     notifier: DatabaseViewChangedNotifier,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Self
   where
-    T: SortDelegate + 'static,
+    T: SortOperation + 'static,
   {
     Self {
       view_id: view_id.to_string(),
       handler_id: handler_id.to_string(),
-      delegate: Box::new(delegate),
+      ops: Box::new(delegate),
       task_scheduler,
       sorts,
       cell_cache,
       row_index_cache: Default::default(),
       notifier,
+      type_option_handlers,
     }
   }
 
@@ -99,12 +103,12 @@ impl SortController {
   }
 
   pub async fn did_create_row(&mut self, row: &Row) -> Option<u32> {
-    if !self.delegate.filter_row(row).await {
+    if !self.ops.filter_row(row).await {
       return None;
     }
 
     if !self.sorts.is_empty() {
-      let mut rows = self.delegate.get_rows(&self.view_id).await;
+      let mut rows = self.ops.get_rows(&self.view_id).await;
       self.sort_rows(&mut rows).await;
 
       let row_index = self
@@ -118,7 +122,7 @@ impl SortController {
       }
       row_index
     } else {
-      let rows = self.delegate.get_rows(&self.view_id).await;
+      let rows = self.ops.get_rows(&self.view_id).await;
       rows
         .iter()
         .position(|val| val.id == row.id)
@@ -137,7 +141,7 @@ impl SortController {
   // #[tracing::instrument(name = "process_sort_task", level = "trace", skip_all, err)]
   pub async fn process(&mut self, predicate: &str) -> FlowyResult<()> {
     let event_type = SortEvent::from_str(predicate).unwrap();
-    let mut rows = self.delegate.get_rows(&self.view_id).await;
+    let mut rows = self.ops.get_rows(&self.view_id).await;
 
     match event_type {
       SortEvent::SortDidChanged | SortEvent::DeleteAllSorts => {
@@ -203,9 +207,18 @@ impl SortController {
   }
 
   pub async fn sort_rows(&mut self, rows: &mut [Arc<Row>]) {
-    let fields = self.delegate.get_fields(&self.view_id, None).await;
+    let fields = self.ops.get_fields(&self.view_id, None).await;
     for sort in self.sorts.iter().rev() {
-      rows.par_sort_by(|left, right| cmp_row(left, right, sort, &fields, &self.cell_cache));
+      rows.par_sort_by(|left, right| {
+        cmp_row(
+          left,
+          right,
+          sort,
+          &fields,
+          &self.cell_cache,
+          self.type_option_handlers.clone(),
+        )
+      });
     }
     rows.iter().enumerate().for_each(|(index, row)| {
       self.row_index_cache.insert(row.id.clone(), index);
@@ -228,7 +241,7 @@ impl SortController {
     let mut notification = SortChangesetNotificationPB::new(self.view_id.clone());
 
     if let Some(insert_sort) = changeset.insert_sort {
-      if let Some(sort) = self.delegate.get_sort(&self.view_id, &insert_sort.id).await {
+      if let Some(sort) = self.ops.get_sort(&self.view_id, &insert_sort.id).await {
         notification.insert_sorts.push(SortWithIndexPB {
           index: self.sorts.len() as u32,
           sort: sort.as_ref().into(),
@@ -245,7 +258,7 @@ impl SortController {
     }
 
     if let Some(update_sort) = changeset.update_sort {
-      if let Some(updated_sort) = self.delegate.get_sort(&self.view_id, &update_sort.id).await {
+      if let Some(updated_sort) = self.ops.get_sort(&self.view_id, &update_sort.id).await {
         notification.update_sorts.push(updated_sort.as_ref().into());
         if let Some(index) = self
           .sorts
@@ -258,7 +271,7 @@ impl SortController {
     }
 
     if let Some((from_id, to_id)) = changeset.reorder_sort {
-      let moved_sort = self.delegate.get_sort(&self.view_id, &from_id).await;
+      let moved_sort = self.ops.get_sort(&self.view_id, &from_id).await;
       let from_index = self.sorts.iter().position(|sort| sort.id == from_id);
       let to_index = self.sorts.iter().position(|sort| sort.id == to_id);
 
@@ -290,6 +303,7 @@ fn cmp_row(
   sort: &Arc<Sort>,
   fields: &[Field],
   cell_data_cache: &CellCache,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Ordering {
   match fields
     .iter()
@@ -324,6 +338,7 @@ fn cmp_row(
         field_rev,
         cell_data_cache,
         sort.condition,
+        type_option_handlers,
       )
     },
   }
@@ -335,9 +350,10 @@ fn cmp_cell(
   field: &Field,
   cell_data_cache: &CellCache,
   sort_condition: SortCondition,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Ordering {
-  match TypeOptionCellExt::new(field, Some(cell_data_cache.clone()))
-    .get_type_option_cell_data_handler()
+  match TypeOptionCellExt::new(field, Some(cell_data_cache.clone()), type_option_handlers)
+    .get_type_option_cell_data_handler(FieldType::from(field.field_type))
   {
     None => default_order(),
     Some(handler) => handler.handle_cell_compare(left_cell, right_cell, field, sort_condition),

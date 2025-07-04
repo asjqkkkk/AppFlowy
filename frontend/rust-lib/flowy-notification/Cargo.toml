@@ -16,6 +16,7 @@ serde = { workspace = true, features = ["derive"] }
 dashmap.workspace = true
 tokio-util = "0.7"
 tokio = { workspace = true, features = ["time"] }
+serde_json.workspace = true
 
 flowy-derive.workspace = true
 lib-dispatch = { workspace = true }

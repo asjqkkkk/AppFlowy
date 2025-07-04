@@ -1,4 +1,5 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/features/share_tab/data/models/share_section_type.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
@@ -26,6 +27,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 import '../../../plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 
@@ -247,6 +249,10 @@ class ViewTitleBar extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    if (pageAccessLevelState.isInitializing) {
+      return const SizedBox.shrink();
+    }
+
     final iconName = switch (pageAccessLevelState.sectionType) {
       SharedSectionType.public => FlowySvgs.public_section_icon_m,
       SharedSectionType.private => FlowySvgs.private_section_icon_m,
@@ -262,38 +268,51 @@ class ViewTitleBar extends StatelessWidget {
     );
 
     final text = switch (pageAccessLevelState.sectionType) {
-      SharedSectionType.public => 'Team space',
-      SharedSectionType.private => 'Private',
-      SharedSectionType.shared => 'Shared',
+      SharedSectionType.public => LocaleKeys.shareTab_section_public.tr(),
+      SharedSectionType.private => LocaleKeys.shareTab_section_private.tr(),
+      SharedSectionType.shared => LocaleKeys.shareTab_section_shared.tr(),
       SharedSectionType.unknown =>
         throw UnsupportedError('Unknown section type'),
     };
 
     final workspaceName = state.currentWorkspace?.name;
     final tooltipText = switch (pageAccessLevelState.sectionType) {
-      SharedSectionType.public => 'Everyone at $workspaceName has access',
-      SharedSectionType.private => 'Only you have access',
-      SharedSectionType.shared => '',
+      SharedSectionType.public => LocaleKeys.shareTab_sectionTooltip_public.tr(
+          namedArgs: {
+            'workspace': workspaceName ?? '',
+          },
+        ),
+      SharedSectionType.private =>
+        LocaleKeys.shareTab_sectionTooltip_private.tr(),
+      SharedSectionType.shared =>
+        pageAccessLevelState.accessLevel != ShareAccessLevel.fullAccess
+            ? LocaleKeys.shareTab_sectionTooltip_shared_withMe.tr()
+            : LocaleKeys.shareTab_sectionTooltip_shared_byMe.tr(),
       SharedSectionType.unknown =>
         throw UnsupportedError('Unknown section type'),
     };
 
-    return FlowyTooltip(
-      message: tooltipText,
-      child: Row(
-        textBaseline: TextBaseline.alphabetic,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        children: [
-          HSpace(theme.spacing.xs),
-          icon,
-          const HSpace(4.0), // ask designer to provide the spacing
-          Text(
-            text,
-            style: theme.textStyle.caption
-                .enhanced(color: theme.textColorScheme.tertiary),
-          ),
-          HSpace(theme.spacing.xs),
-        ],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.transparent),
+      ),
+      child: FlowyTooltip(
+        message: tooltipText,
+        child: Row(
+          textBaseline: TextBaseline.alphabetic,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          children: [
+            HSpace(theme.spacing.xs),
+            icon,
+            const HSpace(4.0), // ask designer to provide the spacing
+            Text(
+              text,
+              style: theme.textStyle.caption
+                  .enhanced(color: theme.textColorScheme.tertiary),
+            ),
+            HSpace(theme.spacing.xs),
+          ],
+        ),
       ),
     );
   }
@@ -495,11 +514,18 @@ class _ViewTitleState extends State<ViewTitle> {
           ],
           Opacity(
             opacity: isEditable ? 1.0 : 0.5,
-            child: FlowyText.regular(
-              name.orDefault(LocaleKeys.menuAppHeader_defaultNewPageName.tr()),
-              fontSize: 14.0,
-              overflow: TextOverflow.ellipsis,
-              figmaLineHeight: 18.0,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: UniversalPlatform.isWindows ? 2.0 : 0.0,
+              ),
+              child: FlowyText.regular(
+                name.orDefault(
+                  LocaleKeys.menuAppHeader_defaultNewPageName.tr(),
+                ),
+                fontSize: 14.0,
+                overflow: TextOverflow.ellipsis,
+                figmaLineHeight: UniversalPlatform.isWindows ? 14.0 : 16.0,
+              ),
             ),
           ),
         ],

@@ -1,3 +1,4 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/share_tab/presentation/share_tab.dart'
     as share_section;
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
@@ -8,9 +9,8 @@ import 'package:appflowy/plugins/shared/share/export_tab.dart';
 import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/plugins/shared/share/share_tab.dart' as share_plugin;
 import 'package:appflowy/shared/feature_flags.dart';
-import 'package:appflowy/workspace/application/settings/plan/settings_plan_bloc.dart';
+import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/settings_plan_comparison_dialog.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
@@ -45,11 +45,13 @@ class ShareMenu extends StatefulWidget {
     required this.tabs,
     required this.viewName,
     required this.onClose,
+    required this.showDialogCallback,
   });
 
   final List<ShareMenuTab> tabs;
   final String viewName;
   final VoidCallback onClose;
+  final void Function(bool value) showDialogCallback;
 
   @override
   State<ShareMenu> createState() => _ShareMenuState();
@@ -145,7 +147,7 @@ class _ShareMenuState extends State<ShareMenu>
               context.read<ShareBloc>().state.workspaceId;
           final pageId = context.read<ShareBloc>().state.viewId;
           final isInProPlan = context
-                  .read<UserWorkspaceBloc>()
+                  .watch<UserWorkspaceBloc>()
                   .state
                   .workspaceSubscriptionInfo
                   ?.plan ==
@@ -157,10 +159,9 @@ class _ShareMenuState extends State<ShareMenu>
             workspaceName: workspace?.name ?? '',
             workspaceIcon: workspace?.icon ?? '',
             isInProPlan: isInProPlan,
-            onUpgradeToPro: () {
-              widget.onClose();
-
-              _showUpgradeToProDialog(context);
+            showDialogCallback: widget.showDialogCallback,
+            onUpgradeToPro: (from) async {
+              await _showUpgradeToProDialog(context, from: from);
             },
           );
         }
@@ -169,7 +170,10 @@ class _ShareMenuState extends State<ShareMenu>
     }
   }
 
-  void _showUpgradeToProDialog(BuildContext context) {
+  Future<void> _showUpgradeToProDialog(
+    BuildContext context, {
+    required share_section.ShareTabUpgradeToProFrom from,
+  }) async {
     final state = context.read<UserWorkspaceBloc>().state;
     final workspace = state.currentWorkspace;
     if (workspace == null) {
@@ -177,9 +181,7 @@ class _ShareMenuState extends State<ShareMenu>
       return;
     }
 
-    final workspaceId = workspace.workspaceId;
     final subscriptionInfo = state.workspaceSubscriptionInfo;
-    final userProfile = state.userProfile;
     if (subscriptionInfo == null) {
       Log.error('subscriptionInfo is null');
       return;
@@ -213,33 +215,91 @@ class _ShareMenuState extends State<ShareMenu>
       AFRolePB.Member || AFRolePB.Guest || _ => LocaleKeys.button_ok.tr(),
     };
 
+    widget.showDialogCallback(true);
+
     if (role == AFRolePB.Owner) {
-      showDialog(
+      // if user click the upgrade button in the banner, we redirect to the payment page directly
+      if (from == share_section.ShareTabUpgradeToProFrom.banner) {
+        widget.showDialogCallback(false);
+        await _redirectToPaymentPage(context);
+        return;
+      }
+
+      bool isConfirmed = false;
+      await showConfirmDialog(
         context: context,
-        builder: (_) => BlocProvider<SettingsPlanBloc>(
-          create: (_) => SettingsPlanBloc(
-            workspaceId: workspaceId,
-            userId: userProfile.id,
-          )..add(const SettingsPlanEvent.started()),
-          child: SettingsPlanComparisonDialog(
-            workspaceId: workspaceId,
-            subscriptionInfo: subscriptionInfo,
-          ),
-        ),
+        title: title,
+        description: description,
+        style: style,
+        confirmLabel: confirmLabel,
+        confirmButtonColor: Theme.of(context).colorScheme.primary,
+        onConfirm: (context) async {
+          isConfirmed = true;
+        },
       );
+
+      if (!context.mounted || !isConfirmed) {
+        widget.showDialogCallback(false);
+        return;
+      }
+
+      // Keep this logic here, we may reuse it in the future.
+      // Now, we redirect to the payment page.
+
+      // await showDialog(
+      //   context: context,
+      //   builder: (_) => BlocProvider<SettingsPlanBloc>(
+      //     create: (_) => SettingsPlanBloc(
+      //       workspaceId: workspaceId,
+      //       userId: userProfile.id,
+      //     )..add(const SettingsPlanEvent.started()),
+      //     child: SettingsPlanComparisonDialog(
+      //       workspaceId: workspaceId,
+      //       subscriptionInfo: subscriptionInfo,
+      //     ),
+      //   ),
+      // );
+
+      await _redirectToPaymentPage(context);
     } else {
-      showConfirmDialog(
+      await showConfirmDialog(
         context: Navigator.of(context, rootNavigator: true).context,
         title: title,
         description: description,
         style: style,
         confirmLabel: confirmLabel,
         confirmButtonColor: Theme.of(context).colorScheme.primary,
-        onConfirm: (context) {
-          // fixme: show the upgrade to pro dialog
+        onConfirm: (_) async {
+          // do nothing
         },
       );
     }
+
+    widget.showDialogCallback(false);
+  }
+
+  Future<void> _redirectToPaymentPage(BuildContext context) async {
+    final userProfile = context.read<UserWorkspaceBloc>().state.userProfile;
+    final workspaceId =
+        context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceId;
+    if (workspaceId == null) {
+      Log.error('workspaceId is null');
+      return;
+    }
+    final userService = UserBackendService(userId: userProfile.id);
+    final result = await userService.createSubscription(
+      workspaceId,
+      SubscriptionPlanPB.Pro,
+    );
+
+    result.fold(
+      (pl) => afLaunchUrlString(pl.paymentLink),
+      (f) => showToastNotification(
+        message: 'Failed to create subscription',
+        description: f.msg,
+        type: ToastificationType.error,
+      ),
+    );
   }
 }
 

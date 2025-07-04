@@ -10,7 +10,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class CreateSpacePopup extends StatefulWidget {
-  const CreateSpacePopup({super.key});
+  const CreateSpacePopup({
+    super.key,
+    required this.allowEditPermission,
+  });
+
+  final bool allowEditPermission;
 
   @override
   State<CreateSpacePopup> createState() => _CreateSpacePopupState();
@@ -20,7 +25,9 @@ class _CreateSpacePopupState extends State<CreateSpacePopup> {
   String spaceName = LocaleKeys.space_defaultSpaceName.tr();
   String? spaceIcon = kDefaultSpaceIconId;
   String? spaceIconColor = builtInSpaceColors.first;
-  SpacePermission spacePermission = SpacePermission.publicToAll;
+  late SpacePermission spacePermission = widget.allowEditPermission
+      ? SpacePermission.publicToAll
+      : SpacePermission.private;
 
   @override
   Widget build(BuildContext context) {
@@ -63,10 +70,12 @@ class _CreateSpacePopupState extends State<CreateSpacePopup> {
             },
           ),
           const VSpace(20.0),
-          SpacePermissionSwitch(
-            onPermissionChanged: (value) => spacePermission = value,
-          ),
-          const VSpace(20.0),
+          if (widget.allowEditPermission) ...[
+            SpacePermissionSwitch(
+              onPermissionChanged: (value) => spacePermission = value,
+            ),
+            const VSpace(20.0),
+          ],
           SpaceCancelOrConfirmButton(
             confirmButtonName: LocaleKeys.button_create.tr(),
             onCancel: () => Navigator.of(context).pop(),

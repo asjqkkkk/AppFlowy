@@ -78,6 +78,7 @@ pub(crate) async fn read_current_workspace_handler(
   data_result_ok(workspace)
 }
 
+#[instrument(level = "debug", skip_all)]
 pub(crate) async fn create_view_handler(
   data: AFPluginData<CreateViewPayloadPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -85,7 +86,7 @@ pub(crate) async fn create_view_handler(
   let folder = upgrade_folder(folder)?;
   let params: CreateViewParams = data.into_inner().try_into()?;
   let set_as_current = params.set_as_current;
-  let (view, _) = folder.create_view_with_params(params, true).await?;
+  let view = folder.create_view_with_params(params, true).await?;
   if set_as_current {
     let _ = folder.set_current_view(view.id.clone()).await;
   }
@@ -183,6 +184,18 @@ pub(crate) async fn toggle_favorites_handler(
   for view_id in &params.items {
     let _ = folder.toggle_favorites(view_id).await;
   }
+  Ok(())
+}
+
+pub(crate) async fn pin_or_unpin_favorite_handler(
+  data: AFPluginData<PinOrUnpinFavoritePayloadPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let params = data.into_inner();
+  folder
+    .pin_or_unpin_favorite(&params.view_id, params.is_pinned)
+    .await?;
   Ok(())
 }
 
@@ -290,7 +303,11 @@ pub(crate) async fn read_recent_views_handler(
     .skip(start as usize)
     .take(limit as usize)
     .collect::<Vec<_>>();
-  let views = folder.get_view_pbs_without_children(ids).await?;
+  let mut views = Vec::new();
+  for id in ids {
+    let view = folder.get_view_pb(&id).await?;
+    views.push(view);
+  }
   let items = views
     .into_iter()
     .zip(recent_items.into_iter().rev())
@@ -521,7 +538,7 @@ pub(crate) async fn remove_default_publish_view_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "info", skip(data, folder), err)]
 pub(crate) async fn lock_view_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -532,7 +549,7 @@ pub(crate) async fn lock_view_handler(
   Ok(())
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "info", skip(data, folder), err)]
 pub(crate) async fn unlock_view_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -551,7 +568,7 @@ pub(crate) async fn get_shared_users_handler(
   let folder = upgrade_folder(folder)?;
   let params = data.into_inner();
   let view_id = Uuid::from_str(&params.view_id)?;
-  let shared_users = folder.get_shared_page_details(&view_id).await?;
+  let shared_users = folder.get_shared_page_details(&view_id, true).await?;
   data_result_ok(shared_users.into())
 }
 
@@ -586,11 +603,22 @@ pub(crate) async fn get_shared_views_handler(
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<RepeatedSharedViewResponsePB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let resp = folder.get_shared_pages().await?;
-  data_result_ok(resp)
+  let shared_views = folder.get_shared_pages(true).await?;
+  data_result_ok(shared_views)
 }
 
-#[tracing::instrument(level = "debug", skip(data, folder))]
+#[tracing::instrument(level = "debug", skip(folder), err)]
+pub(crate) async fn get_flatten_shared_pages_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<RepeatedViewPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let flatten_shared_views = folder.get_flatten_shared_pages().await?;
+  data_result_ok(RepeatedViewPB {
+    items: flatten_shared_views,
+  })
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
 pub(crate) async fn get_shared_view_section_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
@@ -599,4 +627,37 @@ pub(crate) async fn get_shared_view_section_handler(
   let view_id = data.into_inner().value;
   let section = folder.get_shared_view_section(&view_id).await?;
   data_result_ok(GetSharedViewSectionResponsePB { section })
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn get_access_level_handler(
+  data: AFPluginData<GetAccessLevelPayloadPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<GetAccessLevelResponsePB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let payload = data.into_inner();
+  let access_level = folder
+    .get_access_level(&payload.view_id, &payload.user_email)
+    .await?;
+  data_result_ok(GetAccessLevelResponsePB { access_level })
+}
+
+#[tracing::instrument(level = "info", skip(data, folder), err)]
+pub(crate) async fn batch_permission_check_handler(
+  data: AFPluginData<RepeatedViewIdPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<RepeatedAccessLevelPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let view_ids = data.into_inner().items;
+  let results = folder.batch_permission_check(&view_ids).await?;
+  data_result_ok(RepeatedAccessLevelPB { results })
+}
+
+#[tracing::instrument(level = "info", skip(folder), err)]
+pub(crate) async fn get_all_views_with_permission_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<RepeatedViewPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let views = folder.get_all_view_pbs_with_permission().await?;
+  data_result_ok(RepeatedViewPB::from(views))
 }

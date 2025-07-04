@@ -242,13 +242,7 @@ impl DatabaseFilterTest {
   }
 
   pub async fn assert_number_of_visible_rows(&self, expected: usize) {
-    let (tx, rx) = tokio::sync::oneshot::channel();
-    let _ = self
-      .editor
-      .open_database_view(&self.view_id, Some(tx))
-      .await
-      .unwrap();
-    rx.await.unwrap();
+    let _ = self.editor.open_database_view(&self.view_id).await.unwrap();
 
     let rows = self.editor.get_all_rows(&self.view_id).await.unwrap();
     assert_eq!(rows.len(), expected);

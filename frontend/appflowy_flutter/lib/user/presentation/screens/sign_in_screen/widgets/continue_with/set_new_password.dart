@@ -4,6 +4,7 @@ import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/contin
 import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/continue_with/continue_with_button.dart';
 import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/continue_with/title_logo.dart';
 import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/continue_with/verifying_button.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/account/password/password_suffix_icon.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -130,6 +131,7 @@ class _SetNewPasswordWidgetState extends State<SetNewPasswordWidget> {
   }
 
   Widget _buildPasswordFields() {
+    final iconSize = 20.0;
     final theme = AppFlowyTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -146,6 +148,16 @@ class _SetNewPasswordWidgetState extends State<SetNewPasswordWidget> {
           controller: newPasswordController,
           obscureText: true,
           hintText: LocaleKeys.signIn_enterNewPassword.tr(),
+          suffixIconConstraints: BoxConstraints.tightFor(
+            width: iconSize + theme.spacing.m,
+            height: iconSize,
+          ),
+          suffixIconBuilder: (context, isObscured) => PasswordSuffixIcon(
+            isObscured: isObscured,
+            onTap: () {
+              newPasswordKey.currentState?.syncObscured(!isObscured);
+            },
+          ),
           onSubmitted: (_) => _validateAndSubmit(),
         ),
         const VSpace(16),
@@ -161,6 +173,16 @@ class _SetNewPasswordWidgetState extends State<SetNewPasswordWidget> {
           controller: confirmPasswordController,
           obscureText: true,
           hintText: LocaleKeys.signIn_confirmNewPassword.tr(),
+          suffixIconConstraints: BoxConstraints.tightFor(
+            width: iconSize + theme.spacing.m,
+            height: iconSize,
+          ),
+          suffixIconBuilder: (context, isObscured) => PasswordSuffixIcon(
+            isObscured: isObscured,
+            onTap: () {
+              confirmPasswordKey.currentState?.syncObscured(!isObscured);
+            },
+          ),
           onSubmitted: (_) => _validateAndSubmit(),
         ),
       ],

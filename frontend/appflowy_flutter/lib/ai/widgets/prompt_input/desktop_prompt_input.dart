@@ -1,12 +1,19 @@
 import 'package:appflowy/ai/ai.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_input_control_cubit.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_user_cubit.dart';
 import 'package:appflowy/plugins/ai_chat/presentation/layout_define.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
+import 'package:appflowy/workspace/application/settings/settings_dialog_bloc.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_setting.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -109,17 +116,50 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
         BlocProvider.value(value: inputControlCubit),
         BlocProvider.value(value: chatUserCubit),
       ],
-      child: BlocListener<ChatInputControlCubit, ChatInputControlState>(
-        listener: (context, state) {
-          state.maybeWhen(
-            updateSelectedViews: (selectedViews) {
-              context
-                  .read<AIPromptInputBloc>()
-                  .add(AIPromptInputEvent.updateMentionedViews(selectedViews));
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<ChatInputControlCubit, ChatInputControlState>(
+            listener: (context, state) {
+              state.maybeWhen(
+                updateSelectedViews: (selectedViews) {
+                  context.read<AIPromptInputBloc>().add(
+                        AIPromptInputEvent.updateMentionedViews(selectedViews),
+                      );
+                },
+                orElse: () {},
+              );
             },
-            orElse: () {},
-          );
-        },
+          ),
+          BlocListener<AIPromptInputBloc, AIPromptInputState>(
+            listenWhen: (previous, current) =>
+                previous.isEmptyList != current.isEmptyList,
+            listener: (context, state) {
+              final bloc = context.read<UserWorkspaceBloc>();
+              final isLocalWorkspace =
+                  bloc.state.currentWorkspace?.workspaceType ==
+                      WorkspaceTypePB.LocalW;
+              if (state.isEmptyList && isLocalWorkspace) {
+                showSimpleAFDialog(
+                  context: context,
+                  title: LocaleKeys.chat_localAiUnavailable.tr(),
+                  content: LocaleKeys.chat_localAiUnavailableDescription.tr(),
+                  autoPopDialog: false,
+                  primaryAction: (
+                    LocaleKeys.chat_goToSettings.tr(),
+                    (dialogContext) {
+                      Navigator.of(dialogContext).pop();
+                      showSettingsDialog(
+                        context,
+                        userWorkspaceBloc: bloc,
+                        initPage: SettingsPage.ai,
+                      );
+                    },
+                  ),
+                );
+              }
+            },
+          ),
+        ],
         child: OverlayPortal(
           controller: overlayController,
           overlayChildBuilder: (context) {
@@ -236,6 +276,9 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
   }
 
   void checkForAskingAI() {
+    if (!context.read<AIPromptInputBloc>().state.modelState.isEditable) {
+      return;
+    }
     final paletteBloc = context.read<CommandPaletteBloc?>(),
         paletteState = paletteBloc?.state;
     if (paletteBloc == null || paletteState == null) return;
@@ -294,6 +337,9 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
 
   void handleSend() {
     if (widget.isStreaming) {
+      return;
+    }
+    if (!context.read<AIPromptInputBloc>().state.modelState.isEditable) {
       return;
     }
     String userInput = widget.textController.text.trim();
@@ -535,6 +581,11 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
 
   void handleOnSelectPrompt(AiPrompt prompt) {
     final bloc = context.read<AIPromptInputBloc>();
+
+    if (!bloc.state.modelState.isEditable) {
+      return;
+    }
+
     bloc
       ..add(AIPromptInputEvent.updateMentionedViews([]))
       ..add(AIPromptInputEvent.updatePromptId(prompt.id));

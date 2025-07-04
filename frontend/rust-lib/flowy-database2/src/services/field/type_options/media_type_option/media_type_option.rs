@@ -1,3 +1,4 @@
+use crate::services::field::TypeOptionHandlerCache;
 use crate::{
   entities::{FieldType, MediaCellChangeset, MediaCellDataPB, MediaFilterPB},
   services::{
@@ -14,6 +15,7 @@ use collab_database::template::util::ToCellString;
 use collab_database::{fields::Field, rows::Cell};
 use flowy_error::FlowyResult;
 use std::cmp::Ordering;
+use std::sync::Arc;
 
 impl TypeOption for MediaTypeOption {
   type CellData = MediaCellData;
@@ -39,6 +41,7 @@ impl CellDataDecoder for MediaTypeOption {
     _cell: &Cell,
     from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     match from_field_type {
       FieldType::RichText

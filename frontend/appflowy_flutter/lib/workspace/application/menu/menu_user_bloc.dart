@@ -7,6 +7,7 @@ import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:protobuf/protobuf.dart';
 
 part 'menu_user_bloc.freezed.dart';
 
@@ -48,7 +49,14 @@ class MenuUserBloc extends Bloc<MenuUserEvent, MenuUserState> {
           updateUserName: (String name) {
             _userService.updateUserProfile(name: name).then((result) {
               result.fold(
-                (l) => null,
+                (l) {
+                  final userProfile = state.userProfile;
+                  userProfile.freeze();
+                  final newUserProfile = userProfile.rebuild((p0) {
+                    p0.name = name;
+                  });
+                  emit(state.copyWith(userProfile: newUserProfile));
+                },
                 (err) => Log.error(err),
               );
             });

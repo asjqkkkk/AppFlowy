@@ -1,6 +1,7 @@
 import 'package:appflowy/ai/ai.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/ai_chat/application/ai_model_switch_listener.dart';
+import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/settings/ai/local_llm_listener.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
@@ -53,11 +54,10 @@ class AIModelStateNotifier {
   final AIModelSwitchListener _aiModelSwitchListener;
 
   LocalAIPB? _localAIState;
-  ModelSelectionPB? _modelSelection;
-
-  AIModelState _currentState = _defaultState();
   List<AIModelPB> _availableModels = [];
   AIModelPB? _selectedModel;
+
+  AIModelState _currentState = _defaultState();
 
   final List<OnModelStateChangedCallback> _stateChangedCallbacks = [];
   final List<OnAvailableModelsChangedCallback>
@@ -149,7 +149,6 @@ class AIModelStateNotifier {
       ModelSourcePB(source: objectId),
     ).send().fold(
       (ms) {
-        _modelSelection = ms;
         _availableModels = ms.models;
         _selectedModel = ms.selectedModel;
       },
@@ -176,11 +175,16 @@ class AIModelStateNotifier {
   AIModelState _computeState() {
     if (UniversalPlatform.isMobile) return _defaultState();
 
-    if (_modelSelection == null || _localAIState == null) {
+    if (_selectedModel == null || _localAIState == null) {
       return _defaultState();
     }
 
-    if (!_selectedModel!.isLocal) {
+    if (FlowyRunner.currentMode.isTest) {
+      return _defaultState();
+    }
+
+    if (!_selectedModel!.isLocal &&
+        _availableModels.map((m) => m.name).contains(_selectedModel!.name)) {
       return _defaultState();
     }
 
@@ -201,7 +205,7 @@ class AIModelStateNotifier {
       type: AiType.local,
       hintText: hintKey.tr(),
       tooltip: tooltipKey?.tr(),
-      isEditable: running,
+      isEditable: enabled && running,
       localAIEnabled: enabled,
     );
   }

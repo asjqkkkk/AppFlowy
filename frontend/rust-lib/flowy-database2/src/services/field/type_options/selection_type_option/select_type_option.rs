@@ -2,7 +2,7 @@ use crate::entities::{CheckboxCellDataPB, FieldType, SelectOptionCellDataPB};
 use crate::services::cell::{CellDataDecoder, CellProtobufBlobParser};
 use crate::services::field::selection_type_option::type_option_transform::SelectOptionTypeOptionTransformHelper;
 use crate::services::field::{
-  CellDataProtobufEncoder, StringCellData, TypeOption, TypeOptionTransform,
+  CellDataProtobufEncoder, StringCellData, TypeOption, TypeOptionHandlerCache, TypeOptionTransform,
 };
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -16,6 +16,7 @@ use collab_database::rows::Cell;
 use collab_database::template::util::ToCellString;
 use flowy_error::{ErrorCode, FlowyResult, internal_error};
 use std::str::FromStr;
+use std::sync::Arc;
 
 /// Defines the shared actions used by SingleSelect or Multi-Select.
 pub trait SelectTypeOptionSharedAction: Send + Sync {
@@ -107,6 +108,7 @@ where
     cell: &Cell,
     from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     match from_field_type {
       FieldType::RichText => {

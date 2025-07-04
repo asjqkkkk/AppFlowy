@@ -1,5 +1,5 @@
 use dashmap::DashMap;
-use dashmap::mapref::one::{MappedRef, MappedRefMut};
+use dashmap::mapref::one::MappedRef;
 use std::any::{Any, type_name};
 use std::fmt::Debug;
 use std::hash::Hash;
@@ -39,14 +39,6 @@ where
   {
     let cell = self.0.get(key)?;
     cell.try_map(|v| v.boxed.downcast_ref()).ok()
-  }
-
-  pub fn get_mut<T>(&self, key: &K) -> Option<MappedRefMut<'_, K, TypeValue, T>>
-  where
-    T: 'static + Send + Sync,
-  {
-    let cell = self.0.get_mut(key)?;
-    cell.try_map(|v| v.boxed.downcast_mut()).ok()
   }
 
   pub fn contains(&self, key: &K) -> bool {

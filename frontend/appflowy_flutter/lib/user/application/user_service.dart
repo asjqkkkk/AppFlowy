@@ -157,10 +157,12 @@ class UserBackendService implements IUserBackendService {
 
   Future<FlowyResult<UserWorkspacePB, FlowyError>> createUserWorkspace(
     String name,
+    String icon,
     WorkspaceTypePB workspaceType,
   ) {
     final request = CreateWorkspacePB.create()
       ..name = name
+      ..icon = icon
       ..workspaceType = workspaceType;
     return UserEventCreateWorkspace(request).send();
   }

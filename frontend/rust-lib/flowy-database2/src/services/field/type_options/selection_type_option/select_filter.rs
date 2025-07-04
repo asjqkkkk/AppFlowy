@@ -1,10 +1,11 @@
 use collab_database::fields::Field;
 use collab_database::fields::select_type_option::SelectOption;
 use collab_database::rows::Cell;
+use std::sync::Arc;
 
 use crate::entities::{SelectOptionFilterConditionPB, SelectOptionFilterPB};
 use crate::services::cell::insert_select_option_cell;
-use crate::services::field::select_type_option_from_field;
+use crate::services::field::{TypeOptionHandlerCache, select_type_option_from_field};
 use crate::services::filter::PreFillCellsWithFilter;
 
 impl SelectOptionFilterPB {
@@ -95,7 +96,11 @@ impl SelectOptionFilterStrategy {
 }
 
 impl PreFillCellsWithFilter for SelectOptionFilterPB {
-  fn get_compliant_cell(&self, field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    field: &Field,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     let option_ids = match self.condition {
       SelectOptionFilterConditionPB::OptionIs | SelectOptionFilterConditionPB::OptionContains => {
         self.option_ids.first().map(|id| vec![id.clone()])
@@ -113,7 +118,7 @@ impl PreFillCellsWithFilter for SelectOptionFilterPB {
       _ => None,
     };
 
-    option_ids.map(|ids| insert_select_option_cell(ids, field))
+    option_ids.and_then(|ids| insert_select_option_cell(ids, field, type_option_handlers).ok())
   }
 }
 

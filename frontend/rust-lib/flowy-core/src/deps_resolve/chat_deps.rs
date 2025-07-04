@@ -1,4 +1,4 @@
-use collab::core::collab::DataSource;
+use collab::core::collab::{default_client_id, CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::updates::decoder::Decode;
 use collab::preclude::{Collab, StateVector};
@@ -21,7 +21,6 @@ use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::DBConnection;
 use flowy_storage_pub::storage::StorageService;
 use flowy_user::services::authenticate_user::AuthenticateUser;
-use flowy_user_pub::entities::WorkspaceType;
 use lib_infra::async_trait::async_trait;
 use lib_infra::util::timestamp;
 use serde_json::json;
@@ -89,6 +88,10 @@ impl AIExternalService for ChatQueryServiceImpl {
     mut rag_metadata_map: HashMap<Uuid, AFCollabMetadata>,
   ) -> Result<Vec<AFCollabMetadata>, FlowyError> {
     let mut result = Vec::new();
+    let client_id = self
+      .folder_service
+      .collab_client_id()
+      .unwrap_or(default_client_id());
 
     info!("[Embedding] sync rag documents: {:?}", rag_ids);
     for rag_id in rag_ids {
@@ -111,13 +114,10 @@ impl AIExternalService for ChatQueryServiceImpl {
       // Check if the state vector exists and detect changes
       if let Some(metadata) = rag_metadata_map.remove(&rag_id) {
         if let Ok(prev_sv) = StateVector::decode_v1(&metadata.prev_sync_state_vector) {
-          if let Ok(collab) = Collab::new_with_source(
-            CollabOrigin::Empty,
-            &rag_id.to_string(),
+          let options = CollabOptions::new(rag_id.to_string(), client_id).with_data_source(
             DataSource::DocStateV1(query_collab.encoded_collab.doc_state.to_vec()),
-            vec![],
-            false,
-          ) {
+          );
+          if let Ok(collab) = Collab::new_with_options(CollabOrigin::Empty, options) {
             if !is_change_since_sv(&collab, &prev_sv) {
               info!(
                 "[Embedding] skip full sync rag document {}, no changes",
@@ -189,16 +189,16 @@ impl AIUserService for ChatUserServiceImpl {
     self.upgrade_user()?.user_id()
   }
 
+  async fn is_anon(&self) -> Result<bool, FlowyError> {
+    self.upgrade_user()?.is_anon().await
+  }
+
   async fn is_local_model(&self) -> FlowyResult<bool> {
     self.upgrade_user()?.is_local_mode().await
   }
 
   fn workspace_id(&self) -> Result<Uuid, FlowyError> {
     self.upgrade_user()?.workspace_id()
-  }
-
-  fn workspace_type(&self) -> FlowyResult<WorkspaceType> {
-    self.upgrade_user()?.workspace_type()
   }
 
   fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError> {

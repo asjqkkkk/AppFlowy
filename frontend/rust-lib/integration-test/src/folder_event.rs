@@ -1,0 +1,764 @@
+use flowy_folder::view_operation::{GatherEncodedCollab, ViewData};
+use std::str::FromStr;
+use std::sync::Arc;
+
+use collab_folder::{timestamp, FolderData, SpaceInfo, SpacePermission, View};
+use csv::ReaderBuilder;
+use flowy_folder::entities::icon::UpdateViewIconPayloadPB;
+use flowy_folder::entities::{
+  AFAccessLevelPB, GetSharedUsersPayloadPB, RemoveUserFromSharedPagePayloadPB,
+  RepeatedSharedUserPB, SharePageWithUserPayloadPB,
+};
+use flowy_folder::event_map::FolderEvent;
+use flowy_folder::event_map::FolderEvent::*;
+use flowy_folder::{entities::*, ViewLayout};
+use flowy_folder_pub::entities::PublishPayload;
+use flowy_search::services::manager::{SearchHandler, SearchType};
+use flowy_user::entities::{
+  AcceptWorkspaceInvitationPB, QueryWorkspacePB, RemoveWorkspaceMemberPB,
+  RepeatedWorkspaceInvitationPB, RepeatedWorkspaceMemberPB, UserWorkspaceIdPB, UserWorkspacePB,
+  WorkspaceMemberInvitationPB, WorkspaceMemberPB,
+};
+use flowy_user::errors::{FlowyError, FlowyResult};
+use flowy_user::event_map::UserEvent;
+use flowy_user_pub::entities::Role;
+use uuid::Uuid;
+
+use crate::event_builder::EventBuilder;
+use crate::EventIntegrationTest;
+
+impl EventIntegrationTest {
+  pub async fn invite_workspace_member(&self, workspace_id: &str, email: &str, role: Role) {
+    EventBuilder::new(self.clone())
+      .event(UserEvent::InviteWorkspaceMember)
+      .payload(WorkspaceMemberInvitationPB {
+        workspace_id: workspace_id.to_string(),
+        invitee_email: email.to_string(),
+        role: role.into(),
+      })
+      .async_send()
+      .await;
+  }
+
+  // convenient function to add workspace member by inviting and accepting the invitation
+  pub async fn add_workspace_member(&self, workspace_id: &str, other: &EventIntegrationTest) {
+    let other_email = other.get_user_profile().await.unwrap().email;
+
+    self
+      .invite_workspace_member(workspace_id, &other_email, Role::Member)
+      .await;
+
+    let invitations = other.list_workspace_invitations().await;
+    let target_invi = invitations
+      .items
+      .into_iter()
+      .find(|i| i.workspace_id == workspace_id)
+      .unwrap();
+
+    other
+      .accept_workspace_invitation(&target_invi.invite_id)
+      .await;
+  }
+
+  pub async fn list_workspace_invitations(&self) -> RepeatedWorkspaceInvitationPB {
+    EventBuilder::new(self.clone())
+      .event(UserEvent::ListWorkspaceInvitations)
+      .async_send()
+      .await
+      .parse_or_panic()
+  }
+
+  pub async fn accept_workspace_invitation(&self, invitation_id: &str) {
+    let invitation_id = invitation_id.to_string();
+    let result = self
+      .retry_on_retry_later(
+        || async {
+          match EventBuilder::new(self.clone())
+            .event(UserEvent::AcceptWorkspaceInvitation)
+            .payload(AcceptWorkspaceInvitationPB {
+              invite_id: invitation_id.clone(),
+            })
+            .async_send()
+            .await
+            .error()
+          {
+            Some(err) => Err(err),
+            None => Ok(()),
+          }
+        },
+        "Accept workspace invitation",
+      )
+      .await;
+
+    if let Err(err) = result {
+      panic!("Accept workspace invitation failed: {:?}", err);
+    }
+  }
+
+  pub async fn delete_workspace_member(&self, workspace_id: &str, email: &str) {
+    if let Some(err) = EventBuilder::new(self.clone())
+      .event(UserEvent::RemoveWorkspaceMember)
+      .payload(RemoveWorkspaceMemberPB {
+        workspace_id: workspace_id.to_string(),
+        email: email.to_string(),
+      })
+      .async_send()
+      .await
+      .error()
+    {
+      panic!("Delete workspace member failed: {:?}", err)
+    };
+  }
+
+  pub async fn get_workspace_members(&self, workspace_id: &str) -> Vec<WorkspaceMemberPB> {
+    EventBuilder::new(self.clone())
+      .event(UserEvent::GetWorkspaceMembers)
+      .payload(QueryWorkspacePB {
+        workspace_id: workspace_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse_or_panic::<RepeatedWorkspaceMemberPB>()
+      .items
+  }
+
+  pub async fn get_current_workspace(&self) -> WorkspacePB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::ReadCurrentWorkspace)
+      .async_send()
+      .await
+      .parse_or_panic::<WorkspacePB>()
+  }
+
+  pub async fn get_latest_workspace(&self) -> WorkspaceLatestPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetCurrentWorkspaceSetting)
+      .async_send()
+      .await
+      .parse_or_panic::<WorkspaceLatestPB>()
+  }
+
+  pub async fn get_workspace_id(&self) -> Uuid {
+    let a = EventBuilder::new(self.clone())
+      .event(FolderEvent::ReadCurrentWorkspace)
+      .async_send()
+      .await
+      .parse_or_panic::<WorkspacePB>();
+    Uuid::from_str(&a.id).unwrap()
+  }
+
+  pub async fn get_user_workspace(&self, workspace_id: &str) -> UserWorkspacePB {
+    let payload = UserWorkspaceIdPB {
+      workspace_id: workspace_id.to_string(),
+    };
+    EventBuilder::new(self.clone())
+      .event(UserEvent::GetUserWorkspace)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<UserWorkspacePB>()
+  }
+
+  pub fn get_folder_search_handler(&self) -> Arc<dyn SearchHandler> {
+    self
+      .appflowy_core
+      .search_manager
+      .get_handler(SearchType::Folder)
+      .unwrap()
+  }
+
+  /// create views in the folder.
+  pub async fn create_views(&self, views: Vec<View>) {
+    let create_view_params = views
+      .into_iter()
+      .map(|view| CreateViewParams {
+        parent_view_id: Uuid::from_str(&view.parent_view_id).unwrap(),
+        name: view.name,
+        layout: view.layout.into(),
+        view_id: Uuid::from_str(&view.id).unwrap(),
+        initial_data: ViewData::Empty,
+        meta: Default::default(),
+        set_as_current: false,
+        index: None,
+        section: None,
+        icon: view.icon,
+        extra: view.extra,
+      })
+      .collect::<Vec<_>>();
+
+    for params in create_view_params {
+      self
+        .appflowy_core
+        .folder_manager
+        .create_view_with_params(params, true)
+        .await
+        .unwrap();
+    }
+  }
+
+  /// Create orphan views in the folder.
+  /// Orphan view: the parent_view_id equal to the view_id
+  /// Normally, the orphan view will be created in nested database
+  pub async fn create_orphan_view(&self, name: &str, view_id: &str, layout: ViewLayoutPB) {
+    let payload = CreateOrphanViewPayloadPB {
+      name: name.to_string(),
+      layout,
+      view_id: view_id.to_string(),
+      initial_data: vec![],
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateOrphanView)
+      .payload(payload)
+      .async_send()
+      .await;
+  }
+
+  pub async fn get_folder_data(&self) -> FolderData {
+    self
+      .appflowy_core
+      .folder_manager
+      .get_folder_data()
+      .await
+      .unwrap()
+  }
+
+  pub async fn get_publish_payload(
+    &self,
+    view_id: &str,
+    include_children: bool,
+  ) -> Vec<PublishPayload> {
+    let manager = self.folder_manager.clone();
+    let payload = manager
+      .get_batch_publish_payload(view_id, None, include_children)
+      .await;
+
+    if payload.is_err() {
+      panic!("Get publish payload failed")
+    }
+
+    payload.unwrap()
+  }
+
+  pub async fn gather_encode_collab_from_disk(
+    &self,
+    view_id: &str,
+    layout: ViewLayout,
+  ) -> GatherEncodedCollab {
+    let view_id = Uuid::from_str(view_id).unwrap();
+    self
+      .folder_manager
+      .gather_publish_encode_collab(&view_id, &layout)
+      .await
+      .unwrap()
+  }
+
+  pub async fn get_all_workspace_views(&self) -> Vec<ViewPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::ReadCurrentWorkspaceViews)
+      .async_send()
+      .await
+      .parse_or_panic::<RepeatedViewPB>()
+      .items
+  }
+
+  // get all the views in the current workspace, including the views in the trash and the orphan views
+  pub async fn get_all_views(&self) -> Vec<ViewPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetAllViews)
+      .async_send()
+      .await
+      .parse_or_panic::<RepeatedViewPB>()
+      .items
+  }
+
+  pub async fn get_trash(&self) -> RepeatedTrashPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::ListTrashItems)
+      .async_send()
+      .await
+      .parse_or_panic::<RepeatedTrashPB>()
+  }
+
+  pub async fn delete_view(&self, view_id: &str) {
+    let payload = RepeatedViewIdPB {
+      items: vec![view_id.to_string()],
+    };
+
+    // delete the view. the view will be moved to trash
+    if let Some(err) = EventBuilder::new(self.clone())
+      .event(FolderEvent::DeleteView)
+      .payload(payload)
+      .async_send()
+      .await
+      .error()
+    {
+      panic!("Delete view failed: {:?}", err)
+    };
+  }
+
+  pub async fn update_view(&self, changeset: UpdateViewPayloadPB) -> Option<FlowyError> {
+    // delete the view. the view will be moved to trash
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::UpdateView)
+      .payload(changeset)
+      .async_send()
+      .await
+      .error()
+  }
+
+  pub async fn update_view_icon(&self, payload: UpdateViewIconPayloadPB) -> Option<FlowyError> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::UpdateViewIcon)
+      .payload(payload)
+      .async_send()
+      .await
+      .error()
+  }
+
+  pub async fn create_view(&self, parent_id: &str, name: String) -> ViewPB {
+    self
+      .create_view_with_layout(parent_id, name, Default::default())
+      .await
+  }
+
+  pub async fn create_public_space<T: ToString>(&self, parent_id: Uuid, name: T) -> ViewPB {
+    let payload = CreateViewPayloadPB {
+      parent_view_id: parent_id.to_string(),
+      name: name.to_string(),
+      thumbnail: None,
+      layout: ViewLayoutPB::Document,
+      initial_data: vec![],
+      meta: Default::default(),
+      set_as_current: false,
+      index: None,
+      section: None,
+      view_id: None,
+      extra: Some(serde_json::to_string(&SpaceInfo::default()).unwrap()),
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateView)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn create_private_space<T: ToString>(&self, parent_id: Uuid, name: T) -> ViewPB {
+    let payload = CreateViewPayloadPB {
+      parent_view_id: parent_id.to_string(),
+      name: name.to_string(),
+      thumbnail: None,
+      layout: ViewLayoutPB::Document,
+      initial_data: vec![],
+      meta: Default::default(),
+      set_as_current: false,
+      index: None,
+      section: Some(ViewSectionPB::Private),
+      view_id: None,
+      extra: Some(
+        serde_json::to_string(&SpaceInfo {
+          is_space: true,
+          space_permission: SpacePermission::Private,
+          space_created_at: timestamp(),
+          space_icon: None,
+          space_icon_color: None,
+        })
+        .unwrap(),
+      ),
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateView)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn create_view_with_layout(
+    &self,
+    parent_id: &str,
+    name: String,
+    layout: ViewLayoutPB,
+  ) -> ViewPB {
+    let payload = CreateViewPayloadPB {
+      parent_view_id: parent_id.to_string(),
+      name,
+      thumbnail: None,
+      layout,
+      initial_data: vec![],
+      meta: Default::default(),
+      set_as_current: false,
+      index: None,
+      section: None,
+      view_id: None,
+      extra: None,
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateView)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn get_view_or_panic(&self, view_id: &str) -> ViewPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetView)
+      .payload(ViewIdPB {
+        value: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn duplicate_view_or_panic(&self, view_id: Uuid, include_children: bool) -> ViewPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::DuplicateView)
+      .payload(DuplicateViewPayloadPB {
+        view_id: view_id.to_string(),
+        open_after_duplicate: false,
+        include_children,
+        parent_view_id: None,
+        suffix: None,
+      })
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn get_view(&self, view_id: &str) -> FlowyResult<ViewPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetView)
+      .payload(ViewIdPB {
+        value: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<ViewPB>()
+  }
+
+  pub async fn import_data(&self, data: ImportPayloadPB) -> FlowyResult<RepeatedViewPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::ImportData)
+      .payload(data)
+      .async_send()
+      .await
+      .parse::<RepeatedViewPB>()
+  }
+
+  pub async fn get_view_ancestors(&self, view_id: &str) -> Vec<ViewPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetViewAncestors)
+      .payload(ViewIdPB {
+        value: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse_or_panic::<RepeatedViewPB>()
+      .items
+  }
+
+  pub async fn import_csv_content(
+    &self,
+    file_name: &str,
+    csv_content: &str,
+    parent_id: uuid::Uuid,
+  ) -> ViewPB {
+    let import_data = gen_database_import_data(
+      file_name.to_string(),
+      csv_content.to_string(),
+      parent_id.to_string(),
+    );
+
+    self
+      .import_data(import_data)
+      .await
+      .unwrap()
+      .items
+      .into_iter()
+      .next()
+      .expect("Expected at least one imported view")
+  }
+
+  pub async fn import_csv_from_test_asset<F>(
+    &self,
+    csv_file_name: &str,
+    parent_id: uuid::Uuid,
+    unzip_fn: F,
+  ) -> (ViewPB, String)
+  where
+    F: FnOnce(&str, &str) -> Result<std::path::PathBuf, std::io::Error>,
+  {
+    let file_name = format!("{}.csv", csv_file_name);
+    let csv_file_path = unzip_fn("./tests/asset", &file_name).unwrap();
+    let csv_string = std::fs::read_to_string(csv_file_path).unwrap();
+
+    (
+      self
+        .import_csv_content(&file_name, &csv_string, parent_id)
+        .await,
+      csv_string,
+    )
+  }
+
+  pub async fn import_md_content(
+    &self,
+    file_name: &str,
+    md_content: &str,
+    parent_id: uuid::Uuid,
+  ) -> ViewPB {
+    let import_data = gen_md_import_data(
+      file_name.to_string(),
+      md_content.to_string(),
+      parent_id.to_string(),
+    );
+
+    self
+      .import_data(import_data)
+      .await
+      .unwrap()
+      .items
+      .into_iter()
+      .next()
+      .expect("Expected at least one imported view")
+  }
+
+  pub async fn import_md_from_test_asset<F>(
+    &self,
+    md_file_name: &str,
+    parent_id: uuid::Uuid,
+    unzip_fn: F,
+  ) -> (ViewPB, String)
+  where
+    F: FnOnce(&str, &str) -> Result<std::path::PathBuf, std::io::Error>,
+  {
+    let file_name = format!("{}.md", md_file_name);
+    let md_file_path = unzip_fn("./tests/asset", &file_name).unwrap();
+    let md_string = std::fs::read_to_string(md_file_path).unwrap();
+
+    (
+      self
+        .import_md_content(&file_name, &md_string, parent_id)
+        .await,
+      md_string,
+    )
+  }
+
+  pub async fn share_page_with_email(
+    &self,
+    view_id: &str,
+    email: &str,
+    access_level: AFAccessLevelPB,
+  ) -> FlowyResult<()> {
+    // set the auto_confirm to true so the user will have immediate access to the page
+    self
+      .share_page_with_emails(view_id, vec![email.to_string()], access_level, true)
+      .await
+  }
+
+  pub async fn share_page_with_emails(
+    &self,
+    view_id: &str,
+    emails: Vec<String>,
+    access_level: AFAccessLevelPB,
+    auto_confirm: bool,
+  ) -> FlowyResult<()> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::SharePageWithUser)
+      .payload(SharePageWithUserPayloadPB {
+        view_id: view_id.to_string(),
+        emails,
+        access_level,
+        auto_confirm,
+      })
+      .async_send()
+      .await
+      .parse_void()
+  }
+
+  pub async fn get_shared_users(&self, view_id: &str) -> FlowyResult<RepeatedSharedUserPB> {
+    // refresh the cache and fetch from cloud again
+    let _ = EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedUsers)
+      .payload(GetSharedUsersPayloadPB {
+        view_id: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<RepeatedSharedUserPB>();
+
+    // wait for 1 second to make sure the cache is refreshed
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // fetch from cloud
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedUsers)
+      .payload(GetSharedUsersPayloadPB {
+        view_id: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<RepeatedSharedUserPB>()
+  }
+
+  pub async fn remove_user_from_shared_page(&self, view_id: &str, email: &str) -> FlowyResult<()> {
+    self
+      .remove_users_from_shared_page(view_id, vec![email.to_string()])
+      .await
+  }
+
+  pub async fn remove_users_from_shared_page(
+    &self,
+    view_id: &str,
+    emails: Vec<String>,
+  ) -> FlowyResult<()> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::RemoveUserFromSharedPage)
+      .payload(RemoveUserFromSharedPagePayloadPB {
+        view_id: view_id.to_string(),
+        emails,
+      })
+      .async_send()
+      .await
+      .parse_void()
+  }
+
+  pub async fn get_user_access_level(
+    &self,
+    view_id: &str,
+    user_email: &str,
+  ) -> FlowyResult<AFAccessLevelPB> {
+    let shared_users = self.get_shared_users(view_id).await?;
+
+    for user in shared_users.items {
+      if user.email == user_email {
+        return Ok(user.access_level);
+      }
+    }
+
+    Err(FlowyError::new(
+      flowy_error::ErrorCode::RecordNotFound,
+      format!("User {} not found in shared users", user_email),
+    ))
+  }
+
+  pub async fn get_shared_views(&self) -> Vec<SharedViewPB> {
+    let _ = EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedViews)
+      .async_send()
+      .await;
+
+    // wait for 1 second to make sure the cache is refreshed
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // fetch from cloud
+    let result = EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedViews)
+      .async_send()
+      .await
+      .parse::<RepeatedSharedViewResponsePB>()
+      .unwrap();
+    result.shared_views
+  }
+}
+
+pub struct ViewTest {
+  pub sdk: EventIntegrationTest,
+  pub workspace: WorkspacePB,
+  pub child_view: ViewPB,
+}
+impl ViewTest {
+  #[allow(dead_code)]
+  pub async fn new(sdk: &EventIntegrationTest, layout: ViewLayout, data: Vec<u8>) -> Self {
+    let workspace = sdk.folder_manager.get_current_workspace().await.unwrap();
+
+    let payload = CreateViewPayloadPB {
+      parent_view_id: workspace.id.clone(),
+      name: "View A".to_string(),
+      thumbnail: Some("http://1.png".to_string()),
+      layout: layout.into(),
+      initial_data: data,
+      meta: Default::default(),
+      set_as_current: true,
+      index: None,
+      section: None,
+      view_id: None,
+      extra: None,
+    };
+
+    let view = EventBuilder::new(sdk.clone())
+      .event(CreateView)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>();
+
+    Self {
+      sdk: sdk.clone(),
+      workspace,
+      child_view: view,
+    }
+  }
+
+  pub async fn new_grid_view(sdk: &EventIntegrationTest, data: Vec<u8>) -> Self {
+    Self::new(sdk, ViewLayout::Grid, data).await
+  }
+
+  pub async fn new_board_view(sdk: &EventIntegrationTest, data: Vec<u8>) -> Self {
+    Self::new(sdk, ViewLayout::Board, data).await
+  }
+
+  pub async fn new_calendar_view(sdk: &EventIntegrationTest, data: Vec<u8>) -> Self {
+    Self::new(sdk, ViewLayout::Calendar, data).await
+  }
+}
+
+/// Parse CSV string into a Vec<Vec<String>> for comparison
+pub fn parse_csv_string(csv_content: &str) -> Result<Vec<Vec<String>>, anyhow::Error> {
+  let mut reader = ReaderBuilder::new()
+    .has_headers(false)
+    .from_reader(csv_content.as_bytes());
+
+  let mut records = Vec::new();
+  for result in reader.records() {
+    let record = result?;
+    let row: Vec<String> = record.iter().map(|field| field.to_string()).collect();
+    records.push(row);
+  }
+  Ok(records)
+}
+
+pub fn gen_database_import_data(
+  file_name: String,
+  csv_string: String,
+  parent_view_id: String,
+) -> ImportPayloadPB {
+  ImportPayloadPB {
+    parent_view_id,
+    items: vec![ImportItemPayloadPB {
+      name: file_name,
+      data: Some(csv_string.as_bytes().to_vec()),
+      file_path: None,
+      view_layout: ViewLayoutPB::Grid,
+      import_type: ImportTypePB::CSV,
+    }],
+  }
+}
+
+pub fn gen_md_import_data(
+  file_name: String,
+  md_string: String,
+  parent_view_id: String,
+) -> ImportPayloadPB {
+  ImportPayloadPB {
+    parent_view_id,
+    items: vec![ImportItemPayloadPB {
+      name: file_name,
+      data: Some(md_string.as_bytes().to_vec()),
+      file_path: None,
+      view_layout: ViewLayoutPB::Document,
+      import_type: ImportTypePB::Markdown,
+    }],
+  }
+}

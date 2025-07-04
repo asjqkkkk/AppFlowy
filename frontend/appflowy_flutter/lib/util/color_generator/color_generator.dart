@@ -1,3 +1,4 @@
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
 // the color set generated from AI
@@ -24,5 +25,16 @@ extension type ColorGenerator(String value) {
     final hash = value.codeUnits.fold(0, (int acc, int unit) => acc + unit);
     final index = hash % _builtInColorSet.length;
     return _builtInColorSet[index];
+  }
+
+  (Color, Color) randomColorFromDesignSystem(BuildContext context) {
+    final hash = value.codeUnits.fold(0, (int acc, int unit) => acc + unit);
+    final index = (hash % 20 + 1).clamp(1, 20);
+
+    final theme = AppFlowyTheme.of(context);
+    final background = theme.badgeColorScheme.getLightColorSet(index).$2;
+    final foreground = theme.badgeColorScheme.getThickColorSet(index).$3;
+
+    return (foreground, background);
   }
 }

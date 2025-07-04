@@ -1,10 +1,13 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/tab_bar_bloc.dart';
+import 'package:appflowy/plugins/document/presentation/editor_notification.dart';
 import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/plugins/shared/share/share_menu.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -26,6 +29,8 @@ class ShareMenuButton extends StatefulWidget {
 class _ShareMenuButtonState extends State<ShareMenuButton> {
   final popoverController = AFPopoverController();
   final popoverGroupId = SharePopoverGroupId();
+
+  bool isShowingDialog = false;
 
   @override
   void initState() {
@@ -50,7 +55,13 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
     final databaseBloc = context.read<DatabaseTabBarBloc?>();
     final userWorkspaceBloc = context.read<UserWorkspaceBloc>();
     final shareWithUserBloc = context.read<ShareTabBloc>();
-    // final animationDuration = const Duration(milliseconds: 120);
+    final pageAccessLevelBloc = context.read<PageAccessLevelBloc>();
+
+    final buttonText =
+        userWorkspaceBloc.state.currentWorkspace?.workspaceType ==
+                WorkspaceTypePB.LocalW
+            ? LocaleKeys.shareAction_buttonTextLocal.tr()
+            : LocaleKeys.shareAction_buttonText.tr();
 
     return BlocBuilder<ShareBloc, ShareState>(
       builder: (context, state) {
@@ -60,22 +71,9 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
           anchor: AFAnchorAuto(
             offset: const Offset(-176, 12),
           ),
-          // Enable animation
-          // effects: [
-          //   FadeEffect(duration: animationDuration),
-          //   ScaleEffect(
-          //     duration: animationDuration,
-          //     begin: Offset(0.95, 0.95),
-          //     end: Offset(1, 1),
-          //     alignment: Alignment.topRight,
-          //   ),
-          //   MoveEffect(
-          //     duration: animationDuration,
-          //     begin: Offset(20, -20),
-          //     end: Offset(0, 0),
-          //     curve: Curves.easeOutQuad,
-          //   ),
-          // ],
+          canClose: (context) {
+            return !isShowingDialog;
+          },
           popover: (_) {
             return ConstrainedBox(
               constraints: const BoxConstraints(
@@ -90,12 +88,16 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
                   BlocProvider.value(value: shareBloc),
                   BlocProvider.value(value: userWorkspaceBloc),
                   BlocProvider.value(value: shareWithUserBloc),
+                  BlocProvider.value(value: pageAccessLevelBloc),
                 ],
                 child: Provider.value(
                   value: popoverGroupId,
                   child: ShareMenu(
                     tabs: widget.tabs,
                     viewName: state.viewName,
+                    showDialogCallback: (value) {
+                      isShowingDialog = value;
+                    },
                     onClose: () {
                       popoverController.hide();
                     },
@@ -105,12 +107,21 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
             );
           },
           child: AFFilledTextButton.primary(
-            text: LocaleKeys.shareAction_buttonText.tr(),
+            text: buttonText,
             onTap: () {
               popoverController.show();
 
               /// Fetch the shared users when the popover is shown
               context.read<ShareTabBloc>().add(ShareTabEvent.loadSharedUsers());
+
+              /// Fetch the subscription info
+              context.read<UserWorkspaceBloc>().add(
+                    UserWorkspaceEvent.fetchWorkspaceSubscriptionInfo(
+                      workspaceId: state.workspaceId,
+                    ),
+                  );
+
+              EditorNotification.exitEditing().post();
             },
           ),
         );

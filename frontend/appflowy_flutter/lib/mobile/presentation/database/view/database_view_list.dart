@@ -1,3 +1,5 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/app_bar/app_bar_actions.dart';
@@ -9,6 +11,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emo
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:collection/collection.dart';
@@ -25,7 +28,12 @@ import 'database_view_quick_actions.dart';
 /// [MobileDatabaseViewList] shows a list of all the views in the database and
 /// adds a button to create a new database view.
 class MobileDatabaseViewList extends StatelessWidget {
-  const MobileDatabaseViewList({super.key});
+  const MobileDatabaseViewList({
+    super.key,
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -56,10 +64,13 @@ class MobileDatabaseViewList extends StatelessWidget {
                     (index, view) => MobileDatabaseViewListButton(
                       view: view,
                       showTopBorder: index == 0,
+                      isEditable: isEditable,
                     ),
                   ),
-                  const VSpace(20),
-                  const MobileNewDatabaseViewButton(),
+                  if (isEditable) ...[
+                    const VSpace(20),
+                    const MobileNewDatabaseViewButton(),
+                  ],
                   VSpace(
                     context.bottomSheetPadding(ignoreViewPadding: false),
                   ),
@@ -133,10 +144,12 @@ class MobileDatabaseViewListButton extends StatelessWidget {
     super.key,
     required this.view,
     required this.showTopBorder,
+    this.isEditable = true,
   });
 
   final ViewPB view;
   final bool showTopBorder;
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -182,11 +195,14 @@ class MobileDatabaseViewListButton extends StatelessWidget {
     );
   }
 
-  Widget _trailing(
+  Widget? _trailing(
     BuildContext context,
     DatabaseController databaseController,
     bool isSelected,
   ) {
+    if (!isEditable) {
+      return null;
+    }
     final more = FlowyIconButton(
       icon: FlowySvg(
         FlowySvgs.three_dots_s,
@@ -252,6 +268,16 @@ class MobileNewDatabaseViewButton extends StatelessWidget {
           },
         );
         if (context.mounted && result != null) {
+          final accessLevel =
+              context.read<PageAccessLevelBloc>().state.accessLevel;
+          if (accessLevel != ShareAccessLevel.fullAccess) {
+            showToastNotification(
+              // todo: 18n
+              message: 'No permission to create pages with the Can Edit access',
+              type: ToastificationType.error,
+            );
+            return;
+          }
           context
               .read<DatabaseTabBarBloc>()
               .add(DatabaseTabBarEvent.createView(result.$1, result.$2));

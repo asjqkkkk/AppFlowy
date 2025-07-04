@@ -128,13 +128,13 @@ impl UserWorkspace {
     Ok(id)
   }
 
-  pub fn new_local(workspace_id: String, name: &str) -> Self {
+  pub fn new_local(workspace_id: String, name: &str, icon: &str) -> Self {
     Self {
       id: workspace_id,
       name: name.to_string(),
       created_at: Utc::now(),
       workspace_database_id: Uuid::new_v4().to_string(),
-      icon: "".to_string(),
+      icon: icon.to_string(),
       member_count: 1,
       role: Some(Role::Owner),
       workspace_type: WorkspaceType::Local,
@@ -273,6 +273,15 @@ pub enum WorkspaceType {
   Server = 1,
 }
 
+impl Display for WorkspaceType {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      WorkspaceType::Local => write!(f, "Local"),
+      WorkspaceType::Server => write!(f, "Server"),
+    }
+  }
+}
+
 impl Default for WorkspaceType {
   fn default() -> Self {
     Self::Local
@@ -369,8 +378,20 @@ pub struct AFCloudOAuthParams {
 #[derive(Clone, Debug)]
 pub enum UserTokenState {
   Init,
-  Refresh { token: String },
+  Refresh { token: String, access_token: String },
   Invalid,
+}
+
+impl Display for UserTokenState {
+  fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    match self {
+      UserTokenState::Init => write!(f, "Init"),
+      UserTokenState::Refresh { .. } => {
+        write!(f, "Refresh")
+      },
+      UserTokenState::Invalid => write!(f, "Invalid"),
+    }
+  }
 }
 
 // Workspace Role

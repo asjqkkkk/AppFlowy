@@ -2,6 +2,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class GuestTag extends StatelessWidget {
   const GuestTag({super.key});
@@ -13,11 +14,11 @@ class GuestTag extends StatelessWidget {
       padding: EdgeInsets.only(
         left: theme.spacing.m,
         right: theme.spacing.m,
-        bottom: 2,
+        bottom: UniversalPlatform.isDesktop ? 2 : 0,
       ),
       decoration: BoxDecoration(
         color: theme.fillColorScheme.warningLight,
-        borderRadius: BorderRadius.circular(theme.spacing.s),
+        borderRadius: BorderRadius.circular(theme.spacing.xxl),
       ),
       child: Text(
         LocaleKeys.shareTab_guest.tr(),

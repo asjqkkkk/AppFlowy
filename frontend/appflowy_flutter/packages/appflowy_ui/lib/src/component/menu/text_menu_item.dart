@@ -44,7 +44,7 @@ class AFTextMenuItem extends StatelessWidget {
   final VoidCallback onTap;
 
   /// Widget to display after the title (e.g., a trailing icon).
-  final Widget? trailing;
+  final AFMenuItemBuilder? trailing;
 
   @override
   Widget build(BuildContext context) {

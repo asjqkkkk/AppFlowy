@@ -131,10 +131,10 @@ class _MenuPageState extends State<MenuPage> {
                       leading: logo,
                       title: 'Menu Item 4',
                       subtitle: 'Menu Item',
-                      trailing: const Icon(
+                      trailing: (context, isHovering, disabled) => const Icon(
                         Icons.check,
                         size: 18,
-                        color: Colors.blueAccent,
+                        color: Colors.blue,
                       ),
                       onTap: () {},
                     ),
@@ -158,13 +158,13 @@ class _MenuPageState extends State<MenuPage> {
                     AFTextMenuItem(
                       leading: leading,
                       title: 'Menu Item 7',
-                      trailing: arrowRight,
+                      trailing: (context, isHovering, disabled) => arrowRight,
                       onTap: () {},
                     ),
                     AFTextMenuItem(
                       leading: leading,
                       title: 'Menu Item 8',
-                      trailing: arrowRight,
+                      trailing: (context, isHovering, disabled) => arrowRight,
                       onTap: () {},
                     ),
                   ],

@@ -91,7 +91,7 @@ impl DatabaseLayoutDepsResolver {
   /// If the new layout type is a calendar and there is not date field in the database, it will add
   /// a new date field to the database and create the corresponding layout setting.
   pub async fn resolve_deps_when_update_layout_type(&self, view_id: &str) {
-    let mut database = self.database.write().await;
+    let mut database = self.database.write_with_reason("resolve layout deps").await;
     let fields = database.get_fields(None);
     // Insert the layout setting if it's not exist
     match &self.database_layout {

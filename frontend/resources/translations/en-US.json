@@ -114,6 +114,18 @@
     "defaultName": "My Workspace",
     "create": "Create workspace",
     "new": "New workspace",
+    "workspaceType": "Workspace type",
+    "cloudWorkspace": "Cloud",
+    "cloudWorkspaceDescription": "Real-time collaboration with cloud and local AI",
+    "vaultWorkspace": "Vault",
+    "vaultIndicator": "Vault",
+    "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
+    "createVaultWorkspaceDisabled": "Create secure, offline Vaults with Pro.\nUpgrade to unlock!",
+    "createANewWorkspace": "Create a new workspace",
+    "createWorkspaceDescription": "Separate your work into organized workspaces with full control over team access and data privacy",
+    "workspaceName": "Workspace name",
+    "workspaceNameFallback": "My Workspace",
+    "workspaceNameWithUserName": "{}'s Workspace",
     "importFromNotion": "Import from Notion",
     "learnMore": "Learn more",
     "reset": "Reset workspace",
@@ -130,10 +142,14 @@
       "reachOut": "Reach out on Discord"
     },
     "menuTitle": "Workspaces",
+    "deleteWorkspace": "Delete workspace",
     "deleteWorkspaceHintText": "Are you sure you want to delete the workspace? This action cannot be undone, and any pages you have published will be unpublished.",
+    "differentWorkspaceTypeTooltip": "Cannot perform this action on a different workspace type.",
     "createSuccess": "Workspace created successfully",
     "createFailed": "Failed to create workspace",
-    "createLimitExceeded": "You've reached the maximum workspace limit allowed for your account. If you need additional workspaces to continue your work, please request on Github",
+    "createLimitExceededTitle": "Workspace limit exceeded",
+    "createLimitExceededDesc": "You've reached the maximum workspace limit allowed for your account. If you need additional workspaces to continue your work, please request on Github",
+    "createLimitExceededButton": "Request",
     "deleteSuccess": "Workspace deleted successfully",
     "deleteFailed": "Failed to delete workspace",
     "openSuccess": "Opened workspace successfully",
@@ -145,10 +161,11 @@
     "cannotDeleteTheOnlyWorkspace": "Cannot delete the only workspace",
     "fetchWorkspacesFailed": "Failed to fetch workspaces",
     "leaveCurrentWorkspace": "Leave workspace",
-    "leaveCurrentWorkspacePrompt": "Are you sure you want to leave the current workspace?"
+    "leaveCurrentWorkspacePrompt": "Are you sure you want to leave this workspace?"
   },
   "shareAction": {
     "buttonText": "Share",
+    "buttonTextLocal": "Export",
     "workInProgress": "Coming soon",
     "markdown": "Markdown",
     "html": "HTML",
@@ -303,7 +320,10 @@
       "nSelected": "{} selected",
       "allSelected": "All selected"
     },
-    "stopTooltip": "Stop generating"
+    "stopTooltip": "Stop generating",
+    "localAiUnavailable": "Local AI is not available",
+    "localAiUnavailableDescription": "You need to enable Local AI in order to use this feature.",
+    "goToSettings": "Go to Settings"
   },
   "trash": {
     "text": "Trash",
@@ -498,7 +518,7 @@
     "clear": "Clear",
     "remove": "Remove",
     "dontRemove": "Don't remove",
-    "copyLink": "Copy Link",
+    "copyLink": "Copy link",
     "align": "Align",
     "login": "Login",
     "logout": "Log out",
@@ -2094,6 +2114,7 @@
         "errors": {
           "failedDeletePage": "Failed to delete page",
           "failedCreatePage": "Failed to create page",
+          "noAccessToCreatePage": "No permission to create pages with the Can Edit access",
           "failedMovePage": "Failed to move page to this document",
           "failedDuplicatePage": "Failed to duplicate page",
           "failedDuplicateFindView": "Failed to duplicate page - original view not found"
@@ -2113,7 +2134,7 @@
           "toUrl": "Convert to URL",
           "toEmbed": "Convert to Embed",
           "toBookmark": "Convert to Bookmark",
-          "copyLink": "Copy Link",
+          "copyLink": "Copy link",
           "replace": "Replace",
           "reload": "Reload",
           "removeLink": "Remove Link",
@@ -2696,7 +2717,7 @@
   "favorite": {
     "noFavorite": "No favorite page",
     "noFavoriteHintText": "Swipe the page to the left to add it to your favorites",
-    "removeFromSidebar": "Remove from sidebar",
+    "removeFromSidebar": "Unpin from sidebar",
     "addToSidebar": "Pin to sidebar"
   },
   "cardDetails": {
@@ -3439,15 +3460,17 @@
   },
   "shareTab": {
     "accessLevel": {
-      "view": "View",
-      "comment": "Comment",
-      "edit": "Edit",
+      "view": "Can view",
+      "comment": "Can comment",
+      "edit": "Can edit",
       "fullAccess": "Full access"
     },
     "inviteByEmail": "Invite by email",
     "invite": "Invite",
     "anyoneAtWorkspace": "Anyone at {workspace}",
-    "anyoneInGroupWithLinkCanEdit": "Anyone in this group with the link can edit",
+    "anyoneInGroupWithLinkHasFullAccess": "Anyone in this group with the link has full access",
+    "restricted": "Restricted",
+    "onlyPeopleWithAccessCanOpenWithTheLink": "Only people with access can open with the link",
     "copyLink": "Copy link",
     "copiedLinkToClipboard": "Copied link to clipboard",
     "removeAccess": "Remove access",
@@ -3457,7 +3480,7 @@
     "onlyFullAccessCanInvite": "Only user with full access can invite others",
     "invitationSent": "Invitation sent",
     "emailAlreadyInList": "The email is already in the list",
-    "upgradeToProToInviteGuests": "Please upgrade to a Pro plan to invite more guests",
+    "upgradeToProToInviteMoreGuests": "Please upgrade to a Pro plan to invite more guests",
     "maxGuestsReached": "You have reached the maximum number of guests",
     "removedGuestSuccessfully": "Removed guest successfully",
     "updatedAccessLevelSuccessfully": "Updated access level successfully",
@@ -3472,18 +3495,48 @@
     "toProPlanToInviteGuests": " to the Pro plan to invite guests to this page",
     "upgradeToInviteGuest": {
       "title": {
-        "owner": "Upgrade to invite guest",
-        "member": "Upgrade to invite guest",
-        "guest": "Upgrade to invite guest"
+        "owner": "Upgrade to invite guest editors",
+        "member": "Upgrade to invite guest editors",
+        "guest": "Upgrade to invite guest editors"
       },
       "description": {
-        "owner": "Your workspace is currently on the Free plan. Upgrade to the Pro plan to allow external users to access this page as guests.",
+        "owner": "Upgrade to Pro to collaborate with non-members on this page.",
         "member": "Some invitees are outside your workspace. To invite them as guests, please contact your workspace owner to upgrade to the Pro plan.",
         "guest": "Some invitees are outside your workspace. To invite them as guests, please contact your workspace owner to upgrade to the Pro plan."
       }
+    },
+    "upgradeToProToInviteGuests": "Please upgrade to Pro plan to invite guests",
+    "removeYourOwnAccess": "Remove your own access",
+    "nothingSharedWithYou": "Nothing shared with you",
+    "pagesSharedWithYouWillShowHere": "Pages shared with you will show here",
+    "section": {
+      "public": "Team space",
+      "private": "Private",
+      "shared": "Shared"
+    },
+    "sectionTooltip": {
+      "public": "Everyone at {workspace} has access",
+      "private": "Only you have access",
+      "shared": {
+        "withMe": "Pages shared with me",
+        "byMe": "Pages you shared"
+      }
+    },
+    "copyLinkPublicPageTitle": "Shared Guests can't access this page through the web link you're copying. They can still view and edit the page via the desktop or mobile apps. Web access is coming soon!",
+    "copyLinkPrivateOrSharePageTitle": "Shared Guests and Members can't access this page through the web link you're copying. They can still view and edit the page using the desktop or mobile apps. Web access is coming soon!",
+    "turnIntoMemberDialog": {
+      "title": "Send the request to workspace owner",
+      "description": "Only the workspace owner can do this. Send them a request to upgrade {name} to a member.",
+      "send": "Send"
     }
   },
   "shareSection": {
     "shared": "Shared with me"
+  },
+  "accessLevel": {
+    "noEditPermissionToEdit": "You don't have permission to edit this page",
+    "noPermissionToCreatePage": "You don't have permission to create a page in this workspace",
+    "failedToCreatePage": "Failed to create page",
+    "noPermissionToCreateAnAIChat": "No permission to create an AI Chat"
   }
 }

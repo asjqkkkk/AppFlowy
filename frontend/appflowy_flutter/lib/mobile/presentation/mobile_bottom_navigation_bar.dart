@@ -83,9 +83,6 @@ enum BottomNavigationBarItemType {
   }
 }
 
-final _items =
-    BottomNavigationBarItemType.values.map((e) => e.navigationItem).toList();
-
 /// Builds the "shell" for the app by building a Scaffold with a
 /// BottomNavigationBar, where [child] is placed in the body of the Scaffold.
 class MobileBottomNavigationBar extends StatefulWidget {
@@ -103,6 +100,14 @@ class MobileBottomNavigationBar extends StatefulWidget {
       _MobileBottomNavigationBarState();
 }
 
+final ValueNotifier<List<BottomNavigationBarItemType>>
+    mobileBottomNavigationBarItems = ValueNotifier([
+  BottomNavigationBarItemType.home,
+  BottomNavigationBarItemType.search,
+  BottomNavigationBarItemType.add,
+  BottomNavigationBarItemType.notification,
+]);
+
 class _MobileBottomNavigationBarState extends State<MobileBottomNavigationBar> {
   Widget? _bottomNavigationBar;
 
@@ -111,11 +116,13 @@ class _MobileBottomNavigationBarState extends State<MobileBottomNavigationBar> {
     super.initState();
 
     bottomNavigationBarType.addListener(_animate);
+    mobileBottomNavigationBarItems.addListener(_animate);
   }
 
   @override
   void dispose() {
     bottomNavigationBarType.removeListener(_animate);
+    mobileBottomNavigationBarItems.removeListener(_animate);
     super.dispose();
   }
 
@@ -215,12 +222,29 @@ class _NotificationNavigationBarItemIcon extends StatelessWidget {
   }
 }
 
-class _HomePageNavigationBar extends StatelessWidget {
+class _HomePageNavigationBar extends StatefulWidget {
   const _HomePageNavigationBar({
     required this.navigationShell,
   });
 
   final StatefulNavigationShell navigationShell;
+
+  @override
+  State<_HomePageNavigationBar> createState() => _HomePageNavigationBarState();
+}
+
+class _HomePageNavigationBarState extends State<_HomePageNavigationBar> {
+  @override
+  void initState() {
+    super.initState();
+    mobileBottomNavigationBarItems.addListener(_animate);
+  }
+
+  @override
+  void dispose() {
+    mobileBottomNavigationBarItems.removeListener(_animate);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -243,9 +267,11 @@ class _HomePageNavigationBar extends StatelessWidget {
               enableFeedback: false,
               type: BottomNavigationBarType.fixed,
               elevation: 0,
-              items: _items,
+              items: mobileBottomNavigationBarItems.value
+                  .map((e) => e.navigationItem)
+                  .toList(),
               backgroundColor: Colors.transparent,
-              currentIndex: navigationShell.currentIndex,
+              currentIndex: widget.navigationShell.currentIndex,
               onTap: (int bottomBarIndex) => _onTap(context, bottomBarIndex),
             ),
           ),
@@ -273,7 +299,10 @@ class _HomePageNavigationBar extends StatelessWidget {
     // close the popup menu
     closePopupMenu();
 
-    final label = _items[bottomBarIndex].label;
+    final label = mobileBottomNavigationBarItems.value
+        .map((e) => e.navigationItem)
+        .toList()[bottomBarIndex]
+        .label;
     if (label == BottomNavigationBarItemType.add.label) {
       // show an add dialog
       mobileCreateNewPageNotifier.value = ViewLayoutPB.Document;
@@ -285,14 +314,18 @@ class _HomePageNavigationBar extends StatelessWidget {
     // When navigating to a new branch, it's recommended to use the goBranch
     // method, as doing so makes sure the last navigation state of the
     // Navigator for the branch is restored.
-    navigationShell.goBranch(
+    widget.navigationShell.goBranch(
       bottomBarIndex,
       // A common pattern when using bottom navigation bars is to support
       // navigating to the initial location when tapping the item that is
       // already active. This example demonstrates how to support this behavior,
       // using the initialLocation parameter of goBranch.
-      initialLocation: bottomBarIndex == navigationShell.currentIndex,
+      initialLocation: bottomBarIndex == widget.navigationShell.currentIndex,
     );
+  }
+
+  void _animate() {
+    setState(() {});
   }
 }
 

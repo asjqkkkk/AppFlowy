@@ -2,7 +2,8 @@
 mod tests {
   use crate::entities::FieldType;
   use crate::services::cell::{insert_select_option_cell, stringify_cell};
-  use crate::services::field::FieldBuilder;
+  use crate::services::field::{FieldBuilder, TypeOptionHandlerCache};
+  use std::sync::Arc;
 
   use collab_database::fields::date_type_option::{DateCellData, DateTypeOption};
   use collab_database::fields::select_type_option::{SelectOption, SelectTypeOption};
@@ -18,8 +19,12 @@ mod tests {
       timestamp: Some(1647251762),
       ..Default::default()
     };
+    let cache = Arc::new(TypeOptionHandlerCache::new());
 
-    assert_eq!(stringify_cell(&(&data).into(), &field), "Mar 14, 2022");
+    assert_eq!(
+      stringify_cell(&(&data).into(), &field, cache),
+      "Mar 14, 2022"
+    );
 
     let data = DateCellData {
       timestamp: Some(1647251762),
@@ -28,9 +33,10 @@ mod tests {
       is_range: false,
       reminder_id: String::new(),
     };
+    let cache = Arc::new(TypeOptionHandlerCache::new());
 
     assert_eq!(
-      stringify_cell(&(&data).into(), &field),
+      stringify_cell(&(&data).into(), &field, cache.clone()),
       "Mar 14, 2022 09:56"
     );
 
@@ -43,7 +49,7 @@ mod tests {
     };
 
     assert_eq!(
-      stringify_cell(&(&data).into(), &field),
+      stringify_cell(&(&data).into(), &field, cache.clone()),
       "Mar 14, 2022 09:56"
     );
 
@@ -56,7 +62,7 @@ mod tests {
     };
 
     assert_eq!(
-      stringify_cell(&(&data).into(), &field),
+      stringify_cell(&(&data).into(), &field, cache.clone()),
       "Mar 14, 2022 09:56 → Mar 29, 2022 06:03"
     );
   }
@@ -68,6 +74,7 @@ mod tests {
     let field_type = FieldType::SingleSelect;
     let done_option = SelectOption::new("Done");
     let option_id = done_option.id.clone();
+    let cache = Arc::new(TypeOptionHandlerCache::new());
 
     let single_select = SelectTypeOption {
       options: vec![done_option.clone()],
@@ -75,15 +82,18 @@ mod tests {
     };
     let field = FieldBuilder::new(field_type, single_select).build();
 
-    let cell = insert_select_option_cell(vec![option_id], &field);
+    let cell = insert_select_option_cell(vec![option_id], &field, cache.clone()).unwrap();
 
-    assert_eq!(stringify_cell(&cell, &field), done_option.name,);
+    assert_eq!(
+      stringify_cell(&cell, &field, cache.clone()),
+      done_option.name,
+    );
   }
 
   #[test]
   fn multiselect_to_text_type() {
     let field_type = FieldType::MultiSelect;
-
+    let cache = Arc::new(TypeOptionHandlerCache::new());
     let france = SelectOption::new("france");
     let argentina = SelectOption::new("argentina");
     let multi_select = SelectTypeOption {
@@ -96,10 +106,15 @@ mod tests {
 
     let field = FieldBuilder::new(field_type, multi_select).build();
 
-    let cell = insert_select_option_cell(vec![france_option_id, argentina_option_id], &field);
+    let cell = insert_select_option_cell(
+      vec![france_option_id, argentina_option_id],
+      &field,
+      cache.clone(),
+    )
+    .unwrap();
 
     assert_eq!(
-      stringify_cell(&cell, &field),
+      stringify_cell(&cell, &field, cache.clone()),
       format!("{},{}", france.name, argentina.name)
     );
   }

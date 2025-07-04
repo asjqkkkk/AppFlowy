@@ -1,9 +1,9 @@
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
 use semver::Version;
 use std::sync::{Arc, Weak};
 use tracing::instrument;
 
-use collab_integrate::CollabKVDB;
 use flowy_error::FlowyResult;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::{AuthType, WorkspaceType};

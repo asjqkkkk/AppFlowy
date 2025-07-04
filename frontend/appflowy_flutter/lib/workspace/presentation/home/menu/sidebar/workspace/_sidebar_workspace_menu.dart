@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
@@ -6,13 +8,14 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
+import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_actions.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialog_v2.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -21,6 +24,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 import '_sidebar_import_notion.dart';
+import 'create_workspace_dialog.dart';
 
 @visibleForTesting
 const createWorkspaceButtonKey = ValueKey('createWorkspaceButton');
@@ -88,6 +92,7 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
                 for (final workspace in widget.workspaces) ...[
                   WorkspaceMenuItem(
                     key: ValueKey(workspace.workspaceId),
+                    currentWorkspace: widget.currentWorkspace,
                     workspace: workspace,
                     userProfile: widget.userProfile,
                     isSelected: workspace.workspaceId ==
@@ -135,12 +140,14 @@ class WorkspaceMenuItem extends StatefulWidget {
   const WorkspaceMenuItem({
     super.key,
     required this.workspace,
+    required this.currentWorkspace,
     required this.userProfile,
     required this.isSelected,
     required this.popoverMutex,
   });
 
   final UserProfilePB userProfile;
+  final UserWorkspacePB currentWorkspace;
   final UserWorkspacePB workspace;
   final bool isSelected;
   final PopoverMutex popoverMutex;
@@ -151,10 +158,12 @@ class WorkspaceMenuItem extends StatefulWidget {
 
 class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
   final ValueNotifier<bool> isHovered = ValueNotifier(false);
+  final ValueNotifier<bool> popoverOpenNotifier = ValueNotifier(false);
 
   @override
   void dispose() {
     isHovered.dispose();
+    popoverOpenNotifier.dispose();
     super.dispose();
   }
 
@@ -207,7 +216,8 @@ class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
         fontSize: 18.0,
         figmaLineHeight: 26.0,
         borderRadius: 12.0,
-        isEditable: true,
+        isEditable: widget.currentWorkspace.workspaceType ==
+            widget.workspace.workspaceType,
         onSelected: (result) => context.read<UserWorkspaceBloc>().add(
               UserWorkspaceEvent.updateWorkspaceIcon(
                 workspaceId: widget.workspace.workspaceId,
@@ -219,39 +229,48 @@ class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
   }
 
   Widget _buildRightIcon(BuildContext context, ValueNotifier<bool> isHovered) {
-    return Row(
-      children: [
-        // only the owner can update or delete workspace.
-        if (!context.read<WorkspaceMemberBloc>().state.isLoading)
-          ValueListenableBuilder(
-            valueListenable: isHovered,
-            builder: (context, value, child) {
-              return Padding(
-                padding: const EdgeInsets.only(left: 8.0),
-                child: Opacity(
-                  opacity: value ? 1.0 : 0.0,
-                  child: child,
-                ),
-              );
-            },
-            child: WorkspaceMoreActionList(
-              workspace: widget.workspace,
-              popoverMutex: widget.popoverMutex,
+    if (context.read<WorkspaceMemberBloc>().state.isLoading) {
+      return const SizedBox.shrink();
+    }
+
+    return ValueListenableBuilder(
+      valueListenable: popoverOpenNotifier,
+      builder: (context, popoverOpen, child) {
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            ValueListenableBuilder(
+              valueListenable: isHovered,
+              builder: (context, isHovered, child) {
+                return Opacity(
+                  opacity: !isHovered && widget.isSelected && !popoverOpen
+                      ? 1.0
+                      : 0.0,
+                  child: FlowySvg(
+                    FlowySvgs.workspace_selected_s,
+                    blendMode: null,
+                    size: Size.square(14.0),
+                  ),
+                );
+              },
             ),
-          ),
-        const HSpace(8.0),
-        if (widget.isSelected) ...[
-          const Padding(
-            padding: EdgeInsets.all(5.0),
-            child: FlowySvg(
-              FlowySvgs.workspace_selected_s,
-              blendMode: null,
-              size: Size.square(14.0),
+            ValueListenableBuilder(
+              valueListenable: isHovered,
+              builder: (context, isHovered, child) {
+                return Opacity(
+                  opacity: isHovered || popoverOpen ? 1.0 : 0.0,
+                  child: WorkspaceMoreActionList(
+                    currentWorkspace: widget.currentWorkspace,
+                    workspace: widget.workspace,
+                    popoverOpenNotifier: popoverOpenNotifier,
+                    popoverMutex: widget.popoverMutex,
+                  ),
+                );
+              },
             ),
-          ),
-          const HSpace(8.0),
-        ],
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -267,13 +286,14 @@ class _WorkspaceInfo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     final memberCount = workspace.memberCount.toInt();
+
     return FlowyButton(
       onTap: () => _openWorkspace(context),
       iconPadding: 10.0,
       leftIconSize: const Size.square(32),
       leftIcon: const SizedBox.square(dimension: 32),
-      rightIcon: const HSpace(32.0),
       text: Row(
         children: [
           Flexible(
@@ -282,14 +302,34 @@ class _WorkspaceInfo extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 // workspace name
-                FlowyText.medium(
-                  workspace.name,
-                  fontSize: 14.0,
-                  figmaLineHeight: 17.0,
-                  overflow: TextOverflow.ellipsis,
-                  withTooltip: true,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Flexible(
+                      child: FlowyTooltip(
+                        message: workspace.name,
+                        preferBelow: true,
+                        child: Text(
+                          workspace.name,
+                          style: theme.textStyle.body.enhanced(
+                            color: theme.textColorScheme.primary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ),
+                    if (workspace.workspaceType == WorkspaceTypePB.LocalW) ...[
+                      const HSpace(6.0),
+                      FlowySvg(
+                        FlowySvgs.vault_indicator_m,
+                        blendMode: null,
+                        size: const Size.square(20.0),
+                      ),
+                    ],
+                  ],
                 ),
-                if (workspace.role != AFRolePB.Guest) ...[
+                if (workspace.role != AFRolePB.Guest &&
+                    workspace.workspaceType == WorkspaceTypePB.ServerW)
                   // workspace members count
                   FlowyText.regular(
                     memberCount == 0
@@ -302,7 +342,13 @@ class _WorkspaceInfo extends StatelessWidget {
                     figmaLineHeight: 12.0,
                     color: Theme.of(context).hintColor,
                   ),
-                ],
+                if (workspace.workspaceType == WorkspaceTypePB.LocalW)
+                  FlowyText.regular(
+                    LocaleKeys.workspace_vaultWorkspace.tr(),
+                    fontSize: 10.0,
+                    figmaLineHeight: 12.0,
+                    color: Theme.of(context).hintColor,
+                  ),
               ],
             ),
           ),
@@ -310,6 +356,7 @@ class _WorkspaceInfo extends StatelessWidget {
             const HSpace(6.0),
             GuestTag(),
           ],
+          const HSpace(32),
         ],
       ),
     );
@@ -344,7 +391,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
       child: FlowyButton(
         key: createWorkspaceButtonKey,
         onTap: () {
-          _showCreateWorkspaceDialog(context);
+          showCreateWorkspaceDialog(context);
           PopoverContainer.of(context).closeAll();
         },
         margin: const EdgeInsets.symmetric(horizontal: 4.0),
@@ -376,25 +423,6 @@ class _CreateWorkspaceButton extends StatelessWidget {
       child: const FlowySvg(FlowySvgs.add_workspace_s),
     );
   }
-
-  Future<void> _showCreateWorkspaceDialog(BuildContext context) async {
-    if (context.mounted) {
-      final workspaceBloc = context.read<UserWorkspaceBloc>();
-      await showAFTextFieldDialog(
-        context: context,
-        title: LocaleKeys.workspace_create.tr(),
-        initialValue: '',
-        onConfirm: (name) {
-          workspaceBloc.add(
-            UserWorkspaceEvent.createWorkspace(
-              name: name,
-              workspaceType: WorkspaceTypePB.ServerW,
-            ),
-          );
-        },
-      );
-    }
-  }
 }
 
 class _ImportNotionButton extends StatelessWidget {
@@ -407,7 +435,7 @@ class _ImportNotionButton extends StatelessWidget {
       child: FlowyButton(
         key: importNotionButtonKey,
         onTap: () {
-          _showImportNotinoDialog(context);
+          _showImportNotionDialog(context);
         },
         margin: const EdgeInsets.symmetric(horizontal: 4.0),
         text: Row(
@@ -453,7 +481,7 @@ class _ImportNotionButton extends StatelessWidget {
     );
   }
 
-  Future<void> _showImportNotinoDialog(BuildContext context) async {
+  Future<void> _showImportNotionDialog(BuildContext context) async {
     final result = await getIt<FilePickerService>().pickFiles(
       type: FileType.custom,
       allowedExtensions: ['zip'],

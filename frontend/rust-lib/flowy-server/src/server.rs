@@ -1,12 +1,8 @@
-use client_api::ws::ConnectState;
-use client_api::ws::WSConnectStateReceiver;
-use client_api::ws::WebSocketChannel;
 use flowy_search_pub::cloud::SearchCloudService;
 use std::sync::{Arc, Weak};
 
 use anyhow::Error;
 use arc_swap::ArcSwapOption;
-use client_api::collab_sync::ServerCollabMessage;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use flowy_ai_pub::cloud::ChatCloudService;
@@ -61,6 +57,9 @@ where
 #[async_trait]
 pub trait AppFlowyServer: Send + Sync + 'static {
   fn set_token(&self, _token: &str) -> Result<(), Error>;
+  fn get_access_token(&self) -> Option<String>;
+
+  async fn refresh_access_token(&self, reason: &str);
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>);
   fn set_ai_model(&self, _ai_model: &str) -> Result<(), Error> {
     Ok(())
@@ -124,29 +123,6 @@ pub trait AppFlowyServer: Send + Sync + 'static {
   /// Bridge for the Cloud AI Search features
   ///
   async fn search_service(&self) -> Option<Arc<dyn SearchCloudService>>;
-
-  fn subscribe_ws_state(&self) -> Option<WSConnectStateReceiver> {
-    None
-  }
-
-  fn get_ws_state(&self) -> ConnectState {
-    ConnectState::Lost
-  }
-
-  #[allow(clippy::type_complexity)]
-  fn collab_ws_channel(
-    &self,
-    _object_id: &str,
-  ) -> Result<
-    Option<(
-      Arc<WebSocketChannel<ServerCollabMessage>>,
-      WSConnectStateReceiver,
-      bool,
-    )>,
-    anyhow::Error,
-  > {
-    Ok(None)
-  }
 
   fn file_storage(&self) -> Option<Arc<dyn StorageCloudService>>;
 }

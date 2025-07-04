@@ -102,7 +102,7 @@ impl DatabaseSortTest {
     let field = self.editor.get_field(&field_id).await.unwrap();
     for row in rows {
       if let Some(cell) = row.cells.get(&field_id) {
-        let content = stringify_cell(cell, &field);
+        let content = stringify_cell(cell, &field, self.type_option_handler_cache.clone());
         cells.push(content);
       } else {
         cells.push("".to_string());

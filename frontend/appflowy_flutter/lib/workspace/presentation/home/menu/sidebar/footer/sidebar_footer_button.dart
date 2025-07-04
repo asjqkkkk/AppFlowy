@@ -1,5 +1,4 @@
-import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
-import 'package:flowy_infra_ui/flowy_infra_ui.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
 // This button style is used in
@@ -8,36 +7,45 @@ import 'package:flutter/material.dart';
 class SidebarFooterButton extends StatelessWidget {
   const SidebarFooterButton({
     super.key,
+    required this.mainAxisAlignment,
     required this.leftIcon,
-    required this.leftIconSize,
     required this.text,
     required this.onTap,
   });
 
+  final MainAxisAlignment mainAxisAlignment;
   final Widget leftIcon;
-  final Size leftIconSize;
   final String text;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: HomeSizes.workspaceSectionHeight,
-      child: FlowyButton(
-        leftIcon: leftIcon,
-        leftIconSize: leftIconSize,
-        margin: const EdgeInsets.all(4.0),
-        expandText: false,
-        text: Padding(
-          padding: const EdgeInsets.only(right: 6.0),
-          child: FlowyText(
-            text,
-            fontWeight: FontWeight.w400,
-            figmaLineHeight: 18.0,
-          ),
-        ),
-        onTap: onTap,
+    final theme = AppFlowyTheme.of(context);
+
+    return AFGhostButton.normal(
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.spacing.m,
+        vertical: theme.spacing.s,
       ),
+      builder: (context, isHovering, disabled) {
+        return Row(
+          mainAxisAlignment: mainAxisAlignment,
+          spacing: theme.spacing.m,
+          children: [
+            leftIcon,
+            Flexible(
+              child: Text(
+                text,
+                style: theme.textStyle.body.enhanced(
+                  color: theme.textColorScheme.secondary,
+                ),
+                maxLines: 1,
+              ),
+            ),
+          ],
+        );
+      },
+      onTap: onTap,
     );
   }
 }

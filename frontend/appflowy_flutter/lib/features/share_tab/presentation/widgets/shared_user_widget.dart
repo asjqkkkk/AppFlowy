@@ -2,6 +2,7 @@ import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/access_level_list_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/edit_access_level_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart';
+import 'package:appflowy/features/share_tab/presentation/widgets/pending_tag.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/turn_into_member_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -29,6 +30,7 @@ class SharedUserWidget extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return AFMenuItem(
+      cursor: SystemMouseCursors.basic,
       padding: EdgeInsets.symmetric(
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
@@ -39,7 +41,11 @@ class SharedUserWidget extends StatelessWidget {
       ),
       title: _buildTitle(context),
       subtitle: _buildSubtitle(context),
-      trailing: _buildTrailing(context),
+      trailing: (context, isHovering, disabled) => _buildTrailing(
+        context,
+        isHovering,
+        disabled,
+      ),
       onTap: () {
         // callbacks?.onSelectAccessLevel.call(user, user.accessLevel);
       },
@@ -98,7 +104,7 @@ class SharedUserWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTrailing(BuildContext context) {
+  Widget _buildTrailing(BuildContext context, bool isHovering, bool disabled) {
     final isCurrentUser = user.email == currentUser.email;
     final theme = AppFlowyTheme.of(context);
     final currentAccessLevel = currentUser.accessLevel;
@@ -126,14 +132,16 @@ class SharedUserWidget extends StatelessWidget {
       return disabledAccessButton();
     }
 
-    // Full access user can turn a guest into a member
+    // Only owner can turn a guest into a member
     if (user.role == ShareRole.guest &&
-        currentAccessLevel == ShareAccessLevel.fullAccess) {
+        currentUser.role == ShareRole.owner &&
+        !user.isPending) {
       return Row(
         children: [
-          TurnIntoMemberWidget(
-            onTap: () => callbacks?.onTurnIntoMember.call(),
-          ),
+          if (isHovering)
+            TurnIntoMemberWidget(
+              onTap: () => callbacks?.onTurnIntoMember.call(),
+            ),
           editAccessWidget([
             ShareAccessLevel.readOnly,
             ShareAccessLevel.readAndWrite,
@@ -155,17 +163,30 @@ class SharedUserWidget extends StatelessWidget {
     }
 
     // Managing others
+    Widget child;
     if (currentAccessLevel == ShareAccessLevel.readOnly ||
         currentAccessLevel == ShareAccessLevel.readAndWrite) {
       // Cannot change others' access
-      return disabledAccessButton();
+      child = disabledAccessButton();
     } else {
       // Full access user can manage others
       final supportedAccessLevels = [
         ShareAccessLevel.readOnly,
         ShareAccessLevel.readAndWrite,
       ];
-      return editAccessWidget(supportedAccessLevels);
+      child = editAccessWidget(supportedAccessLevels);
     }
+
+    if (user.isPending) {
+      return Row(
+        children: [
+          PendingTag(),
+          HSpace(theme.spacing.xs),
+          child,
+        ],
+      );
+    }
+
+    return child;
   }
 }

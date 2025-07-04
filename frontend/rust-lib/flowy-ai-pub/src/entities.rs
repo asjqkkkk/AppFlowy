@@ -28,6 +28,12 @@ pub struct UnindexedCollab {
   pub metadata: UnindexedCollabMetadata,
 }
 
+impl UnindexedCollab {
+  pub fn is_empty(&self) -> bool {
+    self.data.is_none() || self.data.as_ref().unwrap().is_empty()
+  }
+}
+
 #[derive(Debug, Clone)]
 pub enum UnindexedData {
   Text(String),

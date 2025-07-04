@@ -144,10 +144,6 @@ class _GridPageState extends State<GridPage> {
         BlocProvider<GridBloc>(
           create: (_) => gridBloc,
         ),
-        BlocProvider(
-          create: (context) => PageAccessLevelBloc(view: widget.view)
-            ..add(PageAccessLevelEvent.initial()),
-        ),
       ],
       child: BlocListener<ActionNavigationBloc, ActionNavigationState>(
         listener: (context, state) {
@@ -291,21 +287,30 @@ class _GridPageContentState extends State<GridPageContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _GridHeader(
-          headerScrollController: headerScrollController,
-          editable: context.read<PageAccessLevelBloc>().state.isEditable,
-          shrinkWrap: widget.shrinkWrap,
-        ),
-        _GridRows(
-          viewId: widget.view.id,
-          scrollController: _scrollController,
-          shrinkWrap: widget.shrinkWrap,
-        ),
-      ],
+    return BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
+      builder: (context, state) {
+        if (state.isInitializing) {
+          return const SizedBox.shrink();
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _GridHeader(
+              headerScrollController: headerScrollController,
+              editable: state.isEditable,
+              shrinkWrap: widget.shrinkWrap,
+            ),
+            _GridRows(
+              viewId: widget.view.id,
+              scrollController: _scrollController,
+              shrinkWrap: widget.shrinkWrap,
+              editable: state.isEditable,
+            ),
+          ],
+        );
+      },
     );
   }
 }
@@ -323,7 +328,7 @@ class _GridHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = BlocBuilder<GridBloc, GridState>(
+    final Widget child = BlocBuilder<GridBloc, GridState>(
       builder: (_, state) => GridHeaderSliverAdaptor(
         viewId: state.viewId,
         anchorScrollController: headerScrollController,
@@ -331,13 +336,10 @@ class _GridHeader extends StatelessWidget {
       ),
     );
 
-    if (!editable) {
-      child = IgnorePointer(
-        child: child,
-      );
-    }
-
-    return child;
+    return IgnorePointer(
+      ignoring: !editable,
+      child: child,
+    );
   }
 }
 
@@ -346,10 +348,12 @@ class _GridRows extends StatefulWidget {
     required this.viewId,
     required this.scrollController,
     this.shrinkWrap = false,
+    this.editable = true,
   });
 
   final String viewId;
   final GridScrollController scrollController;
+  final bool editable;
 
   /// When [shrinkWrap] is active, the Grid will show items according to
   /// GridState.visibleRows and will not have a vertical scroll area.
@@ -523,7 +527,10 @@ class _GridRowsState extends State<_GridRows> {
         : state.rowInfos.length + 1;
 
     return ReorderableListView.builder(
-      cacheExtent: 500,
+      cacheExtent: widget.shrinkWrap
+          ? 0.0 // No caching when shrink wrapping
+          : 200.0, // Much smaller cache for better performance
+
       scrollController: widget.scrollController.verticalController,
       physics: const ClampingScrollPhysics(),
       buildDefaultDragHandles: false,
@@ -562,26 +569,23 @@ class _GridRowsState extends State<_GridRows> {
       itemBuilder: (context, index) {
         if (index == itemCount - 1) {
           final child = Column(
-            key: const Key('grid_footer'),
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: footer,
           );
 
-          if (!context.read<PageAccessLevelBloc>().state.isEditable) {
-            return IgnorePointer(
-              key: const Key('grid_footer'),
-              child: child,
-            );
-          }
-
-          return child;
+          return IgnorePointer(
+            key: const Key('grid_footer'),
+            ignoring: !widget.editable,
+            child: child,
+          );
         }
 
         return _renderRow(
           context,
           state.rowInfos[index].rowId,
           index: index,
+          editable: widget.editable,
         );
       },
     );
@@ -592,6 +596,7 @@ class _GridRowsState extends State<_GridRows> {
     RowId rowId, {
     required int index,
     Animation<double>? animation,
+    bool editable = true,
   }) {
     final databaseController = context.read<GridBloc>().databaseController;
     final DatabaseController(:viewId, :rowCache) = databaseController;
@@ -610,7 +615,7 @@ class _GridRowsState extends State<_GridRows> {
       rowId: rowId,
       viewId: viewId,
       index: index,
-      editable: context.watch<PageAccessLevelBloc>().state.isEditable,
+      editable: editable,
       rowController: RowController(
         viewId: viewId,
         rowMeta: rowMeta,

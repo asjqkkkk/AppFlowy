@@ -208,7 +208,7 @@ class SidebarPlanBloc extends Bloc<SidebarPlanEvent, SidebarPlanState> {
             }
           }
         },
-        (error) => Log.error("Failed to get workspace usage: $error"),
+        (error) => {},
       );
     });
   }

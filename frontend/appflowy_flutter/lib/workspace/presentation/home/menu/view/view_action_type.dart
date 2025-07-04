@@ -54,7 +54,7 @@ extension ViewMoreActionTypeExtension on ViewMoreActionType {
       case ViewMoreActionType.lockPage:
         return LocaleKeys.disclosureAction_lockPage.tr();
       case ViewMoreActionType.leaveSharedPage:
-        return 'Leave';
+        return LocaleKeys.shareTab_removeYourOwnAccess.tr();
       case ViewMoreActionType.divider:
       case ViewMoreActionType.lastModified:
       case ViewMoreActionType.created:

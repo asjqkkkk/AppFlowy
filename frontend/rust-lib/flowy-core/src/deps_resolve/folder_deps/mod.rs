@@ -2,10 +2,15 @@ mod folder_deps_chat_impl;
 mod folder_deps_database_impl;
 mod folder_deps_doc_impl;
 
+use crate::deps_resolve::folder_deps::folder_deps_chat_impl::ChatFolderOperation;
+use crate::deps_resolve::folder_deps::folder_deps_database_impl::DatabaseFolderOperation;
+use crate::deps_resolve::folder_deps::folder_deps_doc_impl::DocumentFolderOperation;
 use crate::server_layer::ServerProvider;
+use collab::core::collab::default_client_id;
+use collab::preclude::ClientID;
 use collab_entity::{CollabType, EncodedCollab};
-use collab_integrate::collab_builder::AppFlowyCollabBuilder;
-use collab_integrate::CollabKVDB;
+use collab_plugins::local_storage::kv::KVTransactionDB;
+use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
@@ -13,20 +18,16 @@ use flowy_error::{internal_error, FlowyError, FlowyResult};
 use flowy_folder::entities::UpdateViewParams;
 use flowy_folder::manager::{FolderManager, FolderUser};
 use flowy_folder::ViewLayout;
+use flowy_folder_pub::query::{FolderQueryService, FolderService, FolderViewEdit, QueryCollab};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::DBConnection;
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user::services::data_import::load_collab_by_object_id;
 use flowy_user_pub::entities::UserWorkspace;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use lib_infra::async_trait::async_trait;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
-
-use crate::deps_resolve::folder_deps::folder_deps_chat_impl::ChatFolderOperation;
-use crate::deps_resolve::folder_deps::folder_deps_database_impl::DatabaseFolderOperation;
-use crate::deps_resolve::folder_deps::folder_deps_doc_impl::DocumentFolderOperation;
-use collab_plugins::local_storage::kv::KVTransactionDB;
-use flowy_folder_pub::query::{FolderQueryService, FolderService, FolderViewEdit, QueryCollab};
-use lib_infra::async_trait::async_trait;
 use tracing::trace;
 use uuid::Uuid;
 
@@ -35,7 +36,7 @@ pub struct FolderDepsResolver();
 impl FolderDepsResolver {
   pub async fn resolve(
     authenticate_user: Weak<AuthenticateUser>,
-    collab_builder: Arc<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     server_provider: Weak<ServerProvider>,
     store_preferences: Arc<KVStorePreferences>,
   ) -> Arc<FolderManager> {
@@ -97,6 +98,13 @@ impl FolderUser for FolderUserImpl {
 
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError> {
     self.upgrade_user()?.get_collab_db(uid)
+  }
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    match self.upgrade_user() {
+      Ok(u) => u.collab_client_id(workspace_id),
+      Err(_) => default_client_id(),
+    }
   }
 
   fn is_folder_exist_on_disk(&self, uid: i64, workspace_id: &Uuid) -> FlowyResult<bool> {
@@ -212,15 +220,36 @@ impl FolderQueryService for FolderServiceImpl {
   }
 
   async fn get_collab(&self, object_id: &Uuid, collab_type: CollabType) -> Option<QueryCollab> {
-    let encode_collab =
-      get_encoded_collab_v1_from_disk(&self.user, object_id.to_string().as_str(), collab_type)
-        .await
-        .ok();
+    let client_id = self
+      .folder_manager
+      .upgrade()?
+      .client_id()
+      .unwrap_or(default_client_id());
+    let encode_collab = get_encoded_collab_v1_from_disk(
+      &self.user,
+      object_id.to_string().as_str(),
+      collab_type,
+      client_id,
+    )
+    .await
+    .ok();
 
     encode_collab.map(|encoded_collab| QueryCollab {
       collab_type,
       encoded_collab,
     })
+  }
+
+  fn collab_client_id(&self) -> FlowyResult<ClientID> {
+    let folder_manager = match self.folder_manager.upgrade() {
+      Some(folder_manager) => folder_manager,
+      None => {
+        return Err(
+          FlowyError::internal().with_context("folder manager is None when getting client id"),
+        );
+      },
+    };
+    folder_manager.client_id()
   }
 }
 
@@ -229,6 +258,7 @@ async fn get_encoded_collab_v1_from_disk(
   user: &Arc<dyn FolderUser>,
   view_id: &str,
   collab_type: CollabType,
+  client_id: ClientID,
 ) -> Result<EncodedCollab, FlowyError> {
   let workspace_id = user.workspace_id()?;
   let uid = user
@@ -245,10 +275,16 @@ async fn get_encoded_collab_v1_from_disk(
     )
   })?;
   let collab_read_txn = collab_db.read_txn();
-  let collab = load_collab_by_object_id(uid, &collab_read_txn, &workspace_id.to_string(), view_id)
-    .map_err(|e| {
-      FlowyError::internal().with_context(format!("load document collab failed: {}", e))
-    })?;
+  let collab = load_collab_by_object_id(
+    uid,
+    &collab_read_txn,
+    &workspace_id.to_string(),
+    view_id,
+    client_id,
+  )
+  .map_err(|e| {
+    FlowyError::internal().with_context(format!("load document collab failed: {}", e))
+  })?;
 
   tokio::task::spawn_blocking(move || {
     let data = collab

@@ -123,6 +123,7 @@ class _DatabaseBlockComponentWidgetState
           actionBuilder: widget.actionBuilder,
           showActions: widget.showActions,
           node: widget.node,
+          isEditable: editorState.editable,
         ),
       ),
     );
@@ -136,12 +137,6 @@ class _DatabaseBlockComponentWidgetState
       },
       child: child,
     );
-
-    if (!editorState.editable) {
-      child = IgnorePointer(
-        child: child,
-      );
-    }
 
     return child;
   }

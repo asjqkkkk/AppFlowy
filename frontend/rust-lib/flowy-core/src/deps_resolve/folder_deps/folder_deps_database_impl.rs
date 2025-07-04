@@ -1,6 +1,5 @@
 #![allow(unused_variables)]
 use bytes::Bytes;
-use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use collab_folder::{View, ViewLayout};
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -13,13 +12,14 @@ use flowy_folder::entities::{CreateViewParams, ViewLayoutPB};
 use flowy_folder::manager::FolderUser;
 use flowy_folder::share::ImportType;
 use flowy_folder::view_operation::{
-  DatabaseEncodedCollab, FolderOperationHandler, GatherEncodedCollab, ImportedData, ViewData,
+  DatabaseEncodedCollab, FolderOperationHandler, GatherEncodedCollab, ViewData,
 };
 use flowy_user::services::data_import::{load_collab_by_object_id, load_collab_by_object_ids};
 use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::Path;
 use std::sync::{Arc, Weak};
+use tracing::info;
 use uuid::Uuid;
 
 pub struct DatabaseFolderOperation(pub Weak<DatabaseManager>);
@@ -58,10 +58,11 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 
   async fn gather_publish_encode_collab(
     &self,
-    _user: &Arc<dyn FolderUser>,
+    user: &Arc<dyn FolderUser>,
     view_id: &Uuid,
   ) -> Result<GatherEncodedCollab, FlowyError> {
-    let workspace_id = _user.workspace_id()?;
+    let workspace_id = user.workspace_id()?;
+    let client_id = user.collab_client_id(&workspace_id);
     let view_id_str = view_id.to_string();
     let database_manager = self.database_manager()?;
     // get the collab_object_id for the database.
@@ -87,12 +88,12 @@ impl FolderOperationHandler for DatabaseFolderOperation {
       .collect::<Vec<_>>();
     let database_metas = database_manager.get_all_databases_meta().await;
 
-    let uid = _user
+    let uid = user
       .user_id()
       .map_err(|e| e.with_context("unable to get the uid: {}"))?;
 
     // get the collab db
-    let collab_db = _user
+    let collab_db = user
       .collab_db(uid)
       .map_err(|e| e.with_context("unable to get the collab"))?;
     let collab_db = collab_db.upgrade().ok_or_else(|| {
@@ -103,7 +104,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 
     tokio::task::spawn_blocking(move || {
             let collab_read_txn = collab_db.read_txn();
-            let database_collab = load_collab_by_object_id(uid, &collab_read_txn, &workspace_id.to_string(), &oid)
+            let database_collab = load_collab_by_object_id(uid, &collab_read_txn, &workspace_id.to_string(), &oid, client_id)
                 .map_err(|e| {
                     FlowyError::internal().with_context(format!("load database collab failed: {}", e))
                 })?;
@@ -116,7 +117,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
                 })?;
 
             let database_row_encoded_collabs =
-                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_oids)
+                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_oids,client_id)
                     .0
                     .into_iter()
                     .map(|(oid, collab)| {
@@ -142,7 +143,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
                 .collect::<HashMap<_, _>>();
 
             let database_row_document_encoded_collabs =
-                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_document_ids)
+                load_collab_by_object_ids(uid, &workspace_id.to_string(), &collab_read_txn, &row_document_ids, client_id)
                     .0
                     .into_iter()
                     .map(|(oid, collab)| {
@@ -167,6 +168,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
   }
 
   async fn duplicate_view(&self, view_id: &Uuid) -> Result<Bytes, FlowyError> {
+    info!("Duplicate database view: {}", view_id);
     Ok(Bytes::from(view_id.to_string()))
   }
 
@@ -177,26 +179,26 @@ impl FolderOperationHandler for DatabaseFolderOperation {
     &self,
     _user_id: i64,
     params: CreateViewParams,
-  ) -> Result<Option<EncodedCollab>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     match CreateDatabaseExtParams::from_map(params.meta.clone()) {
       None => match params.initial_data {
         ViewData::DuplicateData(data) => {
           let duplicated_view_id =
             String::from_utf8(data.to_vec()).map_err(|_| FlowyError::invalid_data())?;
-          let encoded_collab = self
+          self
             .database_manager()?
             .duplicate_database(&duplicated_view_id, &params.view_id.to_string())
             .await?;
-          Ok(Some(encoded_collab))
+          Ok(())
         },
         ViewData::Data(data) => {
-          let encoded_collab = self
+          self
             .database_manager()?
-            .create_database_with_data(&params.view_id.to_string(), data.to_vec())
+            .create_database_with_raw_data(&params.view_id.to_string(), data.to_vec())
             .await?;
-          Ok(Some(encoded_collab))
+          Ok(())
         },
-        ViewData::Empty => Ok(None),
+        ViewData::Empty => Ok(()),
       },
       Some(database_params) => {
         let layout = match params.layout {
@@ -222,7 +224,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
             database_parent_view_id,
           )
           .await?;
-        Ok(None)
+        Ok(())
       },
     }
   }
@@ -251,7 +253,10 @@ impl FolderOperationHandler for DatabaseFolderOperation {
         );
       },
     };
-    let result = self.database_manager()?.import_database(data).await;
+    let result = self
+      .database_manager()?
+      .create_database_with_data(data)
+      .await;
     match result {
       Ok(_) => Ok(()),
       Err(err) => {
@@ -271,7 +276,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
     name: &str,
     import_type: ImportType,
     bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     let format = match import_type {
       ImportType::CSV => CSVFormat::Original,
       ImportType::AFDatabase => CSVFormat::META,
@@ -285,25 +290,13 @@ impl FolderOperationHandler for DatabaseFolderOperation {
       .database_manager()?
       .import_csv(view_id.to_string(), content, format)
       .await?;
-    Ok(
-      result
-        .encoded_collabs
-        .into_iter()
-        .map(|encoded| {
-          (
-            encoded.object_id,
-            encoded.collab_type,
-            encoded.encoded_collab,
-          )
-        })
-        .collect(),
-    )
+    Ok(())
   }
 
   async fn import_from_file_path(
     &self,
-    view_id: &str,
-    _name: &str,
+    uid: i64,
+    view_id: Uuid,
     path: String,
   ) -> Result<(), FlowyError> {
     let file_path = Path::new(&path);

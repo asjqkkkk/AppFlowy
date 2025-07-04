@@ -52,6 +52,7 @@ class _FavoriteFolderState extends State<FavoriteFolder> {
             child: Column(
               children: [
                 FavoriteHeader(
+                  isExpanded: state.isExpanded,
                   onPressed: () => context
                       .read<FolderBloc>()
                       .add(const FolderEvent.expandOrUnExpand()),
@@ -158,28 +159,65 @@ class _FavoriteFolderState extends State<FavoriteFolder> {
 }
 
 class FavoriteHeader extends StatelessWidget {
-  const FavoriteHeader({super.key, required this.onPressed});
+  const FavoriteHeader({
+    super.key,
+    required this.onPressed,
+    this.isExpanded = false,
+  });
 
   final VoidCallback onPressed;
+  final bool isExpanded;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    return AFGhostIconTextButton.primary(
-      text: LocaleKeys.sideBar_favorites.tr(),
-      mainAxisAlignment: MainAxisAlignment.start,
-      size: AFButtonSize.l,
-      onTap: onPressed,
-      // todo: ask the designer to provide the token.
-      padding: EdgeInsets.symmetric(
-        horizontal: 4,
-        vertical: 6,
+    return AFBaseButton(
+      backgroundColor: (context, isHovering, disabled) {
+        final theme = AppFlowyTheme.of(context);
+        if (disabled) {
+          return Colors.transparent;
+        }
+        if (isHovering) {
+          return theme.fillColorScheme.contentHover;
+        }
+        return Colors.transparent;
+      },
+      borderColor: (context, isHovering, disabled, isFocused) {
+        return Colors.transparent;
+      },
+      padding: EdgeInsets.only(
+        left: 6,
+        top: 6,
+        bottom: 6,
       ),
       borderRadius: theme.borderRadius.s,
-      iconBuilder: (context, isHover, disabled) => const FlowySvg(
-        FlowySvgs.favorite_header_m,
-        blendMode: null,
-      ),
+      onTap: onPressed,
+      builder: (context, isHovering, disabled) {
+        final textColor = theme.textColorScheme.primary;
+        return Row(
+          children: [
+            const FlowySvg(
+              FlowySvgs.favorite_header_m,
+              blendMode: null,
+            ),
+            SizedBox(width: theme.spacing.s),
+            Text(
+              LocaleKeys.sideBar_favorites.tr(),
+              style: AFButtonSize.l.buildTextStyle(context).copyWith(
+                    color: textColor,
+                  ),
+            ),
+            SizedBox(width: theme.spacing.xs),
+            FlowySvg(
+              isExpanded
+                  ? FlowySvgs.workspace_drop_down_menu_show_s
+                  : FlowySvgs.workspace_drop_down_menu_hide_s,
+              color:
+                  isHovering ? Theme.of(context).colorScheme.onSurface : null,
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -5,8 +5,8 @@ use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::CollabType;
 use collab_folder::{Folder, FolderNotify};
-use collab_integrate::CollabKVDB;
 use flowy_error::{FlowyError, FlowyResult};
+use flowy_user_pub::workspace_collab::CollabKVDB;
 use std::sync::{Arc, Weak};
 use tracing::{Level, event, info};
 use uuid::Uuid;
@@ -155,7 +155,7 @@ impl FolderManager {
         workspace_id,
         collab_db,
         Some(folder_notifier),
-        Some(folder_data),
+        folder_data,
       )
       .await?;
     Ok(folder)

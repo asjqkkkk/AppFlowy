@@ -33,7 +33,7 @@ pub struct DatabaseEncodedCollab {
   pub database_relations: HashMap<String, String>,
 }
 
-pub type ImportedData = (String, CollabType, EncodedCollab);
+pub type ImportedData = (String, CollabType);
 
 /// The handler will be used to handler the folder operation for a specific
 /// view layout. Each [ViewLayout] will have a handler. So when creating a new
@@ -88,13 +88,11 @@ pub trait FolderOperationHandler: Send + Sync {
   /// * `meta`: use to carry extra information. For example, the database view will use this
   /// to carry the reference database id.
   ///
-  /// The return value is the [Option<EncodedCollab>] that can be used to create the view.
-  /// It can be used in syncing the view data to cloud.
   async fn create_view_with_view_data(
     &self,
     user_id: i64,
     params: CreateViewParams,
-  ) -> Result<Option<EncodedCollab>, FlowyError>;
+  ) -> Result<(), FlowyError>;
 
   /// Create a view with the pre-defined data.
   /// For example, the initial data of the grid/calendar/kanban board when
@@ -118,13 +116,13 @@ pub trait FolderOperationHandler: Send + Sync {
     name: &str,
     import_type: ImportType,
     bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError>;
+  ) -> Result<(), FlowyError>;
 
   /// Create a view by importing data from a file
   async fn import_from_file_path(
     &self,
-    view_id: &str,
-    name: &str,
+    uid: i64,
+    view_id: Uuid,
     path: String,
   ) -> Result<(), FlowyError>;
 

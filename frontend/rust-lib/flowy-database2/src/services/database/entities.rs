@@ -1,5 +1,4 @@
 use collab_database::rows::{RowDetail, RowId};
-use collab_database::views::DatabaseLayout;
 
 #[derive(Debug, Clone)]
 pub enum DatabaseRowEvent {
@@ -56,11 +55,4 @@ impl UpdatedRow {
     self.row_detail = Some(row_detail);
     self
   }
-}
-
-#[derive(Debug, Clone)]
-pub struct CreateDatabaseViewParams {
-  pub name: String,
-  pub view_id: String,
-  pub layout_type: DatabaseLayout,
 }

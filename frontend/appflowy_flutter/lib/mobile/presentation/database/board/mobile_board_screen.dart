@@ -22,7 +22,7 @@ class MobileBoardScreen extends StatelessWidget {
     return MobileViewPage(
       id: id,
       title: title,
-      viewLayout: ViewLayoutPB.Document,
+      viewLayout: ViewLayoutPB.Board,
     );
   }
 }

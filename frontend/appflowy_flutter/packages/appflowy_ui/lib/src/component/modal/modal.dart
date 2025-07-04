@@ -21,7 +21,7 @@ class AFModal extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: EdgeInsets.all(theme.spacing.xl),
+        padding: const EdgeInsets.all(60),
         child: ConstrainedBox(
           constraints: constraints,
           child: DecoratedBox(
@@ -122,9 +122,11 @@ class AFModalBody extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return Padding(
-      padding: EdgeInsets.symmetric(
-        vertical: theme.spacing.l,
-        horizontal: theme.spacing.xxl,
+      padding: EdgeInsets.only(
+        left: theme.spacing.xxl,
+        right: theme.spacing.xxl,
+        bottom: theme.spacing.xxl,
+        top: theme.spacing.l,
       ),
       child: child,
     );

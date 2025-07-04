@@ -6,6 +6,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flutter/material.dart';
 
 class SharedGroupWidget extends StatelessWidget {
@@ -21,6 +22,7 @@ class SharedGroupWidget extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return AFMenuItem(
+      cursor: SystemMouseCursors.basic,
       padding: EdgeInsets.symmetric(
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
@@ -28,7 +30,11 @@ class SharedGroupWidget extends StatelessWidget {
       leading: _buildLeading(context),
       title: _buildTitle(context),
       subtitle: _buildSubtitle(context),
-      trailing: _buildTrailing(context),
+      trailing: (context, isHovering, disabled) => _buildTrailing(
+        context,
+        isHovering,
+        disabled,
+      ),
       onTap: () {},
     );
   }
@@ -53,23 +59,21 @@ class SharedGroupWidget extends StatelessWidget {
     return Row(
       children: [
         Flexible(
-          child: Text(
-            LocaleKeys.shareTab_anyoneAtWorkspace.tr(
-              namedArgs: {
-                'workspace': group.name,
-              },
+          child: FlowyTooltip(
+            message: group.name,
+            child: Text(
+              LocaleKeys.shareTab_anyoneAtWorkspace.tr(
+                namedArgs: {
+                  'workspace': group.name,
+                },
+              ),
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
-            style: theme.textStyle.body.standard(
-              color: theme.textColorScheme.primary,
-            ),
-            overflow: TextOverflow.ellipsis,
           ),
         ),
-        // HSpace(theme.spacing.xs),
-        // FlowySvg(
-        //   FlowySvgs.arrow_down_s,
-        //   color: theme.textColorScheme.secondary,
-        // ),
       ],
     );
   }
@@ -77,7 +81,7 @@ class SharedGroupWidget extends StatelessWidget {
   Widget _buildSubtitle(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     return Text(
-      LocaleKeys.shareTab_anyoneInGroupWithLinkCanEdit.tr(),
+      LocaleKeys.shareTab_anyoneInGroupWithLinkHasFullAccess.tr(),
       textAlign: TextAlign.left,
       style: theme.textStyle.caption.standard(
         color: theme.textColorScheme.secondary,
@@ -85,11 +89,15 @@ class SharedGroupWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildTrailing(BuildContext context) {
+  Widget _buildTrailing(
+    BuildContext context,
+    bool isHovering,
+    bool disabled,
+  ) {
     return EditAccessLevelWidget(
       disabled: true,
       supportedAccessLevels: ShareAccessLevel.values,
-      selectedAccessLevel: ShareAccessLevel.readAndWrite,
+      selectedAccessLevel: ShareAccessLevel.fullAccess,
       callbacks: AccessLevelListCallbacks.none(),
       additionalUserManagementOptions: [],
     );

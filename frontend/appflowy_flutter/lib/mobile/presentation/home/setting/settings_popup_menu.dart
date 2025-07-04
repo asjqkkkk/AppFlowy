@@ -1,4 +1,5 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/presentation.dart';
@@ -10,6 +11,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart'
     hide PopupMenuButton, PopupMenuDivider, PopupMenuItem, PopupMenuEntry;
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 
 enum _MobileSettingsPopupMenuItem {
   settings,
@@ -29,6 +31,9 @@ class HomePageSettingsPopupMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isGuest =
+        context.read<UserWorkspaceBloc>().state.currentWorkspace?.role ==
+            AFRolePB.Guest;
     return PopupMenuButton<_MobileSettingsPopupMenuItem>(
       offset: const Offset(0, 36),
       padding: EdgeInsets.zero,
@@ -48,7 +53,8 @@ class HomePageSettingsPopupMenu extends StatelessWidget {
           text: LocaleKeys.settings_popupMenuItem_settings.tr(),
         ),
         // only show the member items in cloud mode
-        if (userProfile.workspaceType == WorkspaceTypePB.ServerW) ...[
+        if (userProfile.workspaceType == WorkspaceTypePB.ServerW &&
+            !isGuest) ...[
           const PopupMenuDivider(height: 0.5),
           _buildItem(
             value: _MobileSettingsPopupMenuItem.members,
@@ -56,12 +62,15 @@ class HomePageSettingsPopupMenu extends StatelessWidget {
             text: LocaleKeys.settings_popupMenuItem_members.tr(),
           ),
         ],
-        const PopupMenuDivider(height: 0.5),
-        _buildItem(
-          value: _MobileSettingsPopupMenuItem.trash,
-          svg: FlowySvgs.trash_s,
-          text: LocaleKeys.settings_popupMenuItem_trash.tr(),
-        ),
+        // hide the trash button if the user is a guest
+        if (!isGuest) ...[
+          const PopupMenuDivider(height: 0.5),
+          _buildItem(
+            value: _MobileSettingsPopupMenuItem.trash,
+            svg: FlowySvgs.trash_s,
+            text: LocaleKeys.settings_popupMenuItem_trash.tr(),
+          ),
+        ],
         const PopupMenuDivider(height: 0.5),
         _buildItem(
           value: _MobileSettingsPopupMenuItem.helpAndDocumentation,

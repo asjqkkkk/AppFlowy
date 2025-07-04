@@ -1,6 +1,6 @@
 use crate::deps_resolve::folder_deps::get_encoded_collab_v1_from_disk;
 use bytes::Bytes;
-use collab::entity::EncodedCollab;
+use collab_document::importer::md_importer::MDImporter;
 use collab_entity::CollabType;
 use collab_folder::hierarchy_builder::NestedViewBuilder;
 use collab_folder::ViewLayout;
@@ -11,16 +11,16 @@ use flowy_error::FlowyError;
 use flowy_folder::entities::{CreateViewParams, ViewLayoutPB};
 use flowy_folder::manager::FolderUser;
 use flowy_folder::share::ImportType;
-use flowy_folder::view_operation::{
-  FolderOperationHandler, GatherEncodedCollab, ImportedData, ViewData,
-};
+use flowy_folder::view_operation::{FolderOperationHandler, GatherEncodedCollab, ViewData};
 use flowy_search_pub::tantivy_state_init::get_document_tantivy_state;
 use lib_dispatch::prelude::ToBytes;
 use lib_infra::async_trait::async_trait;
 use std::convert::TryFrom;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use tokio::fs::read_to_string;
 use tokio::sync::RwLock;
+use tracing::{info, instrument};
 use uuid::Uuid;
 
 pub struct DocumentFolderOperation(pub Weak<DocumentManager>);
@@ -92,6 +92,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
   }
 
   async fn duplicate_view(&self, view_id: &Uuid) -> Result<Bytes, FlowyError> {
+    info!("Duplicate document view: {}", view_id);
     let data: DocumentDataPB = self
       .document_manager()?
       .get_document_data(view_id)
@@ -106,31 +107,40 @@ impl FolderOperationHandler for DocumentFolderOperation {
     user: &Arc<dyn FolderUser>,
     view_id: &Uuid,
   ) -> Result<GatherEncodedCollab, FlowyError> {
-    let encoded_collab =
-      get_encoded_collab_v1_from_disk(user, view_id.to_string().as_str(), CollabType::Document)
-        .await?;
+    let manager = self.document_manager()?;
+    let workspace_id = user.workspace_id()?;
+    let client_id = manager.collab_client_id(&workspace_id);
+    let encoded_collab = get_encoded_collab_v1_from_disk(
+      user,
+      view_id.to_string().as_str(),
+      CollabType::Document,
+      client_id,
+    )
+    .await?;
     Ok(GatherEncodedCollab::Document(encoded_collab))
   }
 
+  #[instrument(level = "debug", skip_all)]
   async fn create_view_with_view_data(
     &self,
     user_id: i64,
     params: CreateViewParams,
-  ) -> Result<Option<EncodedCollab>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     debug_assert_eq!(params.layout, ViewLayoutPB::Document);
     let data = match params.initial_data {
       ViewData::DuplicateData(data) => Some(DocumentDataPB::try_from(data)?),
       ViewData::Data(data) => Some(DocumentDataPB::try_from(data)?),
       ViewData::Empty => None,
     };
-    let encoded_collab = self
+    self
       .document_manager()?
       .create_document(user_id, &params.view_id, data.map(|d| d.into()))
       .await?;
-    Ok(Some(encoded_collab))
+    Ok(())
   }
 
   /// Create a view with built-in data.
+  #[instrument(level = "debug", skip(self))]
   async fn create_default_view(
     &self,
     user_id: i64,
@@ -163,26 +173,33 @@ impl FolderOperationHandler for DocumentFolderOperation {
     _name: &str,
     _import_type: ImportType,
     bytes: Vec<u8>,
-  ) -> Result<Vec<ImportedData>, FlowyError> {
-    let data = DocumentDataPB::try_from(Bytes::from(bytes))?;
-    let encoded_collab = self
+  ) -> Result<(), FlowyError> {
+    let content = String::from_utf8(bytes).map_err(|_| FlowyError::invalid_data())?;
+    let data = MDImporter::new(None)
+      .import(&view_id.to_string(), content)
+      .map_err(|err| FlowyError::internal().with_context(err))?;
+    self
       .document_manager()?
-      .create_document(uid, view_id, Some(data.into()))
+      .create_document(uid, view_id, Some(data))
       .await?;
-    Ok(vec![(
-      view_id.to_string(),
-      CollabType::Document,
-      encoded_collab,
-    )])
+    Ok(())
   }
 
   async fn import_from_file_path(
     &self,
-    _view_id: &str,
-    _name: &str,
-    _path: String,
+    uid: i64,
+    view_id: Uuid,
+    path: String,
   ) -> Result<(), FlowyError> {
-    // TODO(lucas): import file from local markdown file
+    let content = read_to_string(&path).await?;
+    let data = MDImporter::new(None)
+      .import(&view_id.to_string(), content)
+      .map_err(|err| FlowyError::internal().with_context(err))?;
+
+    self
+      .document_manager()?
+      .create_document(uid, &view_id, Some(data))
+      .await?;
     Ok(())
   }
 }

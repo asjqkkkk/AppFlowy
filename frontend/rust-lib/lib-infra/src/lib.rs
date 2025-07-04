@@ -19,6 +19,7 @@ if_wasm! {
   }
 }
 
+pub mod async_entry;
 #[cfg(feature = "encryption")]
 pub mod encryption;
 #[cfg(feature = "isolate_flutter")]

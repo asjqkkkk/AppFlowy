@@ -25,59 +25,55 @@ pub(crate) fn init_log(
   }
 }
 
-pub fn create_log_filter(
-  level: String,
-  with_crates: Vec<String>,
-  platform: OperatingSystem,
-) -> String {
-  let mut level = std::env::var("RUST_LOG").unwrap_or(level);
-
+pub fn create_log_filter(default_level: String, platform: OperatingSystem) -> String {
+  let mut env_rust_log = std::env::var("RUST_LOG").unwrap_or(default_level.clone());
   #[cfg(debug_assertions)]
   if matches!(platform, OperatingSystem::IOS) {
-    level = "trace".to_string();
+    env_rust_log = "trace".to_string();
   }
+  let mut filters = vec![];
 
-  let mut filters = with_crates
-    .into_iter()
-    .map(|crate_name| format!("{}={}", crate_name, level))
-    .collect::<Vec<String>>();
-  filters.push(format!("flowy_core={}", level));
-  filters.push(format!("flowy_folder={}", level));
-  filters.push(format!("collab_sync={}", level));
-  filters.push(format!("collab_folder={}", level));
-  filters.push(format!("collab_database={}", level));
-  filters.push(format!("collab_plugins={}", level));
-  filters.push(format!("collab_integrate={}", level));
-  filters.push(format!("collab={}", level));
-  filters.push(format!("flowy_user={}", level));
-  filters.push(format!("flowy_document={}", level));
-  filters.push(format!("flowy_database2={}", level));
-  filters.push(format!("flowy_server={}", level));
-  filters.push(format!("flowy_notification={}", "info"));
-  filters.push(format!("lib_infra={}", level));
-  filters.push(format!("flowy_search={}", level));
-  filters.push(format!("flowy_chat={}", level));
-  filters.push(format!("af_local_ai={}", level));
-  filters.push(format!("af_plugin={}", level));
-  filters.push(format!("flowy_ai={}", level));
-  filters.push(format!("flowy_ai_pub={}", level));
-  filters.push(format!("flowy_storage={}", level));
-  filters.push(format!("flowy_sqlite_vec={}", level));
-  // Enable the frontend logs. DO NOT DISABLE.
-  // These logs are essential for debugging and verifying frontend behavior.
-  filters.push(format!("dart_ffi={}", level));
-
-  // Most of the time, we don't need to see the logs from the following crates
-  // filters.push(format!("flowy_sqlite={}", "info"));
-  // filters.push(format!("lib_dispatch={}", level));
-
-  filters.push(format!("client_api={}", level));
-  filters.push(format!("infra={}", level));
   #[cfg(feature = "profiling")]
-  filters.push(format!("tokio={}", level));
+  filters.push(format!("tokio={}", "debug"));
   #[cfg(feature = "profiling")]
-  filters.push(format!("runtime={}", level));
+  filters.push(format!("runtime={}", "debug"));
 
+  if cfg!(debug_assertions) {
+    // env_rust_log should be string than separate by ,
+    let env_rust_log = env_rust_log
+      .split(',')
+      .map(|v| v.to_string())
+      .collect::<Vec<_>>();
+    filters.extend(env_rust_log);
+  } else {
+    let level = default_level;
+    filters.push(format!("flowy_core={}", level));
+    filters.push(format!("flowy_folder={}", level));
+    filters.push(format!("collab_sync={}", level));
+    filters.push(format!("collab_folder={}", level));
+    filters.push(format!("collab_database={}", level));
+    filters.push(format!("collab_plugins={}", level));
+    filters.push(format!("collab={}", level));
+    filters.push(format!("flowy_user={}", level));
+    filters.push(format!("flowy_user_pub={}", level));
+    filters.push(format!("flowy_document={}", level));
+    filters.push(format!("flowy_database2={}", level));
+    filters.push(format!("flowy_server={}", level));
+    filters.push(format!("flowy_notification={}", "info"));
+    filters.push(format!("lib_infra={}", level));
+    filters.push(format!("flowy_search={}", level));
+    filters.push(format!("flowy_chat={}", level));
+    filters.push(format!("flowy_ai={}", level));
+    filters.push(format!("flowy_ai_pub={}", level));
+    filters.push(format!("flowy_sqlite_vec={}", level));
+    filters.push(format!("sync_log={}", level));
+    filters.push(format!("dart_ffi={}", level));
+    filters.push(format!("client_api={}", level));
+    filters.push(format!("infra={}", level));
+
+    // Most of the time, we don't need to see the logs from the following crates
+    // filters.push(format!("lib_dispatch={}", level));
+  }
   filters.join(",")
 }
 

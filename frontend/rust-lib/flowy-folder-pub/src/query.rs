@@ -1,4 +1,5 @@
 use collab::entity::EncodedCollab;
+use collab::preclude::ClientID;
 use collab_entity::CollabType;
 use collab_folder::ViewLayout;
 use flowy_error::FlowyResult;
@@ -23,6 +24,8 @@ pub trait FolderQueryService: Send + Sync + 'static {
   ) -> Vec<Uuid>;
 
   async fn get_collab(&self, object_id: &Uuid, collab_type: CollabType) -> Option<QueryCollab>;
+
+  fn collab_client_id(&self) -> FlowyResult<ClientID>;
 }
 
 #[async_trait]

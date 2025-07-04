@@ -122,6 +122,11 @@ impl ConversationalRetrieverChain {
     question: &str,
   ) -> Result<Either<Vec<Document>, StreamValue>, ChainError> {
     let rag_ids = self.retriever.get_rag_ids();
+    trace!(
+      "Get document for question: {}, RAG IDs: {:?}",
+      question, rag_ids
+    );
+
     if rag_ids.is_empty() {
       Ok(Either::Left(vec![]))
     } else {

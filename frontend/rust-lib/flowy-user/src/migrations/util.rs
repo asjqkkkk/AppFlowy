@@ -1,6 +1,7 @@
+use collab::core::collab::default_client_id;
 use collab::preclude::Collab;
-
-use collab_integrate::{CollabKVAction, PersistenceError};
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use collab_plugins::local_storage::kv::PersistenceError;
 use flowy_error::FlowyResult;
 
 pub(crate) fn load_collab<'a, R>(
@@ -13,7 +14,7 @@ where
   R: CollabKVAction<'a>,
   PersistenceError: From<R::Error>,
 {
-  let mut collab = Collab::new(uid, object_id, "phantom", vec![], false);
+  let mut collab = Collab::new(uid, object_id, "phantom", default_client_id());
   collab_r_txn.load_doc_with_txn(uid, workspace_id, object_id, &mut collab.transact_mut())?;
   Ok(collab)
 }

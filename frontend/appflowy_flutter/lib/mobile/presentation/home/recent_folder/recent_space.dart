@@ -9,6 +9,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_slidable/flutter_slidable.dart';
 
+ValueNotifier<bool> refreshRecentNotifier = ValueNotifier(false);
+
 class MobileRecentSpace extends StatefulWidget {
   const MobileRecentSpace({super.key});
 
@@ -55,12 +57,31 @@ class _MobileRecentSpaceState extends State<MobileRecentSpace>
   }
 }
 
-class _RecentViews extends StatelessWidget {
+class _RecentViews extends StatefulWidget {
   const _RecentViews({
     required this.recentViews,
   });
 
   final List<SectionViewPB> recentViews;
+
+  @override
+  State<_RecentViews> createState() => _RecentViewsState();
+}
+
+class _RecentViewsState extends State<_RecentViews> {
+  @override
+  void initState() {
+    super.initState();
+
+    refreshRecentNotifier.addListener(_onRefresh);
+  }
+
+  @override
+  void dispose() {
+    refreshRecentNotifier.removeListener(_onRefresh);
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +96,7 @@ class _RecentViews extends StatelessWidget {
               MediaQuery.of(context).padding.bottom,
         ),
         itemBuilder: (context, index) {
-          final sectionView = recentViews[index];
+          final sectionView = widget.recentViews[index];
           return Container(
             padding: const EdgeInsets.symmetric(vertical: 24.0),
             decoration: BoxDecoration(
@@ -95,8 +116,14 @@ class _RecentViews extends StatelessWidget {
           );
         },
         separatorBuilder: (context, index) => const HSpace(8),
-        itemCount: recentViews.length,
+        itemCount: widget.recentViews.length,
       ),
     );
+  }
+
+  void _onRefresh() {
+    context
+        .read<RecentViewsBloc>()
+        .add(const RecentViewsEvent.resetRecentViews());
   }
 }

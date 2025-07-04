@@ -12,6 +12,8 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+ValueNotifier<bool> refreshFavoriteNotifier = ValueNotifier(false);
+
 class MobileFavoriteSpace extends StatefulWidget {
   const MobileFavoriteSpace({
     super.key,
@@ -44,7 +46,8 @@ class _MobileFavoriteSpaceState extends State<MobileFavoriteSpace>
             ),
         ),
         BlocProvider(
-          create: (_) => FavoriteBloc()..add(const FavoriteEvent.initial()),
+          create: (_) => FavoriteBloc(workspaceId: workspaceId)
+            ..add(const FavoriteEvent.initial()),
         ),
       ],
       child: BlocListener<UserWorkspaceBloc, UserWorkspaceState>(
@@ -84,12 +87,29 @@ class _MobileFavoriteSpaceState extends State<MobileFavoriteSpace>
   }
 }
 
-class _FavoriteViews extends StatelessWidget {
+class _FavoriteViews extends StatefulWidget {
   const _FavoriteViews({
     required this.favoriteViews,
   });
 
   final List<SectionViewPB> favoriteViews;
+
+  @override
+  State<_FavoriteViews> createState() => _FavoriteViewsState();
+}
+
+class _FavoriteViewsState extends State<_FavoriteViews> {
+  @override
+  void initState() {
+    super.initState();
+    refreshFavoriteNotifier.addListener(_onRefresh);
+  }
+
+  @override
+  void dispose() {
+    refreshFavoriteNotifier.removeListener(_onRefresh);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -103,7 +123,7 @@ class _FavoriteViews extends StatelessWidget {
             MediaQuery.of(context).padding.bottom,
       ),
       itemBuilder: (context, index) {
-        final view = favoriteViews[index];
+        final view = widget.favoriteViews[index];
         return Container(
           padding: const EdgeInsets.symmetric(vertical: 24.0),
           decoration: BoxDecoration(
@@ -123,7 +143,11 @@ class _FavoriteViews extends StatelessWidget {
         );
       },
       separatorBuilder: (context, index) => const HSpace(8),
-      itemCount: favoriteViews.length,
+      itemCount: widget.favoriteViews.length,
     );
+  }
+
+  void _onRefresh() {
+    context.read<FavoriteBloc>().add(const FavoriteEvent.fetchFavorites());
   }
 }

@@ -410,6 +410,15 @@ pub enum ErrorCode {
 
   #[error("Invalid guest")]
   InvalidGuest = 140,
+
+  #[error("Retry later")]
+  RetryLater = 141,
+
+  #[error("Limit exceeded")]
+  LimitExceed = 142,
+
+  #[error("Feature not available")]
+  FeatureNotAvailable = 143,
 }
 
 impl ErrorCode {

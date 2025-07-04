@@ -21,7 +21,6 @@ use crate::parser::parser_entities::{
 use crate::{manager::DocumentManager, parser::json::parser::JsonToDocumentParser};
 use flowy_error::{FlowyError, FlowyResult};
 use lib_dispatch::prelude::{AFPluginData, AFPluginState, DataResult, data_result_ok};
-use lib_infra::sync_trace;
 use tracing::instrument;
 use uuid::Uuid;
 
@@ -125,7 +124,6 @@ pub(crate) async fn apply_action_handler(
   let doc_id = params.document_id;
   let document = manager.editable_document(&doc_id).await?;
   let actions = params.actions;
-  sync_trace!("{} applying action: {:?}", doc_id, actions);
   document.write().await.apply_action(actions)?;
   Ok(())
 }
@@ -140,7 +138,6 @@ pub(crate) async fn create_text_handler(
   let doc_id = params.document_id;
   let document = manager.editable_document(&doc_id).await?;
   let mut document = document.write().await;
-  sync_trace!("{} creating text: {:?}", doc_id, params.delta);
   document.apply_text_delta(&params.text_id, params.delta);
   Ok(())
 }
@@ -157,7 +154,6 @@ pub(crate) async fn apply_text_delta_handler(
   let text_id = params.text_id;
   let delta = params.delta;
   let mut document = document.write().await;
-  sync_trace!("{} applying delta: {:?}", doc_id, delta);
   document.apply_text_delta(&text_id, delta);
   Ok(())
 }
@@ -239,27 +235,6 @@ pub(crate) async fn can_undo_redo_handler(
     can_undo,
     is_success: true,
   })
-}
-
-pub(crate) async fn get_snapshot_meta_handler(
-  data: AFPluginData<OpenDocumentPayloadPB>,
-  manager: AFPluginState<Weak<DocumentManager>>,
-) -> DataResult<RepeatedDocumentSnapshotMetaPB, FlowyError> {
-  let manager = upgrade_document(manager)?;
-  let params: OpenDocumentParams = data.into_inner().try_into()?;
-  let doc_id = params.document_id;
-  let snapshots = manager.get_document_snapshot_meta(&doc_id, 10).await?;
-  data_result_ok(RepeatedDocumentSnapshotMetaPB { items: snapshots })
-}
-
-pub(crate) async fn get_snapshot_data_handler(
-  data: AFPluginData<DocumentSnapshotMetaPB>,
-  manager: AFPluginState<Weak<DocumentManager>>,
-) -> DataResult<DocumentSnapshotPB, FlowyError> {
-  let manager = upgrade_document(manager)?;
-  let params = data.into_inner();
-  let snapshot = manager.get_document_snapshot(&params.snapshot_id).await?;
-  data_result_ok(snapshot)
 }
 
 impl From<BlockActionPB> for BlockAction {
@@ -350,8 +325,8 @@ impl From<(&Vec<BlockEvent>, bool, Option<DocumentData>)> for DocEventPB {
 ///
 /// ```txt
 /// // document: [{ "block_id": "1", "type": "paragraph", "data": {"delta": [{ "insert": "Hello World!" }] } }, { "block_id": "2", "type": "paragraph", "data": {"delta": [{ "insert": "Hello World!" }] }
-/// let test = DocumentEventTest::new().await;
-/// let view = test.create_document().await;
+/// let test = EventIntegrationTest::new().await;
+/// let view = test.create_document_simple().await;
 /// let payload = ConvertDocumentPayloadPB {
 ///   document_id: view.id,
 ///   range: Some(RangePB {
@@ -414,7 +389,7 @@ pub async fn convert_document_handler(
 /// # Examples
 /// Basic usage:
 /// ```txt
-/// let test = DocumentEventTest::new().await;
+/// let test = EventIntegrationTest::new().await;
 /// let payload = ConvertDataToJsonPayloadPB {
 ///  data: "<p>Hello</p><p> World!</p>".to_string(),
 ///  input_type: InputTypePB::Html,

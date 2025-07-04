@@ -267,7 +267,7 @@ ToastificationItem showToastNotification({
   ToastificationType type = ToastificationType.success,
   ToastificationCallbacks? callbacks,
   bool showCloseButton = false,
-  double bottomPadding = 100,
+  double bottomPadding = 60,
 }) {
   assert(
     (message == null) != (richMessage == null),

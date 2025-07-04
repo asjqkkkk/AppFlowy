@@ -76,6 +76,7 @@ class DatabaseTabBarView extends StatefulWidget {
     this.initialRowId,
     this.actionBuilder,
     this.node,
+    this.isEditable = true,
   });
 
   final ViewPB view;
@@ -83,6 +84,7 @@ class DatabaseTabBarView extends StatefulWidget {
   final BlockComponentActionBuilder? actionBuilder;
   final bool showActions;
   final Node? node;
+  final bool isEditable;
 
   /// Used to open a Row on plugin load
   ///
@@ -155,14 +157,18 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                   const ViewEvent.initial(),
                 ),
             ),
+            BlocProvider<PageAccessLevelBloc>(
+              create: (_) => PageAccessLevelBloc(view: widget.view)
+                ..add(const PageAccessLevelEvent.initial()),
+            ),
           ],
           child: BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
             builder: (innerContext, state) {
               final layout = state.tabBars[state.selectedIndex].layout;
               final isCalendar = layout == ViewLayoutPB.Calendar;
-              final databseBuilderSize =
+              final databaseBuilderSize =
                   context.read<DatabasePluginWidgetBuilderSize>();
-              final horizontalPadding = databseBuilderSize.horizontalPadding;
+              final horizontalPadding = databaseBuilderSize.horizontalPadding;
               final showActionWrapper = widget.showActions &&
                   widget.actionBuilder != null &&
                   widget.node != null;
@@ -181,15 +187,19 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                         return const SizedBox.shrink();
                       }
 
-                      Widget child = UniversalPlatform.isDesktop
-                          ? const TabBarHeader()
-                          : const MobileTabBarHeader();
-
-                      if (innerContext.watch<ViewBloc>().state.view.isLocked) {
-                        child = IgnorePointer(
-                          child: child,
-                        );
-                      }
+                      Widget child = BlocSelector<PageAccessLevelBloc,
+                          PageAccessLevelState, bool>(
+                        selector: (state) => state.isEditable,
+                        builder: (context, isEditable) {
+                          return UniversalPlatform.isDesktop
+                              ? TabBarHeader(
+                                  isEditable: isEditable && widget.isEditable,
+                                )
+                              : MobileTabBarHeader(
+                                  isEditable: isEditable && widget.isEditable,
+                                );
+                        },
+                      );
 
                       if (showActionWrapper) {
                         child = BlockComponentActionWrapper(
@@ -217,23 +227,40 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
                       return child;
                     },
                   ),
-                  pageSettingBarExtensionFromState(context, state),
-                  wrapContent(
-                    layout: layout,
-                    child: Padding(
-                      padding:
-                          (isCalendar && widget.shrinkWrap || showActionWrapper)
-                              ? EdgeInsets.only(left: 42 - horizontalPadding)
-                              : EdgeInsets.zero,
-                      child: Provider(
-                        create: (_) => DatabasePluginWidgetBuilderSize(
-                          horizontalPadding: horizontalPadding,
-                          paddingLeftWithMaxDocumentWidth: paddingLeft,
-                          verticalPadding: databseBuilderSize.verticalPadding,
+                  BlocSelector<PageAccessLevelBloc, PageAccessLevelState, bool>(
+                    selector: (state) => state.isEditable,
+                    builder: (context, isEditable) {
+                      return IgnorePointer(
+                        ignoring: !isEditable || !widget.isEditable,
+                        child: pageSettingBarExtensionFromState(context, state),
+                      );
+                    },
+                  ),
+                  BlocSelector<PageAccessLevelBloc, PageAccessLevelState, bool>(
+                    selector: (state) => state.isEditable,
+                    builder: (context, isEditable) {
+                      return wrapContent(
+                        layout: layout,
+                        child: IgnorePointer(
+                          ignoring: !isEditable || !widget.isEditable,
+                          child: Padding(
+                            padding: (isCalendar && widget.shrinkWrap ||
+                                    showActionWrapper)
+                                ? EdgeInsets.only(left: 42 - horizontalPadding)
+                                : EdgeInsets.zero,
+                            child: Provider(
+                              create: (_) => DatabasePluginWidgetBuilderSize(
+                                horizontalPadding: horizontalPadding,
+                                paddingLeftWithMaxDocumentWidth: paddingLeft,
+                                verticalPadding:
+                                    databaseBuilderSize.verticalPadding,
+                              ),
+                              child: pageContentFromState(context, state),
+                            ),
+                          ),
                         ),
-                        child: pageContentFromState(context, state),
-                      ),
-                    ),
+                      );
+                    },
                   ),
                 ],
               );
@@ -338,6 +365,7 @@ class DatabaseTabBarViewPlugin extends Plugin {
     required ViewPB view,
     required PluginType pluginType,
     this.initialRowId,
+    this.initialPageAccessLevelBloc,
   })  : _pluginType = pluginType,
         notifier = ViewPluginNotifier(view: view);
 
@@ -349,8 +377,10 @@ class DatabaseTabBarViewPlugin extends Plugin {
   late final PageAccessLevelBloc _pageAccessLevelBloc;
 
   /// Used to open a Row on plugin load
-  ///
   final String? initialRowId;
+
+  /// Initial page access level bloc
+  final PageAccessLevelBloc? initialPageAccessLevelBloc;
 
   @override
   PluginWidgetBuilder get widgetBuilder => DatabasePluginWidgetBuilder(
@@ -370,14 +400,17 @@ class DatabaseTabBarViewPlugin extends Plugin {
   void init() {
     _viewInfoBloc = ViewInfoBloc(view: notifier.view)
       ..add(const ViewInfoEvent.started());
-    _pageAccessLevelBloc = PageAccessLevelBloc(view: notifier.view)
-      ..add(const PageAccessLevelEvent.initial());
+    _pageAccessLevelBloc = initialPageAccessLevelBloc ??
+        (PageAccessLevelBloc(view: notifier.view)
+          ..add(const PageAccessLevelEvent.initial()));
   }
 
   @override
   void dispose() {
     _viewInfoBloc.close();
-    _pageAccessLevelBloc.close();
+    if (initialPageAccessLevelBloc == null) {
+      _pageAccessLevelBloc.close();
+    }
     notifier.dispose();
   }
 }
@@ -386,6 +419,7 @@ const kDatabasePluginWidgetBuilderHorizontalPadding = 'horizontal_padding';
 const kDatabasePluginWidgetBuilderShowActions = 'show_actions';
 const kDatabasePluginWidgetBuilderActionBuilder = 'action_builder';
 const kDatabasePluginWidgetBuilderNode = 'node';
+const kDatabasePluginWidgetBuilderIsEditable = 'is_editable';
 
 class DatabasePluginWidgetBuilderSize {
   const DatabasePluginWidgetBuilderSize({
@@ -453,6 +487,8 @@ class DatabasePluginWidgetBuilder extends PluginWidgetBuilder {
     final bool showActions =
         data?[kDatabasePluginWidgetBuilderShowActions] ?? false;
     final Node? node = data?[kDatabasePluginWidgetBuilderNode];
+    final bool isEditable =
+        data?[kDatabasePluginWidgetBuilderIsEditable] ?? true;
 
     return Provider(
       create: (context) => DatabasePluginWidgetBuilderSize(
@@ -466,6 +502,7 @@ class DatabasePluginWidgetBuilder extends PluginWidgetBuilder {
         actionBuilder: actionBuilder,
         showActions: showActions,
         node: node,
+        isEditable: isEditable,
       ),
     );
   }

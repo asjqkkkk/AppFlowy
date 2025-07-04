@@ -147,8 +147,9 @@ impl GroupCustomize for URLGroupController {
 
   fn move_row(&mut self, mut context: MoveGroupRowContext) -> Vec<GroupRowsNotificationPB> {
     let mut group_changeset = vec![];
+    let type_option_handlers = self.context.type_option_handlers.clone();
     self.context.iter_mut_groups(|group| {
-      if let Some(changeset) = move_group_row(group, &mut context) {
+      if let Some(changeset) = move_group_row(group, &mut context, type_option_handlers.clone()) {
         group_changeset.push(changeset);
       }
     });
@@ -177,14 +178,19 @@ impl GroupCustomize for URLGroupController {
     Ok(None)
   }
 
-  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) {
+  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) -> FlowyResult<()> {
     match self.context.get_group(group_id) {
       None => tracing::warn!("Can not find the group: {}", group_id),
       Some((_, group)) => {
-        let cell = insert_url_cell(group.id.clone(), field);
+        let cell = insert_url_cell(
+          group.id.clone(),
+          field,
+          self.context.type_option_handlers.clone(),
+        )?;
         cells.insert(field.id.clone(), cell);
       },
     }
+    Ok(())
   }
 }
 

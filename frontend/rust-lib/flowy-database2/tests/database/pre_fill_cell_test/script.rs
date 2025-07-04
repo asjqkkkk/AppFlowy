@@ -73,7 +73,7 @@ impl DatabasePreFillRowCellTest {
     let rows = self.editor.get_all_rows(&self.view_id).await.unwrap();
     let row = rows.get(row_index).unwrap();
     let cell = row.cells.get(&field_id).cloned().unwrap_or_default();
-    let content = stringify_cell(&cell, &field);
+    let content = stringify_cell(&cell, &field, self.inner.type_option_handler_cache.clone());
     assert_eq!(content, expected_content);
   }
 

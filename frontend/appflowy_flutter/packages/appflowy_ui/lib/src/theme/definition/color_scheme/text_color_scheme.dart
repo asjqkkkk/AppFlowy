@@ -11,14 +11,19 @@ class AppFlowyTextColorScheme {
     required this.actionHover,
     required this.info,
     required this.infoHover,
+    required this.infoOnFill,
     required this.success,
     required this.successHover,
+    required this.successOnFill,
     required this.warning,
     required this.warningHover,
+    required this.warningOnFill,
     required this.error,
     required this.errorHover,
+    required this.errorOnFill,
     required this.featured,
     required this.featuredHover,
+    required this.featuredOnFill,
   });
 
   final Color primary;
@@ -30,14 +35,19 @@ class AppFlowyTextColorScheme {
   final Color actionHover;
   final Color info;
   final Color infoHover;
+  final Color infoOnFill;
   final Color success;
   final Color successHover;
+  final Color successOnFill;
   final Color warning;
   final Color warningHover;
+  final Color warningOnFill;
   final Color error;
   final Color errorHover;
+  final Color errorOnFill;
   final Color featured;
   final Color featuredHover;
+  final Color featuredOnFill;
 
   AppFlowyTextColorScheme lerp(
     AppFlowyTextColorScheme other,
@@ -89,6 +99,11 @@ class AppFlowyTextColorScheme {
         other.infoHover,
         t,
       )!,
+      infoOnFill: Color.lerp(
+        infoOnFill,
+        other.infoOnFill,
+        t,
+      )!,
       success: Color.lerp(
         success,
         other.success,
@@ -97,6 +112,11 @@ class AppFlowyTextColorScheme {
       successHover: Color.lerp(
         successHover,
         other.successHover,
+        t,
+      )!,
+      successOnFill: Color.lerp(
+        successOnFill,
+        other.successOnFill,
         t,
       )!,
       warning: Color.lerp(
@@ -109,6 +129,11 @@ class AppFlowyTextColorScheme {
         other.warningHover,
         t,
       )!,
+      warningOnFill: Color.lerp(
+        warningOnFill,
+        other.warningOnFill,
+        t,
+      )!,
       error: Color.lerp(
         error,
         other.error,
@@ -119,6 +144,11 @@ class AppFlowyTextColorScheme {
         other.errorHover,
         t,
       )!,
+      errorOnFill: Color.lerp(
+        errorOnFill,
+        other.errorOnFill,
+        t,
+      )!,
       featured: Color.lerp(
         featured,
         other.featured,
@@ -127,6 +157,11 @@ class AppFlowyTextColorScheme {
       featuredHover: Color.lerp(
         featuredHover,
         other.featuredHover,
+        t,
+      )!,
+      featuredOnFill: Color.lerp(
+        featuredOnFill,
+        other.featuredOnFill,
         t,
       )!,
     );

@@ -109,7 +109,12 @@ class MobileSpaceMenuItem extends StatelessWidget {
         currentSpace: context.read<SpaceBloc>().state.currentSpace,
       ),
       onTap: () {
-        context.read<SpaceBloc>().add(SpaceEvent.open(space: space));
+        context.read<SpaceBloc>().add(
+              SpaceEvent.open(
+                space: space,
+                openDefaultPage: true,
+              ),
+            );
         Navigator.of(context).pop();
       },
     );

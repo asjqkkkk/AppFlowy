@@ -2,9 +2,8 @@ import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/util/extensions.dart';
+import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
-import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
@@ -12,7 +11,6 @@ import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
-import 'package:collection/collection.dart';
 
 import 'share_with_user_repository.dart';
 
@@ -30,9 +28,8 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
     return result.fold(
       (success) {
-        Log.debug('get shared users success: $success');
-
-        return FlowySuccess(success.sharedUsers);
+        final sharedUsers = success.sharedUsers;
+        return FlowySuccess(sharedUsers);
       },
       (failure) {
         Log.error('get shared users failed: $failure');
@@ -55,8 +52,6 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
 
     return result.fold(
       (success) {
-        Log.debug('remove users($emails) from shared page($pageId)');
-
         return FlowySuccess(success);
       },
       (failure) {
@@ -77,16 +72,12 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
       viewId: pageId,
       emails: emails,
       accessLevel: accessLevel.accessLevel,
-      autoConfirm: true,
+      // autoConfirm: true,
     );
     final result = await FolderEventSharePageWithUser(request).send();
 
     return result.fold(
       (success) {
-        Log.debug(
-          'share page($pageId) with users($emails) with access level($accessLevel)',
-        );
-
         return FlowySuccess(success);
       },
       (failure) {
@@ -120,9 +111,6 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
     final result = await UserEventUpdateWorkspaceMember(request).send();
     return result.fold(
       (success) {
-        Log.debug(
-          'change role($role) for user($email) in workspaceId($workspaceId)',
-        );
         return FlowySuccess(success);
       },
       (failure) {
@@ -145,24 +133,16 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
   Future<FlowyResult<SharedSectionType, FlowyError>> getCurrentPageSectionType({
     required String pageId,
   }) async {
-    final request = ViewIdPB.create()..value = pageId;
-    final result = await FolderEventGetViewAncestors(request).send();
-    final ancestors = result.fold(
-      (s) => s.items,
-      (f) => <ViewPB>[],
+    final request = ViewIdPB()..value = pageId;
+    final result = await FolderEventGetSharedViewSection(request).send();
+    return result.fold(
+      (success) {
+        return FlowySuccess(success.section.shareSectionType);
+      },
+      (failure) {
+        return FlowyFailure(failure);
+      },
     );
-    final space = ancestors.firstWhereOrNull((e) => e.isSpace);
-
-    if (space == null) {
-      return FlowySuccess(SharedSectionType.unknown);
-    }
-
-    final sectionType = switch (space.spacePermission) {
-      SpacePermission.publicToAll => SharedSectionType.public,
-      SpacePermission.private => SharedSectionType.private,
-    };
-
-    return FlowySuccess(sectionType);
   }
 
   @override
@@ -186,6 +166,44 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
     await getIt<KeyValueStorage>().set(
       '${KVKeys.hasClickedUpgradeToProButton}_$workspaceId',
       'true',
+    );
+  }
+
+  @override
+  Future<void> refreshSharedPages() async {
+    final result = await FolderEventGetSharedViews().send();
+    result.fold(
+      (success) {
+        final sharedPages = success.sharedPages;
+        return FlowyResult.success(sharedPages);
+      },
+      (error) {
+        Log.error('failed to get shared pages, error: $error');
+
+        return FlowyResult.failure(error);
+      },
+    );
+  }
+
+  @override
+  Future<FlowyResult<String, FlowyError>> getCurrentWorkspaceId() async {
+    final result = await FolderEventReadCurrentWorkspace().send();
+    return result.fold(
+      (workspace) => FlowySuccess(workspace.id),
+      (error) => FlowyFailure(error),
+    );
+  }
+
+  @override
+  String buildShareUrl({
+    required String workspaceId,
+    required String viewId,
+    String? blockId,
+  }) {
+    return ShareConstants.buildShareUrl(
+      workspaceId: workspaceId,
+      viewId: viewId,
+      blockId: blockId,
     );
   }
 }

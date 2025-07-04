@@ -1,12 +1,12 @@
 use std::sync::Arc;
 use std::sync::Weak;
+use std::time::Duration;
 
-use collab::core::collab::DataSource;
-use collab::core::collab_plugin::CollabPersistence;
+use collab::core::collab::{CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
 use collab::lock::RwLock;
-use collab::preclude::Collab;
+use collab::preclude::{ClientID, Collab};
 use collab_document::blocks::DocumentData;
 use collab_document::document::Document;
 use collab_document::document_awareness::DocumentAwarenessState;
@@ -17,48 +17,41 @@ use collab_entity::CollabType;
 use crate::document::{
   subscribe_document_changed, subscribe_document_snapshot_state, subscribe_document_sync_state,
 };
-use collab_integrate::collab_builder::{
-  AppFlowyCollabBuilder, CollabBuilderConfig, CollabPersistenceImpl,
-};
+use crate::entities::UpdateDocumentAwarenessStatePB;
+use crate::reminder::DocumentReminderAction;
 use collab_plugins::CollabKVDB;
 use dashmap::DashMap;
 use flowy_document_pub::cloud::DocumentCloudService;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_storage_pub::storage::{CreatedUpload, StorageService};
+use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
+use lib_infra::async_entry::AsyncEntry;
 use lib_infra::util::timestamp;
-use tracing::{event, instrument};
+use tracing::{debug, event, instrument};
 use tracing::{info, trace};
 use uuid::Uuid;
-
-use crate::entities::UpdateDocumentAwarenessStatePB;
-use crate::entities::{
-  DocumentSnapshotData, DocumentSnapshotMeta, DocumentSnapshotMetaPB, DocumentSnapshotPB,
-};
-use crate::reminder::DocumentReminderAction;
 
 pub trait DocumentUserService: Send + Sync {
   fn user_id(&self) -> Result<i64, FlowyError>;
   fn device_id(&self) -> Result<String, FlowyError>;
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn collab_db(&self, uid: i64) -> Result<Weak<CollabKVDB>, FlowyError>;
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }
 
-pub trait DocumentSnapshotService: Send + Sync {
-  fn get_document_snapshot_metas(
-    &self,
-    document_id: &str,
-  ) -> FlowyResult<Vec<DocumentSnapshotMeta>>;
-  fn get_document_snapshot(&self, snapshot_id: &str) -> FlowyResult<DocumentSnapshotData>;
+/// Struct to hold commonly needed user context
+struct UserContext {
+  uid: i64,
+  workspace_id: Uuid,
 }
 
 pub struct DocumentManager {
   pub user_service: Arc<dyn DocumentUserService>,
-  collab_builder: Weak<AppFlowyCollabBuilder>,
-  documents: Arc<DashMap<Uuid, Arc<RwLock<Document>>>>,
-  removing_documents: Arc<DashMap<Uuid, Arc<RwLock<Document>>>>,
+  collab_builder: Weak<WorkspaceCollabAdaptor>,
+  documents: Arc<DashMap<Uuid, DocumentEntry>>,
   cloud_service: Arc<dyn DocumentCloudService>,
   storage_service: Weak<dyn StorageService>,
-  snapshot_service: Arc<dyn DocumentSnapshotService>,
+  base_removal_timeout: Duration,
 }
 
 impl Drop for DocumentManager {
@@ -70,23 +63,41 @@ impl Drop for DocumentManager {
 impl DocumentManager {
   pub fn new(
     user_service: Arc<dyn DocumentUserService>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DocumentCloudService>,
     storage_service: Weak<dyn StorageService>,
-    snapshot_service: Arc<dyn DocumentSnapshotService>,
   ) -> Self {
-    Self {
+    let base_removal_timeout = if cfg!(debug_assertions) {
+      Duration::from_secs(60) // Shorter timeout for debug builds
+    } else {
+      Duration::from_secs(60 * 30)
+    };
+    let manager = Self {
       user_service,
       collab_builder,
       documents: Arc::new(Default::default()),
-      removing_documents: Arc::new(Default::default()),
       cloud_service,
       storage_service,
-      snapshot_service,
-    }
+      base_removal_timeout,
+    };
+
+    // Start periodic cleanup task
+    manager.start_periodic_cleanup();
+    manager
   }
 
-  fn collab_builder(&self) -> FlowyResult<Arc<AppFlowyCollabBuilder>> {
+  pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    self.user_service.collab_client_id(workspace_id)
+  }
+
+  /// Get user context (uid and workspace_id) - helper method to reduce duplication
+  fn get_user_context(&self) -> FlowyResult<UserContext> {
+    let uid = self.user_service.user_id()?;
+    let workspace_id = self.user_service.workspace_id()?;
+    Ok(UserContext { uid, workspace_id })
+  }
+
+  fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
     self
       .collab_builder
       .upgrade()
@@ -95,15 +106,17 @@ impl DocumentManager {
 
   /// Get the encoded collab of the document.
   pub async fn get_encoded_collab_with_view_id(&self, doc_id: &Uuid) -> FlowyResult<EncodedCollab> {
-    let uid = self.user_service.user_id()?;
-    let workspace_id = self.user_service.workspace_id()?;
+    let UserContext { uid, workspace_id } = self.get_user_context()?;
     let doc_state =
       CollabPersistenceImpl::new(self.user_service.collab_db(uid)?, uid, workspace_id)
         .into_data_source();
-    let collab = self
-      .collab_for_document(uid, doc_id, doc_state, false)
+
+    let document = self
+      .collab_builder()?
+      .create_document(workspace_id, *doc_id, doc_state)
       .await?;
-    let encoded_collab = collab
+
+    let encoded_collab = document
       .try_read()
       .unwrap()
       .encode_collab_v1(|collab| CollabType::Document.validate_require_data(collab))
@@ -112,9 +125,8 @@ impl DocumentManager {
   }
 
   pub async fn initialize(&self, _uid: i64) -> FlowyResult<()> {
-    trace!("initialize document manager");
-    self.documents.clear();
-    self.removing_documents.clear();
+    debug!("initialize document manager");
+    self.clear_all_documents().await;
     Ok(())
   }
 
@@ -125,19 +137,16 @@ impl DocumentManager {
     err
   )]
   pub async fn initialize_after_sign_up(&self, uid: i64) -> FlowyResult<()> {
-    self.initialize(uid).await?;
-    Ok(())
+    self.initialize(uid).await
   }
 
   pub async fn initialize_after_open_workspace(&self, uid: i64) -> FlowyResult<()> {
-    self.initialize(uid).await?;
-    Ok(())
+    self.initialize(uid).await
   }
 
   #[instrument(level = "debug", skip_all, err)]
   pub async fn initialize_after_sign_in(&self, uid: i64) -> FlowyResult<()> {
-    self.initialize(uid).await?;
-    Ok(())
+    self.initialize(uid).await
   }
 
   pub async fn handle_reminder_action(&self, action: DocumentReminderAction) {
@@ -149,224 +158,74 @@ impl DocumentManager {
   }
 
   fn persistence(&self) -> FlowyResult<CollabPersistenceImpl> {
-    let uid = self.user_service.user_id()?;
-    let workspace_id = self.user_service.workspace_id()?;
+    let UserContext { uid, workspace_id } = self.get_user_context()?;
     let db = self.user_service.collab_db(uid)?;
     Ok(CollabPersistenceImpl::new(db, uid, workspace_id))
   }
 
-  /// Create a new document.
-  ///
-  /// if the document already exists, return the existing document.
-  /// if the data is None, will create a document with default data.
+  pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
+    let document = self.get_document_internal(doc_id).await?;
+    let document = document.read().await;
+    document.get_document_data().map_err(internal_error)
+  }
+
+  pub async fn get_document_text(&self, doc_id: &Uuid) -> FlowyResult<String> {
+    let document = self.get_document_internal(doc_id).await?;
+    let document = document.read().await;
+    let text = document.paragraphs().join("\n");
+    Ok(text)
+  }
+
   #[instrument(level = "info", skip(self, data))]
   pub async fn create_document(
     &self,
     _uid: i64,
     doc_id: &Uuid,
     data: Option<DocumentData>,
-  ) -> FlowyResult<EncodedCollab> {
+  ) -> FlowyResult<()> {
     if self.is_doc_exist(doc_id).await.unwrap_or(false) {
       Err(FlowyError::new(
         ErrorCode::RecordAlreadyExists,
         format!("document {} already exists", doc_id),
       ))
     } else {
-      let encoded_collab = doc_state_from_document_data(doc_id, data).await?;
-      self
-        .persistence()?
-        .save_collab_to_disk(doc_id.to_string().as_str(), encoded_collab.clone())
-        .map_err(internal_error)?;
-
-      // Send the collab data to server with a background task.
-      let cloud_service = self.cloud_service.clone();
-      let cloned_encoded_collab = encoded_collab.clone();
       let workspace_id = self.user_service.workspace_id()?;
-      let doc_id = *doc_id;
-      tokio::spawn(async move {
-        let _ = cloud_service
-          .create_document_collab(&workspace_id, &doc_id, cloned_encoded_collab)
-          .await;
-      });
-      Ok(encoded_collab)
-    }
-  }
-
-  async fn collab_for_document(
-    &self,
-    uid: i64,
-    doc_id: &Uuid,
-    data_source: DataSource,
-    sync_enable: bool,
-  ) -> FlowyResult<Arc<RwLock<Document>>> {
-    let db = self.user_service.collab_db(uid)?;
-    let workspace_id = self.user_service.workspace_id()?;
-    let collab_object =
-      self
+      let client_id = self.user_service.collab_client_id(&workspace_id);
+      let encoded_collab = doc_state_from_document_data(doc_id, data, client_id).await?;
+      let document = self
         .collab_builder()?
-        .collab_object(&workspace_id, uid, doc_id, CollabType::Document)?;
-    let document = self
-      .collab_builder()?
-      .create_document(
-        collab_object,
-        data_source,
-        db,
-        CollabBuilderConfig::default().sync_enable(sync_enable),
-        None,
-      )
-      .await?;
-    Ok(document)
-  }
+        .create_document(workspace_id, *doc_id, encoded_collab.into())
+        .await?;
 
-  /// Return a document instance if the document is already opened.
-  pub async fn editable_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    if let Some(doc) = self.documents.get(doc_id).map(|item| item.value().clone()) {
-      return Ok(doc);
-    }
-
-    if let Some(doc) = self.restore_document_from_removing(doc_id) {
-      return Ok(doc);
-    }
-
-    Err(FlowyError::internal().with_context("Call open document first"))
-  }
-
-  /// Returns Document for given object id
-  /// If the document does not exist in local disk, try get the doc state from the cloud.
-  /// If the document exists, open the document and cache it
-  #[tracing::instrument(level = "info", skip(self), err)]
-  async fn create_document_instance(
-    &self,
-    doc_id: &Uuid,
-    enable_sync: bool,
-  ) -> FlowyResult<Arc<RwLock<Document>>> {
-    let uid = self.user_service.user_id()?;
-    let mut doc_state = self.persistence()?.into_data_source();
-    // If the document does not exist in local disk, try get the doc state from the cloud. This happens
-    // When user_device_a create a document and user_device_b open the document.
-    if !self.is_doc_exist(doc_id).await? {
-      info!(
-        "document {} not found in local disk, try to get the doc state from the cloud",
-        doc_id
-      );
-      doc_state = DataSource::DocStateV1(
-        self
-          .cloud_service
-          .get_document_doc_state(doc_id, &self.user_service.workspace_id()?)
-          .await?,
-      );
-
-      // the doc_state should not be empty if remote return the doc state without error.
-      if doc_state.is_empty() {
-        return Err(FlowyError::new(
-          ErrorCode::RecordNotFound,
-          format!("document {} not found", doc_id),
-        ));
-      }
-    }
-
-    event!(
-      tracing::Level::DEBUG,
-      "Initialize document: {}, workspace_id: {:?}",
-      doc_id,
-      self.user_service.workspace_id()
-    );
-    let result = self
-      .collab_for_document(uid, doc_id, doc_state, enable_sync)
-      .await;
-    match result {
-      Ok(document) => {
-        // Only push the document to the cache if the sync is enabled.
-        if enable_sync {
-          {
-            let mut lock = document.write().await;
-            subscribe_document_changed(doc_id, &mut lock);
-            subscribe_document_snapshot_state(&lock);
-            subscribe_document_sync_state(&lock);
-          }
-          self.documents.insert(*doc_id, document.clone());
-        }
-        Ok(document)
-      },
-      Err(err) => {
-        if err.is_invalid_data() {
-          self.delete_document(doc_id).await?;
-        }
-        return Err(err);
-      },
+      let document_entry = DocumentEntry::new_with_resource(*doc_id, document.clone());
+      self.documents.insert(*doc_id, document_entry);
+      self.setup_document_subscriptions(doc_id, &document).await;
+      Ok(())
     }
   }
 
-  pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
-    let document = self.get_document(doc_id).await?;
-    let document = document.read().await;
-    document.get_document_data().map_err(internal_error)
-  }
-  pub async fn get_document_text(&self, doc_id: &Uuid) -> FlowyResult<String> {
-    let document = self.get_document(doc_id).await?;
-    let document = document.read().await;
-    let text = document.paragraphs().join("\n");
-    Ok(text)
-  }
-
-  /// Return a document instance.
-  /// The returned document might or might not be able to sync with the cloud.
-  async fn get_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    if let Some(doc) = self.documents.get(doc_id).map(|item| item.value().clone()) {
-      return Ok(doc);
-    }
-
-    if let Some(doc) = self.restore_document_from_removing(doc_id) {
-      return Ok(doc);
-    }
-
-    let document = self.create_document_instance(doc_id, false).await?;
-    Ok(document)
-  }
-
-  pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    if let Some(mutex_document) = self.restore_document_from_removing(doc_id) {
-      let lock = mutex_document.read().await;
-      lock.start_init_sync();
-    }
-
-    if self.documents.contains_key(doc_id) {
-      return Ok(());
-    }
-
-    let _ = self.create_document_instance(doc_id, true).await?;
-    Ok(())
+  #[instrument(level = "debug", skip(self))]
+  pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    self.get_document_internal(doc_id).await
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    if let Some((doc_id, document)) = self.documents.remove(doc_id) {
-      {
-        // clear the awareness state when close the document
-        let mut lock = document.write().await;
-        lock.clean_awareness_local_state();
-      }
-
-      let clone_doc_id = doc_id;
-      trace!("move document to removing_documents: {}", doc_id);
-      self.removing_documents.insert(doc_id, document);
-
-      let weak_removing_documents = Arc::downgrade(&self.removing_documents);
-      tokio::spawn(async move {
-        tokio::time::sleep(std::time::Duration::from_secs(120)).await;
-        if let Some(removing_documents) = weak_removing_documents.upgrade() {
-          if removing_documents.remove(&clone_doc_id).is_some() {
-            trace!("drop document from removing_documents: {}", clone_doc_id);
-          }
-        }
-      });
+    if let Some(entry) = self.documents.get(doc_id) {
+      Self::clean_document_awareness(&entry).await;
     }
-
     Ok(())
   }
 
+  /// Helper function to clean document awareness state
+  async fn clean_document_awareness(entry: &DocumentEntry) {
+    if let Some(document) = entry.get_resource().await {
+      let mut lock = document.write().await;
+      lock.clean_awareness_local_state();
+    }
+  }
+
   pub async fn delete_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    let uid = self.user_service.user_id()?;
-    let workspace_id = self.user_service.workspace_id()?;
+    let UserContext { uid, workspace_id } = self.get_user_context()?;
     if let Some(db) = self.user_service.collab_db(uid)?.upgrade() {
       db.delete_doc(uid, &workspace_id.to_string(), &doc_id.to_string())
         .await?;
@@ -376,7 +235,33 @@ impl DocumentManager {
     Ok(())
   }
 
-  #[instrument(level = "debug", skip_all, err)]
+  async fn setup_document_subscriptions(&self, doc_id: &Uuid, document: &Arc<RwLock<Document>>) {
+    let mut lock = document.write().await;
+    subscribe_document_changed(doc_id, &mut lock);
+    subscribe_document_snapshot_state(&lock);
+    subscribe_document_sync_state(&lock);
+  }
+
+  async fn get_document_internal(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    let entry = self.documents.get(doc_id).map(|e| e.value().clone());
+    // Check if we have an active document
+    if let Some(entry) = entry {
+      if let Some(doc) = entry.get_resource().await {
+        return Ok(doc);
+      }
+    }
+    self.create_document_instance(doc_id).await
+  }
+
+  async fn clear_all_documents(&self) {
+    trace!("[DocumentManager]: Clearing all documents");
+    for entry in self.documents.iter() {
+      Self::clean_document_awareness(entry.value()).await;
+    }
+    self.documents.clear();
+  }
+
+  #[instrument(level = "trace", skip_all, err)]
   pub async fn set_document_awareness_local_state(
     &self,
     doc_id: &Uuid,
@@ -399,37 +284,6 @@ impl DocumentManager {
       return Ok(true);
     }
     Ok(false)
-  }
-
-  /// Return the list of snapshots of the document.
-  pub async fn get_document_snapshot_meta(
-    &self,
-    document_id: &Uuid,
-    _limit: usize,
-  ) -> FlowyResult<Vec<DocumentSnapshotMetaPB>> {
-    let metas = self
-      .snapshot_service
-      .get_document_snapshot_metas(document_id.to_string().as_str())?
-      .into_iter()
-      .map(|meta| DocumentSnapshotMetaPB {
-        snapshot_id: meta.snapshot_id,
-        object_id: meta.object_id,
-        created_at: meta.created_at,
-      })
-      .collect::<Vec<_>>();
-
-    Ok(metas)
-  }
-
-  pub async fn get_document_snapshot(&self, snapshot_id: &str) -> FlowyResult<DocumentSnapshotPB> {
-    let snapshot = self
-      .snapshot_service
-      .get_document_snapshot(snapshot_id)
-      .map(|snapshot| DocumentSnapshotPB {
-        object_id: snapshot.object_id,
-        encoded_v1: snapshot.encoded_v1,
-      })?;
-    Ok(snapshot)
   }
 
   #[instrument(level = "debug", skip_all, err)]
@@ -460,9 +314,12 @@ impl DocumentManager {
   }
 
   async fn is_doc_exist(&self, doc_id: &Uuid) -> FlowyResult<bool> {
-    let uid = self.user_service.user_id()?;
-    let workspace_id = self.user_service.workspace_id()?;
+    let UserContext { uid, workspace_id } = self.get_user_context()?;
     if let Some(collab_db) = self.user_service.collab_db(uid)?.upgrade() {
+      trace!(
+        "Check {}/Workspace, if {}/Document exist",
+        workspace_id, doc_id
+      );
       let is_exist = collab_db
         .is_exist(uid, &workspace_id.to_string(), &doc_id.to_string())
         .await?;
@@ -490,20 +347,157 @@ impl DocumentManager {
     &self.storage_service
   }
 
-  fn restore_document_from_removing(&self, doc_id: &Uuid) -> Option<Arc<RwLock<Document>>> {
-    let (doc_id, doc) = self.removing_documents.remove(doc_id)?;
-    trace!(
-      "move document {} from removing_documents to documents",
-      doc_id
+  /// Return a document instance if the document is already opened.
+  pub async fn editable_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    self.get_document_internal(doc_id).await
+  }
+
+  /// Returns Document for given object id
+  /// If the document does not exist in local disk, try get the doc state from the cloud.
+  /// If the document exists, open the document and cache it
+  #[tracing::instrument(level = "info", skip(self), err)]
+  async fn create_document_instance(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    let entry = {
+      self
+        .documents
+        .entry(*doc_id)
+        .or_insert_with(|| DocumentEntry::new_initializing(*doc_id))
+        .clone()
+    };
+
+    if let Some(document) = entry.get_resource().await {
+      trace!("document already initialized: {}", doc_id);
+      return Ok(document);
+    }
+
+    if entry.should_initialize().await {
+      debug!("[Document lifecycle]: Initializing document: {}", doc_id);
+      match self.initialize_document(doc_id).await {
+        Ok(document) => {
+          entry.set_resource(document.clone()).await;
+          debug!("[Document lifecycle]: Document initialized: {}", doc_id);
+          Ok(document)
+        },
+        Err(err) => {
+          entry
+            .mark_initialization_failed(
+              "[Document lifecycle]: Document entry disappeared during initialization".to_string(),
+            )
+            .await;
+
+          if err.is_invalid_data() {
+            self.delete_document(doc_id).await?;
+          }
+          Err(err)
+        },
+      }
+    } else {
+      debug!("[Document lifecycle]: waiting for document: {}", doc_id);
+      entry
+        .wait_for_initialization(Duration::from_secs(10))
+        .await
+        .map_err(|err| FlowyError::internal().with_context(err))
+    }
+  }
+
+  // Helper method to create the document data and initialize subscriptions
+  async fn initialize_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+    let mut doc_state = self.persistence()?.into_data_source();
+    // If the document does not exist in local disk, try get the doc state from the cloud. This happens
+    // When user_device_a create a document and user_device_b open the document.
+    if !self.is_doc_exist(doc_id).await? {
+      info!(
+        "{}/Document not found in local disk, try to get the doc state from the cloud",
+        doc_id
+      );
+      doc_state = DataSource::DocStateV1(
+        self
+          .cloud_service
+          .get_document_doc_state(doc_id, &self.user_service.workspace_id()?)
+          .await?,
+      );
+
+      // the doc_state should not be empty if remote return the doc state without error.
+      if doc_state.is_empty() {
+        return Err(FlowyError::new(
+          ErrorCode::RecordNotFound,
+          format!("document {} not found", doc_id),
+        ));
+      }
+    }
+
+    event!(
+      tracing::Level::DEBUG,
+      "Initialize document: {}, workspace_id: {:?}",
+      doc_id,
+      self.user_service.workspace_id()
     );
-    self.documents.insert(doc_id, doc.clone());
-    Some(doc)
+
+    let workspace_id = self.user_service.workspace_id()?;
+    let document = self
+      .collab_builder()?
+      .create_document(workspace_id, *doc_id, doc_state)
+      .await?;
+    self.setup_document_subscriptions(doc_id, &document).await;
+
+    Ok(document)
+  }
+
+  /// Start a periodic cleanup task to remove old entries
+  fn start_periodic_cleanup(&self) {
+    let weak_documents = Arc::downgrade(&self.documents);
+    let cleanup_interval = if cfg!(debug_assertions) {
+      Duration::from_secs(30)
+    } else {
+      Duration::from_secs(120)
+    };
+    let base_timeout = self.base_removal_timeout;
+    tokio::spawn(async move {
+      let mut interval = tokio::time::interval(cleanup_interval);
+      interval.tick().await;
+
+      loop {
+        interval.tick().await;
+        if let Some(documents) = weak_documents.upgrade() {
+          let mut to_remove = Vec::new();
+          let timeout = base_timeout;
+          if documents.is_empty() {
+            continue;
+          }
+
+          debug!(
+            "[Document lifecycle]: {} opening documents",
+            documents.len()
+          );
+          for entry in documents.iter() {
+            let (doc_id, document_entry) = entry.pair();
+            if document_entry.can_be_removed(timeout).await {
+              info!("[Document lifecycle]: Periodic cleanup document:{}", doc_id);
+              to_remove.push(*doc_id);
+            }
+          }
+
+          // Remove expired entries
+          for doc_id in to_remove {
+            if let Some((_, entry)) = documents.remove(&doc_id) {
+              if let Some(document) = entry.get_resource().await {
+                let mut lock = document.write().await;
+                lock.clean_awareness_local_state();
+              }
+            }
+          }
+        } else {
+          break;
+        }
+      }
+    });
   }
 }
 
 async fn doc_state_from_document_data(
   doc_id: &Uuid,
   data: Option<DocumentData>,
+  client_id: ClientID,
 ) -> Result<EncodedCollab, FlowyError> {
   let doc_id = doc_id.to_string();
   let data = data.unwrap_or_else(|| {
@@ -515,7 +509,8 @@ async fn doc_state_from_document_data(
   });
   // spawn_blocking is used to avoid blocking the tokio thread pool if the document is large.
   let encoded_collab = tokio::task::spawn_blocking(move || {
-    let collab = Collab::new_with_origin(CollabOrigin::Empty, doc_id, vec![], false);
+    let options = CollabOptions::new(doc_id.clone(), client_id);
+    let collab = Collab::new_with_options(CollabOrigin::Empty, options).map_err(internal_error)?;
     let document = Document::create_with_data(collab, data).map_err(internal_error)?;
     let encode_collab = document.encode_collab()?;
     Ok::<_, FlowyError>(encode_collab)
@@ -523,3 +518,6 @@ async fn doc_state_from_document_data(
   .await??;
   Ok(encoded_collab)
 }
+
+// Type alias for document-specific usage
+type DocumentEntry = AsyncEntry<Arc<RwLock<Document>>, Uuid>;

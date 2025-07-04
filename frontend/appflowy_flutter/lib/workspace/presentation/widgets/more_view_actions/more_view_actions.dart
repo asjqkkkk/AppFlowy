@@ -129,7 +129,7 @@ class _MoreViewActionsState extends State<MoreViewActions> {
     final timeFormat = appearanceSettings.timeFormat;
 
     final viewMoreActionTypes = switch (pageAccessLevelState.accessLevel) {
-      ShareAccessLevel.readOnly => [],
+      ShareAccessLevel.readOnly || ShareAccessLevel.readAndWrite => [],
       _ => [
           if (widget.view.layout != ViewLayoutPB.Chat)
             ViewMoreActionType.duplicate,

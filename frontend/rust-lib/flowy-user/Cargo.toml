@@ -14,7 +14,6 @@ lib-infra = { workspace = true, features = ["encryption"] }
 flowy-notification = { workspace = true }
 flowy-server-pub = { workspace = true }
 lib-dispatch = { workspace = true }
-collab-integrate = { workspace = true }
 collab = { workspace = true }
 collab-folder = { workspace = true }
 collab-document = { workspace = true }

@@ -15,8 +15,6 @@ pub struct AFCloudConfiguration {
   pub ws_base_url: String,
   pub gotrue_url: String,
   #[serde(default)]
-  pub enable_sync_trace: bool,
-  #[serde(default)]
   pub maximum_upload_file_size_in_bytes: Option<u64>,
 }
 
@@ -54,19 +52,14 @@ impl AFCloudConfiguration {
         format!(
           "Invalid APPFLOWY_CLOUD_BASE_URL: {}, APPFLOWY_CLOUD_WS_BASE_URL: {}, APPFLOWY_CLOUD_GOTRUE_URL: {}",
           base_url, ws_base_url, gotrue_url,
-        )),
-      );
+        ),
+      ));
     }
-
-    let enable_sync_trace = std::env::var(APPFLOWY_ENABLE_SYNC_TRACE)
-      .map(|v| v == "true" || v == "1")
-      .unwrap_or(true);
 
     Ok(Self {
       base_url,
       ws_base_url,
       gotrue_url,
-      enable_sync_trace,
       maximum_upload_file_size_in_bytes: None,
     })
   }
@@ -77,14 +70,6 @@ impl AFCloudConfiguration {
       std::env::set_var(APPFLOWY_CLOUD_BASE_URL, &self.base_url);
       std::env::set_var(APPFLOWY_CLOUD_WS_BASE_URL, &self.ws_base_url);
       std::env::set_var(APPFLOWY_CLOUD_GOTRUE_URL, &self.gotrue_url);
-      std::env::set_var(
-        APPFLOWY_ENABLE_SYNC_TRACE,
-        if self.enable_sync_trace {
-          "true"
-        } else {
-          "false"
-        },
-      );
     }
   }
 }

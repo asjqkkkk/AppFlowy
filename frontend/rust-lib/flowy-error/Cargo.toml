@@ -12,7 +12,7 @@ flowy-derive.workspace = true
 protobuf.workspace = true
 bytes.workspace = true
 anyhow.workspace = true
-thiserror = "1.0"
+thiserror = "2.0"
 validator.workspace = true
 tokio = { workspace = true, features = ["sync", "rt"] }
 
@@ -32,7 +32,7 @@ collab-database = { workspace = true, optional = true }
 collab-document = { workspace = true, optional = true }
 collab-plugins = { workspace = true, optional = true }
 collab-folder = { workspace = true, optional = true }
-client-api = { workspace = true, optional = true }
+client-api = { workspace = true }
 tantivy = { workspace = true, optional = true }
 uuid.workspace = true
 ollama-rs.workspace = true
@@ -60,7 +60,6 @@ impl_from_url = ["url"]
 impl_from_tantivy = ["tantivy"]
 
 impl_from_sqlite = ["flowy-sqlite", "r2d2"]
-impl_from_appflowy_cloud = ["client-api"]
 dart = ["flowy-codegen/dart"]
 
 [build-dependencies]

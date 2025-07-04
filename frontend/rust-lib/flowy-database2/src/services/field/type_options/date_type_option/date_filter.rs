@@ -1,6 +1,7 @@
 use crate::entities::{DateFilterConditionPB, DateFilterPB};
 use crate::services::cell::insert_date_cell;
 use crate::services::filter::PreFillCellsWithFilter;
+use std::sync::Arc;
 
 use bytes::Bytes;
 use chrono::{Duration, Local, NaiveDate, TimeZone};
@@ -12,6 +13,7 @@ use flowy_error::{FlowyResult, internal_error};
 
 use crate::entities::DateCellDataPB;
 use crate::services::cell::CellProtobufBlobParser;
+use crate::services::field::TypeOptionHandlerCache;
 
 impl DateFilterPB {
   /// Returns `None` if the DateFilterPB doesn't have the necessary data for
@@ -136,7 +138,11 @@ impl DateFilterStrategy {
 }
 
 impl PreFillCellsWithFilter for DateFilterPB {
-  fn get_compliant_cell(&self, field: &Field) -> Option<Cell> {
+  fn get_compliant_cell(
+    &self,
+    field: &Field,
+    type_option_handlers: Arc<TypeOptionHandlerCache>,
+  ) -> Option<Cell> {
     let start_timestamp = match self.condition {
       DateFilterConditionPB::DateStartsOn
       | DateFilterConditionPB::DateStartsOnOrBefore
@@ -180,7 +186,9 @@ impl PreFillCellsWithFilter for DateFilterPB {
       _ => None,
     };
 
-    start_timestamp.map(|timestamp| insert_date_cell(timestamp, None, None, field))
+    start_timestamp.and_then(|timestamp| {
+      insert_date_cell(timestamp, None, None, field, type_option_handlers).ok()
+    })
   }
 }
 

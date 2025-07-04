@@ -19,6 +19,7 @@ class AFOutlinedButton extends StatelessWidget {
     this.padding,
     this.borderRadius,
     this.disabled = false,
+    this.cursor,
   });
 
   /// Normal outlined button.
@@ -30,6 +31,8 @@ class AFOutlinedButton extends StatelessWidget {
     EdgeInsetsGeometry? padding,
     double? borderRadius,
     bool disabled = false,
+    MouseCursor? cursor,
+    AFBaseButtonBorderColorBuilder? borderColor,
   }) {
     return AFOutlinedButton._(
       key: key,
@@ -38,16 +41,18 @@ class AFOutlinedButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: disabled,
-      borderColor: (context, isHovering, disabled, isFocused) {
-        final theme = AppFlowyTheme.of(context);
-        if (disabled) {
-          return theme.borderColorScheme.primary;
-        }
-        if (isHovering) {
-          return theme.borderColorScheme.primaryHover;
-        }
-        return theme.borderColorScheme.primary;
-      },
+      cursor: cursor,
+      borderColor: borderColor ??
+          (context, isHovering, disabled, isFocused) {
+            final theme = AppFlowyTheme.of(context);
+            if (disabled) {
+              return theme.borderColorScheme.primary;
+            }
+            if (isHovering) {
+              return theme.borderColorScheme.primaryHover;
+            }
+            return theme.borderColorScheme.primary;
+          },
       backgroundColor: (context, isHovering, disabled) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
@@ -71,6 +76,8 @@ class AFOutlinedButton extends StatelessWidget {
     EdgeInsetsGeometry? padding,
     double? borderRadius,
     bool disabled = false,
+    MouseCursor? cursor,
+    AFBaseButtonBorderColorBuilder? borderColor,
   }) {
     return AFOutlinedButton._(
       key: key,
@@ -79,16 +86,18 @@ class AFOutlinedButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: disabled,
-      borderColor: (context, isHovering, disabled, isFocused) {
-        final theme = AppFlowyTheme.of(context);
-        if (disabled) {
-          return theme.fillColorScheme.errorThick;
-        }
-        if (isHovering) {
-          return theme.fillColorScheme.errorThickHover;
-        }
-        return theme.fillColorScheme.errorThick;
-      },
+      cursor: cursor,
+      borderColor: borderColor ??
+          (context, isHovering, disabled, isFocused) {
+            final theme = AppFlowyTheme.of(context);
+            if (disabled) {
+              return theme.fillColorScheme.errorThick;
+            }
+            if (isHovering) {
+              return theme.fillColorScheme.errorThickHover;
+            }
+            return theme.fillColorScheme.errorThick;
+          },
       backgroundColor: (context, isHovering, disabled) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
@@ -110,6 +119,8 @@ class AFOutlinedButton extends StatelessWidget {
     AFButtonSize size = AFButtonSize.m,
     EdgeInsetsGeometry? padding,
     double? borderRadius,
+    MouseCursor? cursor,
+    AFBaseButtonBorderColorBuilder? borderColor,
   }) {
     return AFOutlinedButton._(
       key: key,
@@ -118,16 +129,18 @@ class AFOutlinedButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: true,
-      borderColor: (context, isHovering, disabled, isFocused) {
-        final theme = AppFlowyTheme.of(context);
-        if (disabled) {
-          return theme.borderColorScheme.primary;
-        }
-        if (isHovering) {
-          return theme.borderColorScheme.primaryHover;
-        }
-        return theme.borderColorScheme.primary;
-      },
+      cursor: cursor,
+      borderColor: borderColor ??
+          (context, isHovering, disabled, isFocused) {
+            final theme = AppFlowyTheme.of(context);
+            if (disabled) {
+              return theme.borderColorScheme.primary;
+            }
+            if (isHovering) {
+              return theme.borderColorScheme.primaryHover;
+            }
+            return theme.borderColorScheme.primary;
+          },
       backgroundColor: (context, isHovering, disabled) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
@@ -153,6 +166,8 @@ class AFOutlinedButton extends StatelessWidget {
 
   final AFOutlinedButtonWidgetBuilder builder;
 
+  final MouseCursor? cursor;
+
   @override
   Widget build(BuildContext context) {
     return AFBaseButton(
@@ -163,6 +178,7 @@ class AFOutlinedButton extends StatelessWidget {
       borderRadius: borderRadius ?? size.buildBorderRadius(context),
       onTap: onTap,
       builder: builder,
+      cursor: cursor,
     );
   }
 }

@@ -1,12 +1,13 @@
 use std::sync::{Arc, Weak};
 
 use collab_folder::Folder;
+use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::{KVTransactionDB, PersistenceError};
+use collab_plugins::CollabKVDB;
 use diesel::SqliteConnection;
 use semver::Version;
 use tracing::instrument;
 
-use collab_integrate::{CollabKVAction, CollabKVDB};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::AuthType;
@@ -53,8 +54,8 @@ impl UserDataMigration for WorkspaceTrashMapToSectionMigration {
         &user.workspace_id,
         &user.workspace_id,
       ) {
-        let mut folder = Folder::open(user.user_id, collab, None)
-          .map_err(|err| PersistenceError::Internal(err.into()))?;
+        let mut folder =
+          Folder::open(collab, None).map_err(|err| PersistenceError::Internal(err.into()))?;
         let trash_ids = folder
           .get_trash_v1()
           .into_iter()
@@ -62,7 +63,7 @@ impl UserDataMigration for WorkspaceTrashMapToSectionMigration {
           .collect::<Vec<String>>();
 
         if !trash_ids.is_empty() {
-          folder.add_trash_view_ids(trash_ids);
+          folder.add_trash_view_ids(trash_ids, user.user_id);
         }
 
         let encode = folder

@@ -13,20 +13,15 @@ use crate::entities::{
   FieldType, GroupPB, GroupRowsNotificationPB, InsertedGroupPB, InsertedRowPB, RowMetaPB,
 };
 use crate::services::cell::{CellProtobufBlobParser, get_cell_protobuf};
-use crate::services::field::{TypeOption, TypeOptionCellData, default_type_option_data_from_type};
+use crate::services::field::{
+  TypeOption, TypeOptionCellData, TypeOptionHandlerCache, default_type_option_data_from_type,
+};
 use crate::services::group::action::{
   DidMoveGroupRowResult, DidUpdateGroupRowResult, GroupController, GroupCustomize,
 };
 use crate::services::group::configuration::GroupControllerContext;
 use crate::services::group::entities::GroupData;
 use crate::services::group::{GroupChangeset, GroupsBuilder, MoveGroupRowContext};
-
-#[async_trait]
-pub trait GroupControllerDelegate: Send + Sync + 'static {
-  async fn get_field(&self, field_id: &str) -> Option<Field>;
-
-  async fn get_all_rows(&self, view_id: &str) -> Vec<Arc<Row>>;
-}
 
 /// [BaseGroupController] is a generic group controller that provides customized implementations
 /// of the `GroupController` trait for different field types.
@@ -42,7 +37,6 @@ pub struct BaseGroupController<C, G, P> {
   pub context: GroupControllerContext<C>,
   group_builder_phantom: PhantomData<G>,
   cell_parser_phantom: PhantomData<P>,
-  pub delegate: Arc<dyn GroupControllerDelegate>,
 }
 
 impl<C, T, G, P> BaseGroupController<C, G, P>
@@ -54,20 +48,19 @@ where
   pub async fn new(
     grouping_field: &Field,
     context: GroupControllerContext<C>,
-    delegate: Arc<dyn GroupControllerDelegate>,
   ) -> FlowyResult<Self> {
     Ok(Self {
       grouping_field_id: grouping_field.id.clone(),
       context,
       group_builder_phantom: PhantomData,
       cell_parser_phantom: PhantomData,
-      delegate,
     })
   }
 
   pub async fn get_grouping_field_type_option(&self) -> Option<T> {
     self
-      .delegate
+      .context
+      .field_ops
       .get_field(&self.grouping_field_id)
       .await
       .and_then(|field| field.get_type_option::<T>(FieldType::from(field.field_type)))
@@ -156,7 +149,8 @@ where
 {
   async fn load_group_data(&mut self) -> FlowyResult<()> {
     let grouping_field = self
-      .delegate
+      .context
+      .field_ops
       .get_field(&self.grouping_field_id)
       .await
       .ok_or_else(|| FlowyError::internal().with_context("Failed to get grouping field"))?;
@@ -169,7 +163,18 @@ where
     let generated_groups = G::build(&grouping_field, &self.context, &type_option).await;
     let _ = self.context.init_groups(generated_groups)?;
 
-    let row_details = self.delegate.get_all_rows(&self.context.view_id).await;
+    let row_orders = self
+      .context
+      .row_ops
+      .get_all_row_orders(&self.context.view_id)
+      .await;
+    let rows = self
+      .context
+      .row_ops
+      .get_all_rows(&self.context.view_id, row_orders, true)
+      .await;
+    let row_details = self.context.filter_controller.filter_rows(rows).await;
+
     let rows = row_details
       .iter()
       .map(|row| row.as_ref())
@@ -303,8 +308,16 @@ where
       deleted_group: None,
       row_changesets: vec![],
     };
-    if let Some(cell_data) = get_cell_data_from_row::<P>(Some(new_row), field) {
-      let old_cell_data = get_cell_data_from_row::<P>(old_row.as_ref(), field);
+    if let Some(cell_data) = get_cell_data_from_row::<P>(
+      Some(new_row),
+      field,
+      self.context.type_option_handlers.clone(),
+    ) {
+      let old_cell_data = get_cell_data_from_row::<P>(
+        old_row.as_ref(),
+        field,
+        self.context.type_option_handlers.clone(),
+      );
       if let Ok((insert, delete)) =
         self.create_or_delete_group_when_cell_changed(new_row, old_cell_data.as_ref(), &cell_data)
       {
@@ -371,7 +384,12 @@ where
     };
 
     if let Some(cell) = cell {
-      let cell_bytes = get_cell_protobuf(&cell, context.field, None);
+      let cell_bytes = get_cell_protobuf(
+        &cell,
+        context.field,
+        None,
+        self.context.type_option_handlers.clone(),
+      );
       let cell_data = cell_bytes.parser::<P>()?;
       result.deleted_group = self.delete_group_after_moving_row(context.row, &cell_data);
       result.row_changesets = self.move_row(context);
@@ -441,8 +459,8 @@ where
     ))
   }
 
-  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) {
-    <Self as GroupCustomize>::will_create_row(self, cells, field, group_id);
+  fn will_create_row(&self, cells: &mut Cells, field: &Field, group_id: &str) -> FlowyResult<()> {
+    <Self as GroupCustomize>::will_create_row(self, cells, field, group_id)
   }
 }
 
@@ -454,8 +472,9 @@ struct GroupedRow {
 fn get_cell_data_from_row<P: CellProtobufBlobParser>(
   row: Option<&Row>,
   field: &Field,
+  type_option_handlers: Arc<TypeOptionHandlerCache>,
 ) -> Option<P::Object> {
   let cell = row.and_then(|row| row.cells.get(&field.id))?;
-  let cell_bytes = get_cell_protobuf(cell, field, None);
+  let cell_bytes = get_cell_protobuf(cell, field, None, type_option_handlers);
   cell_bytes.parser::<P>().ok()
 }

@@ -16,7 +16,7 @@ void main() {
       repository: repository,
       pageId: pageId,
       workspaceId: workspaceId,
-    );
+    )..add(ShareTabEvent.initialize());
   });
 
   tearDown(() async {
@@ -37,13 +37,18 @@ void main() {
       ),
       wait: const Duration(milliseconds: 100),
       expect: () => [
-        // First state: shareResult is null
+        // First state: initial empty state
         isA<ShareTabState>().having(
           (s) => s.shareResult,
           'shareResult',
           isNull,
         ),
-        // Second state: shareResult is Success and users updated
+        // Second state: after initialization (currentUser, shareLink set, shareResult still null)
+        isA<ShareTabState>()
+            .having((s) => s.shareResult, 'shareResult', isNull)
+            .having((s) => s.currentUser, 'currentUser', isNotNull)
+            .having((s) => s.shareLink, 'shareLink', isNotEmpty),
+        // Third state: shareResult is Success and users updated
         isA<ShareTabState>()
             .having((s) => s.shareResult, 'shareResult', isNotNull)
             .having(
@@ -64,10 +69,15 @@ void main() {
       ),
       wait: const Duration(milliseconds: 100),
       expect: () => [
-        // First state: removeResult is null
+        // First state: initial empty state
         isA<ShareTabState>()
             .having((s) => s.removeResult, 'removeResult', isNull),
-        // Second state: removeResult is Success and users updated
+        // Second state: after initialization (currentUser, shareLink set, removeResult still null)
+        isA<ShareTabState>()
+            .having((s) => s.removeResult, 'removeResult', isNull)
+            .having((s) => s.currentUser, 'currentUser', isNotNull)
+            .having((s) => s.shareLink, 'shareLink', isNotEmpty),
+        // Third state: removeResult is Success and users updated
         isA<ShareTabState>()
             .having((s) => s.removeResult, 'removeResult', isNotNull)
             .having(
@@ -89,13 +99,22 @@ void main() {
       ),
       wait: const Duration(milliseconds: 100),
       expect: () => [
-        // First state: updateAccessLevelResult is null
+        // First state: initial empty state
         isA<ShareTabState>().having(
           (s) => s.updateAccessLevelResult,
           'updateAccessLevelResult',
           isNull,
         ),
-        // Second state: updateAccessLevelResult is Success and users updated
+        // Second state: after initialization (currentUser, shareLink set, updateAccessLevelResult still null)
+        isA<ShareTabState>()
+            .having(
+              (s) => s.updateAccessLevelResult,
+              'updateAccessLevelResult',
+              isNull,
+            )
+            .having((s) => s.currentUser, 'currentUser', isNotNull)
+            .having((s) => s.shareLink, 'shareLink', isNotEmpty),
+        // Third state: updateAccessLevelResult is Success and users updated
         isA<ShareTabState>()
             .having(
               (s) => s.updateAccessLevelResult,
@@ -122,19 +141,25 @@ void main() {
           ),
         )
         ..add(
-          ShareTabEvent.convertToMember(
+          ShareTabEvent.turnIntoMember(
             email: guestEmail,
+            name: 'Guest',
           ),
         ),
       wait: const Duration(milliseconds: 100),
       expect: () => [
-        // First state: shareResult is null
+        // First state: initial empty state
         isA<ShareTabState>().having(
           (s) => s.shareResult,
           'shareResult',
           isNull,
         ),
-        // Second state: shareResult is Success and users updated
+        // Second state: after initialization
+        isA<ShareTabState>()
+            .having((s) => s.shareResult, 'shareResult', isNull)
+            .having((s) => s.currentUser, 'currentUser', isNotNull)
+            .having((s) => s.shareLink, 'shareLink', isNotEmpty),
+        // Third state: shareResult is Success and users updated
         isA<ShareTabState>()
             .having(
               (s) => s.shareResult,
@@ -146,7 +171,7 @@ void main() {
               'users contains guest@appflowy.io',
               isTrue,
             ),
-        // Third state: turnIntoMemberResult is Success and users updated
+        // Fourth state: turnIntoMemberResult is Success and users updated
         isA<ShareTabState>()
             .having(
               (s) => s.turnIntoMemberResult,

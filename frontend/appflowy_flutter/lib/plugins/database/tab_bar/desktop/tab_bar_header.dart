@@ -24,7 +24,10 @@ import 'tab_bar_add_button.dart';
 class TabBarHeader extends StatelessWidget {
   const TabBarHeader({
     super.key,
+    this.isEditable = true,
   });
+
+  final bool isEditable;
 
   @override
   Widget build(BuildContext context) {
@@ -45,15 +48,18 @@ class TabBarHeader extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
-                child: DatabaseTabBar(),
+              Expanded(
+                child: DatabaseTabBar(isEditable: isEditable),
               ),
               Flexible(
                 child: BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
                   builder: (context, state) {
-                    return Padding(
-                      padding: const EdgeInsets.only(top: 6.0),
-                      child: pageSettingBarFromState(context, state),
+                    return IgnorePointer(
+                      ignoring: !isEditable,
+                      child: Padding(
+                        padding: const EdgeInsets.only(top: 6.0),
+                        child: pageSettingBarFromState(context, state),
+                      ),
                     );
                   },
                 ),
@@ -80,7 +86,12 @@ class TabBarHeader extends StatelessWidget {
 }
 
 class DatabaseTabBar extends StatefulWidget {
-  const DatabaseTabBar({super.key});
+  const DatabaseTabBar({
+    super.key,
+    this.isEditable = true,
+  });
+
+  final bool isEditable;
 
   @override
   State<DatabaseTabBar> createState() => _DatabaseTabBarState();
@@ -99,29 +110,35 @@ class _DatabaseTabBarState extends State<DatabaseTabBar> {
   Widget build(BuildContext context) {
     return BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
       builder: (context, state) {
+        final count =
+            widget.isEditable ? state.tabBars.length + 1 : state.tabBars.length;
+
         return ListView.separated(
           controller: _scrollController,
           scrollDirection: Axis.horizontal,
           shrinkWrap: true,
-          itemCount: state.tabBars.length + 1,
-          itemBuilder: (context, index) => index == state.tabBars.length
-              ? AddDatabaseViewButton(
-                  onTap: (layoutType) {
-                    context
-                        .read<DatabaseTabBarBloc>()
-                        .add(DatabaseTabBarEvent.createView(layoutType, null));
-                  },
-                )
-              : DatabaseTabBarItem(
-                  key: ValueKey(state.tabBars[index].viewId),
-                  view: state.tabBars[index].view,
-                  isSelected: state.selectedIndex == index,
-                  onTap: (selectedView) {
-                    context
-                        .read<DatabaseTabBarBloc>()
-                        .add(DatabaseTabBarEvent.selectView(selectedView.id));
-                  },
-                ),
+          itemCount: count,
+          itemBuilder: (context, index) {
+            return index == state.tabBars.length
+                ? AddDatabaseViewButton(
+                    onTap: (layoutType) {
+                      context.read<DatabaseTabBarBloc>().add(
+                            DatabaseTabBarEvent.createView(layoutType, null),
+                          );
+                    },
+                  )
+                : DatabaseTabBarItem(
+                    key: ValueKey(state.tabBars[index].viewId),
+                    view: state.tabBars[index].view,
+                    isSelected: state.selectedIndex == index,
+                    isDisabled: !widget.isEditable,
+                    onTap: (selectedView) {
+                      context
+                          .read<DatabaseTabBarBloc>()
+                          .add(DatabaseTabBarEvent.selectView(selectedView.id));
+                    },
+                  );
+          },
           separatorBuilder: (context, index) => VerticalDivider(
             width: 1.0,
             thickness: 1.0,
@@ -141,11 +158,13 @@ class DatabaseTabBarItem extends StatelessWidget {
     required this.view,
     required this.isSelected,
     required this.onTap,
+    this.isDisabled = false,
   });
 
   final ViewPB view;
   final bool isSelected;
   final Function(ViewPB) onTap;
+  final bool isDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +179,7 @@ class DatabaseTabBarItem extends StatelessWidget {
               child: TabBarItemButton(
                 view: view,
                 isSelected: isSelected,
+                isDisabled: isDisabled,
                 onTap: () => onTap(view),
               ),
             ),
@@ -186,11 +206,13 @@ class TabBarItemButton extends StatefulWidget {
     super.key,
     required this.view,
     required this.isSelected,
+    this.isDisabled = false,
     required this.onTap,
   });
 
   final ViewPB view;
   final bool isSelected;
+  final bool isDisabled;
   final VoidCallback onTap;
 
   @override
@@ -217,6 +239,7 @@ class _TabBarItemButtonState extends State<TabBarItemButton> {
         maxWidth: 460,
         maxHeight: 300,
       ),
+      triggerActions: PopoverTriggerFlags.none,
       direction: PopoverDirection.bottomWithCenterAligned,
       clickHandler: PopoverClickHandler.gestureDetector,
       popupBuilder: (_) {
@@ -301,7 +324,9 @@ class _TabBarItemButtonState extends State<TabBarItemButton> {
             radius: Corners.s6Border,
             hoverColor: AFThemeExtension.of(context).greyHover,
             onTap: () {
-              if (widget.isSelected) menuController.show();
+              if (!widget.isDisabled && widget.isSelected) {
+                menuController.show();
+              }
               widget.onTap.call();
             },
             margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),

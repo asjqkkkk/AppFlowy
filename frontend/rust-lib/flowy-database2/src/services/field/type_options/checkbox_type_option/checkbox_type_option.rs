@@ -1,17 +1,17 @@
-use std::cmp::Ordering;
-use std::str::FromStr;
-
 use collab_database::fields::Field;
 use collab_database::fields::checkbox_type_option::CheckboxTypeOption;
 use collab_database::rows::Cell;
 use collab_database::template::util::ToCellString;
 use flowy_error::FlowyResult;
+use std::cmp::Ordering;
+use std::str::FromStr;
+use std::sync::Arc;
 
 use crate::entities::{CheckboxCellDataPB, CheckboxFilterPB, FieldType};
 use crate::services::cell::{CellDataChangeset, CellDataDecoder};
 use crate::services::field::{
   CellDataProtobufEncoder, TypeOption, TypeOptionCellDataCompare, TypeOptionCellDataFilter,
-  TypeOptionTransform,
+  TypeOptionHandlerCache, TypeOptionTransform,
 };
 use crate::services::sort::SortCondition;
 
@@ -39,6 +39,7 @@ impl CellDataDecoder for CheckboxTypeOption {
     cell: &Cell,
     from_field_type: FieldType,
     _field: &Field,
+    _type_option_handlers: Arc<TypeOptionHandlerCache>,
   ) -> Option<<Self as TypeOption>::CellData> {
     if from_field_type.is_text() {
       Some(CheckboxCellDataPB::from(cell))

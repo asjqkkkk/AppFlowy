@@ -36,11 +36,19 @@
       "$type": "color",
       "$value": "{Blue.700}"
     },
+    "info-on-fill": {
+      "$type": "color",
+      "$value": "{Blue.700}"
+    },
     "success": {
       "$type": "color",
       "$value": "{Green.600}"
     },
     "success-hover": {
+      "$type": "color",
+      "$value": "{Green.700}"
+    },
+    "success-on-fill": {
       "$type": "color",
       "$value": "{Green.700}"
     },
@@ -52,11 +60,19 @@
       "$type": "color",
       "$value": "{Orange.700}"
     },
+    "warning-on-fill": {
+      "$type": "color",
+      "$value": "{Orange.700}"
+    },
     "error": {
       "$type": "color",
       "$value": "{Red.600}"
     },
     "error-hover": {
+      "$type": "color",
+      "$value": "{Red.700}"
+    },
+    "error-on-fill": {
       "$type": "color",
       "$value": "{Red.700}"
     },
@@ -67,6 +83,10 @@
     "featured-hover": {
       "$type": "color",
       "$value": "{Purple.600}"
+    },
+    "featured-on-fill": {
+      "$type": "color",
+      "$value": "{Purple.500}"
     }
   },
   "Icon": {
@@ -96,11 +116,11 @@
     },
     "success-thick": {
       "$type": "color",
-      "$value": "{Green.600}"
+      "$value": "{Green.500}"
     },
     "success-thick-hover": {
       "$type": "color",
-      "$value": "{Green.700}"
+      "$value": "{Green.600}"
     },
     "warning-thick": {
       "$type": "color",
@@ -134,7 +154,7 @@
   "Border": {
     "primary": {
       "$type": "color",
-      "$value": "{Neutral.200}"
+      "$value": "{Neutral.250}"
     },
     "primary-hover": {
       "$type": "color",
@@ -304,6 +324,14 @@
       "$type": "color",
       "$value": "{Green.200}"
     },
+    "success-thick": {
+      "$type": "color",
+      "$value": "{Green.500}"
+    },
+    "success-thick-hover": {
+      "$type": "color",
+      "$value": "{Green.600}"
+    },
     "warning-light": {
       "$type": "color",
       "$value": "{Orange.100}"
@@ -334,7 +362,7 @@
     },
     "featured-light": {
       "$type": "color",
-      "$value": "{Purple.100}"
+      "$value": "{Purple.alpha-purple-100-60}"
     },
     "featured-light-hover": {
       "$type": "color",
@@ -370,7 +398,7 @@
     "layer-02": {
       "$type": "color",
       "$value": "{Neutral.white}",
-      "$description": "Settings Side Panel, Modal Window"
+      "$description": "Modal Window"
     },
     "layer-02-hover": {
       "$type": "color",
@@ -398,7 +426,7 @@
       "$type": "color",
       "$value": "{Neutral.1000}"
     },
-    "secondary": {
+    "**secondary": {
       "$type": "color",
       "$value": "{Neutral.1000}"
     },
@@ -408,9 +436,15 @@
     }
   },
   "Surface_Container": {
+    "layer-00": {
+      "$type": "color",
+      "$value": "{Neutral.100}",
+      "$description": "Settings Side Panel"
+    },
     "layer-01": {
       "$type": "color",
-      "$value": "{Neutral.100}"
+      "$value": "{Neutral.100}",
+      "$description": "Settings Side Panel"
     },
     "layer-02": {
       "$type": "color",
@@ -991,6 +1025,11 @@
     "text-highlight": {
       "$type": "color",
       "$value": "{Blue.200}"
+    },
+    "icon-shared": {
+      "$type": "color",
+      "$value": "{Subtle_Color.Denim.500}",
+      "$description": "Sidebar Shared Category"
     }
   },
   "Spacing": {

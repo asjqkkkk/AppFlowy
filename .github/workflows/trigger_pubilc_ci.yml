@@ -1,0 +1,26 @@
+name: Trigger Public Repository CI
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main, develop, release/*]
+  push:
+    branches: [main, develop, release/*]
+
+jobs:
+  trigger-public-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger CI in public repository
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.PUBLIC_REPO_TOKEN }}
+          repository: AppFlowy-IO/AppFlowy-CI
+          event-type: private-repo-webhook
+          client-payload: |
+            {
+              "event_type": "${{ github.event_name == 'pull_request' && 'pr_opened' || 'push' }}",
+              "pr_number": "${{ github.event.number }}",
+              "pr_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}",
+              "workflows": "rust,flutter,ios"
+            }

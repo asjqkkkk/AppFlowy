@@ -7,8 +7,9 @@ use crate::local_server::template::create_workspace::{
 use crate::local_server::uid::IDGenerator;
 use anyhow::Context;
 use client_api::entity::GotrueTokenResponse;
+use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
-use collab::preclude::Collab;
+use collab::preclude::{ClientID, Collab};
 use collab_entity::CollabObject;
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
@@ -48,7 +49,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     let params = params.unbox_or_error::<SignUpParams>()?;
     let uid = ID_GEN.lock().await.next_id();
     let workspace_id = Uuid::new_v4().to_string();
-    let user_workspace = UserWorkspace::new_local(workspace_id, "My Workspace");
+    let user_workspace = UserWorkspace::new_local(workspace_id, "My Workspace", "");
     let user_name = if params.name.is_empty() {
       DEFAULT_USER_NAME()
     } else {
@@ -75,7 +76,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     let uid = ID_GEN.lock().await.next_id();
 
     let workspace_id = Uuid::new_v4();
-    let user_workspace = UserWorkspace::new_local(workspace_id.to_string(), "My Workspace");
+    let user_workspace = UserWorkspace::new_local(workspace_id.to_string(), "My Workspace", "");
     Ok(AuthResponse {
       user_id: uid,
       user_uuid: Uuid::new_v4(),
@@ -166,7 +167,11 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(workspaces)
   }
 
-  async fn create_workspace(&self, workspace_name: &str) -> Result<UserWorkspace, FlowyError> {
+  async fn create_workspace(
+    &self,
+    workspace_name: &str,
+    workspace_icon: &str,
+  ) -> Result<UserWorkspace, FlowyError> {
     let workspace_id = Uuid::new_v4();
     let uid = self.logged_user.user_id()?;
 
@@ -180,8 +185,13 @@ impl UserCloudService for LocalServerUserServiceImpl {
     // insert collab
 
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
-    let user_workspace =
-      insert_local_workspace(uid, &workspace_id.to_string(), workspace_name, &mut conn)?;
+    let user_workspace = insert_local_workspace(
+      uid,
+      &workspace_id.to_string(),
+      workspace_name,
+      workspace_icon,
+      &mut conn,
+    )?;
     Ok(user_workspace)
   }
 
@@ -212,13 +222,10 @@ impl UserCloudService for LocalServerUserServiceImpl {
     uid: i64,
     workspace_id: &Uuid,
     object_id: &Uuid,
+    client_id: ClientID,
   ) -> Result<Vec<u8>, FlowyError> {
-    let collab = Collab::new_with_origin(
-      CollabOrigin::Empty,
-      object_id.to_string().as_str(),
-      vec![],
-      false,
-    );
+    let options = CollabOptions::new(object_id.to_string(), client_id);
+    let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
     let awareness = UserAwareness::create(collab, None)?;
     let encode_collab = awareness.encode_collab_v1(|_collab| Ok::<_, FlowyError>(()))?;
     Ok(encode_collab.doc_state.to_vec())

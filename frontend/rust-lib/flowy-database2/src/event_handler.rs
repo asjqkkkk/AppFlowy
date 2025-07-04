@@ -39,9 +39,7 @@ pub(crate) async fn get_database_data_handler(
     .await?;
   let database_editor = manager.get_or_init_database_editor(&database_id).await?;
   let start = std::time::Instant::now();
-  let data = database_editor
-    .open_database_view(view_id.as_ref(), None)
-    .await?;
+  let data = database_editor.open_database_view(view_id.as_ref()).await?;
   info!(
     "[Database]: {} layout: {:?}, rows: {}, fields: {}, cost time: {} milliseconds",
     database_id,
@@ -81,7 +79,7 @@ pub(crate) async fn open_database_handler(
   let database_id = manager
     .get_database_id_with_view_id(view_id.as_ref())
     .await?;
-  let _ = manager.open_database(&database_id).await?;
+  let _ = manager.get_or_init_database_editor(&database_id).await?;
   Ok(())
 }
 
@@ -421,7 +419,9 @@ pub(crate) async fn init_row_handler(
   let database_editor = manager
     .get_database_editor_with_view_id(&params.view_id)
     .await?;
-  database_editor.init_database_row(&params.row_id).await?;
+  database_editor
+    .init_database_row(&params.row_id, None)
+    .await?;
   Ok(())
 }
 
@@ -452,7 +452,7 @@ pub(crate) async fn update_row_meta_handler(
   let database_editor = manager
     .get_database_editor_with_view_id(&params.view_id)
     .await?;
-  let row_id = RowId::from(params.id.clone());
+  let row_id = RowId::from(params.row_id.clone());
   database_editor
     .update_row_meta(&row_id.clone(), params)
     .await;
@@ -522,7 +522,7 @@ pub(crate) async fn remove_cover_handler(
     .await?;
 
   let update_row_changeset = UpdateRowMetaParams {
-    id: params.row_id.clone().into(),
+    row_id: params.row_id.clone().into(),
     view_id: params.view_id.clone(),
     cover: Some(RowCover::default()),
     ..Default::default()
@@ -1017,15 +1017,6 @@ pub(crate) async fn move_calendar_event_handler(
 }
 
 #[tracing::instrument(level = "debug", skip_all, err)]
-pub(crate) async fn create_database_view(
-  _data: AFPluginData<CreateDatabaseViewPayloadPB>,
-  _manager: AFPluginState<Weak<DatabaseManager>>,
-) -> FlowyResult<()> {
-  // let data: CreateDatabaseViewParams = data.into_inner().try_into()?;
-  Ok(())
-}
-
-#[tracing::instrument(level = "debug", skip_all, err)]
 pub(crate) async fn export_csv_handler(
   data: AFPluginData<DatabaseViewIdPB>,
   manager: AFPluginState<Weak<DatabaseManager>>,
@@ -1362,8 +1353,9 @@ pub(crate) async fn rename_media_cell_file_handler(
     .get_field(&cell_id.field_id)
     .await
     .ok_or_else(FlowyError::record_not_found)?;
-  let handler = TypeOptionCellExt::new(&field, None)
-    .get_type_option_cell_data_handler_with_field_type(FieldType::Media);
+
+  let handler = TypeOptionCellExt::new(&field, None, database_editor.type_option_handlers.clone())
+    .get_type_option_cell_data_handler(FieldType::Media);
   if handler.is_none() {
     return Err(
       FlowyError::internal().with_context("Error renaming media file: field type is not Media"),

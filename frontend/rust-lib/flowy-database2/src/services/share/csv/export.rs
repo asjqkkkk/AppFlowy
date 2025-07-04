@@ -4,11 +4,13 @@ use collab_database::rows::Cell;
 use collab_database::template::timestamp_parse::TimestampCellData;
 use futures::StreamExt;
 use indexmap::IndexMap;
+use std::sync::Arc;
 
 use flowy_error::{FlowyError, FlowyResult};
 
 use crate::entities::FieldType;
 use crate::services::cell::stringify_cell;
+use crate::services::field::TypeOptionHandlerCache;
 
 #[derive(Debug, Clone, Copy)]
 pub enum CSVFormat {
@@ -51,14 +53,16 @@ impl CSVExport {
       field_by_field_id.insert(field.id.clone(), field);
     });
     let rows = database
-      .get_rows_for_view(&view_id, 20, None)
+      .get_rows_for_view(&view_id, 20, None, false)
       .await
       .filter_map(|result| async { result.ok() })
       .collect::<Vec<_>>()
       .await;
 
+    let cache = Arc::new(TypeOptionHandlerCache::new());
+
     let stringify = |cell: &Cell, field: &Field, style: CSVFormat| match style {
-      CSVFormat::Original => stringify_cell(cell, field),
+      CSVFormat::Original => stringify_cell(cell, field, cache.clone()),
       CSVFormat::META => serde_json::to_string(cell).unwrap_or_else(|_| "".to_string()),
     };
 

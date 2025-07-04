@@ -1,5 +1,6 @@
-use collab_integrate::collab_builder::AppFlowyCollabBuilder;
-use collab_integrate::CollabKVDB;
+use collab::core::collab::default_client_id;
+use collab::preclude::ClientID;
+use collab_plugins::CollabKVDB;
 use flowy_ai::ai_manager::AIManager;
 use flowy_database2::{DatabaseManager, DatabaseUser};
 use flowy_database_pub::cloud::{
@@ -8,10 +9,12 @@ use flowy_database_pub::cloud::{
 };
 use flowy_error::FlowyError;
 use flowy_user::services::authenticate_user::AuthenticateUser;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use lib_infra::async_trait::async_trait;
 use lib_infra::priority_task::TaskDispatcher;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
+use tracing::warn;
 use uuid::Uuid;
 
 pub struct DatabaseDepsResolver();
@@ -20,7 +23,7 @@ impl DatabaseDepsResolver {
   pub async fn resolve(
     authenticate_user: Weak<AuthenticateUser>,
     task_scheduler: Arc<RwLock<TaskDispatcher>>,
-    collab_builder: Weak<AppFlowyCollabBuilder>,
+    collab_builder: Weak<WorkspaceCollabAdaptor>,
     cloud_service: Arc<dyn DatabaseCloudService>,
     ai_service: Arc<dyn DatabaseAIService>,
     ai_manager: Arc<AIManager>,
@@ -53,7 +56,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
   ) -> Result<String, FlowyError> {
     if self
       .ai_manager
-      .local_ai
+      .local_ai_controller
       .is_enabled_on_workspace(&workspace_id.to_string())
     {
       let model = self
@@ -62,7 +65,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
         .await;
       self
         .ai_manager
-        .local_ai
+        .local_ai_controller
         .summarize_database_row(&model.name, summary_row)
         .await
     } else {
@@ -81,7 +84,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
   ) -> Result<TranslateRowResponse, FlowyError> {
     if self
       .ai_manager
-      .local_ai
+      .local_ai_controller
       .is_enabled_on_workspace(&workspace_id.to_string())
     {
       let model = self
@@ -90,7 +93,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
         .await;
       self
         .ai_manager
-        .local_ai
+        .local_ai_controller
         .translate_database_row(&model.name, translate_row, language)
         .await
     } else {
@@ -128,5 +131,15 @@ impl DatabaseUser for DatabaseUserImpl {
 
   fn workspace_database_object_id(&self) -> Result<Uuid, FlowyError> {
     self.upgrade_user()?.workspace_database_object_id()
+  }
+
+  fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
+    match self.upgrade_user() {
+      Ok(user) => user.collab_client_id(workspace_id),
+      Err(_) => {
+        warn!("Failed to get collab client id, using default client id",);
+        default_client_id()
+      },
+    }
   }
 }

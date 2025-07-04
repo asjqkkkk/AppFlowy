@@ -90,12 +90,16 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     final currentWorkspace = result.currentWorkspace;
     final workspaces = result.workspaces;
     Log.info(
-      'fetch workspaces: current workspace: ${currentWorkspace?.workspaceId}, workspaces: ${workspaces.map((e) => e.workspaceId)}',
+      'fetch workspaces, open the workspace: ${currentWorkspace?.workspaceId} - ${currentWorkspace?.name}',
+    );
+    Log.info(
+      'fetch workspaces, your workspaces: ${workspaces.map((e) => '${e.workspaceId} - ${e.name}')}',
     );
 
     emit(
       state.copyWith(
         workspaces: workspaces,
+        clearActionResult: true,
       ),
     );
 
@@ -129,6 +133,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
 
     final result = await repository.createWorkspace(
       name: event.name,
+      icon: event.icon,
       workspaceType: event.workspaceType,
     );
 
@@ -443,11 +448,6 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     emit(
       state.copyWith(
         workspaces: _sortWorkspaces(workspaces),
-        actionResult: WorkspaceActionResult(
-          actionType: WorkspaceActionType.leave,
-          isLoading: false,
-          result: result,
-        ),
       ),
     );
   }
@@ -464,9 +464,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
 
     unawaited(
       repository
-          .getWorkspaceSubscriptionInfo(
-        workspaceId: event.workspaceId,
-      )
+          .getWorkspaceSubscriptionInfo(workspaceId: event.workspaceId)
           .fold(
         (workspaceSubscriptionInfo) {
           if (isClosed) {
@@ -477,10 +475,6 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
             return;
           }
 
-          Log.debug(
-            'fetch workspace subscription info: ${event.workspaceId}, $workspaceSubscriptionInfo',
-          );
-
           add(
             UserWorkspaceEvent.updateWorkspaceSubscriptionInfo(
               workspaceId: event.workspaceId,
@@ -488,7 +482,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
             ),
           );
         },
-        (e) => Log.error('fetch workspace subscription info error: $e'),
+        (e) => {},
       ),
     );
   }

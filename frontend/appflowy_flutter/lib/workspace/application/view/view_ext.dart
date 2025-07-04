@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
@@ -23,6 +24,7 @@ class PluginArgumentKeys {
   static String selection = "selection";
   static String rowId = "row_id";
   static String blockId = "block_id";
+  static String pageAccessLevelBloc = "page_access_level_bloc";
 }
 
 class ViewExtKeys {
@@ -106,24 +108,29 @@ extension ViewExtension on ViewPB {
       case ViewLayoutPB.Calendar:
       case ViewLayoutPB.Grid:
         final String? rowId = arguments[PluginArgumentKeys.rowId];
+        final PageAccessLevelBloc? initialPageAccessLevelBloc =
+            arguments[PluginArgumentKeys.pageAccessLevelBloc];
 
         return DatabaseTabBarViewPlugin(
           view: this,
           pluginType: pluginType,
           initialRowId: rowId,
+          initialPageAccessLevelBloc: initialPageAccessLevelBloc,
         );
       case ViewLayoutPB.Document:
         final selectionValue = arguments[PluginArgumentKeys.selection];
         Selection? initialSelection;
         if (selectionValue is Selection) initialSelection = selectionValue;
-
         final String? initialBlockId = arguments[PluginArgumentKeys.blockId];
+        final PageAccessLevelBloc? initialPageAccessLevelBloc =
+            arguments[PluginArgumentKeys.pageAccessLevelBloc];
 
         return DocumentPlugin(
           view: this,
           pluginType: pluginType,
           initialSelection: initialSelection,
           initialBlockId: initialBlockId,
+          initialPageAccessLevelBloc: initialPageAccessLevelBloc,
         );
       case ViewLayoutPB.Chat:
         return AIChatPagePlugin(view: this);

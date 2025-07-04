@@ -157,6 +157,7 @@ diesel::table! {
         role -> Integer,
         access_level -> Integer,
         order -> Integer,
+        pending_invitation -> Bool,
     }
 }
 
@@ -167,6 +168,8 @@ diesel::table! {
         view_id -> Text,
         permission_id -> Integer,
         created_at -> Nullable<Timestamp>,
+        no_access -> Bool,
+        order -> Integer,
     }
 }
 

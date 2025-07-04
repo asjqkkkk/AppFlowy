@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/list_extension.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/user_service.dart';
@@ -13,13 +14,16 @@ import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/application/workspace/prelude.dart';
 import 'package:appflowy/workspace/application/workspace/workspace_sections_listener.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_icon_popup.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
     hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:collection/collection.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/uuid.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -92,7 +96,12 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             if (openFirstPage) {
               if (currentSpace != null) {
                 if (!isClosed) {
-                  add(SpaceEvent.open(space: currentSpace));
+                  add(
+                    SpaceEvent.open(
+                      space: currentSpace,
+                      openDefaultPage: false,
+                    ),
+                  );
                 }
               }
             }
@@ -121,7 +130,13 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
                   currentSpace: space,
                 ),
               );
-              add(SpaceEvent.open(space: space));
+
+              add(
+                SpaceEvent.open(
+                  space: space,
+                  openDefaultPage: false,
+                ),
+              );
               Log.info('open space: ${space.name}(${space.id})');
 
               if (createNewPageByDefault) {
@@ -238,7 +253,18 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
               );
             }
           },
-          open: (space, afterOpen) async {
+          open: (space, openDefaultPage, afterOpen) async {
+            // check if the user has space permission
+            final result = await ViewBackendService.getView(space.id);
+            final hasPermission = result.fold(
+              (view) => true,
+              (error) => false,
+            );
+
+            if (!hasPermission) {
+              return;
+            }
+
             await _openSpace(space);
             final isExpanded = await _getSpaceExpandStatus(space);
             final views = await ViewBackendService.getChildViews(
@@ -265,12 +291,27 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             if (UniversalPlatform.isDesktop) {
               // open the first page by default
               if (currentSpace.childViews.isNotEmpty) {
-                final firstPage = currentSpace.childViews.first;
-                emit(
-                  state.copyWith(
-                    lastCreatedPage: firstPage,
-                  ),
-                );
+                if (openFirstPage || openDefaultPage) {
+                  final firstPage = currentSpace.childViews.first;
+                  final result = await ViewBackendService.getView(firstPage.id);
+                  final hasPermission = result.fold(
+                    (view) => true,
+                    (error) => false,
+                  );
+                  if (!hasPermission) {
+                    emit(
+                      state.copyWith(
+                        lastCreatedPage: ViewPB(),
+                      ),
+                    );
+                  } else {
+                    emit(
+                      state.copyWith(
+                        lastCreatedPage: firstPage,
+                      ),
+                    );
+                  }
+                }
               } else {
                 emit(
                   state.copyWith(
@@ -279,7 +320,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
                 );
               }
             }
-             afterOpen?.call();
+            afterOpen?.call();
           },
           expand: (space, isExpanded) async {
             await _setSpaceExpandStatus(space, isExpanded);
@@ -309,6 +350,17 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
               },
               (error) {
                 Log.error('Failed to create root view: $error');
+                final message = switch (error.code) {
+                  ErrorCode.NotEnoughPermissions =>
+                    LocaleKeys.accessLevel_noPermissionToCreatePage.tr(),
+                  _ => LocaleKeys.accessLevel_failedToCreatePage.tr(),
+                };
+
+                showToastNotification(
+                  message: message,
+                  type: ToastificationType.error,
+                );
+
                 emit(
                   state.copyWith(
                     createPageResult: FlowyResult.failure(error),
@@ -337,7 +389,7 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
 
             add(
               SpaceEvent.initial(
-                openFirstPage: openFirstPage,
+                openFirstPage: false,
               ),
             );
           },
@@ -358,7 +410,12 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             final currentIndex = spaces.indexOf(currentSpace);
             final nextIndex = (currentIndex + 1) % spaces.length;
             final nextSpace = spaces[nextIndex];
-            add(SpaceEvent.open(space: nextSpace));
+            add(
+              SpaceEvent.open(
+                space: nextSpace,
+                openDefaultPage: false,
+              ),
+            );
           },
           duplicate: (space) async {
             space ??= state.currentSpace;
@@ -375,7 +432,12 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
             // open the duplicated space
             if (newSpace != null) {
               add(const SpaceEvent.didReceiveSpaceUpdate());
-              add(SpaceEvent.open(space: newSpace));
+              add(
+                SpaceEvent.open(
+                  space: newSpace,
+                  openDefaultPage: false,
+                ),
+              );
             }
 
             emit(state.copyWith(isDuplicatingSpace: false));
@@ -719,7 +781,6 @@ class SpaceBloc extends Bloc<SpaceEvent, SpaceState> {
       await ViewBackendService.duplicate(
         view: view,
         openAfterDuplicate: true,
-        syncAfterDuplicate: true,
         includeChildren: true,
         parentViewId: newSpace.id,
         suffix: '',
@@ -766,6 +827,7 @@ class SpaceEvent with _$SpaceEvent {
   }) = _Update;
   const factory SpaceEvent.open({
     required ViewPB space,
+    required bool openDefaultPage,
     VoidCallback? afterOpen,
   }) = _Open;
   const factory SpaceEvent.expand(ViewPB space, bool isExpanded) = _Expand;

@@ -7,12 +7,12 @@ use flowy_error::FlowyResult;
 use tracing::trace;
 
 use crate::entities::{GroupPB, GroupRowsNotificationPB, InsertedGroupPB, InsertedRowPB};
+use crate::services::database_view::RowOperations;
+use crate::services::filter::FilterController;
 use crate::services::group::action::{
   DidMoveGroupRowResult, DidUpdateGroupRowResult, GroupController,
 };
-use crate::services::group::{
-  GroupChangeset, GroupControllerDelegate, GroupData, MoveGroupRowContext,
-};
+use crate::services::group::{GroupChangeset, GroupData, MoveGroupRowContext};
 
 /// A [DefaultGroupController] is used to handle the group actions for the [FieldType] that doesn't
 /// implement its own group controller. The default group controller only contains one group, which
@@ -22,19 +22,26 @@ pub struct DefaultGroupController {
   pub view_id: String,
   pub field_id: String,
   pub group: GroupData,
-  pub delegate: Arc<dyn GroupControllerDelegate>,
+  pub row_ops: Arc<dyn RowOperations>,
+  pub filter_controller: Arc<FilterController>,
 }
 
 const DEFAULT_GROUP_CONTROLLER: &str = "DefaultGroupController";
 
 impl DefaultGroupController {
-  pub fn new(view_id: &str, field: &Field, delegate: Arc<dyn GroupControllerDelegate>) -> Self {
+  pub fn new(
+    view_id: &str,
+    field: &Field,
+    row_ops: Arc<dyn RowOperations>,
+    filter_controller: Arc<FilterController>,
+  ) -> Self {
     let group = GroupData::new(DEFAULT_GROUP_CONTROLLER.to_owned(), field.id.clone(), true);
     Self {
       view_id: view_id.to_owned(),
       field_id: field.id.clone(),
       group,
-      delegate,
+      row_ops,
+      filter_controller,
     }
   }
 }
@@ -42,7 +49,13 @@ impl DefaultGroupController {
 #[async_trait]
 impl GroupController for DefaultGroupController {
   async fn load_group_data(&mut self) -> FlowyResult<()> {
-    let row_details = self.delegate.get_all_rows(&self.view_id).await;
+    let row_orders = self.row_ops.get_all_row_orders(&self.view_id).await;
+    let rows = self
+      .row_ops
+      .get_all_rows(&self.view_id, row_orders, true)
+      .await;
+    let row_details = self.filter_controller.filter_rows(rows).await;
+
     let rows = row_details
       .iter()
       .map(|row| row.as_ref())
@@ -151,5 +164,12 @@ impl GroupController for DefaultGroupController {
     Ok((Vec::new(), None))
   }
 
-  fn will_create_row(&self, _cells: &mut Cells, _field: &Field, _group_id: &str) {}
+  fn will_create_row(
+    &self,
+    _cells: &mut Cells,
+    _field: &Field,
+    _group_id: &str,
+  ) -> FlowyResult<()> {
+    Ok(())
+  }
 }

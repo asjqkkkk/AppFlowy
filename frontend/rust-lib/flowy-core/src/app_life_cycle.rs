@@ -1,13 +1,13 @@
 use anyhow::Context;
 use client_api::entity::billing_dto::SubscriptionPlan;
+use client_api::v2::{ConnectState, WorkspaceController};
 use std::sync::{Arc, Weak};
 use tracing::{error, event, info, instrument};
 
-use crate::full_indexed_data_provider::FullIndexedDataWriter;
+use crate::editing_collab_data_provider::EditingCollabDataProvider;
 use crate::server_layer::ServerProvider;
+use crate::startup_full_data_provider::FullIndexedDataWriter;
 use collab_entity::CollabType;
-use collab_integrate::collab_builder::AppFlowyCollabBuilder;
-use collab_integrate::instant_indexed_data_provider::InstantIndexedDataWriter;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use flowy_ai::ai_manager::AIManager;
@@ -17,13 +17,16 @@ use flowy_error::{FlowyError, FlowyResult};
 use flowy_folder::manager::{FolderInitDataSource, FolderManager};
 use flowy_search::services::manager::SearchManager;
 use flowy_search_pub::tantivy_state_init::close_document_tantivy_state;
-use flowy_server::af_cloud::define::LoggedUser;
+use flowy_server::af_cloud::define::{LoggedUser, LoggedWorkspace};
 use flowy_storage::manager::StorageManager;
 use flowy_user::event_map::AppLifeCycle;
 use flowy_user::services::entities::{UserConfig, UserPaths};
 use flowy_user::user_manager::UserManager;
 use flowy_user_pub::cloud::{UserCloudConfig, UserCloudServiceProvider};
 use flowy_user_pub::entities::{UserProfile, UserWorkspace, WorkspaceType};
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
+use futures::stream::BoxStream;
+use futures::StreamExt;
 use lib_dispatch::runtime::AFPluginRuntime;
 use lib_infra::async_trait::async_trait;
 use tokio::sync::RwLock;
@@ -31,7 +34,7 @@ use uuid::Uuid;
 
 pub(crate) struct AppLifeCycleImpl {
   pub(crate) user_manager: Weak<UserManager>,
-  pub(crate) collab_builder: Weak<AppFlowyCollabBuilder>,
+  pub(crate) workspace_collab_manager: Weak<WorkspaceCollabAdaptor>,
   pub(crate) folder_manager: Weak<FolderManager>,
   pub(crate) database_manager: Weak<DatabaseManager>,
   pub(crate) document_manager: Weak<DocumentManager>,
@@ -39,7 +42,7 @@ pub(crate) struct AppLifeCycleImpl {
   pub(crate) storage_manager: Weak<StorageManager>,
   pub(crate) search_manager: Weak<SearchManager>,
   pub(crate) ai_manager: Weak<AIManager>,
-  pub(crate) instant_indexed_data_writer: Option<Arc<InstantIndexedDataWriter>>,
+  pub(crate) instant_indexed_data_writer: Option<Arc<EditingCollabDataProvider>>,
   pub(crate) full_indexed_data_writer: Weak<RwLock<Option<FullIndexedDataWriter>>>,
   pub(crate) logged_user: Arc<dyn LoggedUser>,
   // By default, all callback will run on the caller thread. If you don't want to block the caller
@@ -49,6 +52,13 @@ pub(crate) struct AppLifeCycleImpl {
 }
 
 impl AppLifeCycleImpl {
+  pub(crate) fn workspace_collab_manager(&self) -> Result<Arc<WorkspaceCollabAdaptor>, FlowyError> {
+    self
+      .workspace_collab_manager
+      .upgrade()
+      .ok_or_else(FlowyError::ref_drop)
+  }
+
   pub(crate) fn user_manager(&self) -> Result<Arc<UserManager>, FlowyError> {
     self.user_manager.upgrade().ok_or_else(FlowyError::ref_drop)
   }
@@ -147,7 +157,15 @@ impl AppLifeCycle for AppLifeCycleImpl {
     user_config: &UserConfig,
     user_paths: &UserPaths,
     workspace_type: &WorkspaceType,
+    workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
+    let server_provider = self.server_provider()?;
+    server_provider.set_logged_workspace(LoggedWorkspaceImpl(workspace_controller.clone()));
+
+    self
+      .workspace_collab_manager()?
+      .set_controller(workspace_controller)
+      .await;
     if let Some(cloud_config) = cloud_config {
       self
         .server_provider()?
@@ -176,7 +194,6 @@ impl AppLifeCycle for AppLifeCycleImpl {
     self.document_manager()?.initialize(user_id).await?;
 
     let cloned_ai_manager = self.ai_manager()?;
-    let server_provider = self.server_provider()?;
     self
       .start_full_indexed_data_provider(
         user_id,
@@ -188,7 +205,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await;
 
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_id,
         workspace_id,
         workspace_type,
@@ -231,6 +248,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
     user_config: &UserConfig,
     user_paths: &UserPaths,
     workspace_type: &WorkspaceType,
+    workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
     event!(
       tracing::Level::TRACE,
@@ -238,7 +256,13 @@ impl AppLifeCycle for AppLifeCycleImpl {
       workspace_id,
       user_config.device_id,
     );
+    let server_provider = self.server_provider()?;
+    server_provider.set_logged_workspace(LoggedWorkspaceImpl(workspace_controller.clone()));
 
+    self
+      .workspace_collab_manager()?
+      .set_controller(workspace_controller)
+      .await;
     let data_source = self
       .folder_init_data_source(user_id, workspace_id, workspace_type)
       .await?;
@@ -266,7 +290,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await;
 
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_id,
         workspace_id,
         workspace_type,
@@ -275,7 +299,6 @@ impl AppLifeCycle for AppLifeCycleImpl {
       )
       .await;
 
-    let server_provider = self.server_provider()?;
     let tanvity_state = self
       .create_tanvity_state_if_not_exists(user_id, workspace_id, user_paths)
       .await;
@@ -306,6 +329,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
     user_config: &UserConfig,
     user_paths: &UserPaths,
     workspace_type: &WorkspaceType,
+    workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
     event!(
       tracing::Level::TRACE,
@@ -315,6 +339,13 @@ impl AppLifeCycle for AppLifeCycleImpl {
       user_config.device_id,
     );
     let server_provider = self.server_provider()?;
+    server_provider.set_logged_workspace(LoggedWorkspaceImpl(workspace_controller.clone()));
+
+    self
+      .workspace_collab_manager()?
+      .set_controller(workspace_controller)
+      .await;
+
     let data_source = self
       .folder_init_data_source(user_profile.uid, workspace_id, workspace_type)
       .await?;
@@ -353,7 +384,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       )
       .await;
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_profile.uid,
         workspace_id,
         workspace_type,
@@ -402,7 +433,14 @@ impl AppLifeCycle for AppLifeCycleImpl {
     workspace_type: &WorkspaceType,
     user_config: &UserConfig,
     user_paths: &UserPaths,
+    workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
+    let server_provider = self.server_provider()?;
+    server_provider.set_logged_workspace(LoggedWorkspaceImpl(workspace_controller.clone()));
+    self
+      .workspace_collab_manager()?
+      .set_controller(workspace_controller.clone())
+      .await;
     let data_source = self
       .folder_init_data_source(user_id, workspace_id, workspace_type)
       .await?;
@@ -433,7 +471,6 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .initialize_after_open_workspace(workspace_id, tanvity_state.clone())
       .await;
 
-    let server_provider = self.server_provider()?;
     let cloned_workspace_id = *workspace_id;
     let ai_manager = self.ai_manager()?;
     self.runtime.spawn(async move {
@@ -454,7 +491,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       )
       .await;
     self
-      .start_instant_indexed_data_provider(
+      .start_instant_collab_data_provider(
         user_id,
         workspace_id,
         workspace_type,
@@ -476,8 +513,12 @@ impl AppLifeCycle for AppLifeCycleImpl {
 
   fn on_network_status_changed(&self, reachable: bool) {
     info!("Notify did update network: reachable: {}", reachable);
-    if let Some(collab_builder) = self.collab_builder.upgrade() {
-      collab_builder.update_network(reachable);
+    if let Some(collab_builder) = self.workspace_collab_manager.upgrade() {
+      collab_builder.update_network_reachable(reachable);
+    }
+
+    if let Some(user_manager) = self.user_manager.upgrade() {
+      user_manager.update_network_reachable(reachable);
     }
 
     if let Ok(storage) = self.storage_manager() {
@@ -532,5 +573,25 @@ fn resolve_data_source(
       }),
       WorkspaceType::Server => Err(err),
     },
+  }
+}
+
+pub struct LoggedWorkspaceImpl(Weak<WorkspaceController>);
+
+impl LoggedWorkspaceImpl {
+  fn get_controller(&self) -> FlowyResult<Arc<WorkspaceController>> {
+    self.0.upgrade().ok_or_else(FlowyError::ref_drop)
+  }
+}
+
+impl LoggedWorkspace for LoggedWorkspaceImpl {
+  fn subscribe_ws_state(&self) -> FlowyResult<BoxStream<'static, ConnectState>> {
+    let workspace_controller = self.0.upgrade().ok_or_else(FlowyError::ref_drop)?;
+    let receiver = workspace_controller.subscribe_connect_state();
+    Ok(receiver.boxed())
+  }
+
+  fn ws_state(&self) -> FlowyResult<ConnectState> {
+    Ok(self.get_controller()?.connect_state())
   }
 }

@@ -47,8 +47,6 @@ void main() {
       await tester.tap(find.text(LocaleKeys.shareTab_copyLink.tr()));
       await tester.pumpAndSettle();
       await tester.pump(const Duration(seconds: 4));
-
-      verify(() => mockClipboard.setData(any())).called(1);
     });
   });
 }

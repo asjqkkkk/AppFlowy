@@ -1,12 +1,16 @@
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/share_tab/data/models/shared_group.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/copy_link_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/general_access_section.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/people_with_access_section.dart';
+import 'package:appflowy/features/share_tab/presentation/widgets/restricted_access_section.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/share_with_user_widget.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/upgrade_to_pro_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
+import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
@@ -17,6 +21,11 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+enum ShareTabUpgradeToProFrom {
+  banner,
+  backendError,
+}
+
 class ShareTab extends StatefulWidget {
   const ShareTab({
     super.key,
@@ -26,6 +35,7 @@ class ShareTab extends StatefulWidget {
     required this.workspaceIcon,
     required this.isInProPlan,
     required this.onUpgradeToPro,
+    required this.showDialogCallback,
   });
 
   final String workspaceId;
@@ -36,7 +46,8 @@ class ShareTab extends StatefulWidget {
   final String workspaceIcon;
 
   final bool isInProPlan;
-  final VoidCallback onUpgradeToPro;
+  final void Function(ShareTabUpgradeToProFrom from) onUpgradeToPro;
+  final void Function(bool value) showDialogCallback;
 
   @override
   State<ShareTab> createState() => _ShareTabState();
@@ -66,8 +77,8 @@ class _ShareTabState extends State<ShareTab> {
     final theme = AppFlowyTheme.of(context);
 
     return BlocConsumer<ShareTabBloc, ShareTabState>(
-      listener: (context, state) {
-        _onListenShareWithUserState(context, state);
+      listener: (context, state) async {
+        await _onListenShareWithUserState(context, state);
       },
       builder: (context, state) {
         if (state.isLoading) {
@@ -75,24 +86,33 @@ class _ShareTabState extends State<ShareTab> {
         }
 
         final currentUser = state.currentUser;
-        final accessLevel = state.users
-            .firstWhereOrNull(
-              (user) => user.email == currentUser?.email,
-            )
-            ?.accessLevel;
+        final accessLevel = context
+                .read<PageAccessLevelBloc?>()
+                ?.state
+                .accessLevel ??
+            state.users
+                .firstWhereOrNull((user) => user.email == currentUser?.email)
+                ?.accessLevel;
         final isFullAccess = accessLevel == ShareAccessLevel.fullAccess;
+        String tooltip = '';
+        if (!widget.isInProPlan) {
+          tooltip = LocaleKeys.shareTab_upgradeToProToInviteGuests.tr();
+        } else if (!isFullAccess) {
+          tooltip = LocaleKeys.shareTab_onlyFullAccessCanInvite.tr();
+        }
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             // share page with user by email
-            // only user with full access can invite others
-
+            // 1. user with full access can invite others
+            // 2. user in pro plan can invite others
             VSpace(theme.spacing.l),
             ShareWithUserWidget(
               controller: controller,
               disabled: !isFullAccess,
+              tooltip: tooltip,
               onInvite: (emails) => _onSharePageWithUser(
                 context,
                 emails: emails,
@@ -107,7 +127,9 @@ class _ShareTabState extends State<ShareTab> {
                         ShareTabEvent.upgradeToProClicked(),
                       );
                 },
-                onUpgrade: widget.onUpgradeToPro,
+                onUpgrade: () => widget.onUpgradeToPro(
+                  ShareTabUpgradeToProFrom.banner,
+                ),
               ),
             ],
 
@@ -132,6 +154,12 @@ class _ShareTabState extends State<ShareTab> {
                   icon: widget.workspaceIcon,
                 ),
               ),
+            ],
+
+            if (state.sectionType == SharedSectionType.shared ||
+                state.sectionType == SharedSectionType.private) ...[
+              VSpace(theme.spacing.m),
+              RestrictedAccessSection(),
             ],
 
             // copy link
@@ -168,7 +196,10 @@ class _ShareTabState extends State<ShareTab> {
       },
       onTurnIntoMember: (user) {
         context.read<ShareTabBloc>().add(
-              ShareTabEvent.convertToMember(email: user.email),
+              ShareTabEvent.turnIntoMember(
+                email: user.email,
+                name: user.name,
+              ),
             );
       },
       onRemoveAccess: (user) {
@@ -180,13 +211,13 @@ class _ShareTabState extends State<ShareTab> {
         if (removingSelf) {
           showConfirmDialog(
             context: context,
-            title: 'Remove your own access',
+            title: LocaleKeys.shareTab_removeYourOwnAccess.tr(),
             titleStyle: theme.textStyle.body.standard(
               color: theme.textColorScheme.primary,
             ),
             description: '',
             style: ConfirmPopupStyle.cancelAndOk,
-            confirmLabel: 'Remove',
+            confirmLabel: LocaleKeys.button_remove.tr(),
             onConfirm: (_) {
               shareTabBloc.add(
                 ShareTabEvent.removeUsers(emails: [user.email]),
@@ -202,10 +233,12 @@ class _ShareTabState extends State<ShareTab> {
     );
   }
 
-  void _onListenShareWithUserState(
+  Future<void> _onListenShareWithUserState(
     BuildContext context,
     ShareTabState state,
-  ) {
+  ) async {
+    final theme = AppFlowyTheme.of(context);
+
     final shareResult = state.shareResult;
     if (shareResult != null) {
       shareResult.fold((success) {
@@ -217,12 +250,15 @@ class _ShareTabState extends State<ShareTab> {
         );
       }, (error) {
         String message;
+        if (error.code == ErrorCode.FreePlanGuestLimitExceeded) {
+          widget.onUpgradeToPro(
+            ShareTabUpgradeToProFrom.backendError,
+          );
+          return;
+        }
         switch (error.code) {
           case ErrorCode.InvalidGuest:
             message = LocaleKeys.shareTab_emailAlreadyInList.tr();
-            break;
-          case ErrorCode.FreePlanGuestLimitExceeded:
-            message = LocaleKeys.shareTab_upgradeToProToInviteGuests.tr();
             break;
           case ErrorCode.PaidPlanGuestLimitExceeded:
             message = LocaleKeys.shareTab_maxGuestsReached.tr();
@@ -232,20 +268,6 @@ class _ShareTabState extends State<ShareTab> {
         }
         showToastNotification(
           message: message,
-          type: ToastificationType.error,
-        );
-      });
-    }
-
-    final removeResult = state.removeResult;
-    if (removeResult != null) {
-      removeResult.fold((success) {
-        showToastNotification(
-          message: LocaleKeys.shareTab_removedGuestSuccessfully.tr(),
-        );
-      }, (error) {
-        showToastNotification(
-          message: error.msg,
           type: ToastificationType.error,
         );
       });
@@ -267,10 +289,83 @@ class _ShareTabState extends State<ShareTab> {
 
     final turnIntoMemberResult = state.turnIntoMemberResult;
     if (turnIntoMemberResult != null) {
-      turnIntoMemberResult.fold((success) {
+      final result = turnIntoMemberResult.result;
+      result.fold((success) {
         showToastNotification(
           message: LocaleKeys.shareTab_turnedIntoMemberSuccessfully.tr(),
         );
+      }, (error) {
+        final name = turnIntoMemberResult.name;
+
+        if (error.code == ErrorCode.NotEnoughPermissions) {
+          // ask the owner to upgrade the user
+          showConfirmDialog(
+            context: context,
+            title: 'Send the request to workspace owner',
+            description:
+                'Only the workspace owner can do this. Send them a request to upgrade $name to a member.',
+            style: ConfirmPopupStyle.cancelAndOk,
+            confirmLabel: 'Send',
+            confirmButtonColor: theme.fillColorScheme.themeThick,
+            onConfirm: (_) {
+              // todo: implement it when backend support email notification
+              showToastNotification(
+                message: 'Request sent to the workspace owner',
+              );
+            },
+          );
+        } else {
+          showToastNotification(
+            message: error.msg,
+            type: ToastificationType.error,
+          );
+        }
+      });
+    }
+
+    final copyLinkResult = state.copyLinkResult;
+    if (copyLinkResult != null) {
+      await copyLinkResult.result.fold((success) async {
+        final link = copyLinkResult.link;
+        void onConfirm() {
+          getIt<ClipboardService>().setData(
+            ClipboardServiceData(
+              plainText: link,
+            ),
+          );
+
+          showToastNotification(
+            message: LocaleKeys.shareTab_copiedLinkToClipboard.tr(),
+          );
+        }
+
+        final toastType = copyLinkResult.toastType;
+        if (toastType == CopyLinkToastType.none) {
+          onConfirm();
+          return;
+        }
+
+        String description = '';
+        if (toastType == CopyLinkToastType.publicPage) {
+          description = LocaleKeys.shareTab_copyLinkPublicPageTitle.tr();
+        } else if (toastType == CopyLinkToastType.privateOrSharedPage) {
+          description =
+              LocaleKeys.shareTab_copyLinkPrivateOrSharePageTitle.tr();
+        }
+
+        widget.showDialogCallback(true);
+
+        await showCancelAndConfirmDialog(
+          context: context,
+          title: LocaleKeys.shareTab_copyLink.tr(),
+          confirmLabel: LocaleKeys.button_copyLink.tr(),
+          description: description,
+          onConfirm: (_) {
+            onConfirm();
+          },
+        );
+
+        widget.showDialogCallback(false);
       }, (error) {
         showToastNotification(
           message: error.msg,

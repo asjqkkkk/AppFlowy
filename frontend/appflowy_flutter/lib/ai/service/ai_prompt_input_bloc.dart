@@ -102,6 +102,10 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
               ),
             );
           },
+          receivedEmptyModelList: () {
+            emit(state.copyWith(isEmptyList: true));
+            emit(state.copyWith(isEmptyList: false));
+          },
         );
       },
     );
@@ -119,9 +123,13 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
 
   void _init() {
     final modelState = aiModelStateNotifier.getState();
-    add(
-      AIPromptInputEvent.updateAIState(modelState),
-    );
+    add(AIPromptInputEvent.updateAIState(modelState));
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (!isClosed && aiModelStateNotifier.getModelSelection().$1.isEmpty) {
+        add(const AIPromptInputEvent.receivedEmptyModelList());
+      }
+    });
   }
 
   Map<String, dynamic> consumeMetadata() {
@@ -159,6 +167,8 @@ class AIPromptInputEvent with _$AIPromptInputEvent {
   const factory AIPromptInputEvent.clearMetadata() = _ClearMetadata;
   const factory AIPromptInputEvent.updatePromptId(String promptId) =
       _UpdatePromptId;
+  const factory AIPromptInputEvent.receivedEmptyModelList() =
+      _ReceivedEmptyModelList;
 }
 
 @freezed
@@ -170,6 +180,7 @@ class AIPromptInputState with _$AIPromptInputState {
     required PredefinedFormat? predefinedFormat,
     required List<ChatFile> attachedFiles,
     required List<ViewPB> mentionedPages,
+    required bool isEmptyList,
   }) = _AIPromptInputState;
 
   factory AIPromptInputState.initial(PredefinedFormat? format) =>
@@ -186,5 +197,6 @@ class AIPromptInputState with _$AIPromptInputState {
         predefinedFormat: format,
         attachedFiles: [],
         mentionedPages: [],
+        isEmptyList: false,
       );
 }

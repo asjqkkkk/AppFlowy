@@ -24,6 +24,8 @@ class AppFlowyFillColorScheme {
     required this.infoThickHover,
     required this.successLight,
     required this.successLightHover,
+    required this.successThick,
+    required this.successThickHover,
     required this.warningLight,
     required this.warningLightHover,
     required this.errorLight,
@@ -59,6 +61,8 @@ class AppFlowyFillColorScheme {
   final Color infoThickHover;
   final Color successLight;
   final Color successLightHover;
+  final Color successThick;
+  final Color successThickHover;
   final Color warningLight;
   final Color warningLightHover;
   final Color errorLight;
@@ -184,6 +188,16 @@ class AppFlowyFillColorScheme {
       successLightHover: Color.lerp(
         successLightHover,
         other.successLightHover,
+        t,
+      )!,
+      successThick: Color.lerp(
+        successThick,
+        other.successThick,
+        t,
+      )!,
+      successThickHover: Color.lerp(
+        successThickHover,
+        other.successThickHover,
         t,
       )!,
       warningLight: Color.lerp(

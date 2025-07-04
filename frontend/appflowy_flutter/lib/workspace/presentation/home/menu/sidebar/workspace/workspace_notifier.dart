@@ -8,8 +8,10 @@ class WorkspaceNotifyValue {
   WorkspaceNotifyValue({
     this.workspaceId,
     this.email,
+    this.initialViewId,
   });
 
   final String? workspaceId;
   final String? email;
+  final String? initialViewId;
 }

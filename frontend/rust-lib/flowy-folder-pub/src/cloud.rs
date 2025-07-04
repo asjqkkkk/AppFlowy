@@ -3,8 +3,7 @@ pub use anyhow::Error;
 use client_api::entity::{
   PublishInfo,
   guest_dto::{
-    ListSharedViewResponse, RevokeSharedViewAccessRequest, ShareViewWithGuestRequest,
-    SharedViewDetails,
+    RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
   workspace_dto::PublishInfoView,
 };
@@ -115,13 +114,11 @@ pub trait FolderCloudService: Send + Sync + 'static {
     &self,
     workspace_id: &Uuid,
     view_id: &Uuid,
+    parent_view_ids: Vec<Uuid>,
   ) -> Result<SharedViewDetails, FlowyError>;
 
   /// Get the shared views of a workspace
-  async fn get_shared_views(
-    &self,
-    workspace_id: &Uuid,
-  ) -> Result<ListSharedViewResponse, FlowyError>;
+  async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError>;
 }
 
 #[derive(Debug)]

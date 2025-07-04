@@ -17,6 +17,7 @@ class SettingsMenu extends StatelessWidget {
     required this.currentPage,
     required this.userProfile,
     required this.isBillingEnabled,
+    required this.workspaceType,
     required this.currentUserRole,
   });
 
@@ -24,17 +25,23 @@ class SettingsMenu extends StatelessWidget {
   final SettingsPage currentPage;
   final UserProfilePB userProfile;
   final bool isBillingEnabled;
+  final WorkspaceTypePB? workspaceType;
   final AFRolePB? currentUserRole;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
+    final isCloudWorkspace = workspaceType == WorkspaceTypePB.ServerW;
+    final isLocalAuth = userProfile.userAuthType == AuthTypePB.Local;
+    final isOwner =
+        currentUserRole != null && currentUserRole != AFRolePB.Guest;
+
     return Container(
       decoration: BoxDecoration(
         color: theme.surfaceContainerColorScheme.layer01,
         borderRadius: BorderRadiusDirectional.horizontal(
-          start: Radius.circular(theme.spacing.m),
+          start: Radius.circular(theme.spacing.xl),
         ),
       ),
       height: double.infinity,
@@ -69,10 +76,7 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_workspace_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (FeatureFlag.membersSettings.isOn &&
-                userProfile.workspaceType == WorkspaceTypePB.ServerW &&
-                currentUserRole != null &&
-                currentUserRole != AFRolePB.Guest)
+            if (FeatureFlag.membersSettings.isOn && isCloudWorkspace && isOwner)
               SettingsMenuElement(
                 page: SettingsPage.member,
                 selectedPage: currentPage,
@@ -94,13 +98,14 @@ class SettingsMenu extends StatelessWidget {
               icon: const FlowySvg(FlowySvgs.settings_page_bell_m),
               changeSelectedPage: changeSelectedPage,
             ),
-            SettingsMenuElement(
-              page: SettingsPage.cloud,
-              selectedPage: currentPage,
-              label: LocaleKeys.settings_menu_cloudSettings.tr(),
-              icon: const FlowySvg(FlowySvgs.settings_page_cloud_m),
-              changeSelectedPage: changeSelectedPage,
-            ),
+            if (isCloudWorkspace || isLocalAuth)
+              SettingsMenuElement(
+                page: SettingsPage.cloud,
+                selectedPage: currentPage,
+                label: LocaleKeys.settings_menu_cloudSettings.tr(),
+                icon: const FlowySvg(FlowySvgs.settings_page_cloud_m),
+                changeSelectedPage: changeSelectedPage,
+              ),
             SettingsMenuElement(
               page: SettingsPage.shortcuts,
               selectedPage: currentPage,
@@ -117,9 +122,7 @@ class SettingsMenu extends StatelessWidget {
               ),
               changeSelectedPage: changeSelectedPage,
             ),
-            if (userProfile.workspaceType == WorkspaceTypePB.ServerW &&
-                currentUserRole != null &&
-                currentUserRole != AFRolePB.Guest)
+            if (isCloudWorkspace && isOwner)
               SettingsMenuElement(
                 page: SettingsPage.sites,
                 selectedPage: currentPage,

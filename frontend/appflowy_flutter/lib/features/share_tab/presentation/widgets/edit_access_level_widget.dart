@@ -75,7 +75,11 @@ class _EditAccessLevelWidgetState extends State<EditAccessLevelWidget> {
       child: AFGhostButton.normal(
         disabled: widget.disabled,
         onTap: () {
-          popoverController.show();
+          if (popoverController.isOpen) {
+            popoverController.hide();
+          } else {
+            popoverController.show();
+          }
         },
         padding: EdgeInsets.symmetric(
           vertical: theme.spacing.s,
@@ -92,11 +96,13 @@ class _EditAccessLevelWidgetState extends State<EditAccessLevelWidget> {
                       : theme.textColorScheme.primary,
                 ),
               ),
-              HSpace(theme.spacing.xs),
-              FlowySvg(
-                FlowySvgs.arrow_down_s,
-                color: theme.textColorScheme.secondary,
-              ),
+              if (!widget.disabled) ...[
+                HSpace(theme.spacing.xs),
+                FlowySvg(
+                  FlowySvgs.arrow_down_s,
+                  color: theme.textColorScheme.secondary,
+                ),
+              ],
             ],
           );
         },

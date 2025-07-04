@@ -4,13 +4,11 @@ import 'package:appflowy/plugins/trash/src/sizes.dart';
 import 'package:appflowy/plugins/trash/src/trash_header.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/size.dart';
-import 'package:flowy_infra_ui/style_widget/button.dart';
 import 'package:flowy_infra_ui/style_widget/scrolling/styled_list.dart';
 import 'package:flowy_infra_ui/style_widget/scrolling/styled_scroll_bar.dart';
 import 'package:flowy_infra_ui/style_widget/scrolling/styled_scrollview.dart';
-import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -88,50 +86,85 @@ class _TrashPageState extends State<TrashPage> {
   }
 
   Widget _renderTopBar(BuildContext context, TrashState state) {
+    final theme = AppFlowyTheme.of(context);
+
     return SizedBox(
       height: 36,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: theme.spacing.s,
         children: [
-          FlowyText.semibold(
-            LocaleKeys.trash_text.tr(),
-            fontSize: FontSizes.s16,
-            color: Theme.of(context).colorScheme.tertiary,
-          ),
-          const Spacer(),
-          IntrinsicWidth(
-            child: FlowyButton(
-              text: FlowyText.medium(
-                LocaleKeys.trash_restoreAll.tr(),
-                lineHeight: 1.0,
-              ),
-              leftIcon: const FlowySvg(FlowySvgs.restore_s),
-              onTap: () => showCancelAndConfirmDialog(
-                context: context,
-                confirmLabel: LocaleKeys.trash_restore.tr(),
-                title: LocaleKeys.trash_confirmRestoreAll_title.tr(),
-                description: LocaleKeys.trash_confirmRestoreAll_caption.tr(),
-                onConfirm: (_) => context
-                    .read<TrashBloc>()
-                    .add(const TrashEvent.restoreAll()),
+          Expanded(
+            child: Text(
+              LocaleKeys.trash_text.tr(),
+              style: theme.textStyle.heading2.prominent(
+                color: theme.textColorScheme.primary,
               ),
             ),
           ),
-          const HSpace(6),
-          IntrinsicWidth(
-            child: FlowyButton(
-              text: FlowyText.medium(
-                LocaleKeys.trash_deleteAll.tr(),
-                lineHeight: 1.0,
-              ),
-              leftIcon: const FlowySvg(FlowySvgs.delete_s),
-              onTap: () => showConfirmDeletionDialog(
-                context: context,
-                name: LocaleKeys.trash_confirmDeleteAll_title.tr(),
-                description: LocaleKeys.trash_confirmDeleteAll_caption.tr(),
-                onConfirm: () =>
-                    context.read<TrashBloc>().add(const TrashEvent.deleteAll()),
-              ),
+          AFGhostButton.normal(
+            builder: (context, isHovering, disabled) {
+              return Row(
+                spacing: theme.spacing.m,
+                children: [
+                  FlowySvg(
+                    FlowySvgs.restore_s,
+                    size: const Size.square(20),
+                    color: disabled
+                        ? theme.iconColorScheme.tertiary
+                        : theme.iconColorScheme.primary,
+                  ),
+                  Text(
+                    LocaleKeys.trash_restoreAll.tr(),
+                    style: theme.textStyle.body.enhanced(
+                      color: disabled
+                          ? theme.textColorScheme.tertiary
+                          : theme.textColorScheme.primary,
+                    ),
+                  ),
+                ],
+              );
+            },
+            disabled: state.objects.isEmpty,
+            onTap: () => showCancelAndConfirmDialog(
+              context: context,
+              confirmLabel: LocaleKeys.trash_restore.tr(),
+              title: LocaleKeys.trash_confirmRestoreAll_title.tr(),
+              description: LocaleKeys.trash_confirmRestoreAll_caption.tr(),
+              onConfirm: (_) =>
+                  context.read<TrashBloc>().add(const TrashEvent.restoreAll()),
+            ),
+          ),
+          AFGhostButton.normal(
+            builder: (context, isHovering, disabled) {
+              return Row(
+                spacing: theme.spacing.m,
+                children: [
+                  FlowySvg(
+                    FlowySvgs.delete_s,
+                    size: const Size.square(20),
+                    color: disabled
+                        ? theme.iconColorScheme.tertiary
+                        : theme.iconColorScheme.primary,
+                  ),
+                  Text(
+                    LocaleKeys.trash_deleteAll.tr(),
+                    style: theme.textStyle.body.enhanced(
+                      color: disabled
+                          ? theme.textColorScheme.tertiary
+                          : theme.textColorScheme.primary,
+                    ),
+                  ),
+                ],
+              );
+            },
+            disabled: state.objects.isEmpty,
+            onTap: () => showConfirmDeletionDialog(
+              context: context,
+              name: LocaleKeys.trash_confirmDeleteAll_title.tr(),
+              description: LocaleKeys.trash_confirmDeleteAll_caption.tr(),
+              onConfirm: () =>
+                  context.read<TrashBloc>().add(const TrashEvent.deleteAll()),
             ),
           ),
         ],

@@ -57,4 +57,17 @@ abstract class ShareWithUserRepository {
   Future<void> setUpgradeToProButtonClicked({
     required String workspaceId,
   });
+
+  /// Refresh the shared pages.
+  Future<void> refreshSharedPages();
+
+  /// Get current workspace id.
+  Future<FlowyResult<String, FlowyError>> getCurrentWorkspaceId();
+
+  /// Build share URL for a page.
+  String buildShareUrl({
+    required String workspaceId,
+    required String viewId,
+    String? blockId,
+  });
 }

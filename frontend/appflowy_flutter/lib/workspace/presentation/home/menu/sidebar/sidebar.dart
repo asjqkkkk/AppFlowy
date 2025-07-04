@@ -30,19 +30,22 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_upgrade_application_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar_top_menu.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar_user.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/network.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_folder.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_new_page_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/sidebar_space.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/space_migration.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/sidebar_workspace.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
+    hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-folder/workspace.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart'
-    show UserProfilePB;
+    show AFRolePB, UserProfilePB;
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -263,7 +266,13 @@ class HomeSideBar extends StatelessWidget {
         Log.info(
           'Switching space from (${firstAncestor.name}-${firstAncestor.id}) to (${space.name}-${space.id})',
         );
-        spaceBloc.add(SpaceEvent.open(space: space, afterOpen: afterOpen));
+        spaceBloc.add(
+          SpaceEvent.open(
+            space: space,
+            openDefaultPage: kFlutterMemoryAllocationsEnabled,
+            afterOpen: afterOpen,
+          ),
+        );
       }
     }
   }
@@ -330,6 +339,8 @@ class _SidebarState extends State<_Sidebar> {
   @override
   Widget build(BuildContext context) {
     const menuHorizontalInset = EdgeInsets.symmetric(horizontal: 8);
+    final currentRole =
+        context.watch<UserWorkspaceBloc>().state.currentWorkspace?.role;
     return MouseRegion(
       onEnter: (_) => _isHovered.value = true,
       onExit: (_) => _isHovered.value = false,
@@ -361,6 +372,7 @@ class _SidebarState extends State<_Sidebar> {
                     : SidebarUser(userProfile: widget.userProfile),
               ),
             ),
+
             if (FeatureFlag.search.isOn) ...[
               const VSpace(6),
               Container(
@@ -370,12 +382,7 @@ class _SidebarState extends State<_Sidebar> {
               ),
             ],
 
-            if (context
-                    .read<UserWorkspaceBloc>()
-                    .state
-                    .currentWorkspace
-                    ?.role !=
-                AFRolePB.Guest) ...[
+            if (currentRole != AFRolePB.Guest) ...[
               const VSpace(6.0),
               // new page button
               const SidebarNewPageButton(),
@@ -398,22 +405,37 @@ class _SidebarState extends State<_Sidebar> {
             _renderFolderOrSpace(menuHorizontalInset),
 
             // trash
-            Padding(
-              padding: menuHorizontalInset +
-                  const EdgeInsets.symmetric(horizontal: 4.0),
-              child: const FlowyDivider(),
-            ),
-            const VSpace(8),
+            if (currentRole != AFRolePB.Guest) ...[
+              Padding(
+                padding: menuHorizontalInset +
+                    const EdgeInsets.symmetric(horizontal: 4.0),
+                child: const FlowyDivider(),
+              ),
+              const VSpace(8),
+            ],
 
             _renderUpgradeSpaceButton(menuHorizontalInset),
             _buildUpgradeApplicationButton(menuHorizontalInset),
 
             const VSpace(8),
-            Padding(
-              padding: menuHorizontalInset +
-                  const EdgeInsets.symmetric(horizontal: 4.0),
-              child: const SidebarFooter(),
-            ),
+            if (currentRole != AFRolePB.Guest)
+              Padding(
+                padding: menuHorizontalInset +
+                    const EdgeInsets.symmetric(horizontal: 4.0),
+                child: const SidebarFooter(),
+              ),
+
+            if (kDebugMode)
+              BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+                builder: (context, state) {
+                  if (state.currentWorkspace?.workspaceId == null) {
+                    return const SizedBox.shrink();
+                  }
+                  return WebSocketIndicator(
+                    workspaceId: state.currentWorkspace!.workspaceId,
+                  );
+                },
+              ),
             const VSpace(14),
           ],
         ),
@@ -426,7 +448,10 @@ class _SidebarState extends State<_Sidebar> {
     final workspaceState = context.read<UserWorkspaceBloc>().state;
 
     if (!spaceState.isInitialized) {
-      return const SizedBox.shrink();
+      // always expand the section to allow the templates and trash button show at the bottom of the sidebar
+      return const Expanded(
+        child: SizedBox.shrink(),
+      );
     }
 
     // there's no space or the workspace is not collaborative,
@@ -577,7 +602,7 @@ class _SidebarSearchButton extends StatelessWidget {
           );
         },
         leftIcon: const FlowySvg(FlowySvgs.search_s),
-        iconPadding: 12.0,
+        iconPadding: 8.0,
         margin: const EdgeInsets.only(left: 8.0),
         text: FlowyText.regular(LocaleKeys.search_label.tr()),
       ),

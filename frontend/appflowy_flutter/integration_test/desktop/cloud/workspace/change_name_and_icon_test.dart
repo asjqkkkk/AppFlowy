@@ -44,6 +44,10 @@ void main() {
       find.text(LocaleKeys.workspace_renameSuccess.tr()),
     );
 
+    await tester.pumpAndSettle(
+      const Duration(milliseconds: 500),
+    );
+
     workspaceIcon = tester.widget<WorkspaceIcon>(
       find.byType(WorkspaceIcon),
     );

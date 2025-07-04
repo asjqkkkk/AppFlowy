@@ -1,7 +1,6 @@
 import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/plugins/blank/blank.dart';
-import 'package:appflowy/startup/plugin/plugin.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/startup/tasks/memory_leak_detector.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
@@ -115,8 +114,7 @@ class DesktopHomeScreen extends StatelessWidget {
                     final currentPageManager =
                         context.read<TabsBloc>().state.currentPageManager;
 
-                    if (currentPageManager.plugin.pluginType ==
-                        PluginType.blank) {
+                    if (currentPageManager.plugin.id != view.id) {
                       getIt<TabsBloc>().add(
                         TabsEvent.openPlugin(plugin: view.plugin()),
                       );
@@ -147,6 +145,11 @@ class DesktopHomeScreen extends StatelessWidget {
                           workspaceBloc: workspaceBloc,
                           spaceBloc: spaceBloc,
                         );
+
+                        // refresh the latest view
+                        context
+                            .read<HomeBloc>()
+                            .add(const HomeEvent.refreshLatestView());
                       },
                       child: HomeHotKeys(
                         userProfile: userProfile,

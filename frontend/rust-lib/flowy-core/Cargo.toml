@@ -21,13 +21,13 @@ flowy-error = { workspace = true }
 flowy-server = { workspace = true }
 flowy-server-pub = { workspace = true }
 flowy-date = { workspace = true }
-collab-integrate = { workspace = true }
 flowy-search = { workspace = true }
 flowy-search-pub = { workspace = true }
 collab-entity = { workspace = true }
 collab-plugins = { workspace = true }
 collab-folder = { workspace = true }
 collab-document = { workspace = true }
+futures.workspace = true
 
 collab = { workspace = true }
 #collab = { workspace = true, features = ["verbose_log"] }
@@ -35,14 +35,12 @@ collab = { workspace = true }
 diesel.workspace = true
 flowy-storage = { workspace = true }
 flowy-storage-pub = { workspace = true }
-client-api.workspace = true
+client-api = { workspace = true, no-default-features = true, features = ["verbose_log"] }
 flowy-ai = { workspace = true }
 flowy-ai-pub = { workspace = true }
 
 
 tracing.workspace = true
-futures-core = { version = "0.3", default-features = false }
-futures = "0.3"
 bytes.workspace = true
 tokio = { workspace = true, features = ["full"] }
 tokio-stream = { workspace = true, features = ["sync"] }

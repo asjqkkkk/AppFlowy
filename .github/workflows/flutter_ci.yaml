@@ -28,7 +28,7 @@ env:
   FLUTTER_VERSION: "3.27.4"
   RUST_TOOLCHAIN: "1.85.0"
   CARGO_MAKE_VERSION: "0.37.18"
-  CLOUD_VERSION: 0.9.49-amd64
+  CLOUD_VERSION: latest-amd64
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
@@ -232,11 +232,11 @@ jobs:
       - name: Checkout appflowy cloud code
         uses: actions/checkout@v4
         with:
-          repository: AppFlowy-IO/AppFlowy-Cloud
-          path: AppFlowy-Cloud
+          repository: AppFlowy-IO/AppFlowy-Cloud-Premium
+          path: AppFlowy-Cloud-Premium
 
       - name: Prepare appflowy cloud env
-        working-directory: AppFlowy-Cloud
+        working-directory: AppFlowy-Cloud-Premium
         run: |
           # log level
           cp deploy.env .env
@@ -246,13 +246,14 @@ jobs:
           sed -i 's|API_EXTERNAL_URL=.*|API_EXTERNAL_URL=http://localhost|' .env
 
       - name: Run Docker-Compose
-        working-directory: AppFlowy-Cloud
+        working-directory: AppFlowy-Cloud-Premium
         env:
           APPFLOWY_CLOUD_VERSION: ${{ env.CLOUD_VERSION }}
           APPFLOWY_HISTORY_VERSION: ${{ env.CLOUD_VERSION }}
           APPFLOWY_WORKER_VERSION: ${{ env.CLOUD_VERSION }}
+          APPFLOWY_ADMIN_FRONTEND_VERSION: ${{ env.CLOUD_VERSION }}
         run: |
-          container_id=$(docker ps --filter name=appflowy-cloud-appflowy_cloud-1 -q)
+          container_id=$(docker ps --filter name=appflowy-cloud-premium-appflowy_cloud-1 -q)
           if [ -z "$container_id" ]; then
             echo "AppFlowy-Cloud container is not running. Pulling and starting the container..."
             docker compose pull
@@ -261,7 +262,7 @@ jobs:
             sleep 10
           else
             running_image=$(docker inspect --format='{{index .Config.Image}}' "$container_id")
-            if [ "$running_image" != "appflowy-cloud:$APPFLOWY_CLOUD_VERSION" ]; then
+            if [ "$running_image" != "appflowy-cloud-premium:$APPFLOWY_CLOUD_VERSION" ]; then
               echo "AppFlowy-Cloud is running with an incorrect version. Restarting with the correct version..."
               # Remove all containers if any exist
               if [ "$(docker ps -aq)" ]; then

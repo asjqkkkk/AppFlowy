@@ -1,125 +1,148 @@
 {
-  // Use IntelliSense to learn about possible attributes.
-  // Hover to view descriptions of existing attributes.
-  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
-  "version": "0.2.0",
-  "configurations": [
-      {
-          // This task only builds the Dart code of AppFlowy.
-          // It supports both the desktop and mobile version.
-          "name": "AF: Build Dart Only",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "env": {
-              "RUST_LOG": "debug",
-          },
-          // uncomment the following line to testing performance.
-          // "flutterMode": "profile",
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          // This task builds the Rust and Dart code of AppFlowy.
-          "name": "AF-desktop: Build All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Build Appflowy Core",
-          "env": {
-              "RUST_LOG": "trace",
-              "RUST_BACKTRACE": "1"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          // This task builds will:
-          // - call the clean task,
-          // - rebuild all the generated Files (including freeze and language files)
-          // - rebuild the the Rust and Dart code of AppFlowy.
-          "name": "AF-desktop: Clean + Rebuild All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Clean + Rebuild All",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-iOS: Build All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Build Appflowy Core For iOS",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-iOS: Clean + Rebuild All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Clean + Rebuild All (iOS)",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-iOS-Simulator: Build All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Build Appflowy Core For iOS Simulator",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-iOS-Simulator: Clean + Rebuild All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Clean + Rebuild All (iOS Simulator)",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-Android: Build All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Build Appflowy Core For Android",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-Android: Clean + Rebuild All",
-          "request": "launch",
-          "program": "./lib/main.dart",
-          "type": "dart",
-          "preLaunchTask": "AF: Clean + Rebuild All (Android)",
-          "env": {
-              "RUST_LOG": "trace"
-          },
-          "cwd": "${workspaceRoot}/appflowy_flutter"
-      },
-      {
-          "name": "AF-desktop: Debug Rust",
-          "type": "lldb",
-          "request": "attach",
-          "pid": "${command:pickMyProcess}"
-          // To launch the application directly, use the following configuration:
-          // "request": "launch",
-          // "program": "[YOUR_APPLICATION_PATH]",
-      },
-  ]
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            // This task only builds the Dart code of AppFlowy.
+            // It supports both the desktop and mobile version.
+            "name": "AF: Build Dart Only",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "env": {
+                "RUST_LOG": "flowy_core=debug,flowy_chat=debug,client_api=debug,sync_log=debug",
+            },
+            // uncomment the following line to testing performance.
+            // "flutterMode": "profile",
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            // This task builds the Rust and Dart code of AppFlowy.
+            "name": "AF-desktop: Build All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Build Appflowy Core",
+            "env": {
+                // RUST_LOG Configuration:
+                // Available crates and their purposes:
+                //   - flowy_user: User authentication and management
+                //   - flowy_core: Core application logic
+                //   - flowy_folder: Folder and workspace management
+                //   - flowy_database2: Database operations
+                //   - flowy_chat: Chat functionality
+                //   - flowy_search: Search features
+                //   - flowy_ai: AI integration
+                //   - client_api: API client communications
+                //   - sync_log: Synchronization logging
+                //
+                // Log levels: error, warn, info, debug, trace
+                // Usage examples:
+                //   - Single crate: "flowy_user=debug"
+                //   - Multiple crates: "flowy_user=debug,flowy_core=trace"
+                //   - All crates: "trace"
+                "RUST_LOG": "info",
+                "RUST_BACKTRACE": "1",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            // This task builds will:
+            // - call the clean task,
+            // - rebuild all the generated Files (including freeze and language files)
+            // - rebuild the the Rust and Dart code of AppFlowy.
+            "name": "AF-desktop: Clean + Rebuild All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Clean + Rebuild All",
+            "env": {
+                "RUST_LOG": "trace",
+                "SYNC_LOG_ENABLE": "false",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-iOS: Build All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Build Appflowy Core For iOS",
+            "env": {
+                "RUST_LOG": "trace",
+                "SYNC_LOG_ENABLE": "false",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-iOS: Clean + Rebuild All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Clean + Rebuild All (iOS)",
+            "env": {
+                "RUST_LOG": "trace",
+                "SYNC_LOG_ENABLE": "false",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-iOS-Simulator: Build All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Build Appflowy Core For iOS Simulator",
+            "env": {
+                "RUST_LOG": "trace",
+                "SYNC_LOG_ENABLE": "false",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-iOS-Simulator: Clean + Rebuild All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Clean + Rebuild All (iOS Simulator)",
+            "env": {
+                "RUST_LOG": "trace",
+                "SYNC_LOG_ENABLE": "false",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-Android: Build All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Build Appflowy Core For Android",
+            "env": {
+                "RUST_LOG": "trace"
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-Android: Clean + Rebuild All",
+            "request": "launch",
+            "program": "./lib/main.dart",
+            "type": "dart",
+            "preLaunchTask": "AF: Clean + Rebuild All (Android)",
+            "env": {
+                "RUST_LOG": "trace",
+                "SYNC_LOG_ENABLE": "false",
+            },
+            "cwd": "${workspaceRoot}/appflowy_flutter"
+        },
+        {
+            "name": "AF-desktop: Debug Rust",
+            "type": "lldb",
+            "request": "attach",
+            "pid": "${command:pickMyProcess}"
+            // To launch the application directly, use the following configuration:
+            // "request": "launch",
+            // "program": "[YOUR_APPLICATION_PATH]",
+        },
+    ]
 }

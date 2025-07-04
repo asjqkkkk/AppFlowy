@@ -411,7 +411,6 @@ class WorkspaceMemberBloc
   Future<void> _fetchWorkspaceSubscriptionInfo() async {
     final workspaceId = _workspaceId.value;
     if (workspaceId == null) {
-      Log.error('Failed to fetch subscription info: workspaceId is null');
       return;
     }
 
@@ -425,7 +424,7 @@ class WorkspaceMemberBloc
           add(WorkspaceMemberEvent.updateSubscriptionInfo(info));
         }
       },
-      (f) => Log.error('Failed to fetch subscription info: ${f.msg}', f),
+      (f) => {},
     );
   }
 

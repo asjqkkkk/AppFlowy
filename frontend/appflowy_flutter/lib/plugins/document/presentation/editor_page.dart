@@ -174,11 +174,14 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
       CalloutBlockKeys.type,
       QuoteBlockKeys.type,
     ]);
+
     convertibleBlockTypes.addAll([
       ToggleListBlockKeys.type,
       CalloutBlockKeys.type,
       QuoteBlockKeys.type,
     ]);
+
+    appflowyEditorSliceAttributes = _customAppFlowyEditorSliceAttributes;
 
     editorLaunchUrl = (url) {
       if (url != null) {
@@ -364,7 +367,7 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
         autoFocus: widget.autoFocus ?? autoFocus,
         focusedSelection: selection,
         // setup the theme
-        editorStyle: styleCustomizer.style(),
+        editorStyle: styleCustomizer.style(editable: isEditable),
         // customize the block builders
         blockComponentBuilders: buildBlockComponentBuilders(
           slashMenuItemsBuilder: (editorState, node) => _customSlashMenuItems(
@@ -638,3 +641,75 @@ bool showInAnyTextType(EditorState editorState) {
   final nodes = editorState.getNodesInSelection(selection);
   return nodes.any((node) => toolbarItemWhiteList.contains(node.type));
 }
+
+AppFlowyEditorSliceAttributes? _customAppFlowyEditorSliceAttributes = (
+  delta,
+  int index,
+) {
+  if (index < 0) {
+    return null;
+  }
+
+  // if the index == 0, slice the attributes from the next position.
+  if (index == 0 && delta.isNotEmpty) {
+    final attributes = delta.slice(index, index + 1).firstOrNull?.attributes;
+    if (attributes == null) {
+      return null;
+    }
+
+    // if the attributes is not supported, return null.
+    if (attributes.keys.any(
+      (element) => !AppFlowyRichTextKeys.supportSliced.contains(element),
+    )) {
+      return null;
+    }
+
+    return attributes;
+  }
+
+  // if the index is not 0, slice the attributes from the previous position.
+  final prevAttributes = delta.slice(index - 1, index).firstOrNull?.attributes;
+  if (prevAttributes == null) {
+    return null;
+  }
+  // if the prevAttributes doesn't include the code/href, return it.
+  // Otherwise, check if the nextAttributes includes the code/href.
+  if (!prevAttributes.keys.any(
+    (element) => AppFlowyRichTextKeys.partialSliced.contains(element),
+  )) {
+    return prevAttributes;
+  }
+
+  // check if the nextAttributes includes the code.
+  final nextAttributes = delta.slice(index, index + 1).firstOrNull?.attributes;
+  if (nextAttributes == null) {
+    return prevAttributes
+      ..removeWhere(
+        (key, _) => AppFlowyRichTextKeys.partialSliced.contains(key),
+      );
+  }
+
+  // if the nextAttributes doesn't include the code/href, exclude the code/href format.
+  if (!nextAttributes.keys.any(
+    (element) => AppFlowyRichTextKeys.partialSliced.contains(element),
+  )) {
+    return prevAttributes
+      ..removeWhere(
+        (key, _) => AppFlowyRichTextKeys.partialSliced.contains(key),
+      );
+  }
+
+  if (prevAttributes.keys.any(
+        (element) => AppFlowyRichTextKeys.partialSliced.contains(element),
+      ) &&
+      nextAttributes.keys.any(
+        (element) => AppFlowyRichTextKeys.partialSliced.contains(element),
+      )) {
+    return prevAttributes
+      ..removeWhere(
+        (key, _) => AppFlowyRichTextKeys.partialSliced.contains(key),
+      );
+  }
+
+  return prevAttributes;
+};

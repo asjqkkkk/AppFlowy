@@ -263,7 +263,7 @@ pub(crate) async fn restart_local_ai_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
 ) -> Result<(), FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  ai_manager.local_ai.restart_plugin().await;
+  ai_manager.local_ai_controller.restart_plugin().await;
   Ok(())
 }
 
@@ -273,7 +273,7 @@ pub(crate) async fn toggle_local_ai_handler(
 ) -> DataResult<LocalAIPB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
   ai_manager.toggle_local_ai().await?;
-  let state = ai_manager.local_ai.get_local_ai_state().await;
+  let state = ai_manager.local_ai_controller.get_local_ai_state().await;
   data_result_ok(state)
 }
 
@@ -282,7 +282,7 @@ pub(crate) async fn get_local_ai_state_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
 ) -> DataResult<LocalAIPB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let state = ai_manager.local_ai.get_local_ai_state().await;
+  let state = ai_manager.local_ai_controller.get_local_ai_state().await;
   data_result_ok(state)
 }
 
@@ -340,7 +340,7 @@ pub(crate) async fn get_local_ai_setting_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
 ) -> DataResult<LocalAISettingPB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let setting = ai_manager.local_ai.get_local_ai_setting();
+  let setting = ai_manager.local_ai_controller.get_local_ai_setting();
   let pb = LocalAISettingPB::from(setting);
   data_result_ok(pb)
 }

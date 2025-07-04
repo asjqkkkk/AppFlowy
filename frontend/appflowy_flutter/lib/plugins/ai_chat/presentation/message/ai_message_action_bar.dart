@@ -12,7 +12,6 @@ import 'package:appflowy/shared/markdown_to_document.dart';
 import 'package:appflowy/shared/patterns/common_patterns.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/theme_extension.dart';
-import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
@@ -509,30 +508,29 @@ class SaveToPageButton extends StatefulWidget {
 }
 
 class _SaveToPageButtonState extends State<SaveToPageButton> {
+  final key = GlobalKey<ViewSelectorWidgetState>();
   final popoverController = PopoverController();
 
   @override
   Widget build(BuildContext context) {
     return ViewSelector(
-      viewSelectorCubit: BlocProvider(
-        create: (context) => ViewSelectorCubit(
-          getIgnoreViewType: (item) {
-            final view = item.view;
+      key: key,
+      viewSelectorCubit: ViewSelectorCubit(
+        getIgnoreViewType: (item) {
+          final view = item.view;
 
-            if (view.isSpace) {
-              return IgnoreViewType.none;
-            }
-            if (view.layout != ViewLayoutPB.Document) {
-              return IgnoreViewType.hide;
-            }
-
+          if (view.isSpace) {
             return IgnoreViewType.none;
-          },
-        ),
+          }
+          if (view.layout != ViewLayoutPB.Document) {
+            return IgnoreViewType.hide;
+          }
+
+          return IgnoreViewType.none;
+        },
       ),
-      child: BlocSelector<SpaceBloc, SpaceState, ViewPB?>(
-        selector: (state) => state.currentSpace,
-        builder: (context, spaceView) {
+      child: Builder(
+        builder: (context) {
           return AppFlowyPopover(
             controller: popoverController,
             triggerActions: PopoverTriggerFlags.none,
@@ -542,14 +540,10 @@ class _SaveToPageButtonState extends State<SaveToPageButton> {
             direction: PopoverDirection.rightWithBottomAligned,
             constraints: const BoxConstraints.tightFor(width: 300, height: 400),
             onClose: () {
-              if (spaceView != null) {
-                context
-                    .read<ViewSelectorCubit>()
-                    .refreshSources([spaceView], spaceView);
-              }
+              key.currentState?.refreshViews(showCurrentSpaceOnly: true);
               widget.onOverrideVisibility?.call(false);
             },
-            child: buildButton(context, spaceView),
+            child: buildButton(context),
             popupBuilder: (_) => buildPopover(context),
           );
         },
@@ -557,7 +551,7 @@ class _SaveToPageButtonState extends State<SaveToPageButton> {
     );
   }
 
-  Widget buildButton(BuildContext context, ViewPB? spaceView) {
+  Widget buildButton(BuildContext context) {
     return FlowyTooltip(
       message: LocaleKeys.chat_addToPageButton.tr(),
       child: FlowyIconButton(
@@ -580,13 +574,7 @@ class _SaveToPageButtonState extends State<SaveToPageButton> {
             await updateSelection(documentId);
           } else {
             widget.onOverrideVisibility?.call(true);
-            if (spaceView != null) {
-              unawaited(
-                context
-                    .read<ViewSelectorCubit>()
-                    .refreshSources([spaceView], spaceView),
-              );
-            }
+            key.currentState?.refreshViews(showCurrentSpaceOnly: true);
             popoverController.show();
           }
         },

@@ -5,8 +5,7 @@ use client_api::entity::{
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
 use flowy_server_pub::guest_dto::{
-  ListSharedViewResponse, RevokeSharedViewAccessRequest, ShareViewWithGuestRequest,
-  SharedViewDetails,
+  RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
 use serde_json::to_vec;
 use std::path::PathBuf;
@@ -93,12 +92,11 @@ where
     let try_get_client = self.inner.try_get_client();
     let params = objects
       .into_iter()
-      .map(|object| {
-        CollabParams::new(
-          object.object_id,
-          object.collab_type,
-          object.encoded_collab_v1,
-        )
+      .map(|object| CollabParams {
+        object_id: object.object_id,
+        collab_type: object.collab_type,
+        encoded_collab_v1: object.encoded_collab_v1.into(),
+        updated_at: None,
       })
       .collect::<Vec<_>>();
     try_get_client?
@@ -303,19 +301,18 @@ where
     &self,
     workspace_id: &Uuid,
     view_id: &Uuid,
+    parent_view_ids: Vec<Uuid>,
   ) -> Result<SharedViewDetails, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let details = try_get_client?
-      .get_shared_view_details(workspace_id, view_id)
+      .get_shared_view_details(workspace_id, view_id, &parent_view_ids)
       .await
       .map_err(FlowyError::from)?;
     Ok(details)
   }
 
-  async fn get_shared_views(
-    &self,
-    workspace_id: &Uuid,
-  ) -> Result<ListSharedViewResponse, FlowyError> {
+  #[instrument(level = "debug", skip_all)]
+  async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let resp = try_get_client?
       .get_shared_views(workspace_id)
