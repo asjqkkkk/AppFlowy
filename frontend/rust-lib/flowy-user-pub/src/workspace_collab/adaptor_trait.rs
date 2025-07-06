@@ -8,6 +8,7 @@ use flowy_ai_pub::entities::UnindexedData;
 use flowy_error::{FlowyError, FlowyResult};
 use lib_infra::async_trait::async_trait;
 use std::borrow::BorrowMut;
+use std::fmt::Display;
 use std::sync::Weak;
 use uuid::Uuid;
 
@@ -45,10 +46,25 @@ pub trait WorkspaceCollabIndexer: Send + Sync {
   );
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConsumerType {
+  Embedding,
+  Search,
+}
+
+impl Display for ConsumerType {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      ConsumerType::Embedding => write!(f, "embedding"),
+      ConsumerType::Search => write!(f, "search"),
+    }
+  }
+}
+
 /// writer interface
 #[async_trait]
 pub trait EditingCollabDataConsumer: Send + Sync + 'static {
-  fn consumer_id(&self) -> String;
+  fn consumer_id(&self) -> ConsumerType;
 
   async fn consume_collab(
     &self,

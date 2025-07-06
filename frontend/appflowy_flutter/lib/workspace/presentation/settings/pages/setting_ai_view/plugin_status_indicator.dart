@@ -16,15 +16,15 @@ class LocalAIStatusIndicator extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<LocalAiPluginBloc, LocalAiPluginState>(
+    return BlocBuilder<LocalAISettingBloc, LocalAISettingState>(
       builder: (context, state) {
         return state.maybeWhen(
-          ready: (_, isReady, lackOfResource) {
-            if (lackOfResource != null) {
-              return _LackOfResource(resource: lackOfResource);
+          ready: (data) {
+            if (data.hasLackOfResource()) {
+              return _LackOfResource(resource: data.lackOfResource);
             }
 
-            return switch (isReady) {
+            return switch (data.isReady) {
               true => const _LocalAIRunning(),
               false => const _RestartPluginButton(),
             };
@@ -83,8 +83,8 @@ class _RestartPluginButton extends StatelessWidget {
                     recognizer: TapGestureRecognizer()
                       ..onTap = () {
                         context
-                            .read<LocalAiPluginBloc>()
-                            .add(const LocalAiPluginEvent.restart());
+                            .read<LocalAISettingBloc>()
+                            .add(const LocalAISettingEvent.restart());
                       },
                   ),
                 ],

@@ -182,7 +182,7 @@ async fn af_cloud_multiple_user_offline_then_online_edit_document_test() {
     .await;
   test_1
     .user_manager
-    .connect_workspace_ws_conn(&workspace_id)
+    .start_ws_connect_manually(&workspace_id)
     .await
     .unwrap();
 

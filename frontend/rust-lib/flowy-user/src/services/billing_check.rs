@@ -1,7 +1,7 @@
 use crate::services::authenticate_user::AuthenticateUser;
 use client_api::entity::billing_dto::SubscriptionPlan;
 use flowy_error::{FlowyError, FlowyResult};
-use flowy_user_pub::cloud::UserCloudServiceProvider;
+use flowy_user_pub::cloud::UserServerProvider;
 use std::sync::Weak;
 use std::time::Duration;
 use uuid::Uuid;
@@ -15,7 +15,7 @@ use uuid::Uuid;
 /// attempts is reached.
 pub struct PeriodicallyCheckBillingState {
   workspace_id: Uuid,
-  cloud_service: Weak<dyn UserCloudServiceProvider>,
+  cloud_service: Weak<dyn UserServerProvider>,
   expected_plan: Option<SubscriptionPlan>,
   user: Weak<AuthenticateUser>,
 }
@@ -24,7 +24,7 @@ impl PeriodicallyCheckBillingState {
   pub fn new(
     workspace_id: Uuid,
     expected_plan: Option<SubscriptionPlan>,
-    cloud_service: Weak<dyn UserCloudServiceProvider>,
+    cloud_service: Weak<dyn UserServerProvider>,
     user: Weak<AuthenticateUser>,
   ) -> Self {
     Self {
@@ -46,7 +46,7 @@ impl PeriodicallyCheckBillingState {
     let delay_duration = Duration::from_secs(4);
     while attempts < max_attempts {
       let plans = cloud_service
-        .get_user_service()?
+        .billing_service()?
         .get_workspace_plan(self.workspace_id)
         .await?;
 

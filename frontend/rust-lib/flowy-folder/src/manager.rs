@@ -1722,17 +1722,20 @@ impl FolderManager {
     {
       let shared_with = shared_details
         .into_iter()
-        .map(|user| SharedUser {
-          email: user.email,
-          name: user.name,
-          access_level: user.access_level.into(),
-          role: user.role.into(),
-          avatar_url: if user.avatar_url.is_empty() {
-            None
-          } else {
-            Some(user.avatar_url)
-          },
-          pending_invitation: user.pending_invitation,
+        .flat_map(|user| {
+          Some(SharedUser {
+            view_id: Uuid::from_str(&user.view_id).ok()?,
+            email: user.email,
+            name: user.name,
+            access_level: user.access_level.into(),
+            role: user.role.into(),
+            avatar_url: if user.avatar_url.is_empty() {
+              None
+            } else {
+              Some(user.avatar_url)
+            },
+            pending_invitation: user.pending_invitation,
+          })
         })
         .collect();
 
@@ -2862,7 +2865,7 @@ impl FolderManager {
     let user_id = self.user.user_id()?;
 
     // 1. Local users have full access
-    if workspace.workspace_type == WorkspaceType::Local {
+    if workspace.workspace_type == WorkspaceType::Vault {
       return Ok(AFAccessLevelPB::FullAccess);
     }
 

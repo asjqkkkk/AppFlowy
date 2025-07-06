@@ -1,5 +1,6 @@
 use crate::cloud::CollabType;
 use crate::cloud::workspace_dto::ViewIcon;
+use std::fmt::Display;
 use twox_hash::xxhash64::Hasher;
 use uuid::Uuid;
 pub const RAG_IDS: &str = "rag_ids";
@@ -11,6 +12,18 @@ pub struct EmbeddingRecord {
   pub workspace_id: Uuid,
   pub object_id: Uuid,
   pub chunks: Vec<EmbeddedChunk>,
+}
+
+impl Display for EmbeddingRecord {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "EmbeddingRecord(workspace:{}, object_id: {}, chunks: {})",
+      self.workspace_id,
+      self.object_id,
+      self.chunks.len()
+    )
+  }
 }
 
 #[derive(Debug, Clone, Default)]

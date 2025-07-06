@@ -270,19 +270,25 @@ pub(crate) async fn restart_local_ai_handler(
 #[tracing::instrument(level = "debug", skip_all, err)]
 pub(crate) async fn toggle_local_ai_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
-) -> DataResult<LocalAIPB, FlowyError> {
+) -> DataResult<LocalAIStatePB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
   ai_manager.toggle_local_ai().await?;
-  let state = ai_manager.local_ai_controller.get_local_ai_state().await;
+  let state = ai_manager
+    .local_ai_controller
+    .refresh_local_ai_state(false)
+    .await?;
   data_result_ok(state)
 }
 
 #[tracing::instrument(level = "debug", skip_all, err)]
 pub(crate) async fn get_local_ai_state_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
-) -> DataResult<LocalAIPB, FlowyError> {
+) -> DataResult<LocalAIStatePB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let state = ai_manager.local_ai_controller.get_local_ai_state().await;
+  let state = ai_manager
+    .local_ai_controller
+    .refresh_local_ai_state(false)
+    .await?;
   data_result_ok(state)
 }
 
@@ -315,9 +321,7 @@ pub(crate) async fn get_chat_settings_handler(
   let chat_id = data.try_into_inner()?.value;
   let chat_id = Uuid::from_str(&chat_id)?;
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let uid = ai_manager.user_service.user_id()?;
-  let mut conn = ai_manager.user_service.sqlite_connection(uid)?;
-  let rag_ids = ai_manager.get_rag_ids(&chat_id, &mut conn).await?;
+  let rag_ids = ai_manager.get_rag_ids(&chat_id).await?;
   let pb = ChatSettingsPB { rag_ids };
   data_result_ok(pb)
 }

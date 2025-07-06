@@ -341,7 +341,7 @@ class WorkspaceMemberBloc
       return Log.error('Failed to upgrade plan: plan is null');
     }
 
-    if (plan == WorkspacePlanPB.FreePlan) {
+    if (plan == SubscriptionPlanPB.Free) {
       final checkoutLink = await _userBackendService.createSubscription(
         workspaceId,
         SubscriptionPlanPB.Pro,

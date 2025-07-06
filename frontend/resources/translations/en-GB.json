@@ -868,7 +868,7 @@
         "restartLocalAI": "Restart",
         "disableLocalAITitle": "Disable local AI",
         "disableLocalAIDescription": "Do you want to disable local AI?",
-        "localAIToggleTitle": "AppFlowy Local AI (LAI)",
+        "localAIToggleTitle": "AppFlowy Local AI",
         "localAIToggleSubTitle": "Run the most advanced local AI models within AppFlowy for ultimate privacy and security",
         "offlineAIInstruction1": "Follow the",
         "offlineAIInstruction2": "instruction",

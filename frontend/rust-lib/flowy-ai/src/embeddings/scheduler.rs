@@ -110,12 +110,19 @@ impl EmbeddingScheduler {
       Some(query_embed) => {
         let result = self
           .vector_db
-          .search_with_score(&workspace_id.to_string(), &[], query_embed, 10, 0.4)
+          .search_with_score(&workspace_id.to_string(), &[], query_embed, 10, 0.1)
           .await
           .map_err(|err| {
             error!("[Embedding] Failed to search: {}", err);
             FlowyError::new(ErrorCode::LocalEmbeddingNotReady, "Failed to search")
           })?;
+
+        debug!(
+          "[Search] Local embedding search workspace:{} with query: {}, got {} items",
+          workspace_id,
+          query,
+          result.len()
+        );
 
         let rows = result
           .into_iter()
@@ -221,7 +228,7 @@ pub async fn spawn_write_embeddings(
         // drain and process exactly `n` records
         let records = buf.drain(..n).collect::<Vec<_>>();
         for record in records {
-          debug!("[Embedding] Writing {} chunks for {}", record.chunks.len(), record.object_id);
+          debug!("[Embedding] Writing {}", record);
           match scheduler
               .vector_db
               .upsert_collabs_embeddings(&record.workspace_id.to_string(), &record.object_id.to_string(), record.chunks)

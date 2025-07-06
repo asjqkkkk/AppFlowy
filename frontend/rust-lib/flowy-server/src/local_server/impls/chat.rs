@@ -80,10 +80,11 @@ impl ChatCloudService for LocalChatServiceImpl {
     message_type: ChatMessageType,
     _prompt_id: Option<String>,
   ) -> Result<ChatMessage, FlowyError> {
+    let uid = self.logged_user.user_id()?;
     let message_id = ID_GEN.lock().await.next_id();
     let message = match message_type {
-      ChatMessageType::System => ChatMessage::new_system(message_id, message.to_string()),
-      ChatMessageType::User => ChatMessage::new_human(message_id, message.to_string(), None),
+      ChatMessageType::System => ChatMessage::new_system(uid, message_id, message.to_string()),
+      ChatMessageType::User => ChatMessage::new_human(uid, message_id, message.to_string(), None),
     };
 
     self.upsert_message(chat_id, message.clone()).await?;

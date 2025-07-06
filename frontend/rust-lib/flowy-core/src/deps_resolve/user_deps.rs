@@ -34,7 +34,7 @@ impl UserDepsResolver {
     database_manager: Weak<DatabaseManager>,
     folder_manager: Weak<FolderManager>,
   ) -> Arc<UserManager> {
-    let workspace_service_impl = Arc::new(UserWorkspaceServiceImpl {
+    let workspace_service_impl = Arc::new(UserDataImportImpl {
       database_manager,
       folder_manager,
     });
@@ -48,13 +48,13 @@ impl UserDepsResolver {
   }
 }
 
-pub struct UserWorkspaceServiceImpl {
+pub struct UserDataImportImpl {
   pub database_manager: Weak<DatabaseManager>,
   pub folder_manager: Weak<FolderManager>,
 }
 
 #[async_trait]
-impl WorkspaceDataImporter for UserWorkspaceServiceImpl {
+impl WorkspaceDataImporter for UserDataImportImpl {
   async fn import_views(
     &self,
     source: &ImportFrom,

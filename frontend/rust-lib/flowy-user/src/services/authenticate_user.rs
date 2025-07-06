@@ -2,6 +2,7 @@ use crate::migrations::session_migration::migrate_session;
 use crate::services::db::UserDB;
 use crate::services::entities::{UserConfig, UserPaths};
 
+use crate::entities::PersonalSubscriptionInfoPB;
 use arc_swap::ArcSwapOption;
 use client_api::v2::CollabKVActionExt;
 use collab::core::collab::default_client_id;
@@ -12,17 +13,19 @@ use collab_plugins::CollabKVDB;
 use flowy_error::{internal_error, ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::DBConnection;
-use flowy_user_pub::entities::{AuthType, UserWorkspace, WorkspaceType};
+use flowy_user_pub::entities::{AuthProvider, CheckVaultResult, UserWorkspace, WorkspaceType};
 use flowy_user_pub::session::Session;
 use flowy_user_pub::sql::{
-  select_user_auth_type, select_user_workspace, select_user_workspace_type,
+  select_user_auth_provider, select_user_workspace, select_user_workspace_type,
 };
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Weak};
-use tracing::info;
+use tracing::{error, info};
 use uuid::Uuid;
+
+const PERSONAL_SUBSCRIPTION_KEY: &str = "personal_subscription_v1";
 
 pub struct AuthenticateUser {
   pub user_config: UserConfig,
@@ -72,18 +75,60 @@ impl AuthenticateUser {
     Ok(session.user_id)
   }
 
-  pub async fn is_local_mode(&self) -> FlowyResult<bool> {
+  pub(crate) fn cache_personal_subscription(
+    &self,
+    subscription: &PersonalSubscriptionInfoPB,
+  ) -> FlowyResult<()> {
+    if let Err(err) = self
+      .store_preferences
+      .set_object(PERSONAL_SUBSCRIPTION_KEY, subscription)
+    {
+      error!("Failed to store personal subscription info: {}", err);
+    }
+    Ok(())
+  }
+
+  pub(crate) fn remove_cached_personal_subscription(&self) {
+    self.store_preferences.remove(PERSONAL_SUBSCRIPTION_KEY)
+  }
+
+  pub(crate) fn get_cached_personal_subscription(&self) -> Option<PersonalSubscriptionInfoPB> {
+    self.store_preferences.get_object(PERSONAL_SUBSCRIPTION_KEY)
+  }
+
+  pub async fn validate_vault(&self) -> FlowyResult<CheckVaultResult> {
     let session = self.get_session()?;
     let mut conn = self.get_sqlite_connection(session.user_id)?;
+    let auth_provider = select_user_auth_provider(session.user_id, &mut conn)?;
     let workspace_type = select_user_workspace_type(&session.workspace_id, &mut conn)?;
-    Ok(matches!(workspace_type, WorkspaceType::Local))
+
+    let is_vault = matches!(workspace_type, WorkspaceType::Vault)
+      && matches!(auth_provider, AuthProvider::Cloud);
+
+    let is_vault_enabled = if cfg!(debug_assertions) {
+      // In debug mode, we assume vault is enabled for testing purposes
+      true
+    } else {
+      match self.get_cached_personal_subscription() {
+        None => false,
+        Some(info) => info
+          .subscriptions
+          .iter()
+          .any(|subscription| subscription.is_vault_active()),
+      }
+    };
+
+    Ok(CheckVaultResult {
+      is_vault,
+      is_vault_enabled,
+    })
   }
 
   pub async fn is_anon(&self) -> FlowyResult<bool> {
     let uid = self.user_id()?;
     let mut conn = self.get_sqlite_connection(uid)?;
-    let auth_type = select_user_auth_type(uid, &mut conn)?;
-    Ok(matches!(auth_type, AuthType::Local))
+    let auth_provider = select_user_auth_provider(uid, &mut conn)?;
+    Ok(matches!(auth_provider, AuthProvider::Local))
   }
 
   pub fn device_id(&self) -> FlowyResult<String> {
@@ -111,11 +156,17 @@ impl AuthenticateUser {
     Ok(workspace_uuid)
   }
 
-  pub fn workspace_type(&self) -> FlowyResult<WorkspaceType> {
+  pub fn get_current_workspace_type(&self) -> FlowyResult<WorkspaceType> {
     let session = self.get_session()?;
     let mut conn = self.get_sqlite_connection(session.user_id)?;
     let workspace_type = select_user_workspace_type(&session.workspace_id, &mut conn)?;
     Ok(workspace_type)
+  }
+
+  pub fn get_workspace_type(&self, workspace_id: &Uuid) -> Result<WorkspaceType, FlowyError> {
+    let uid = self.user_id()?;
+    let mut conn = self.get_sqlite_connection(uid)?;
+    select_user_workspace_type(&workspace_id.to_string(), &mut conn)
   }
 
   pub fn workspace_database_object_id(&self) -> FlowyResult<Uuid> {
@@ -215,6 +266,7 @@ impl AuthenticateUser {
         "Can't find user session. Please login again",
       )),
       Some(session) => {
+        info!("Get session from preferences: {:?}", session);
         let session = Arc::new(session);
         self.session.store(Some(session.clone()));
         Ok(session)

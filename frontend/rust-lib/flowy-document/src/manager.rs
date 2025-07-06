@@ -380,9 +380,10 @@ impl DocumentManager {
         },
         Err(err) => {
           entry
-            .mark_initialization_failed(
-              "[Document lifecycle]: Document entry disappeared during initialization".to_string(),
-            )
+            .mark_initialization_failed(format!(
+              "[Document lifecycle]: failed to init document:{}",
+              err.msg
+            ))
             .await;
 
           if err.is_invalid_data() {

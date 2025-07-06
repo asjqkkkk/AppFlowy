@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, trace, warn};
+use tracing::{error, info, warn};
 use uuid::Uuid;
 
 #[async_trait]
@@ -155,13 +155,7 @@ impl FullIndexedDataWriter {
               .iter()
               .map(|data| {
                 let consumer_id = consumer.consumer_id();
-                let object_id = data.object_id;
                 async move {
-                  trace!(
-                    "[Indexing] {} consume {} unindexed data",
-                    consumer_id,
-                    object_id
-                  );
                   if let Err(err) = consumer.consume_indexed_data(uid, data).await {
                     error!(
                       "[Indexing] Failed to consume unindexed data: {}: {:?}",

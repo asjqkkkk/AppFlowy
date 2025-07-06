@@ -71,9 +71,9 @@ class SearchResponseStream {
     final searchState = SearchStatePB.fromBuffer(data);
 
     if (searchState.hasResponse()) {
-      if (searchState.response.hasSearchResult()) {
+      if (searchState.response.hasOnlineSearch()) {
         _onServerItems?.call(
-          searchState.response.searchResult.items,
+          searchState.response.onlineSearch.items,
           searchId,
           searchState.response.searching,
           searchState.response.generatingAiSummary,
@@ -88,9 +88,9 @@ class SearchResponseStream {
         );
       }
 
-      if (searchState.response.hasLocalSearchResult()) {
+      if (searchState.response.hasLocalSearch()) {
         _onLocalItems?.call(
-          searchState.response.localSearchResult.items,
+          searchState.response.localSearch.items,
           searchId,
         );
       }

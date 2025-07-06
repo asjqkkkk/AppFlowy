@@ -9,7 +9,7 @@ use flowy_folder::entities::ViewIconPB;
 pub struct SearchResponsePB {
   #[pb(index = 1, one_of)]
   #[builder(default)]
-  pub search_result: Option<RepeatedSearchResponseItemPB>,
+  pub online_search: Option<RepeatedSearchResponseItemPB>,
 
   #[pb(index = 2, one_of)]
   #[builder(default)]
@@ -17,7 +17,7 @@ pub struct SearchResponsePB {
 
   #[pb(index = 3, one_of)]
   #[builder(default)]
-  pub local_search_result: Option<RepeatedLocalSearchResponseItemPB>,
+  pub local_search: Option<RepeatedLocalSearchResponseItemPB>,
 
   #[pb(index = 4)]
   #[builder(default)]

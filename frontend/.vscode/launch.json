@@ -13,6 +13,7 @@
             "type": "dart",
             "env": {
                 "RUST_LOG": "flowy_core=debug,flowy_chat=debug,client_api=debug,sync_log=debug",
+                "APPFLOWY_CLOUD_BASE_BILLING_URL": "http://localhost:4242",
             },
             // uncomment the following line to testing performance.
             // "flutterMode": "profile",
@@ -43,8 +44,14 @@
                 //   - Single crate: "flowy_user=debug"
                 //   - Multiple crates: "flowy_user=debug,flowy_core=trace"
                 //   - All crates: "trace"
-                "RUST_LOG": "info",
+                "RUST_LOG": "flowy_core=debug,flowy_user=debug,flowy_ai=debug,client_api=debug,flowy_server=debug,sync_log=debug",
                 "RUST_BACKTRACE": "1",
+                // When test with billing, don't forget to set the gateway url:
+                // current config:
+                // base_url: "$baseUrl:8000",
+                // set the gateway url:
+                // base_url: "$baseUrl:8100",
+                // "APPFLOWY_CLOUD_BASE_BILLING_URL": "http://localhost:4242",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },

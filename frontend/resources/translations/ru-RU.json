@@ -887,7 +887,7 @@
         "restartLocalAI": "Перезапустить",
         "disableLocalAITitle": "Отключить локальный AI",
         "disableLocalAIDescription": "Вы хотите отключить локальный AI?",
-        "localAIToggleTitle": "AppFlowy Локальный AI (LAI)",
+        "localAIToggleTitle": "AppFlowy Локальный AI",
         "localAIToggleSubTitle": "Запускайте самые продвинутые локальные модели AI в AppFlowy для максимальной конфиденциальности и безопасности",
         "offlineAIInstruction1": "Следуйте",
         "offlineAIInstruction2": "инструкции",

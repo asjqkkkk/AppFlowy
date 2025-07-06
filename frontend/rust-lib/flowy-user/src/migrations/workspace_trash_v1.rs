@@ -10,7 +10,7 @@ use tracing::instrument;
 
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
-use flowy_user_pub::entities::AuthType;
+use flowy_user_pub::entities::AuthProvider;
 
 use crate::migrations::migration::UserDataMigration;
 use crate::migrations::util::load_collab;
@@ -40,7 +40,7 @@ impl UserDataMigration for WorkspaceTrashMapToSectionMigration {
     &self,
     user: &Session,
     collab_db: &Weak<CollabKVDB>,
-    _user_auth_type: &AuthType,
+    _user_auth_type: &AuthProvider,
     _db: &mut SqliteConnection,
     _store_preferences: &Arc<KVStorePreferences>,
   ) -> FlowyResult<()> {

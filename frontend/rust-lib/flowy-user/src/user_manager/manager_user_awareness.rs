@@ -135,7 +135,7 @@ impl UserManager {
     let is_exist_on_disk = self
       .authenticate_user
       .is_collab_on_disk(uid, &object_id.to_string())?;
-    if workspace_type.is_local() || is_exist_on_disk {
+    if workspace_type.is_vault() || is_exist_on_disk {
       self
         .load_awareness_from_disk(uid, workspace_id, &object_id, workspace_type)
         .await?;
@@ -198,7 +198,7 @@ impl UserManager {
 
     // Spawn an async task to fetch or create user awareness
     tokio::spawn(async move {
-      let create_awareness = if workspace_type.is_local() {
+      let create_awareness = if workspace_type.is_vault() {
         let doc_state =
           CollabPersistenceImpl::new(collab_db.clone(), uid, workspace_id).into_data_source();
         Self::collab_for_user_awareness(&weak_builder, &workspace_id, &object_id, doc_state, None)
@@ -210,7 +210,7 @@ impl UserManager {
         };
 
         let result = cloud_services
-          .get_user_service()?
+          .collab_service()?
           .get_user_awareness_doc_state(uid, &workspace_id, &object_id, client_id)
           .await;
 

@@ -53,7 +53,7 @@ class AIModelStateNotifier {
   final LocalAIStateListener? _localAIListener;
   final AIModelSwitchListener _aiModelSwitchListener;
 
-  LocalAIPB? _localAIState;
+  LocalAIStatePB? _localAIState;
   List<AIModelPB> _availableModels = [];
   AIModelPB? _selectedModel;
 
@@ -188,7 +188,7 @@ class AIModelStateNotifier {
       return _defaultState();
     }
 
-    final enabled = _localAIState!.enabled;
+    final enabled = _localAIState!.toggleOn;
     final running = _localAIState!.isReady;
     final hintKey = enabled
         ? (running
