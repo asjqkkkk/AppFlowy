@@ -1080,6 +1080,24 @@ impl FolderManager {
     view_id: &str,
     minimum_required_access_level: AFAccessLevelPB,
   ) -> FlowyResult<()> {
+    self
+      .check_user_permission_with_precomputed_private_view_ids(
+        view_id,
+        minimum_required_access_level,
+        None,
+      )
+      .await
+  }
+
+  // if the other_private_view_ids is provided, the function will use it instead of fetching it again.
+  // when need to check permission for a lot of views, it can save a lot of time.
+  #[instrument(level = "debug", skip_all, err)]
+  async fn check_user_permission_with_precomputed_private_view_ids(
+    &self,
+    view_id: &str,
+    minimum_required_access_level: AFAccessLevelPB,
+    other_private_view_ids: Option<&[String]>,
+  ) -> FlowyResult<()> {
     let workspace = self.user.get_active_user_workspace()?;
     let role = workspace.role;
 
@@ -1115,18 +1133,23 @@ impl FolderManager {
           }
         },
         Role::Member | Role::Owner => {
-          let uid = self.user.user_id()?;
-          // Check if this is a private view that doesn't belong to the current user
-          let lock = self
-            .mutex_folder
-            .load_full()
-            .ok_or_else(folder_not_init_error)?;
-          let folder = lock.read().await;
+          let other_private_view_ids = if let Some(precomputed_ids) = other_private_view_ids {
+            precomputed_ids.to_vec()
+          } else {
+            let uid = self.user.user_id()?;
+            // Check if this is a private view that doesn't belong to the current user
+            let lock = self
+              .mutex_folder
+              .load_full()
+              .ok_or_else(folder_not_init_error)?;
+            let folder = lock.read().await;
+            let ids = Self::get_other_private_view_ids(&folder, uid);
+            drop(folder);
+            ids
+          };
 
-          let other_private_view_ids = Self::get_other_private_view_ids(&folder, uid);
           if other_private_view_ids.contains(&view_id.to_string()) {
             // This is someone else's private view, check shared access level
-            drop(folder); // Release the lock before async call
             let shared_pages = self.get_shared_pages(false).await?;
 
             let view_access = shared_pages.shared_views.iter().find_map(|shared_view| {
@@ -2913,11 +2936,26 @@ impl FolderManager {
   }
 
   pub async fn batch_permission_check(&self, view_ids: &[String]) -> FlowyResult<Vec<bool>> {
-    let results = future::join_all(view_ids.iter().map(|view_id| async move {
-      self
-        .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
-        .await
-        .is_ok()
+    let uid = self.user.user_id()?;
+    let lock = self
+      .mutex_folder
+      .load_full()
+      .ok_or_else(folder_not_init_error)?;
+    let folder = lock.read().await;
+    let other_private_view_ids = Self::get_other_private_view_ids(&folder, uid);
+    drop(folder);
+    let results = future::join_all(view_ids.iter().map(|view_id| {
+      let other_private_view_ids = other_private_view_ids.clone();
+      async move {
+        self
+          .check_user_permission_with_precomputed_private_view_ids(
+            view_id,
+            AFAccessLevelPB::ReadOnly,
+            Some(&other_private_view_ids),
+          )
+          .await
+          .is_ok()
+      }
     }))
     .await;
     Ok(results)
@@ -2927,7 +2965,6 @@ impl FolderManager {
   pub async fn get_all_view_pbs_with_permission(&self) -> FlowyResult<Vec<ViewPB>> {
     let views = self.get_all_views_pb().await?;
     let shared_views = self.get_flatten_shared_pages().await?;
-
     let view_ids: Vec<String> = views.iter().map(|view| view.id.clone()).collect();
     let permission_results = self.batch_permission_check(&view_ids).await?;
     let views_with_permission: Vec<ViewPB> = views
@@ -2935,7 +2972,6 @@ impl FolderManager {
       .zip(permission_results.into_iter())
       .filter_map(|(view, has_permission)| if has_permission { Some(view) } else { None })
       .collect();
-
     let combined_views = [views_with_permission, shared_views].concat();
     Ok(combined_views)
   }

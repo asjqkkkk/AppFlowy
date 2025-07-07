@@ -211,7 +211,8 @@ class ViewTitleBar extends StatelessWidget {
       HSpace(theme.spacing.xs),
       BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
         buildWhen: (previous, current) =>
-            previous.sectionType != current.sectionType,
+            previous.sectionType != current.sectionType ||
+            previous.isInitializing != current.isInitializing,
         builder: (context, state) {
           return _buildSectionIcon(context, state);
         },

@@ -1,11 +1,12 @@
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:equatable/equatable.dart';
 
 typedef SharedUsers = List<SharedUser>;
 
 /// Represents a user with a role on a shared page.
-class SharedUser {
-  SharedUser({
+class SharedUser extends Equatable {
+  const SharedUser({
     required this.email,
     required this.name,
     required this.role,
@@ -33,6 +34,16 @@ class SharedUser {
   /// Whether the user is in pending state.
   final bool isPending;
 
+  @override
+  List<Object?> get props => [
+        email,
+        name,
+        role,
+        accessLevel,
+        avatarUrl,
+        isPending,
+      ];
+
   SharedUser copyWith({
     String? email,
     String? name,
@@ -49,10 +60,5 @@ class SharedUser {
       avatarUrl: avatarUrl ?? this.avatarUrl,
       isPending: isPending ?? this.isPending,
     );
-  }
-
-  @override
-  String toString() {
-    return 'SharedUser(email: $email, name: $name, role: $role, accessLevel: $accessLevel, avatarUrl: $avatarUrl, isPending: $isPending)';
   }
 }
