@@ -18,10 +18,7 @@ void showMobileContactDetailMenu(BuildContext context) {
     context,
     showDragHandle: true,
     showDivider: false,
-    enableDraggableScrollable: true,
-    initialChildSize: 0.95,
-    minChildSize: 0.95,
-    maxChildSize: 0.95,
+    enableScrollable: true,
     backgroundColor: theme.surfaceColorScheme.primary,
     builder: (_) => BlocProvider.value(
       value: context.read<ProfileSettingBloc>(),
@@ -48,6 +45,7 @@ class MobileEditBannerBottomSheet extends StatelessWidget {
               showCloseButton: true,
               showRemoveButton: false,
               title: LocaleKeys.settings_profilePage_editBannerImage.tr(),
+
               // doneButtonBuilder: (context) {
               //   return BottomSheetDoneButton(
               //     text: LocaleKeys.button_save.tr(),

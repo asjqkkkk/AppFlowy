@@ -32,7 +32,7 @@ class MobileSettingTrailing extends StatelessWidget {
           const HSpace(8),
           FlowySvg(
             FlowySvgs.toolbar_arrow_right_m,
-            size: Size.square(24),
+            size: Size.square(20),
             color: theme.iconColorScheme.tertiary,
           ),
         ],

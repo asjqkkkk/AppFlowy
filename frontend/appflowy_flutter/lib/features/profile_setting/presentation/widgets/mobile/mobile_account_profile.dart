@@ -51,11 +51,13 @@ class MobileAccountProfile extends StatelessWidget {
                         profile.name,
                         style: theme.textStyle.heading3
                             .enhanced(color: theme.textColorScheme.primary),
+                        textAlign: TextAlign.center,
                       ),
                       Text(
                         profile.email,
                         style: theme.textStyle.heading4
                             .standard(color: theme.textColorScheme.primary),
+                        textAlign: TextAlign.center,
                       ),
                       if (hasDescription) ...[
                         VSpace(spacing.l),

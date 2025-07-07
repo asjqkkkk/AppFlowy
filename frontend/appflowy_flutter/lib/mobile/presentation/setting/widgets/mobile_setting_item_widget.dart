@@ -6,7 +6,7 @@ class MobileSettingItem extends StatelessWidget {
   const MobileSettingItem({
     super.key,
     this.name,
-    this.padding = const EdgeInsets.only(bottom: 4),
+    this.padding = const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
     this.trailing,
     this.leadingIcon,
     this.title,
@@ -24,16 +24,12 @@ class MobileSettingItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
+    return AFMenuItem(
+      title: title ?? _buildDefaultTitle(context, name),
+      subtitle: subtitle,
       padding: padding,
-      child: ListTile(
-        title: title ?? _buildDefaultTitle(context, name),
-        subtitle: subtitle,
-        trailing: trailing,
-        onTap: onTap,
-        visualDensity: VisualDensity.compact,
-        contentPadding: EdgeInsets.zero,
-      ),
+      trailing: (context, hovering, disable) => trailing,
+      onTap: onTap,
     );
   }
 
@@ -48,9 +44,8 @@ class MobileSettingItem extends StatelessWidget {
         Expanded(
           child: Text(
             name ?? '',
-            style: theme.textStyle.heading4.standard(
-              color: theme.textColorScheme.primary,
-            ),
+            style: theme.textStyle.heading4
+                .standard(color: theme.textColorScheme.primary),
             overflow: TextOverflow.ellipsis,
           ),
         ),

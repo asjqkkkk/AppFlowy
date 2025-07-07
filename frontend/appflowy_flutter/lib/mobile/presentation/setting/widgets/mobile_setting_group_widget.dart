@@ -1,5 +1,4 @@
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 
 class MobileSettingGroup extends StatelessWidget {
@@ -22,7 +21,10 @@ class MobileSettingGroup extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: spacing.xl),
+          padding: EdgeInsets.symmetric(
+            horizontal: spacing.xl,
+            vertical: spacing.s,
+          ),
           child: Text(
             groupTitle,
             style: theme.textStyle.heading4.enhanced(
@@ -30,14 +32,10 @@ class MobileSettingGroup extends StatelessWidget {
             ),
           ),
         ),
-        VSpace(theme.spacing.s),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: spacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: settingItemList,
-          ),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: settingItemList,
         ),
         showDivider
             ? AFDivider(spacing: theme.spacing.m)

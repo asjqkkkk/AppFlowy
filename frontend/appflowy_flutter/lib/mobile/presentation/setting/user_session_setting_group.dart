@@ -34,7 +34,7 @@ class UserSessionSettingGroup extends StatelessWidget {
         children: [
           // third party sign in buttons
           if (showThirdPartyLogin) _buildThirdPartySignInButtons(context),
-          VSpace(theme.spacing.xxl),
+          VSpace(theme.spacing.l),
 
           // logout button
           MobileLogoutButton(
@@ -57,7 +57,7 @@ class UserSessionSettingGroup extends StatelessWidget {
             ),
           ],
 
-          VSpace(theme.spacing.xxl),
+          VSpace(theme.spacing.l),
         ],
       ),
     );
