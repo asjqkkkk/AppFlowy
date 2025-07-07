@@ -28,35 +28,38 @@ class UserSessionSettingGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    return Column(
-      children: [
-        // third party sign in buttons
-        if (showThirdPartyLogin) _buildThirdPartySignInButtons(context),
-        VSpace(theme.spacing.xxl),
-
-        // logout button
-        MobileLogoutButton(
-          text: LocaleKeys.settings_menu_logout.tr(),
-          onPressed: () async => _showLogoutDialog(),
-        ),
-
-        // delete account button
-        // only show the delete account button in cloud mode
-        if (userProfile.userAuthType == AuthTypePB.Server) ...[
+    return Padding(
+      padding: EdgeInsets.symmetric(horizontal: theme.spacing.xl),
+      child: Column(
+        children: [
+          // third party sign in buttons
+          if (showThirdPartyLogin) _buildThirdPartySignInButtons(context),
           VSpace(theme.spacing.xxl),
-          AFOutlinedTextButton.destructive(
-            alignment: Alignment.center,
-            text: LocaleKeys.button_deleteAccount.tr(),
-            textStyle: theme.textStyle.body.standard(
-              color: theme.textColorScheme.error,
-            ),
-            onTap: () => _showDeleteAccountDialog(context),
-            size: AFButtonSize.l,
-          ),
-        ],
 
-        VSpace(theme.spacing.xxl),
-      ],
+          // logout button
+          MobileLogoutButton(
+            text: LocaleKeys.settings_menu_logout.tr(),
+            onPressed: () async => _showLogoutDialog(),
+          ),
+
+          // delete account button
+          // only show the delete account button in cloud mode
+          if (userProfile.userAuthType == AuthTypePB.Server) ...[
+            VSpace(theme.spacing.xxl),
+            AFOutlinedTextButton.destructive(
+              alignment: Alignment.center,
+              text: LocaleKeys.button_deleteAccount.tr(),
+              textStyle: theme.textStyle.body.standard(
+                color: theme.textColorScheme.error,
+              ),
+              onTap: () => _showDeleteAccountDialog(context),
+              size: AFButtonSize.l,
+            ),
+          ],
+
+          VSpace(theme.spacing.xxl),
+        ],
+      ),
     );
   }
 

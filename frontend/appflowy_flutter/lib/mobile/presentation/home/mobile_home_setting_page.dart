@@ -19,7 +19,6 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
-import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -132,11 +131,4 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
       ),
     );
   }
-
-  Widget buildPadding(Widget child) => Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: AppFlowyTheme.of(context).spacing.xl,
-        ),
-        child: child,
-      );
 }
