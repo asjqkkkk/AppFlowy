@@ -186,6 +186,7 @@ class DesktopHomeScreen extends StatelessWidget {
       layout: layout,
       delegate: DesktopHomeScreenStackAdaptor(context),
       userProfile: userProfile,
+      workspaceId: workspaceSetting.workspaceId,
     );
     final sidebar = _buildHomeSidebar(
       context,

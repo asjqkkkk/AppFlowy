@@ -18,6 +18,7 @@ import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/errors/workspace_failed_screen.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/network.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
@@ -216,6 +217,9 @@ class _HomePageState extends State<_HomePage> {
               child: MobileHomePageHeader(
                 userProfile: widget.userProfile,
               ),
+            ),
+            WebSocketIndicator(
+              workspaceId: workspaceId,
             ),
 
             Expanded(

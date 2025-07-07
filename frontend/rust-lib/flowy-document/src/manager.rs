@@ -164,13 +164,13 @@ impl DocumentManager {
   }
 
   pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
-    let document = self.get_document_internal(doc_id).await?;
+    let document = self.open_document_internal(doc_id).await?;
     let document = document.read().await;
     document.get_document_data().map_err(internal_error)
   }
 
   pub async fn get_document_text(&self, doc_id: &Uuid) -> FlowyResult<String> {
-    let document = self.get_document_internal(doc_id).await?;
+    let document = self.open_document_internal(doc_id).await?;
     let document = document.read().await;
     let text = document.paragraphs().join("\n");
     Ok(text)
@@ -206,7 +206,7 @@ impl DocumentManager {
 
   #[instrument(level = "debug", skip(self))]
   pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    self.get_document_internal(doc_id).await
+    self.open_document_internal(doc_id).await
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
@@ -242,7 +242,7 @@ impl DocumentManager {
     subscribe_document_sync_state(&lock);
   }
 
-  async fn get_document_internal(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+  async fn open_document_internal(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     let entry = self.documents.get(doc_id).map(|e| e.value().clone());
     // Check if we have an active document
     if let Some(entry) = entry {
@@ -349,7 +349,7 @@ impl DocumentManager {
 
   /// Return a document instance if the document is already opened.
   pub async fn editable_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    self.get_document_internal(doc_id).await
+    self.open_document_internal(doc_id).await
   }
 
   /// Returns Document for given object id

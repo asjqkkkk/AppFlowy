@@ -377,6 +377,12 @@
     },
     "feedback": "Feedback"
   },
+  "network": {
+    "lost_connnection_mobile": "Disconnected.",
+    "lost_connnection": "Disconnected from cloud. Reconnect to sync changes",
+    "reconnect": "Reconnect",
+    "connecting": "Connecting..."
+  },
   "menuAppHeader": {
     "moreButtonToolTip": "Remove, rename, and more...",
     "addPageTooltip": "Quickly add a page inside",
