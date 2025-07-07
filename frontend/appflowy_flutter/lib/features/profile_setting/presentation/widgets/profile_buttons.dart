@@ -126,28 +126,32 @@ class _PreviewButtonState extends State<PreviewButton> {
 
   Widget buildButton() {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    return AFGhostButton.normal(
-      onTap: () {
-        popoverController.show();
-      },
-      builder: (context, isHover, disable) {
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FlowySvg(
-              FlowySvgs.profile_preview_icon_m,
-              size: Size.square(20),
-              color: theme.iconColorScheme.primary,
-            ),
-            HSpace(spacing.s),
-            Text(
-              LocaleKeys.settings_profilePage_preview.tr(),
-              style: theme.textStyle.body
-                  .standard(color: theme.textColorScheme.primary),
-            ),
-          ],
-        );
-      },
+    return FlowyTooltip(
+      message: LocaleKeys.settings_profilePage_previewButtonTooltip.tr(),
+      preferBelow: false,
+      child: AFGhostButton.normal(
+        onTap: () {
+          popoverController.show();
+        },
+        builder: (context, isHover, disable) {
+          return Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FlowySvg(
+                FlowySvgs.profile_preview_icon_m,
+                size: Size.square(20),
+                color: theme.iconColorScheme.primary,
+              ),
+              HSpace(spacing.s),
+              Text(
+                LocaleKeys.settings_profilePage_preview.tr(),
+                style: theme.textStyle.body
+                    .standard(color: theme.textColorScheme.primary),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }

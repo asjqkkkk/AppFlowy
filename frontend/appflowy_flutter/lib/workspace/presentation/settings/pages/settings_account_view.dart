@@ -80,6 +80,7 @@ class SettingsAccountView extends StatelessWidget {
                             : LocaleKeys.settings_accountPage_logoutDescription
                                 .tr(),
                         context: context,
+                        padding: isLocal ? EdgeInsets.zero : null,
                         button: SignInOutButton(
                           userProfile: state.userProfile,
                           onAction: isLocal ? didLogin : didLogout,

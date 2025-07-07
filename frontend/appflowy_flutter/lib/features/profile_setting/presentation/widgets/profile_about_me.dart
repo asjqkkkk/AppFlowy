@@ -63,16 +63,15 @@ class _ProfileAboutMeState extends State<ProfileAboutMe> {
         ValueListenableBuilder(
           valueListenable: controller,
           builder: (_, __, ___) {
-            final text = controller.text.trim();
-            if (text.length < 190) return const SizedBox.shrink();
+            if (controller.text.length < 190) return const SizedBox.shrink();
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
                 VSpace(spacing.xs),
                 Text(
-                  LocaleKeys.settings_profilePage_limitCharacters
-                      .tr(args: ['190 / 190']),
+                  LocaleKeys.settings_profilePage_limitCharactersReached
+                      .tr(args: ['190']),
                   style: theme.textStyle.body
                       .standard(color: theme.textColorScheme.tertiary),
                 ),

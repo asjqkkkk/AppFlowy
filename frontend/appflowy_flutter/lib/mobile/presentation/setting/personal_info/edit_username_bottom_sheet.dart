@@ -29,6 +29,18 @@ class _EditUsernameBottomSheetState extends State<EditUsernameBottomSheet> {
       TextEditingController(text: widget.userName);
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      textEditingController.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: textEditingController.text.length,
+      );
+    });
+  }
+
+  @override
   void dispose() {
     textEditingController.dispose();
     super.dispose();
