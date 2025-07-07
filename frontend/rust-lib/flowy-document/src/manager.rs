@@ -51,7 +51,6 @@ pub struct DocumentManager {
   documents: Arc<DashMap<Uuid, DocumentEntry>>,
   cloud_service: Arc<dyn DocumentCloudService>,
   storage_service: Weak<dyn StorageService>,
-  base_removal_timeout: Duration,
 }
 
 impl Drop for DocumentManager {
@@ -67,23 +66,13 @@ impl DocumentManager {
     cloud_service: Arc<dyn DocumentCloudService>,
     storage_service: Weak<dyn StorageService>,
   ) -> Self {
-    let base_removal_timeout = if cfg!(debug_assertions) {
-      Duration::from_secs(60) // Shorter timeout for debug builds
-    } else {
-      Duration::from_secs(60 * 30)
-    };
-    let manager = Self {
+    Self {
       user_service,
       collab_builder,
       documents: Arc::new(Default::default()),
       cloud_service,
       storage_service,
-      base_removal_timeout,
-    };
-
-    // Start periodic cleanup task
-    manager.start_periodic_cleanup();
-    manager
+    }
   }
 
   pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
@@ -210,7 +199,8 @@ impl DocumentManager {
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    if let Some(entry) = self.documents.get(doc_id) {
+    if let Some((_, entry)) = self.documents.remove(doc_id) {
+      info!("[Document lifecycle]: Closing document: {}", doc_id);
       Self::clean_document_awareness(&entry).await;
     }
     Ok(())
@@ -442,56 +432,6 @@ impl DocumentManager {
     self.setup_document_subscriptions(doc_id, &document).await;
 
     Ok(document)
-  }
-
-  /// Start a periodic cleanup task to remove old entries
-  fn start_periodic_cleanup(&self) {
-    let weak_documents = Arc::downgrade(&self.documents);
-    let cleanup_interval = if cfg!(debug_assertions) {
-      Duration::from_secs(30)
-    } else {
-      Duration::from_secs(120)
-    };
-    let base_timeout = self.base_removal_timeout;
-    tokio::spawn(async move {
-      let mut interval = tokio::time::interval(cleanup_interval);
-      interval.tick().await;
-
-      loop {
-        interval.tick().await;
-        if let Some(documents) = weak_documents.upgrade() {
-          let mut to_remove = Vec::new();
-          let timeout = base_timeout;
-          if documents.is_empty() {
-            continue;
-          }
-
-          debug!(
-            "[Document lifecycle]: {} opening documents",
-            documents.len()
-          );
-          for entry in documents.iter() {
-            let (doc_id, document_entry) = entry.pair();
-            if document_entry.can_be_removed(timeout).await {
-              info!("[Document lifecycle]: Periodic cleanup document:{}", doc_id);
-              to_remove.push(*doc_id);
-            }
-          }
-
-          // Remove expired entries
-          for doc_id in to_remove {
-            if let Some((_, entry)) = documents.remove(&doc_id) {
-              if let Some(document) = entry.get_resource().await {
-                let mut lock = document.write().await;
-                lock.clean_awareness_local_state();
-              }
-            }
-          }
-        } else {
-          break;
-        }
-      }
-    });
   }
 }
 
