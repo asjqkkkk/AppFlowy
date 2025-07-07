@@ -2,6 +2,7 @@ import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/env/env.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/features/profile_setting/presentation/widgets/mobile/mobile_account_profile.dart';
 import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
@@ -90,37 +91,41 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
         builder: (context, state) {
           final currentWorkspaceId = state.currentWorkspace?.workspaceId ?? '';
           return BlocProvider(
-            key: ValueKey(currentWorkspaceId),
+            key: ValueKey('$currentWorkspaceId${userProfile.id}'),
             create: (context) => ProfileSettingBloc(
               userProfile: userProfile,
               workspace: state.currentWorkspace,
             )..add(ProfileSettingEvent.initial()),
-            child: SingleChildScrollView(
-              child: Column(
-                children: [
-                  if (state.userProfile.userAuthType == AuthTypePB.Server)
-                    MobileAccountProfile(userProfile: state.userProfile),
-                  PersonalInfoSettingGroup(userProfile: userProfile),
-                  if (state.userProfile.userAuthType == AuthTypePB.Server)
-                    const WorkspaceSettingGroup(),
-                  const AppearanceSettingGroup(),
-                  const LanguageSettingGroup(),
-                  if (Env.enableCustomCloud) const CloudSettingGroup(),
-                  if (isAuthEnabled)
-                    AiSettingsGroup(
-                      key: ValueKey(currentWorkspaceId),
-                      userProfile: userProfile,
-                      workspaceId: currentWorkspaceId,
-                    ),
-                  const SupportSettingGroup(),
-                  const AboutSettingGroup(),
-                  UserSessionSettingGroup(
-                    userProfile: userProfile,
-                    showThirdPartyLogin: false,
+            child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
+              builder: (context, profileState) {
+                return SingleChildScrollView(
+                  child: Column(
+                    children: [
+                      if (state.userProfile.userAuthType == AuthTypePB.Server)
+                        MobileAccountProfile(userProfile: state.userProfile),
+                      PersonalInfoSettingGroup(userProfile: userProfile),
+                      if (state.userProfile.userAuthType == AuthTypePB.Server)
+                        const WorkspaceSettingGroup(),
+                      const AppearanceSettingGroup(),
+                      const LanguageSettingGroup(),
+                      if (Env.enableCustomCloud) const CloudSettingGroup(),
+                      if (isAuthEnabled)
+                        AiSettingsGroup(
+                          key: ValueKey(currentWorkspaceId),
+                          userProfile: userProfile,
+                          workspaceId: currentWorkspaceId,
+                        ),
+                      const SupportSettingGroup(),
+                      const AboutSettingGroup(),
+                      UserSessionSettingGroup(
+                        userProfile: userProfile,
+                        showThirdPartyLogin: false,
+                      ),
+                      const VSpace(20),
+                    ],
                   ),
-                  const VSpace(20),
-                ],
-              ),
+                );
+              },
             ),
           );
         },

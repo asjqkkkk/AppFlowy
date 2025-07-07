@@ -73,7 +73,8 @@ class PersonalInfoSettingGroup extends StatelessWidget {
           userProfile.userAuthType == AuthTypePB.Server
               ? _buildPasswordItem(context, userProfile)
               : _buildLoginItem(context, userProfile),
-          _buildDescriptionItem(context, userProfile),
+          if (userProfile.userAuthType == AuthTypePB.Server)
+            _buildDescriptionItem(context, userProfile),
         ],
       ),
     );
