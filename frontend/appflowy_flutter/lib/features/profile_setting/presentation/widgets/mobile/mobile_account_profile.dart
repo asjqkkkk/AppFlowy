@@ -56,7 +56,7 @@ class MobileAccountProfile extends StatelessWidget {
                       Text(
                         profile.email,
                         style: theme.textStyle.heading4
-                            .standard(color: theme.textColorScheme.primary),
+                            .standard(color: theme.textColorScheme.secondary),
                         textAlign: TextAlign.center,
                       ),
                       if (hasDescription) ...[
@@ -117,7 +117,9 @@ class MobileAccountProfile extends StatelessWidget {
                       builder: (_) => const SizedBox.shrink(),
                     );
                   },
-                  child: context.buildAvatar(),
+                  child: context.buildAvatar(
+                    borderColor: Theme.of(context).scaffoldBackgroundColor,
+                  ),
                 ),
               ),
             ),

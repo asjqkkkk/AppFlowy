@@ -167,7 +167,7 @@ class _Banner extends StatelessWidget {
 }
 
 extension ProfileCardBuildContextExtension on BuildContext {
-  Widget buildAvatar() {
+  Widget buildAvatar({Color? borderColor}) {
     final theme = AppFlowyTheme.of(this),
         profile = read<ProfileSettingBloc>().state.profile;
     return Container(
@@ -175,7 +175,7 @@ extension ProfileCardBuildContextExtension on BuildContext {
       height: 100,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(46),
-        color: theme.surfaceColorScheme.layer01,
+        color: borderColor ?? theme.surfaceColorScheme.layer01,
       ),
       child: Center(
         child: Transform.scale(

@@ -665,8 +665,8 @@
       "menuLabel": "Profile",
       "title": "Profile",
       "preview": "Preview",
-      "displayName": "Display Name",
-      "aboutMe": "About Me",
+      "displayName": "Display name",
+      "aboutMe": "About me",
       "avatar": "Avatar",
       "bannerImage": "Banner Image",
       "editBannerImage": "Edit Banner Image",
@@ -941,7 +941,7 @@
         "llmModel": "Language Model",
         "globalLLMModel": "Global Language Model",
         "readOnlyField": "This field is read-only",
-        "llmModelType": "Language Model Type",
+        "llmModelType": "Language model type",
         "downloadLLMPrompt": "Download {}",
         "downloadAppFlowyOfflineAI": "Downloading AI offline package will enable AI to run on your device. Do you want to continue?",
         "downloadLLMPromptDetail": "Downloading {} local model will take up to {} of storage. Do you want to continue?",
@@ -1312,18 +1312,18 @@
     "appearance": {
       "resetSetting": "Reset",
       "fontFamily": {
-        "label": "Font Family",
+        "label": "Font family",
         "search": "Search",
         "defaultFont": "System"
       },
       "themeMode": {
-        "label": "Theme Mode",
-        "light": "Light Mode",
-        "dark": "Dark Mode",
+        "label": "Theme mode",
+        "light": "Light mode",
+        "dark": "Dark mode",
         "system": "Adapt to System"
       },
       "fontScaleFactor": "Font Scale Factor",
-      "displaySize": "Display Size",
+      "displaySize": "Display size",
       "documentSettings": {
         "cursorColor": "Document cursor color",
         "selectionColor": "Document selection color",
@@ -1348,7 +1348,7 @@
         "rtl": "RTL"
       },
       "textDirection": {
-        "label": "Default Text Direction",
+        "label": "Default text direction",
         "hint": "Specify whether text should start from left or right as the default.",
         "ltr": "LTR",
         "rtl": "RTL",
@@ -1504,7 +1504,7 @@
       "joinDiscord": "Join us in Discord",
       "privacyPolicy": "Privacy Policy",
       "userAgreement": "User Agreement",
-      "termsAndConditions": "Terms and Conditions",
+      "termsAndConditions": "Terms",
       "userprofileError": "Failed to load user profile",
       "userprofileErrorDescription": "Please try to log out and log back in to check if the issue still persists.",
       "selectLayout": "Select layout",
