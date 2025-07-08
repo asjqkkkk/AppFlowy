@@ -10,12 +10,12 @@ use flowy_search_pub::entities::FolderViewObserver;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use flowy_search_pub::tantivy_state_init::get_or_init_document_tantivy_state;
 use flowy_server::af_cloud::define::LoggedUser;
-use flowy_user_pub::workspace_collab::adaptor_trait::EditingCollabDataConsumer;
+use flowy_user_pub::workspace_collab::adaptor_trait::{ConsumerType, EditingCollabDataConsumer};
 use lib_infra::async_trait::async_trait;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::{error, trace, warn};
+use tracing::{error, trace};
 use uuid::Uuid;
 
 pub struct EditingCollabDataEmbeddingConsumer {
@@ -32,8 +32,8 @@ impl EditingCollabDataEmbeddingConsumer {
 
 #[async_trait]
 impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
-  fn consumer_id(&self) -> String {
-    "editing_collab_embedding_consumer".to_string()
+  fn consumer_id(&self) -> ConsumerType {
+    ConsumerType::Embedding
   }
 
   async fn consume_collab(
@@ -58,9 +58,9 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
     if let Some(entry) = self.consume_history.get(object_id) {
       if entry.value() == &content_hash {
         trace!(
-          "[Indexing:editing:embeddings] {} instant embedding already indexed, hash:{}, skipping",
+          "[Indexing] {} {} already indexed, skipping",
+          self.consumer_id(),
           object_id,
-          content_hash,
         );
         return Ok(false);
       }
@@ -80,15 +80,8 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
           metadata: UnindexedCollabMetadata::default(),
         };
 
-        trace!(
-          "[Indexing:editing:embeddings] queue embedding for {}",
-          object_id
-        );
         if let Err(err) = scheduler.index_collab(unindex_collab).await {
-          error!(
-            "[Indexing:editing:embeddings] error generating embedding: {}",
-            err
-          );
+          error!("[Indexing] error generating embedding: {}", err);
         }
       }
     }
@@ -106,10 +99,7 @@ impl EditingCollabDataConsumer for EditingCollabDataEmbeddingConsumer {
       use flowy_ai::embeddings::context::EmbedContext;
       if let Ok(scheduler) = EmbedContext::shared().get_scheduler() {
         if let Err(err) = scheduler.delete_collab(workspace_id, object_id).await {
-          error!(
-            "[Indexing:editing:embeddings] error generating embedding: {}",
-            err
-          );
+          error!("[Indexing] error generating embedding: {}", err);
         }
       }
     }
@@ -215,8 +205,8 @@ impl EditingCollabDataSearchConsumer {
 
 #[async_trait]
 impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
-  fn consumer_id(&self) -> String {
-    "editing_collab_search_consumer".into()
+  fn consumer_id(&self) -> ConsumerType {
+    ConsumerType::Search
   }
 
   async fn consume_collab(
@@ -227,10 +217,6 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
     _collab_type: CollabType,
   ) -> Result<bool, FlowyError> {
     if self.workspace_id != *workspace_id {
-      warn!(
-        "[Indexing:editing:search] {} workspace_id mismatch, expected:{}, got:{}",
-        object_id, self.workspace_id, workspace_id,
-      );
       return Ok(false);
     }
 
@@ -257,18 +243,9 @@ impl EditingCollabDataConsumer for EditingCollabDataSearchConsumer {
     if let Some(entry) = self.consume_history.get(object_id) {
       if entry.value() == &content_hash {
         trace!(
-          "[Indexing:editing:search] {} instant search already indexed, hash:{}, skipping",
+          "[Indexing] {} {} already indexed, skipping",
+          self.consumer_id(),
           object_id,
-          content_hash,
-        );
-        return Ok(false);
-      }
-
-      if entry.value() == &combined_hash {
-        trace!(
-          "[Indexing:editing:search] {} instant search already indexed, hash:{}, skipping",
-          object_id,
-          combined_hash,
         );
         return Ok(false);
       }

@@ -92,15 +92,14 @@ void main() {
       await tester.hoverOnWidget(
         optionButton,
         onHover: () async {
-          // click the delete button
+          // click the option button
           await tester.tapButton(optionButton);
         },
       );
       await tester.pumpAndSettle(Durations.short1);
 
       // click the delete button
-      final deleteButton =
-          find.findTextInFlowyText(LocaleKeys.button_delete.tr());
+      final deleteButton = find.text(LocaleKeys.button_delete.tr());
       await tester.tapButton(deleteButton);
 
       // wait for the deletion

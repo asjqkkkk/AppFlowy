@@ -8,7 +8,7 @@ use tracing::{instrument, trace};
 
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
-use flowy_user_pub::entities::AuthType;
+use flowy_user_pub::entities::AuthProvider;
 
 use crate::migrations::migration::UserDataMigration;
 use flowy_user_pub::session::Session;
@@ -40,7 +40,7 @@ impl UserDataMigration for CollabDocKeyWithWorkspaceIdMigration {
     &self,
     user: &Session,
     collab_db: &Weak<CollabKVDB>,
-    _user_auth_type: &AuthType,
+    _user_auth_type: &AuthProvider,
     _db: &mut SqliteConnection,
     _store_preferences: &Arc<KVStorePreferences>,
   ) -> FlowyResult<()> {

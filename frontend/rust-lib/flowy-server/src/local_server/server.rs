@@ -14,7 +14,9 @@ use flowy_folder_pub::cloud::FolderCloudService;
 use flowy_search_pub::cloud::SearchCloudService;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use flowy_storage_pub::cloud::StorageCloudService;
-use flowy_user_pub::cloud::UserCloudService;
+use flowy_user_pub::cloud::{
+  UserAuthService, UserBillingService, UserCollabService, UserProfileService, UserWorkspaceService,
+};
 use lib_infra::async_trait::async_trait;
 use std::sync::{Arc, Weak};
 use tokio::sync::{RwLock, mpsc};
@@ -68,7 +70,29 @@ impl AppFlowyServer for LocalServer {
     *self.tanvity_state.write().await = state;
   }
 
-  fn user_service(&self) -> Arc<dyn UserCloudService> {
+  fn user_service(&self) -> Arc<dyn UserWorkspaceService> {
+    Arc::new(LocalServerUserServiceImpl {
+      logged_user: self.logged_user.clone(),
+    })
+  }
+
+  fn auth_service(&self) -> Arc<dyn UserAuthService> {
+    Arc::new(LocalServerUserServiceImpl {
+      logged_user: self.logged_user.clone(),
+    })
+  }
+
+  fn user_profile_service(&self) -> Arc<dyn UserProfileService> {
+    Arc::new(LocalServerUserServiceImpl {
+      logged_user: self.logged_user.clone(),
+    })
+  }
+
+  fn billing_service(&self) -> Option<Arc<dyn UserBillingService>> {
+    None
+  }
+
+  fn collab_service(&self) -> Arc<dyn UserCollabService> {
     Arc::new(LocalServerUserServiceImpl {
       logged_user: self.logged_user.clone(),
     })

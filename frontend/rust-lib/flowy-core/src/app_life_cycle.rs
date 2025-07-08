@@ -1,8 +1,8 @@
 use anyhow::Context;
-use client_api::entity::billing_dto::SubscriptionPlan;
+use client_api::entity::billing_dto::{PersonalPlan, SubscriptionPlan};
 use client_api::v2::{ConnectState, WorkspaceController};
 use std::sync::{Arc, Weak};
-use tracing::{error, event, info, instrument};
+use tracing::{error, event, info, instrument, trace};
 
 use crate::editing_collab_data_provider::EditingCollabDataProvider;
 use crate::server_layer::ServerProvider;
@@ -22,7 +22,7 @@ use flowy_storage::manager::StorageManager;
 use flowy_user::event_map::AppLifeCycle;
 use flowy_user::services::entities::{UserConfig, UserPaths};
 use flowy_user::user_manager::UserManager;
-use flowy_user_pub::cloud::{UserCloudConfig, UserCloudServiceProvider};
+use flowy_user_pub::cloud::{UserCloudConfig, UserServerProvider};
 use flowy_user_pub::entities::{UserProfile, UserWorkspace, WorkspaceType};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use futures::stream::BoxStream;
@@ -189,7 +189,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await?;
     self
       .database_manager()?
-      .initialize(user_id, workspace_type == &WorkspaceType::Local)
+      .initialize(user_id, workspace_type == &WorkspaceType::Vault)
       .await?;
     self.document_manager()?.initialize(user_id).await?;
 
@@ -207,8 +207,8 @@ impl AppLifeCycle for AppLifeCycleImpl {
     self
       .start_instant_collab_data_provider(
         user_id,
-        workspace_id,
-        workspace_type,
+        *workspace_id,
+        *workspace_type,
         user_config,
         user_paths,
       )
@@ -272,7 +272,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await?;
     self
       .database_manager()?
-      .initialize_after_sign_in(user_id, workspace_type.is_local())
+      .initialize_after_sign_in(user_id, workspace_type.is_vault())
       .await?;
     self
       .document_manager()?
@@ -292,8 +292,8 @@ impl AppLifeCycle for AppLifeCycleImpl {
     self
       .start_instant_collab_data_provider(
         user_id,
-        workspace_id,
-        workspace_type,
+        *workspace_id,
+        *workspace_type,
         user_config,
         user_paths,
       )
@@ -364,7 +364,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
 
     self
       .database_manager()?
-      .initialize_after_sign_up(user_profile.uid, workspace_type.is_local())
+      .initialize_after_sign_up(user_profile.uid, workspace_type.is_vault())
       .await
       .context("DatabaseManager error")?;
 
@@ -386,8 +386,8 @@ impl AppLifeCycle for AppLifeCycleImpl {
     self
       .start_instant_collab_data_provider(
         user_profile.uid,
-        workspace_id,
-        workspace_type,
+        *workspace_id,
+        *workspace_type,
         user_config,
         user_paths,
       )
@@ -435,6 +435,12 @@ impl AppLifeCycle for AppLifeCycleImpl {
     user_paths: &UserPaths,
     workspace_controller: Weak<WorkspaceController>,
   ) -> FlowyResult<()> {
+    trace!(
+      "[AppLifeCycle] on_workspace_opened: user_id: {}, workspace_id: {}, workspace_type: {:?}",
+      user_id,
+      workspace_id,
+      workspace_type
+    );
     let server_provider = self.server_provider()?;
     server_provider.set_logged_workspace(LoggedWorkspaceImpl(workspace_controller.clone()));
     self
@@ -451,7 +457,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
       .await?;
     self
       .database_manager()?
-      .initialize_after_open_workspace(user_id, workspace_type.is_local())
+      .initialize_after_open_workspace(user_id, workspace_type.is_vault())
       .await?;
     self
       .document_manager()?
@@ -493,8 +499,8 @@ impl AppLifeCycle for AppLifeCycleImpl {
     self
       .start_instant_collab_data_provider(
         user_id,
-        workspace_id,
-        workspace_type,
+        *workspace_id,
+        *workspace_type,
         user_config,
         user_paths,
       )
@@ -554,6 +560,12 @@ impl AppLifeCycle for AppLifeCycleImpl {
   fn subscribe_full_indexed_finish(&self) -> Option<tokio::sync::watch::Receiver<bool>> {
     Some(self.full_indexed_finish_sender.subscribe())
   }
+
+  async fn on_cancel_personal_subscriptions(&self, plan: &PersonalPlan) {
+    if let Some(ai_manager) = self.ai_manager.upgrade() {
+      ai_manager.on_cancel_personal_subscriptions(plan).await;
+    }
+  }
 }
 
 fn resolve_data_source(
@@ -562,16 +574,16 @@ fn resolve_data_source(
 ) -> FlowyResult<FolderInitDataSource> {
   match doc_state_result {
     Ok(doc_state) => Ok(match workspace_type {
-      WorkspaceType::Local => FolderInitDataSource::LocalDisk {
+      WorkspaceType::Vault => FolderInitDataSource::LocalDisk {
         create_if_not_exist: true,
       },
-      WorkspaceType::Server => FolderInitDataSource::Cloud(doc_state),
+      WorkspaceType::Cloud => FolderInitDataSource::Cloud(doc_state),
     }),
     Err(err) => match workspace_type {
-      WorkspaceType::Local => Ok(FolderInitDataSource::LocalDisk {
+      WorkspaceType::Vault => Ok(FolderInitDataSource::LocalDisk {
         create_if_not_exist: true,
       }),
-      WorkspaceType::Server => Err(err),
+      WorkspaceType::Cloud => Err(err),
     },
   }
 }

@@ -182,13 +182,12 @@ class _SettingsPlanComparisonDialogState
                                 .tr(),
                             cells: _freeLabels,
                             isCurrent:
-                                currentInfo.plan == WorkspacePlanPB.FreePlan,
-                            buttonType: WorkspacePlanPB.FreePlan.buttonTypeFor(
+                                currentInfo.plan == SubscriptionPlanPB.Free,
+                            buttonType: SubscriptionPlanPB.Free.buttonTypeFor(
                               currentInfo.plan,
                             ),
                             onSelected: () async {
-                              if (currentInfo.plan ==
-                                      WorkspacePlanPB.FreePlan ||
+                              if (currentInfo.plan == SubscriptionPlanPB.Free ||
                                   currentInfo.isCanceled) {
                                 return;
                               }
@@ -239,8 +238,8 @@ class _SettingsPlanComparisonDialogState
                             ),
                             cells: _proLabels,
                             isCurrent:
-                                currentInfo.plan == WorkspacePlanPB.ProPlan,
-                            buttonType: WorkspacePlanPB.ProPlan.buttonTypeFor(
+                                currentInfo.plan == SubscriptionPlanPB.Pro,
+                            buttonType: SubscriptionPlanPB.Pro.buttonTypeFor(
                               currentInfo.plan,
                             ),
                             onSelected: () =>
@@ -273,18 +272,18 @@ enum _PlanButtonType {
   bool get isUpgrade => this == upgrade;
 }
 
-extension _ButtonTypeFrom on WorkspacePlanPB {
+extension _ButtonTypeFrom on SubscriptionPlanPB {
   /// Returns the button type for the given plan, taking the
   /// current plan as [other].
   ///
-  _PlanButtonType buttonTypeFor(WorkspacePlanPB other) {
+  _PlanButtonType buttonTypeFor(SubscriptionPlanPB other) {
     /// Current plan, no action
     if (this == other) {
       return _PlanButtonType.none;
     }
 
     // Free plan, can downgrade if not on the free plan
-    if (this == WorkspacePlanPB.FreePlan && other != WorkspacePlanPB.FreePlan) {
+    if (this == SubscriptionPlanPB.Free && other != SubscriptionPlanPB.Free) {
       return _PlanButtonType.downgrade;
     }
 

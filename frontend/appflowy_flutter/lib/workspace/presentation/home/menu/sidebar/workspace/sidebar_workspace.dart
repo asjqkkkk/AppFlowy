@@ -1,3 +1,4 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -142,11 +143,17 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
     if (actionType == WorkspaceActionType.create &&
         result.isFailure &&
         result.getFailure().code == ErrorCode.WorkspaceLimitExceeded) {
-      showDialog(
+      showCancelAndConfirmDialog(
         context: context,
-        builder: (context) => NavigatorOkCancelDialog(
-          message: LocaleKeys.workspace_createLimitExceeded.tr(),
-        ),
+        title: LocaleKeys.workspace_createLimitExceededTitle.tr(),
+        description: LocaleKeys.workspace_createLimitExceededDesc.tr(),
+        confirmLabel: LocaleKeys.workspace_createLimitExceededButton.tr(),
+        onConfirm: (context) {
+          // redirect to the Github page
+          afLaunchUrlString(
+            'https://github.com/AppFlowy-IO/AppFlowy/issues',
+          );
+        },
       );
       return;
     }
@@ -255,8 +262,25 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
 
     final state = context.read<UserWorkspaceBloc>().state;
     final currentWorkspace = state.currentWorkspace;
+    // if the user is already in the workspace, we should open the initial view directly
     if (currentWorkspace?.workspaceId == workspaceId) {
-      Log.info('Already in the workspace');
+      Log.info('Already in the workspace, opening the initial view');
+
+      final initialViewId = value?.initialViewId;
+      if (initialViewId == null) {
+        Log.info('No initial view id to open');
+        return;
+      }
+
+      getIt<ActionNavigationBloc>().add(
+        ActionNavigationEvent.performAction(
+          action: NavigationAction(
+            objectId: initialViewId,
+          ),
+        ),
+      );
+
+      openWorkspaceNotifier.value = null;
       return;
     }
 

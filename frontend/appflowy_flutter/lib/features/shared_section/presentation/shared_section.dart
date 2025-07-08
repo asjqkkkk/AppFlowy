@@ -2,6 +2,7 @@ import 'package:appflowy/features/shared_section/data/repositories/rust_shared_p
 import 'package:appflowy/features/shared_section/logic/shared_section_bloc.dart';
 import 'package:appflowy/features/shared_section/presentation/widgets/shared_page_list.dart';
 import 'package:appflowy/features/shared_section/presentation/widgets/shared_section_header.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/startup/startup.dart';
@@ -48,6 +49,10 @@ class SharedSection extends StatelessWidget {
           context
               .read<FavoriteBloc>()
               .add(const FavoriteEvent.fetchFavorites());
+
+          context
+              .read<UserWorkspaceBloc>()
+              .add(UserWorkspaceEvent.fetchWorkspaces());
 
           if (!openFirstSharedPage.value) {
             return;

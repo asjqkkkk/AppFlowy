@@ -12,16 +12,23 @@ use flowy_user_pub::workspace_collab::adaptor::{
   unindexed_data_form_collab, unindexed_data_from_object,
 };
 use flowy_user_pub::workspace_collab::adaptor_trait::{
-  EditingCollabDataConsumer, WorkspaceCollabIndexer,
+  ConsumerType, EditingCollabDataConsumer, WorkspaceCollabIndexer,
 };
 use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
 use tokio::runtime::Runtime;
+use tokio::sync::broadcast;
 use tokio::time::{interval, MissedTickBehavior};
 use tracing::{debug, error, info, trace};
 use uuid::Uuid;
+
+#[derive(Debug, Clone)]
+pub struct CollabConsumedEvent {
+  pub object_id: ObjectId,
+  pub consumer_type: ConsumerType,
+}
 
 pub struct EditingCollab {
   pub workspace_id: WorkspaceId,
@@ -33,18 +40,25 @@ pub struct EditingCollabDataProvider {
   collab_by_object: Arc<RwLock<HashMap<Uuid, EditingCollab>>>,
   consumers: Arc<RwLock<Vec<Box<dyn EditingCollabDataConsumer>>>>,
   authenticate_user: Weak<AuthenticateUser>,
+  collab_consumed_tx: broadcast::Sender<CollabConsumedEvent>,
 }
 
 impl EditingCollabDataProvider {
   pub fn new(authenticate_user: Weak<AuthenticateUser>) -> EditingCollabDataProvider {
     let collab_by_object = Arc::new(RwLock::new(HashMap::<Uuid, EditingCollab>::new()));
     let consumers = Arc::new(RwLock::new(Vec::<Box<dyn EditingCollabDataConsumer>>::new()));
+    let (collab_consumed_tx, _) = broadcast::channel(1000);
 
     EditingCollabDataProvider {
       collab_by_object,
       consumers,
       authenticate_user,
+      collab_consumed_tx,
     }
+  }
+
+  pub fn subscribe_collab_consumed(&self) -> broadcast::Receiver<CollabConsumedEvent> {
+    self.collab_consumed_tx.subscribe()
   }
 
   pub async fn num_consumers(&self) -> usize {
@@ -59,10 +73,7 @@ impl EditingCollabDataProvider {
   }
 
   pub async fn register_consumer(&self, consumer: Box<dyn EditingCollabDataConsumer>) {
-    info!(
-      "[Indexing] Registering instant index consumer: {}",
-      consumer.consumer_id()
-    );
+    info!("[Indexing] register consumer: {}", consumer.consumer_id());
     let mut guard = self.consumers.write().await;
     guard.push(consumer);
   }
@@ -70,8 +81,13 @@ impl EditingCollabDataProvider {
   pub async fn spawn_instant_indexed_provider(&self, runtime: &Runtime) -> FlowyResult<()> {
     let weak_collab_by_object = Arc::downgrade(&self.collab_by_object);
     let consumers_weak = Arc::downgrade(&self.consumers);
-    let interval_dur = Duration::from_secs(30);
+    let interval_dur = if cfg!(debug_assertions) {
+      Duration::from_secs(5)
+    } else {
+      Duration::from_secs(30)
+    };
     let authenticate_user = self.authenticate_user.clone();
+    let collab_consumed_tx = self.collab_consumed_tx.clone();
 
     runtime.spawn(async move {
       let mut ticker = interval(interval_dur);
@@ -140,7 +156,6 @@ impl EditingCollabDataProvider {
             Ok(data) => {
               let consumers_guard = consumers.read().await;
               for consumer in consumers_guard.iter() {
-                trace!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
                 match consumer
                   .consume_collab(
                     &wo.workspace_id,
@@ -152,7 +167,13 @@ impl EditingCollabDataProvider {
                 {
                   Ok(is_indexed) => {
                     if is_indexed {
-                      trace!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
+                      debug!("[Indexing] {} consumed {}", consumer.consumer_id(), id);
+                      // Send broadcast event
+                      let event = CollabConsumedEvent {
+                        object_id: wo.object_id,
+                        consumer_type: consumer.consumer_id(),
+                      };
+                      let _ = collab_consumed_tx.send(event);
                     }
                   },
                   Err(err) => {
@@ -225,6 +246,12 @@ impl EditingCollabDataProvider {
               consumer.consumer_id(),
               data.object_id
             );
+            // Send broadcast event
+            let event = CollabConsumedEvent {
+              object_id: data.object_id,
+              consumer_type: consumer.consumer_id(),
+            };
+            let _ = self.collab_consumed_tx.send(event);
           }
         },
         Err(err) => {

@@ -5,7 +5,7 @@ use langchain_rust::schemas::StreamData;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use tracing::{debug, warn};
+use tracing::debug;
 
 pub fn stream_interpreter_for_completion(
   input_stream: BoxStream<'static, Result<StreamData, LLMError>>,
@@ -34,7 +34,6 @@ fn map_response_to_completion_value(data: StreamData) -> CompletionStreamValue {
     };
   }
 
-  warn!("[AICompletion] unexpected stream data: {:?}", data);
   CompletionStreamValue::Answer {
     value: data.content,
   }

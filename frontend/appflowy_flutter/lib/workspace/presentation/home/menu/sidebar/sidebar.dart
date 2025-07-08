@@ -30,7 +30,6 @@ import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/footer/sidebar_upgrade_application_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar_top_menu.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/header/sidebar_user.dart';
-import 'package:appflowy/workspace/presentation/home/menu/sidebar/network.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_folder.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_new_page_button.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/sidebar_space.dart';
@@ -425,17 +424,6 @@ class _SidebarState extends State<_Sidebar> {
                 child: const SidebarFooter(),
               ),
 
-            if (kDebugMode)
-              BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
-                builder: (context, state) {
-                  if (state.currentWorkspace?.workspaceId == null) {
-                    return const SizedBox.shrink();
-                  }
-                  return WebSocketIndicator(
-                    workspaceId: state.currentWorkspace!.workspaceId,
-                  );
-                },
-              ),
             const VSpace(14),
           ],
         ),
@@ -448,7 +436,10 @@ class _SidebarState extends State<_Sidebar> {
     final workspaceState = context.read<UserWorkspaceBloc>().state;
 
     if (!spaceState.isInitialized) {
-      return const SizedBox.shrink();
+      // always expand the section to allow the templates and trash button show at the bottom of the sidebar
+      return const Expanded(
+        child: SizedBox.shrink(),
+      );
     }
 
     // there's no space or the workspace is not collaborative,

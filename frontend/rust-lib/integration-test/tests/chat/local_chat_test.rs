@@ -4,7 +4,7 @@ use event_integration_test::EventIntegrationTest;
 use flowy_user_pub::entities::WorkspaceType;
 
 #[tokio::test]
-async fn local_ollama_test_create_chat_with_selected_sources() {
+async fn local_ai_test_create_chat_with_selected_sources() {
   use_localhost_af_cloud().await;
   let test = EventIntegrationTest::new().await;
   test.af_cloud_sign_up().await;

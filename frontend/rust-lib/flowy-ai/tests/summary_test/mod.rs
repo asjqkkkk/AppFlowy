@@ -4,7 +4,7 @@ use flowy_ai::local_ai::database::summary::DatabaseSummaryChain;
 use std::collections::HashMap;
 
 #[tokio::test]
-async fn local_ollama_test_database_summary() {
+async fn local_ai_test_database_summary() {
   setup_log();
 
   let ollama = LLMOllama::default().with_model("llama3.1");

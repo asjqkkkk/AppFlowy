@@ -460,6 +460,7 @@ Future<bool> isBillingEnabled() async {
       ];
       if (kDebugMode) {
         whiteList.add("http://localhost:8000");
+        whiteList.add("http://localhost:8100");
       }
 
       final isWhiteListed = whiteList.contains(cloudSetting.serverUrl);

@@ -8,6 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'drag_to_reorder/draggable_option_button.dart';
+import 'option/delete_option_action.dart';
 
 class BlockOptionButton extends StatefulWidget {
   const BlockOptionButton({
@@ -99,6 +100,10 @@ class _BlockOptionButtonState extends State<BlockOptionButton> {
             editorState: widget.editorState,
             blockComponentBuilder: widget.blockComponentBuilder,
             mutex: mutex,
+          );
+        case OptionAction.delete:
+          return DeleteOptionAction(
+            blockComponentContext: widget.blockComponentContext,
           );
         default:
           return OptionActionWrapper(e);

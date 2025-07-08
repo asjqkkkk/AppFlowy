@@ -8,7 +8,7 @@ use lib_infra::util::timestamp;
 use std::collections::HashSet;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{error, info, trace};
+use tracing::{error, info, instrument, trace};
 use uuid::Uuid;
 
 type Model = AIModel;
@@ -66,6 +66,7 @@ impl ModelSelectionControl {
   }
 
   /// Asynchronously aggregate models from all sources, or return the default if none found
+  #[instrument(level = "debug", skip(self))]
   pub async fn get_models(&self, workspace_id: &Uuid) -> Vec<Model> {
     let mut models = Vec::new();
     for source in &self.sources {
@@ -87,6 +88,7 @@ impl ModelSelectionControl {
   ///   if it exists.
   /// - If `local_model_name` is `None`, it will append *all* local models.
   ///
+  #[instrument(level = "debug", skip(self))]
   pub async fn get_models_with_specific_local_model(
     &self,
     workspace_id: &Uuid,
@@ -119,6 +121,7 @@ impl ModelSelectionControl {
     models
   }
 
+  #[instrument(level = "debug", skip(self))]
   pub async fn get_local_models(&self, workspace_id: &Uuid) -> Vec<Model> {
     for source in &self.sources {
       if source.source_name() == "local" {

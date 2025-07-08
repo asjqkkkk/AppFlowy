@@ -27,8 +27,8 @@ use flowy_folder_pub::entities::{
   ImportFrom, ImportedAppFlowyData, ImportedCollabData, ImportedFolderData,
 };
 use flowy_sqlite::kv::KVStorePreferences;
-use flowy_user_pub::cloud::{UserCloudService, UserCollabParams};
-use flowy_user_pub::entities::{user_awareness_object_id, AuthType};
+use flowy_user_pub::cloud::{UserCollabParams, UserCollabService};
+use flowy_user_pub::entities::{user_awareness_object_id, AuthProvider};
 use flowy_user_pub::session::Session;
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
@@ -37,7 +37,7 @@ use collab_document::blocks::TextDelta;
 use collab_document::document::Document;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::CollabKVDB;
-use flowy_user_pub::sql::{select_user_auth_type, select_user_profile, select_user_workspace};
+use flowy_user_pub::sql::{select_user_auth_provider, select_user_profile, select_user_workspace};
 use semver::Version;
 use serde_json::json;
 use std::ops::{Deref, DerefMut};
@@ -121,7 +121,7 @@ pub(crate) fn prepare_import(
     &mut conn,
   )
   .map(|v| v.auth_type)
-  .or_else(|_| select_user_auth_type(imported_session.user_id, &mut conn))?;
+  .or_else(|_| select_user_auth_provider(imported_session.user_id, &mut conn))?;
 
   run_data_migration(
     &imported_session,
@@ -1201,9 +1201,9 @@ pub async fn upload_collab_objects_data(
   uid: i64,
   user_collab_db: Weak<CollabKVDB>,
   workspace_id: &Uuid,
-  user_authenticator: &AuthType,
+  user_authenticator: &AuthProvider,
   collab_data: ImportedCollabData,
-  user_cloud_service: Arc<dyn UserCloudService>,
+  collab_service: Arc<dyn UserCollabService>,
   client_id: ClientID,
 ) -> Result<(), FlowyError> {
   // Only support uploading the collab data when the current server is AppFlowy Cloud server
@@ -1295,14 +1295,7 @@ pub async fn upload_collab_objects_data(
     // upload fails, we will retry the upload later.
     // tokio::spawn(async move {
     if !objects.is_empty() {
-      batch_create(
-        uid,
-        workspace_id,
-        &user_cloud_service,
-        &size_counter,
-        objects,
-      )
-      .await;
+      batch_create(uid, workspace_id, &collab_service, &size_counter, objects).await;
     }
     // });
   }
@@ -1313,11 +1306,11 @@ pub async fn upload_collab_objects_data(
 async fn batch_create(
   uid: i64,
   workspace_id: &Uuid,
-  user_cloud_service: &Arc<dyn UserCloudService>,
+  collab_service: &Arc<dyn UserCollabService>,
   size_counter: &usize,
   objects: Vec<UserCollabParams>,
 ) {
-  match user_cloud_service
+  match collab_service
     .batch_create_collab_object(workspace_id, objects)
     .await
   {

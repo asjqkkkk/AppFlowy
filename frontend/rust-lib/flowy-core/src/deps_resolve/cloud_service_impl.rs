@@ -30,8 +30,11 @@ use flowy_server_pub::guest_dto::{
 };
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
-use flowy_user_pub::cloud::{UserCloudService, UserCloudServiceProvider};
-use flowy_user_pub::entities::{AuthType, UserTokenState};
+use flowy_user_pub::cloud::{
+  UserAuthService, UserBillingService, UserCollabService, UserProfileService, UserServerProvider,
+  UserWorkspaceService,
+};
+use flowy_user_pub::entities::{AuthProvider, UserTokenState, UserWorkspace, WorkspaceType};
 use lib_infra::async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
@@ -39,7 +42,7 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio_stream::wrappers::WatchStream;
-use tracing::info;
+use tracing::{debug, info};
 use uuid::Uuid;
 
 #[async_trait]
@@ -152,11 +155,14 @@ impl StorageCloudService for ServerProvider {
   }
 }
 
-impl UserCloudServiceProvider for ServerProvider {
-  fn set_token(&self, token: &str) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-    info!("Set token");
-    server.set_token(token)?;
+#[async_trait]
+impl UserServerProvider for ServerProvider {
+  fn set_token(&self, token: Option<String>) -> Result<(), FlowyError> {
+    if let Some(token) = token {
+      let server = self.get_server()?;
+      debug!("Set token: {}", token);
+      server.set_token(&token)?;
+    }
     Ok(())
   }
 
@@ -193,22 +199,27 @@ impl UserCloudServiceProvider for ServerProvider {
     self.uid.store(Some(uid.into()));
   }
 
-  /// When user login, the provider type is set by the [AuthType] and save to disk for next use.
+  /// When user login, the provider type is set by the [AuthProvider] and save to disk for next use.
   ///
-  /// Each [AuthType] has a corresponding [AuthType]. The [AuthType] is used
-  /// to create a new [AppFlowyServer] if it doesn't exist. Once the [AuthType] is set,
+  /// Each [AuthProvider] has a corresponding [AuthProvider]. The [AuthProvider] is used
+  /// to create a new [AppFlowyServer] if it doesn't exist. Once the [AuthProvider] is set,
   /// it will be used when user open the app again.
   ///
-  fn set_server_auth_type(&self, auth_type: &AuthType, token: Option<String>) -> FlowyResult<()> {
-    self.set_auth_type(*auth_type);
-    if let Some(token) = token {
-      self.set_token(&token)?;
-    }
-    Ok(())
-  }
+  fn set_auth_provider(&self, new_auth_provider: &AuthProvider) -> FlowyResult<()> {
+    let old_provider = self.get_current_auth_provider();
+    if old_provider != *new_auth_provider {
+      info!(
+        "ServerProvider: auth provider from {:?} to {:?}",
+        old_provider, new_auth_provider
+      );
 
-  fn get_server_auth_type(&self) -> AuthType {
-    self.get_auth_type()
+      self.auth_provider.store(Arc::new(*new_auth_provider));
+      if let Some((auth_type, _)) = self.providers.remove(&old_provider) {
+        info!("ServerProvider: remove old auth provider: {:?}", auth_type);
+      }
+    }
+
+    Ok(())
   }
 
   fn set_network_reachable(&self, reachable: bool) {
@@ -222,29 +233,75 @@ impl UserCloudServiceProvider for ServerProvider {
     self.encryption.set_secret(secret);
   }
 
-  /// Returns the [UserCloudService] base on the current [AuthType].
+  /// Returns the [UserWorkspaceService] base on the current [AuthProvider].
   /// Creates a new [AppFlowyServer] if it doesn't exist.
-  fn get_user_service(&self) -> Result<Arc<dyn UserCloudService>, FlowyError> {
-    let user_service = self.get_server()?.user_service();
+  fn workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
+    let workspace_type = self.get_current_workspace_type()?;
+    let service = self
+      .get_server_from_workspace_type(workspace_type)?
+      .user_service();
+    Ok(service)
+  }
+
+  fn auth_service(&self) -> Result<Arc<dyn UserAuthService>, FlowyError> {
+    let service = self.get_server()?.auth_service();
+    Ok(service)
+  }
+
+  fn user_profile_service(&self) -> Result<Arc<dyn UserProfileService>, FlowyError> {
+    let auth_provider = self.get_current_auth_provider();
+    let service = self
+      .get_server_from_auth_provider(auth_provider)?
+      .user_profile_service();
+    Ok(service)
+  }
+
+  fn billing_service(&self) -> Result<Arc<dyn UserBillingService>, FlowyError> {
+    let user_service = self
+      .get_server_from_auth_provider(AuthProvider::Cloud)?
+      .billing_service()
+      .ok_or_else(FlowyError::not_support)?;
     Ok(user_service)
   }
 
+  fn collab_service(&self) -> Result<Arc<dyn UserCollabService>, FlowyError> {
+    let workspace_type = self.get_current_workspace_type()?;
+    let service = self
+      .get_server_from_workspace_type(workspace_type)?
+      .collab_service();
+    Ok(service)
+  }
+
   fn service_url(&self) -> String {
-    match self.get_auth_type() {
-      AuthType::Local => "".to_string(),
-      AuthType::AppFlowyCloud => AFCloudConfiguration::from_env()
+    match self.get_current_auth_provider() {
+      AuthProvider::Local => "".to_string(),
+      AuthProvider::Cloud => AFCloudConfiguration::from_env()
         .map(|config| config.base_url)
         .unwrap_or_default(),
     }
   }
 
   fn ws_url(&self) -> String {
-    match self.get_auth_type() {
-      AuthType::Local => "".to_string(),
-      AuthType::AppFlowyCloud => AFCloudConfiguration::from_env()
+    match self.get_current_auth_provider() {
+      AuthProvider::Local => "".to_string(),
+      AuthProvider::Cloud => AFCloudConfiguration::from_env()
         .map(|config| config.ws_base_url)
         .unwrap_or_default(),
     }
+  }
+
+  async fn create_workspace(
+    &self,
+    workspace_name: &str,
+    workspace_icon: &str,
+    workspace_type: WorkspaceType,
+  ) -> FlowyResult<UserWorkspace> {
+    let service = self
+      .get_server_from_workspace_type(workspace_type)?
+      .user_service();
+    service
+      .create_workspace(workspace_name, workspace_icon)
+      .await
   }
 }
 
@@ -256,8 +313,7 @@ impl FolderCloudService for ServerProvider {
     limit: usize,
   ) -> Result<Vec<FolderSnapshot>, FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .get_folder_snapshots(workspace_id, limit)
       .await
   }
@@ -270,8 +326,7 @@ impl FolderCloudService for ServerProvider {
     object_id: &Uuid,
   ) -> Result<Vec<u8>, FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .get_folder_doc_state(workspace_id, uid, collab_type, object_id)
       .await
   }
@@ -282,8 +337,7 @@ impl FolderCloudService for ServerProvider {
     params: FullSyncCollabParams,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .full_sync_collab_object(workspace_id, params)
       .await
   }
@@ -293,10 +347,8 @@ impl FolderCloudService for ServerProvider {
     workspace_id: &Uuid,
     objects: Vec<FolderCollabParams>,
   ) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-
-    server
-      .folder_service()
+    self
+      .get_folder_service()?
       .batch_create_folder_collab_objects(workspace_id, objects)
       .await
   }
@@ -314,8 +366,7 @@ impl FolderCloudService for ServerProvider {
     payload: Vec<PublishPayload>,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .publish_view(workspace_id, payload)
       .await
   }
@@ -326,15 +377,13 @@ impl FolderCloudService for ServerProvider {
     view_ids: Vec<Uuid>,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .unpublish_views(workspace_id, view_ids)
       .await
   }
 
   async fn get_publish_info(&self, view_id: &Uuid) -> Result<PublishInfo, FlowyError> {
-    let server = self.get_server()?;
-    server.folder_service().get_publish_info(view_id).await
+    self.get_folder_service()?.get_publish_info(view_id).await
   }
 
   async fn set_publish_name(
@@ -344,8 +393,7 @@ impl FolderCloudService for ServerProvider {
     new_name: String,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .set_publish_name(workspace_id, view_id, new_name)
       .await
   }
@@ -356,8 +404,7 @@ impl FolderCloudService for ServerProvider {
     new_namespace: String,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .set_publish_namespace(workspace_id, new_namespace)
       .await
   }
@@ -367,9 +414,8 @@ impl FolderCloudService for ServerProvider {
     &self,
     workspace_id: &Uuid,
   ) -> Result<Vec<PublishInfoView>, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .folder_service()
+    self
+      .get_folder_service()?
       .list_published_views(workspace_id)
       .await
   }
@@ -378,9 +424,8 @@ impl FolderCloudService for ServerProvider {
     &self,
     workspace_id: &Uuid,
   ) -> Result<PublishInfo, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .folder_service()
+    self
+      .get_folder_service()?
       .get_default_published_view_info(workspace_id)
       .await
   }
@@ -390,35 +435,28 @@ impl FolderCloudService for ServerProvider {
     workspace_id: &Uuid,
     view_id: uuid::Uuid,
   ) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-    server
-      .folder_service()
+    self
+      .get_folder_service()?
       .set_default_published_view(workspace_id, view_id)
       .await
   }
 
   async fn remove_default_published_view(&self, workspace_id: &Uuid) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-    server
-      .folder_service()
+    self
+      .get_folder_service()?
       .remove_default_published_view(workspace_id)
       .await
   }
 
   async fn get_publish_namespace(&self, workspace_id: &Uuid) -> Result<String, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .folder_service()
+    self
+      .get_folder_service()?
       .get_publish_namespace(workspace_id)
       .await
   }
 
   async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError> {
-    self
-      .get_server()?
-      .folder_service()
-      .import_zip(file_path)
-      .await
+    self.get_folder_service()?.import_zip(file_path).await
   }
 
   async fn share_page_with_user(
@@ -427,8 +465,7 @@ impl FolderCloudService for ServerProvider {
     params: ShareViewWithGuestRequest,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .share_page_with_user(workspace_id, params)
       .await
   }
@@ -440,8 +477,7 @@ impl FolderCloudService for ServerProvider {
     params: RevokeSharedViewAccessRequest,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .revoke_shared_page_access(workspace_id, view_id, params)
       .await
   }
@@ -453,16 +489,14 @@ impl FolderCloudService for ServerProvider {
     parent_view_ids: Vec<Uuid>,
   ) -> Result<SharedViewDetails, FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .get_shared_page_details(workspace_id, view_id, parent_view_ids)
       .await
   }
 
   async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError> {
     self
-      .get_server()?
-      .folder_service()
+      .get_folder_service()?
       .get_shared_views(workspace_id)
       .await
   }
@@ -476,9 +510,8 @@ impl DatabaseCloudService for ServerProvider {
     collab_type: CollabType,
     workspace_id: &Uuid,
   ) -> Result<Option<EncodedCollab>, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .database_service()
+    self
+      .get_database_service()?
       .get_database_encode_collab(object_id, collab_type, workspace_id)
       .await
   }
@@ -490,9 +523,8 @@ impl DatabaseCloudService for ServerProvider {
     workspace_id: &Uuid,
     encoded_collab: EncodedCollab,
   ) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-    server
-      .database_service()
+    self
+      .get_database_service()?
       .create_database_encode_collab(object_id, collab_type, workspace_id, encoded_collab)
       .await
   }
@@ -502,10 +534,8 @@ impl DatabaseCloudService for ServerProvider {
     objects: Vec<QueryCollab>,
     workspace_id: &Uuid,
   ) -> Result<EncodeCollabByOid, FlowyError> {
-    let server = self.get_server()?;
-
-    server
-      .database_service()
+    self
+      .get_database_service()?
       .batch_get_database_encode_collab(objects, workspace_id)
       .await
   }
@@ -515,9 +545,8 @@ impl DatabaseCloudService for ServerProvider {
     workspace_id: &Uuid,
     collabs: Vec<CreateCollabParams>,
   ) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-    server
-      .database_service()
+    self
+      .get_database_service()?
       .batch_create_database_encode_collab(workspace_id, collabs)
       .await
   }
@@ -527,10 +556,8 @@ impl DatabaseCloudService for ServerProvider {
     object_id: &Uuid,
     limit: usize,
   ) -> Result<Vec<DatabaseSnapshot>, FlowyError> {
-    let server = self.get_server()?;
-
-    server
-      .database_service()
+    self
+      .get_database_service()?
       .get_database_collab_object_snapshots(object_id, limit)
       .await
   }
@@ -544,8 +571,9 @@ impl DatabaseAIService for ServerProvider {
     _object_id: &Uuid,
     _summary_row: SummaryRowContent,
   ) -> Result<String, FlowyError> {
-    self
-      .get_server()?
+    let workspace_type = self.get_current_workspace_type()?;
+    let server = self.get_server_from_workspace_type(workspace_type)?;
+    server
       .database_ai_service()
       .ok_or_else(FlowyError::not_support)?
       .summary_database_row(_workspace_id, _object_id, _summary_row)
@@ -558,8 +586,9 @@ impl DatabaseAIService for ServerProvider {
     _translate_row: TranslateRowContent,
     _language: &str,
   ) -> Result<TranslateRowResponse, FlowyError> {
-    self
-      .get_server()?
+    let workspace_type = self.get_current_workspace_type()?;
+    let server = self.get_server_from_workspace_type(workspace_type)?;
+    server
       .database_ai_service()
       .ok_or_else(FlowyError::not_support)?
       .translate_database_row(_workspace_id, _translate_row, _language)
@@ -574,9 +603,8 @@ impl DocumentCloudService for ServerProvider {
     document_id: &Uuid,
     workspace_id: &Uuid,
   ) -> Result<Vec<u8>, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .document_service()
+    self
+      .get_document_service()?
       .get_document_doc_state(document_id, workspace_id)
       .await
   }
@@ -587,10 +615,8 @@ impl DocumentCloudService for ServerProvider {
     limit: usize,
     workspace_id: &str,
   ) -> Result<Vec<DocumentSnapshot>, FlowyError> {
-    let server = self.get_server()?;
-
-    server
-      .document_service()
+    self
+      .get_document_service()?
       .get_document_snapshots(document_id, limit, workspace_id)
       .await
   }
@@ -600,9 +626,8 @@ impl DocumentCloudService for ServerProvider {
     document_id: &Uuid,
     workspace_id: &Uuid,
   ) -> Result<Option<DocumentData>, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .document_service()
+    self
+      .get_document_service()?
       .get_document_data(document_id, workspace_id)
       .await
   }
@@ -613,9 +638,8 @@ impl DocumentCloudService for ServerProvider {
     document_id: &Uuid,
     encoded_collab: EncodedCollab,
   ) -> Result<(), FlowyError> {
-    let server = self.get_server()?;
-    server
-      .document_service()
+    self
+      .get_document_service()?
       .create_document_collab(workspace_id, document_id, encoded_collab)
       .await
   }
@@ -632,9 +656,8 @@ impl ChatCloudService for ServerProvider {
     name: &str,
     metadata: serde_json::Value,
   ) -> Result<(), FlowyError> {
-    let server = self.get_server();
-    server?
-      .chat_service()
+    let service = self.get_chat_service()?;
+    service
       .create_chat(uid, workspace_id, chat_id, rag_ids, name, metadata)
       .await
   }
@@ -649,8 +672,7 @@ impl ChatCloudService for ServerProvider {
   ) -> Result<ChatMessage, FlowyError> {
     let message = message.to_string();
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .create_question(workspace_id, chat_id, &message, message_type, prompt_id)
       .await
   }
@@ -663,9 +685,8 @@ impl ChatCloudService for ServerProvider {
     question_id: i64,
     metadata: Option<serde_json::Value>,
   ) -> Result<ChatMessage, FlowyError> {
-    let server = self.get_server();
-    server?
-      .chat_service()
+    self
+      .get_chat_service()?
       .create_answer(workspace_id, chat_id, message, question_id, metadata)
       .await
   }
@@ -678,9 +699,8 @@ impl ChatCloudService for ServerProvider {
     format: ResponseFormat,
     ai_model: AIModel,
   ) -> Result<StreamAnswer, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .chat_service()
+    self
+      .get_chat_service()?
       .stream_answer(workspace_id, chat_id, question_id, format, ai_model)
       .await
   }
@@ -693,8 +713,7 @@ impl ChatCloudService for ServerProvider {
     limit: u64,
   ) -> Result<RepeatedChatMessage, FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .get_chat_messages(workspace_id, chat_id, offset, limit)
       .await
   }
@@ -706,8 +725,7 @@ impl ChatCloudService for ServerProvider {
     answer_message_id: i64,
   ) -> Result<ChatMessage, FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .get_question_from_answer_id(workspace_id, chat_id, answer_message_id)
       .await
   }
@@ -720,8 +738,7 @@ impl ChatCloudService for ServerProvider {
     ai_model: AIModel,
   ) -> Result<RepeatedRelatedQuestion, FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .get_related_message(workspace_id, chat_id, message_id, ai_model)
       .await
   }
@@ -732,9 +749,8 @@ impl ChatCloudService for ServerProvider {
     chat_id: &Uuid,
     question_id: i64,
   ) -> Result<ChatMessage, FlowyError> {
-    let server = self.get_server();
-    server?
-      .chat_service()
+    self
+      .get_chat_service()?
       .get_answer(workspace_id, chat_id, question_id)
       .await
   }
@@ -745,9 +761,8 @@ impl ChatCloudService for ServerProvider {
     params: CompleteTextParams,
     ai_model: AIModel,
   ) -> Result<StreamComplete, FlowyError> {
-    let server = self.get_server()?;
-    server
-      .chat_service()
+    self
+      .get_chat_service()?
       .stream_complete(workspace_id, params, ai_model)
       .await
   }
@@ -760,8 +775,7 @@ impl ChatCloudService for ServerProvider {
     metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .embed_file(workspace_id, file_path, chat_id, metadata)
       .await
   }
@@ -772,8 +786,7 @@ impl ChatCloudService for ServerProvider {
     chat_id: &Uuid,
   ) -> Result<ChatSettings, FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .get_chat_settings(workspace_id, chat_id)
       .await
   }
@@ -785,24 +798,21 @@ impl ChatCloudService for ServerProvider {
     params: UpdateChatParams,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .update_chat_settings(workspace_id, chat_id, params)
       .await
   }
 
   async fn get_available_models(&self, workspace_id: &Uuid) -> Result<ModelList, FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .get_available_models(workspace_id)
       .await
   }
 
   async fn get_workspace_default_model(&self, workspace_id: &Uuid) -> Result<String, FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .get_workspace_default_model(workspace_id)
       .await
   }
@@ -813,8 +823,7 @@ impl ChatCloudService for ServerProvider {
     model: &str,
   ) -> Result<(), FlowyError> {
     self
-      .get_server()?
-      .chat_service()
+      .get_chat_service()?
       .set_workspace_default_model(workspace_id, model)
       .await
   }
@@ -827,8 +836,8 @@ impl SearchCloudService for ServerProvider {
     workspace_id: &Uuid,
     query: String,
   ) -> Result<Vec<SearchDocumentResponseItem>, FlowyError> {
-    let server = self.get_server()?;
-    match server.search_service().await {
+    let service = self.get_search_service().await?;
+    match service {
       Some(search_service) => search_service.document_search(workspace_id, query).await,
       None => Err(FlowyError::internal().with_context("SearchCloudService not found")),
     }
@@ -840,8 +849,8 @@ impl SearchCloudService for ServerProvider {
     query: String,
     search_results: Vec<SearchResult>,
   ) -> Result<SearchSummaryResult, FlowyError> {
-    let server = self.get_server()?;
-    match server.search_service().await {
+    let service = self.get_search_service().await?;
+    match service {
       Some(search_service) => {
         search_service
           .generate_search_summary(workspace_id, query, search_results)

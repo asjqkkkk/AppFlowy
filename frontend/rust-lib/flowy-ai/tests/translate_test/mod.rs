@@ -5,7 +5,7 @@ use flowy_ai_pub::cloud::ai_dto::TranslateRowData;
 use flowy_database_pub::cloud::TranslateItem;
 
 #[tokio::test]
-async fn local_ollama_test_database_translate() {
+async fn local_ai_test_database_translate() {
   setup_log();
 
   let ollama = LLMOllama::default().with_model("llama3.1");

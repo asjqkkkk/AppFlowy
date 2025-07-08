@@ -1,19 +1,19 @@
 use crate::entities::{
-  AuthResponse, AuthType, Role, UpdateUserProfileParams, UserProfile, UserTokenState,
-  UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember,
+  AuthProvider, AuthResponse, Role, UpdateUserProfileParams, UserProfile, UserTokenState,
+  UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
 };
 use client_api::entity::GotrueTokenResponse;
-use client_api::entity::billing_dto::RecurringInterval;
-use client_api::entity::billing_dto::SubscriptionPlan;
 use client_api::entity::billing_dto::SubscriptionPlanDetail;
 pub use client_api::entity::billing_dto::SubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceSubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
+use client_api::entity::billing_dto::{PersonalPlan, RecurringInterval};
+use client_api::entity::billing_dto::{PersonalSubscriptionStatus, SubscriptionPlan};
 pub use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use collab::preclude::ClientID;
-use collab_entity::{CollabObject, CollabType};
+use collab_entity::CollabType;
 use flowy_ai_pub::cloud::WorkspaceNotification;
-use flowy_error::{ErrorCode, FlowyError, internal_error};
+use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;
 use serde::{Deserialize, Serialize};
@@ -60,127 +60,38 @@ impl Display for UserCloudConfig {
     )
   }
 }
-
-pub trait UserCloudServiceProvider: Send + Sync {
-  /// Sets the authentication token for the cloud service.
-  ///
-  /// # Arguments
-  /// * `token`: A string slice representing the authentication token.
-  ///
-  /// # Returns
-  /// A `Result` which is `Ok` if the token is successfully set, or a `FlowyError` otherwise.
-  fn set_token(&self, token: &str) -> Result<(), FlowyError>;
+#[async_trait]
+pub trait UserServerProvider: Send + Sync {
+  fn set_token(&self, token: Option<String>) -> Result<(), FlowyError>;
   fn get_access_token(&self) -> Option<String>;
   fn notify_access_token_invalid(&self);
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError>;
-
-  /// Subscribes to the state of the authentication token.
-  ///
-  /// # Returns
-  /// An `Option` containing a `WatchStream<UserTokenState>` if available, or `None` otherwise.
-  /// The stream allows the caller to watch for changes in the token state.
   fn subscribe_token_state(&self) -> Option<WatchStream<UserTokenState>>;
-
-  /// Sets the synchronization state for a user.
-  ///
-  /// # Arguments
-  /// * `uid`: An i64 representing the user ID.
-  /// * `enable_sync`: A boolean indicating whether synchronization should be enabled or disabled.
   fn set_enable_sync(&self, uid: i64, enable_sync: bool);
-
-  fn set_server_auth_type(
-    &self,
-    auth_type: &AuthType,
-    token: Option<String>,
-  ) -> Result<(), FlowyError>;
-
-  fn get_server_auth_type(&self) -> AuthType;
-
-  /// Sets the network reachability
-  ///
-  /// # Arguments
-  /// * `reachable`: A boolean indicating whether the network is reachable.
+  fn set_auth_provider(&self, auth_type: &AuthProvider) -> Result<(), FlowyError>;
   fn set_network_reachable(&self, reachable: bool);
-
-  /// Sets the encryption secret for secure communication.
-  ///
-  /// # Arguments
-  /// * `secret`: A `String` representing the encryption secret.
   fn set_encrypt_secret(&self, secret: String);
-
-  /// Retrieves the user-specific cloud service.
-  ///
-  /// # Returns
-  /// A `Result` containing an `Arc<dyn UserCloudService>` if successful, or a `FlowyError` otherwise.
-  fn get_user_service(&self) -> Result<Arc<dyn UserCloudService>, FlowyError>;
-
-  /// Retrieves the service URL.
-  ///
-  /// # Returns
-  /// A `String` representing the service URL.
+  fn workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError>;
+  fn auth_service(&self) -> Result<Arc<dyn UserAuthService>, FlowyError>;
+  fn user_profile_service(&self) -> Result<Arc<dyn UserProfileService>, FlowyError>;
+  fn billing_service(&self) -> Result<Arc<dyn UserBillingService>, FlowyError>;
+  fn collab_service(&self) -> Result<Arc<dyn UserCollabService>, FlowyError>;
   fn service_url(&self) -> String;
-
   fn ws_url(&self) -> String;
+
+  async fn create_workspace(
+    &self,
+    workspace_name: &str,
+    workspace_icon: &str,
+    workspace_type: WorkspaceType,
+  ) -> FlowyResult<UserWorkspace>;
 }
 
 /// Provide the generic interface for the user cloud service
 /// The user cloud service is responsible for the user authentication and user profile management
 #[allow(unused_variables)]
 #[async_trait]
-pub trait UserCloudService: Send + Sync + 'static {
-  /// Sign up a new account.
-  /// The type of the params is defined the this trait's implementation.
-  /// Use the `unbox_or_error` of the [BoxAny] to get the params.
-  async fn sign_up(&self, params: BoxAny) -> Result<AuthResponse, FlowyError>;
-
-  /// Sign in an account
-  /// The type of the params is defined the this trait's implementation.
-  async fn sign_in(&self, params: BoxAny) -> Result<AuthResponse, FlowyError>;
-
-  /// Sign out an account
-  async fn sign_out(&self, token: Option<String>) -> Result<(), FlowyError>;
-
-  /// Delete an account and all the data associated with the account
-  async fn delete_account(&self) -> Result<(), FlowyError> {
-    Ok(())
-  }
-
-  /// Generate a sign in url for the user with the given email
-  /// Currently, only use the admin client for testing
-  async fn generate_sign_in_url_with_email(&self, email: &str) -> Result<String, FlowyError>;
-
-  async fn create_user(&self, email: &str, password: &str) -> Result<(), FlowyError>;
-
-  async fn sign_in_with_password(
-    &self,
-    email: &str,
-    password: &str,
-  ) -> Result<GotrueTokenResponse, FlowyError>;
-
-  async fn sign_in_with_magic_link(&self, email: &str, redirect_to: &str)
-  -> Result<(), FlowyError>;
-
-  async fn sign_in_with_passcode(
-    &self,
-    email: &str,
-    passcode: &str,
-  ) -> Result<GotrueTokenResponse, FlowyError>;
-
-  /// When the user opens the OAuth URL, it redirects to the corresponding provider's OAuth web page.
-  /// After the user is authenticated, the browser will open a deep link to the AppFlowy app (iOS, macOS, etc.),
-  /// which will call [Client::sign_in_with_url]generate_sign_in_url_with_email to sign in.
-  ///
-  /// For example, the OAuth URL on Google looks like `https://appflowy.io/authorize?provider=google`.
-  async fn generate_oauth_url_with_provider(&self, provider: &str) -> Result<String, FlowyError>;
-
-  /// Using the user's token to update the user information
-  async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError>;
-
-  /// Get the user information using the user's token or uid
-  /// return None if the user is not found
-  async fn get_user_profile(&self, uid: i64, workspace_id: &str)
-  -> Result<UserProfile, FlowyError>;
-
+pub trait UserWorkspaceService: Send + Sync + 'static {
   async fn open_workspace(&self, workspace_id: &Uuid) -> Result<UserWorkspace, FlowyError>;
 
   /// Return the all the workspaces of the user
@@ -247,6 +158,32 @@ pub trait UserCloudService: Send + Sync + 'static {
     workspace_id: Uuid,
   ) -> Result<Vec<WorkspaceMember>, FlowyError>;
 
+  fn receive_realtime_event(&self, _json: Value) {}
+
+  async fn leave_workspace(&self, workspace_id: &Uuid) -> Result<(), FlowyError> {
+    Ok(())
+  }
+
+  async fn get_workspace_member(
+    &self,
+    workspace_id: &Uuid,
+    uid: i64,
+  ) -> Result<WorkspaceMember, FlowyError>;
+  async fn get_workspace_setting(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<AFWorkspaceSettings, FlowyError>;
+
+  async fn update_workspace_setting(
+    &self,
+    workspace_id: &Uuid,
+    workspace_settings: AFWorkspaceSettingsChange,
+  ) -> Result<AFWorkspaceSettings, FlowyError>;
+}
+
+#[allow(unused_variables)]
+#[async_trait]
+pub trait UserCollabService: Send + Sync + 'static {
   async fn get_user_awareness_doc_state(
     &self,
     uid: i64,
@@ -255,24 +192,18 @@ pub trait UserCloudService: Send + Sync + 'static {
     client_id: ClientID,
   ) -> Result<Vec<u8>, FlowyError>;
 
-  fn receive_realtime_event(&self, _json: Value) {}
-
-  async fn create_collab_object(
-    &self,
-    collab_object: &CollabObject,
-    data: Vec<u8>,
-  ) -> Result<(), FlowyError>;
-
   async fn batch_create_collab_object(
     &self,
     workspace_id: &Uuid,
     objects: Vec<UserCollabParams>,
   ) -> Result<(), FlowyError>;
+}
 
-  async fn leave_workspace(&self, workspace_id: &Uuid) -> Result<(), FlowyError> {
-    Ok(())
-  }
-
+/// Provide the generic interface for the user cloud service
+/// The user cloud service is responsible for the user authentication and user profile management
+#[allow(unused_variables)]
+#[async_trait]
+pub trait UserBillingService: Send + Sync + 'static {
   async fn subscribe_workspace(
     &self,
     workspace_id: Uuid,
@@ -283,50 +214,48 @@ pub trait UserCloudService: Send + Sync + 'static {
     Err(FlowyError::not_support())
   }
 
-  async fn get_workspace_member(
+  async fn subscribe_personal(
     &self,
-    workspace_id: &Uuid,
-    uid: i64,
-  ) -> Result<WorkspaceMember, FlowyError>;
-  /// Get all subscriptions for all workspaces for a user (email)
-  async fn get_workspace_subscriptions(
-    &self,
-  ) -> Result<Vec<WorkspaceSubscriptionStatus>, FlowyError> {
-    Ok(vec![])
+    recurring_interval: RecurringInterval,
+    subscription_plan: PersonalPlan,
+    success_url: String,
+  ) -> Result<String, FlowyError> {
+    Err(FlowyError::not_support())
   }
 
   /// Get the workspace subscriptions for a workspace
-  async fn get_workspace_subscription_one(
+  async fn get_workspace_subscriptions(
     &self,
     workspace_id: &Uuid,
-  ) -> Result<Vec<WorkspaceSubscriptionStatus>, FlowyError> {
-    Ok(vec![])
-  }
-
+  ) -> Result<Vec<WorkspaceSubscriptionStatus>, FlowyError>;
   async fn cancel_workspace_subscription(
     &self,
     workspace_id: String,
     plan: SubscriptionPlan,
     reason: Option<String>,
-  ) -> Result<(), FlowyError> {
-    Ok(())
-  }
+  ) -> Result<(), FlowyError>;
+
+  async fn cancel_personal_subscription(
+    &self,
+    plan: PersonalPlan,
+    reason: Option<String>,
+  ) -> Result<(), FlowyError>;
+
+  async fn get_personal_subscription_status(
+    &self,
+  ) -> Result<Vec<PersonalSubscriptionStatus>, FlowyError>;
 
   async fn get_workspace_plan(
     &self,
     workspace_id: Uuid,
-  ) -> Result<Vec<SubscriptionPlan>, FlowyError> {
-    Ok(vec![])
-  }
+  ) -> Result<Vec<SubscriptionPlan>, FlowyError>;
 
   async fn get_workspace_usage(
     &self,
     workspace_id: &Uuid,
   ) -> Result<WorkspaceUsageAndLimit, FlowyError>;
 
-  async fn get_billing_portal_url(&self) -> Result<String, FlowyError> {
-    Err(FlowyError::not_support())
-  }
+  async fn billing_portal_url(&self) -> Result<String, FlowyError>;
 
   async fn update_workspace_subscription_payment_period(
     &self,
@@ -340,17 +269,65 @@ pub trait UserCloudService: Send + Sync + 'static {
   async fn get_subscription_plan_details(&self) -> Result<Vec<SubscriptionPlanDetail>, FlowyError> {
     Ok(vec![])
   }
+}
 
-  async fn get_workspace_setting(
-    &self,
-    workspace_id: &Uuid,
-  ) -> Result<AFWorkspaceSettings, FlowyError>;
+/// Provide the generic interface for the user cloud service
+/// The user cloud service is responsible for the user authentication and user profile management
+#[allow(unused_variables)]
+#[async_trait]
+pub trait UserAuthService: Send + Sync + 'static {
+  /// Sign up a new account.
+  /// The type of the params is defined the this trait's implementation.
+  /// Use the `unbox_or_error` of the [BoxAny] to get the params.
+  async fn sign_up(&self, params: BoxAny) -> Result<AuthResponse, FlowyError>;
 
-  async fn update_workspace_setting(
+  /// Sign in an account
+  /// The type of the params is defined the this trait's implementation.
+  async fn sign_in(&self, params: BoxAny) -> Result<AuthResponse, FlowyError>;
+
+  /// Sign out an account
+  async fn sign_out(&self, token: Option<String>) -> Result<(), FlowyError>;
+
+  /// Delete an account and all the data associated with the account
+  async fn delete_account(&self) -> Result<(), FlowyError>;
+  /// Generate a sign in url for the user with the given email
+  /// Currently, only use the admin client for testing
+  async fn generate_sign_in_url_with_email(&self, email: &str) -> Result<String, FlowyError>;
+
+  async fn create_user(&self, email: &str, password: &str) -> Result<(), FlowyError>;
+
+  async fn sign_in_with_password(
     &self,
-    workspace_id: &Uuid,
-    workspace_settings: AFWorkspaceSettingsChange,
-  ) -> Result<AFWorkspaceSettings, FlowyError>;
+    email: &str,
+    password: &str,
+  ) -> Result<GotrueTokenResponse, FlowyError>;
+
+  async fn sign_in_with_magic_link(&self, email: &str, redirect_to: &str)
+  -> Result<(), FlowyError>;
+
+  async fn sign_in_with_passcode(
+    &self,
+    email: &str,
+    passcode: &str,
+  ) -> Result<GotrueTokenResponse, FlowyError>;
+
+  /// When the user opens the OAuth URL, it redirects to the corresponding provider's OAuth web page.
+  /// After the user is authenticated, the browser will open a deep link to the AppFlowy app (iOS, macOS, etc.),
+  /// which will call [Client::sign_in_with_url]generate_sign_in_url_with_email to sign in.
+  ///
+  /// For example, the OAuth URL on Google looks like `https://appflowy.io/authorize?provider=google`.
+  async fn generate_oauth_url_with_provider(&self, provider: &str) -> Result<String, FlowyError>;
+}
+
+#[async_trait]
+pub trait UserProfileService: Send + Sync + 'static {
+  /// Using the user's token to update the user information
+  async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError>;
+
+  /// Get the user information using the user's token or uid
+  /// return None if the user is not found
+  async fn get_user_profile(&self, uid: i64, workspace_id: &str)
+  -> Result<UserProfile, FlowyError>;
 }
 
 pub type UserUpdateReceiver = Receiver<WorkspaceNotification>;

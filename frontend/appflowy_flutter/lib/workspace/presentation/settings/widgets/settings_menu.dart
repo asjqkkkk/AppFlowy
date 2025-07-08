@@ -41,7 +41,7 @@ class SettingsMenu extends StatelessWidget {
       decoration: BoxDecoration(
         color: theme.surfaceContainerColorScheme.layer01,
         borderRadius: BorderRadiusDirectional.horizontal(
-          start: Radius.circular(theme.spacing.m),
+          start: Radius.circular(theme.spacing.xl),
         ),
       ),
       height: double.infinity,

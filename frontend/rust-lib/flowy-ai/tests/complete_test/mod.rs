@@ -12,7 +12,7 @@ use tokio_stream::wrappers::ReceiverStream;
 use tracing::error;
 
 #[tokio::test]
-async fn local_ollama_test_simple_ask_ai() {
+async fn local_ai_test_simple_ask_ai() {
   let ollama = LLMOllama::default().with_model("llama3.1");
   let ai_completion = CompletionChain::new(ollama);
   let text = "Compare js with Rust";
@@ -31,7 +31,7 @@ async fn local_ollama_test_simple_ask_ai() {
 }
 
 #[tokio::test]
-async fn local_ollama_test_improve_writing() {
+async fn local_ai_test_improve_writing() {
   setup_log();
   let ollama = LLMOllama::default().with_model("llama3.1");
   let ai_completion = CompletionChain::new(ollama);
@@ -50,7 +50,7 @@ async fn local_ollama_test_improve_writing() {
 }
 
 #[tokio::test]
-async fn local_ollama_test_simple_fix_grammar() {
+async fn local_ai_test_simple_fix_grammar() {
   setup_log();
   let ollama = LLMOllama::default().with_model("llama3.1");
   let ai_completion = CompletionChain::new(ollama);

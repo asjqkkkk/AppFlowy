@@ -163,19 +163,6 @@ where
     }
   }
 
-  /// Check if the entry can be cleaned up based on inactivity
-  pub async fn can_be_removed(&self, inactive_duration: Duration) -> bool {
-    let state = self.state.read().await;
-    match state.state {
-      ResourceState::Failed => true,
-      ResourceState::Active { last_active } => {
-        let now = Instant::now();
-        now.duration_since(last_active) > inactive_duration
-      },
-      ResourceState::Initializing => false,
-    }
-  }
-
   /// Check if the entry is inactive for longer than the specified duration
   pub async fn is_inactive_for(&self, duration: Duration) -> bool {
     let state = self.state.read().await;
@@ -186,13 +173,6 @@ where
       },
       _ => false,
     }
-  }
-
-  /// Get the current state for inspection
-  #[allow(dead_code)]
-  pub async fn state(&self) -> ResourceState {
-    let state = self.state.read().await;
-    state.state.clone()
   }
 
   /// Get the resource ID
@@ -339,7 +319,6 @@ mod tests {
     assert!(!entry.is_failed().await);
     assert!(!entry.has_resource().await);
     assert_eq!(entry.get_resource().await, None);
-    assert!(!entry.can_be_removed(Duration::from_secs(0)).await);
     assert_eq!(entry.last_active_time().await, None);
   }
 
@@ -355,8 +334,6 @@ mod tests {
     assert!(!entry.is_failed().await);
     assert!(entry.has_resource().await);
     assert_eq!(entry.get_resource().await, Some(resource));
-    // Resource should not be removable immediately after setting it
-    assert!(!entry.can_be_removed(Duration::from_millis(1)).await);
     // But active time should be set
     assert!(entry.last_active_time().await.is_some());
   }
@@ -373,7 +350,6 @@ mod tests {
     assert!(!entry.is_active().await);
     assert!(!entry.has_resource().await);
     assert_eq!(entry.get_resource().await, None);
-    assert!(entry.can_be_removed(Duration::from_secs(0)).await);
   }
 
   #[tokio::test]
@@ -453,17 +429,14 @@ mod tests {
 
     // Resource should be active, not inactive
     assert!(!entry.is_inactive_for(Duration::from_millis(1)).await);
-    assert!(!entry.can_be_removed(Duration::from_millis(1)).await);
 
     // Wait a bit and check if it becomes inactive
     tokio::time::sleep(Duration::from_millis(50)).await;
     assert!(entry.is_inactive_for(Duration::from_millis(10)).await);
-    assert!(entry.can_be_removed(Duration::from_millis(10)).await);
 
     // Touch the resource to make it active again
     let _ = entry.get_resource().await;
     assert!(!entry.is_inactive_for(Duration::from_millis(1)).await);
-    assert!(!entry.can_be_removed(Duration::from_millis(1)).await);
   }
 
   #[tokio::test]
@@ -724,13 +697,11 @@ mod tests {
     // Fail initialization: Initializing -> Failed
     entry.mark_initialization_failed(test_error()).await;
     assert!(entry.is_failed().await);
-    assert!(entry.can_be_removed(Duration::from_secs(0)).await);
 
     // Restart from failed: Failed -> Initializing
     let restarted = entry.should_initialize().await;
     assert!(restarted);
     assert!(entry.is_initializing().await);
-    assert!(!entry.can_be_removed(Duration::from_secs(0)).await);
   }
 
   #[tokio::test]
@@ -779,13 +750,6 @@ mod tests {
   async fn test_string_id_type() {
     let entry = AsyncEntry::<TestResource, String>::new_initializing("test-id".to_string());
     assert_eq!(entry.id(), "test-id");
-  }
-
-  #[tokio::test]
-  async fn test_debug_formatting() {
-    let entry = AsyncEntry::<TestResource, u32>::new_initializing(42);
-    let debug_str = format!("{:?}", entry.state().await);
-    assert!(debug_str.contains("Initializing"));
   }
 
   #[tokio::test]
@@ -893,10 +857,8 @@ mod tests {
     }
 
     // Entry should be in a valid state
-    let is_valid_state = entry.is_initializing().await
-      || entry.is_active().await
-      || entry.is_failed().await
-      || entry.can_be_removed(Duration::from_secs(0)).await;
+    let is_valid_state =
+      entry.is_initializing().await || entry.is_active().await || entry.is_failed().await;
     assert!(is_valid_state);
   }
 

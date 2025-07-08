@@ -1,4 +1,7 @@
-use client_api::entity::billing_dto::SubscriptionPlan;
+use crate::event_handler::*;
+use crate::services::entities::{UserConfig, UserPaths};
+use crate::user_manager::UserManager;
+use client_api::entity::billing_dto::{PersonalPlan, SubscriptionPlan};
 use client_api::v2::WorkspaceController;
 use flowy_derive::{Flowy_Event, ProtoBuf_Enum};
 use flowy_error::FlowyResult;
@@ -9,10 +12,6 @@ use lib_infra::async_trait::async_trait;
 use std::sync::Weak;
 use strum_macros::Display;
 use uuid::Uuid;
-
-use crate::event_handler::*;
-use crate::services::entities::{UserConfig, UserPaths};
-use crate::user_manager::UserManager;
 
 #[rustfmt::skip]
 pub fn init(user_manager: Weak<UserManager>) -> AFPlugin {
@@ -45,7 +44,6 @@ pub fn init(user_manager: Weak<UserManager>) -> AFPlugin {
     .event(UserEvent::UpdateNetworkState, update_network_state_handler)
     .event(UserEvent::OpenAnonUser, open_anon_user_handler)
     .event(UserEvent::GetAnonUser, get_anon_user_handler)
-    .event(UserEvent::PushRealtimeEvent, push_realtime_event_handler)
     .event(UserEvent::CreateReminder, create_reminder_event_handler)
     .event(UserEvent::GetAllReminders, get_all_reminder_event_handler)
     .event(UserEvent::RemoveReminder, remove_reminder_event_handler)
@@ -70,13 +68,17 @@ pub fn init(user_manager: Weak<UserManager>) -> AFPlugin {
     .event(UserEvent::ListWorkspaceInvitations, list_workspace_invitations_handler)
     .event(UserEvent::AcceptWorkspaceInvitation, accept_workspace_invitations_handler)
     // Billing
+      // workspace subscription
+    .event(UserEvent::GetBillingPortal, get_billing_portal_handler)
     .event(UserEvent::SubscribeWorkspace, subscribe_workspace_handler)
     .event(UserEvent::GetWorkspaceSubscriptionInfo, get_workspace_subscription_info_handler)
     .event(UserEvent::CancelWorkspaceSubscription, cancel_workspace_subscription_handler)
     .event(UserEvent::GetWorkspaceUsage, get_workspace_usage_handler)
-    .event(UserEvent::GetBillingPortal, get_billing_portal_handler)
     .event(UserEvent::UpdateWorkspaceSubscriptionPaymentPeriod, update_workspace_subscription_payment_period_handler)
-    .event(UserEvent::GetSubscriptionPlanDetails, get_subscription_plan_details_handler)
+      // Personal subscription
+    .event(UserEvent::SubscribePersonalPlan, subscribe_personal_plan_handler)
+    .event(UserEvent::CancelPersonalSubscription, cancel_personal_subscription_handler)
+    .event(UserEvent::GetPersonalSubscription, get_personal_subscription_info_handler)
     // Workspace Setting
     .event(UserEvent::UpdateWorkspaceSetting, update_workspace_setting_handler)
     .event(UserEvent::GetWorkspaceSetting, get_workspace_setting_handler)
@@ -90,12 +92,12 @@ pub fn init(user_manager: Weak<UserManager>) -> AFPlugin {
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
 #[event_err = "FlowyError"]
 pub enum UserEvent {
-  /// Only use when the [AuthType] is Local or SelfHosted
+  /// Only use when the [AuthProvider] is Local or SelfHosted
   /// Logging into an account using a register email and password
   #[event(input = "SignInPayloadPB", output = "GotrueTokenResponsePB")]
   SignInWithEmailPassword = 0,
 
-  /// Only use when the [AuthType] is Local or SelfHosted
+  /// Only use when the [AuthProvider] is Local or SelfHosted
   /// Creating a new account
   #[event(input = "SignUpPayloadPB", output = "UserProfilePB")]
   SignUp = 1,
@@ -133,7 +135,7 @@ pub enum UserEvent {
   OauthSignIn = 10,
 
   /// Get the OAuth callback url
-  /// Only use when the [AuthType] is AFCloud
+  /// Only use when the [AuthProvider] is AFCloud
   #[event(input = "SignInUrlPayloadPB", output = "SignInUrlPB")]
   GenerateSignInURL = 11,
 
@@ -164,12 +166,6 @@ pub enum UserEvent {
 
   #[event()]
   OpenAnonUser = 26,
-
-  /// Push a realtime event to the user. Currently, the realtime event
-  /// is only used when the auth type is: [AuthType::Supabase].
-  ///
-  #[event(input = "RealtimePayloadPB")]
-  PushRealtimeEvent = 27,
 
   #[event(input = "ReminderPB")]
   CreateReminder = 28,
@@ -267,9 +263,6 @@ pub enum UserEvent {
   #[event(input = "UpdateWorkspaceSubscriptionPaymentPeriodPB")]
   UpdateWorkspaceSubscriptionPaymentPeriod = 61,
 
-  #[event(output = "RepeatedSubscriptionPlanDetailPB")]
-  GetSubscriptionPlanDetails = 62,
-
   #[event(input = "SuccessWorkspaceSubscriptionPB")]
   NotifyDidSwitchPlan = 63,
 
@@ -284,6 +277,15 @@ pub enum UserEvent {
 
   #[event()]
   StartWSConnect = 67,
+
+  #[event(input = "SubscribePersonalPB", output = "PaymentLinkPB")]
+  SubscribePersonalPlan = 68,
+
+  #[event(input = "CancelPersonalSubscriptionPB")]
+  CancelPersonalSubscription = 69,
+
+  #[event(output = "PersonalSubscriptionInfoPB")]
+  GetPersonalSubscription = 70,
 }
 
 #[async_trait]
@@ -369,6 +371,8 @@ pub trait AppLifeCycle: Send + Sync + 'static {
   fn subscribe_full_indexed_finish(&self) -> Option<tokio::sync::watch::Receiver<bool>> {
     None
   }
+
+  async fn on_cancel_personal_subscriptions(&self, _plan: &PersonalPlan) {}
 }
 
 /// Acts as a placeholder [AppLifeCycle] for the user session, but does not perform any function

@@ -51,7 +51,6 @@ pub struct DocumentManager {
   documents: Arc<DashMap<Uuid, DocumentEntry>>,
   cloud_service: Arc<dyn DocumentCloudService>,
   storage_service: Weak<dyn StorageService>,
-  base_removal_timeout: Duration,
 }
 
 impl Drop for DocumentManager {
@@ -67,23 +66,13 @@ impl DocumentManager {
     cloud_service: Arc<dyn DocumentCloudService>,
     storage_service: Weak<dyn StorageService>,
   ) -> Self {
-    let base_removal_timeout = if cfg!(debug_assertions) {
-      Duration::from_secs(60) // Shorter timeout for debug builds
-    } else {
-      Duration::from_secs(60 * 30)
-    };
-    let manager = Self {
+    Self {
       user_service,
       collab_builder,
       documents: Arc::new(Default::default()),
       cloud_service,
       storage_service,
-      base_removal_timeout,
-    };
-
-    // Start periodic cleanup task
-    manager.start_periodic_cleanup();
-    manager
+    }
   }
 
   pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {
@@ -164,13 +153,13 @@ impl DocumentManager {
   }
 
   pub async fn get_document_data(&self, doc_id: &Uuid) -> FlowyResult<DocumentData> {
-    let document = self.get_document_internal(doc_id).await?;
+    let document = self.open_document_internal(doc_id).await?;
     let document = document.read().await;
     document.get_document_data().map_err(internal_error)
   }
 
   pub async fn get_document_text(&self, doc_id: &Uuid) -> FlowyResult<String> {
-    let document = self.get_document_internal(doc_id).await?;
+    let document = self.open_document_internal(doc_id).await?;
     let document = document.read().await;
     let text = document.paragraphs().join("\n");
     Ok(text)
@@ -206,11 +195,12 @@ impl DocumentManager {
 
   #[instrument(level = "debug", skip(self))]
   pub async fn open_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    self.get_document_internal(doc_id).await
+    self.open_document_internal(doc_id).await
   }
 
   pub async fn close_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
-    if let Some(entry) = self.documents.get(doc_id) {
+    if let Some((_, entry)) = self.documents.remove(doc_id) {
+      info!("[Document lifecycle]: Closing document: {}", doc_id);
       Self::clean_document_awareness(&entry).await;
     }
     Ok(())
@@ -242,7 +232,7 @@ impl DocumentManager {
     subscribe_document_sync_state(&lock);
   }
 
-  async fn get_document_internal(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
+  async fn open_document_internal(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
     let entry = self.documents.get(doc_id).map(|e| e.value().clone());
     // Check if we have an active document
     if let Some(entry) = entry {
@@ -349,7 +339,7 @@ impl DocumentManager {
 
   /// Return a document instance if the document is already opened.
   pub async fn editable_document(&self, doc_id: &Uuid) -> FlowyResult<Arc<RwLock<Document>>> {
-    self.get_document_internal(doc_id).await
+    self.open_document_internal(doc_id).await
   }
 
   /// Returns Document for given object id
@@ -380,9 +370,10 @@ impl DocumentManager {
         },
         Err(err) => {
           entry
-            .mark_initialization_failed(
-              "[Document lifecycle]: Document entry disappeared during initialization".to_string(),
-            )
+            .mark_initialization_failed(format!(
+              "[Document lifecycle]: failed to init document:{}",
+              err.msg
+            ))
             .await;
 
           if err.is_invalid_data() {
@@ -441,56 +432,6 @@ impl DocumentManager {
     self.setup_document_subscriptions(doc_id, &document).await;
 
     Ok(document)
-  }
-
-  /// Start a periodic cleanup task to remove old entries
-  fn start_periodic_cleanup(&self) {
-    let weak_documents = Arc::downgrade(&self.documents);
-    let cleanup_interval = if cfg!(debug_assertions) {
-      Duration::from_secs(30)
-    } else {
-      Duration::from_secs(120)
-    };
-    let base_timeout = self.base_removal_timeout;
-    tokio::spawn(async move {
-      let mut interval = tokio::time::interval(cleanup_interval);
-      interval.tick().await;
-
-      loop {
-        interval.tick().await;
-        if let Some(documents) = weak_documents.upgrade() {
-          let mut to_remove = Vec::new();
-          let timeout = base_timeout;
-          if documents.is_empty() {
-            continue;
-          }
-
-          debug!(
-            "[Document lifecycle]: {} opening documents",
-            documents.len()
-          );
-          for entry in documents.iter() {
-            let (doc_id, document_entry) = entry.pair();
-            if document_entry.can_be_removed(timeout).await {
-              info!("[Document lifecycle]: Periodic cleanup document:{}", doc_id);
-              to_remove.push(*doc_id);
-            }
-          }
-
-          // Remove expired entries
-          for doc_id in to_remove {
-            if let Some((_, entry)) = documents.remove(&doc_id) {
-              if let Some(document) = entry.get_resource().await {
-                let mut lock = document.write().await;
-                lock.clean_awareness_local_state();
-              }
-            }
-          }
-        } else {
-          break;
-        }
-      }
-    });
   }
 }
 

@@ -27,6 +27,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 import '../../../plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 
@@ -210,7 +211,8 @@ class ViewTitleBar extends StatelessWidget {
       HSpace(theme.spacing.xs),
       BlocBuilder<PageAccessLevelBloc, PageAccessLevelState>(
         buildWhen: (previous, current) =>
-            previous.sectionType != current.sectionType,
+            previous.sectionType != current.sectionType ||
+            previous.isInitializing != current.isInitializing,
         builder: (context, state) {
           return _buildSectionIcon(context, state);
         },
@@ -291,22 +293,27 @@ class ViewTitleBar extends StatelessWidget {
         throw UnsupportedError('Unknown section type'),
     };
 
-    return FlowyTooltip(
-      message: tooltipText,
-      child: Row(
-        textBaseline: TextBaseline.alphabetic,
-        crossAxisAlignment: CrossAxisAlignment.baseline,
-        children: [
-          HSpace(theme.spacing.xs),
-          icon,
-          const HSpace(4.0), // ask designer to provide the spacing
-          Text(
-            text,
-            style: theme.textStyle.caption
-                .enhanced(color: theme.textColorScheme.tertiary),
-          ),
-          HSpace(theme.spacing.xs),
-        ],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.transparent),
+      ),
+      child: FlowyTooltip(
+        message: tooltipText,
+        child: Row(
+          textBaseline: TextBaseline.alphabetic,
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          children: [
+            HSpace(theme.spacing.xs),
+            icon,
+            const HSpace(4.0), // ask designer to provide the spacing
+            Text(
+              text,
+              style: theme.textStyle.caption
+                  .enhanced(color: theme.textColorScheme.tertiary),
+            ),
+            HSpace(theme.spacing.xs),
+          ],
+        ),
       ),
     );
   }
@@ -508,11 +515,18 @@ class _ViewTitleState extends State<ViewTitle> {
           ],
           Opacity(
             opacity: isEditable ? 1.0 : 0.5,
-            child: FlowyText.regular(
-              name.orDefault(LocaleKeys.menuAppHeader_defaultNewPageName.tr()),
-              fontSize: 14.0,
-              overflow: TextOverflow.ellipsis,
-              figmaLineHeight: 18.0,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: UniversalPlatform.isWindows ? 2.0 : 0.0,
+              ),
+              child: FlowyText.regular(
+                name.orDefault(
+                  LocaleKeys.menuAppHeader_defaultNewPageName.tr(),
+                ),
+                fontSize: 14.0,
+                overflow: TextOverflow.ellipsis,
+                figmaLineHeight: UniversalPlatform.isWindows ? 14.0 : 16.0,
+              ),
             ),
           ),
         ],

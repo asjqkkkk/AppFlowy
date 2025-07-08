@@ -1,7 +1,7 @@
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 
-use crate::af_cloud::define::{AIUserServiceImpl, LoggedUser};
+use crate::af_cloud::define::LoggedUser;
 use anyhow::Error;
 use client_api::notify::TokenState;
 use client_api::{Client, ClientConfiguration};
@@ -13,16 +13,19 @@ use flowy_folder_pub::cloud::FolderCloudService;
 use flowy_search_pub::cloud::SearchCloudService;
 use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
 use flowy_storage_pub::cloud::StorageCloudService;
-use flowy_user_pub::cloud::UserCloudService;
+use flowy_user_pub::cloud::{
+  UserAuthService, UserBillingService, UserCollabService, UserProfileService, UserWorkspaceService,
+};
 use flowy_user_pub::entities::UserTokenState;
 
 use super::impls::AFCloudSearchCloudServiceImpl;
 use crate::AppFlowyServer;
 use crate::af_cloud::impls::{
   AFCloudDatabaseCloudServiceImpl, AFCloudDocumentCloudServiceImpl, AFCloudFileStorageServiceImpl,
-  AFCloudFolderCloudServiceImpl, AFCloudUserAuthServiceImpl, CloudChatServiceImpl,
+  AFCloudFolderCloudServiceImpl, AFCloudUserServiceImpl, CloudChatServiceImpl,
 };
 use flowy_ai::offline::offline_message_sync::AutoSyncChatService;
+use flowy_ai_pub::user_service::AIUserService;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use lib_infra::async_trait::async_trait;
 use semver::Version;
@@ -38,7 +41,8 @@ pub struct AppFlowyCloudServer {
   pub(crate) client: Arc<AFCloudClient>,
   enable_sync: Arc<AtomicBool>,
   network_reachable: Arc<AtomicBool>,
-  logged_user: Weak<dyn LoggedUser>,
+  logged_user: Arc<dyn LoggedUser>,
+  ai_service: Arc<dyn AIUserService>,
   tanvity_state: RwLock<Option<Weak<RwLock<DocumentTantivyState>>>>,
 }
 
@@ -48,7 +52,8 @@ impl AppFlowyCloudServer {
     enable_sync: bool,
     mut device_id: String,
     client_version: Version,
-    logged_user: Weak<dyn LoggedUser>,
+    logged_user: Arc<dyn LoggedUser>,
+    ai_service: Arc<dyn AIUserService>,
   ) -> Self {
     // The device id can't be empty, so we generate a new one if it is.
     if device_id.is_empty() {
@@ -76,6 +81,7 @@ impl AppFlowyCloudServer {
       network_reachable,
       logged_user,
       tanvity_state: Default::default(),
+      ai_service,
     }
   }
 
@@ -149,38 +155,38 @@ impl AppFlowyServer for AppFlowyCloudServer {
     self.network_reachable.store(reachable, Ordering::SeqCst);
   }
 
-  fn user_service(&self) -> Arc<dyn UserCloudService> {
-    Arc::new(AFCloudUserAuthServiceImpl::new(
+  fn user_service(&self) -> Arc<dyn UserWorkspaceService> {
+    Arc::new(AFCloudUserServiceImpl::new(
       self.get_server_impl(),
-      self.logged_user.clone(),
+      Arc::downgrade(&self.logged_user),
     ))
   }
 
   fn folder_service(&self) -> Arc<dyn FolderCloudService> {
     Arc::new(AFCloudFolderCloudServiceImpl {
       inner: self.get_server_impl(),
-      logged_user: self.logged_user.clone(),
+      logged_user: Arc::downgrade(&self.logged_user),
     })
   }
 
   fn database_service(&self) -> Arc<dyn DatabaseCloudService> {
     Arc::new(AFCloudDatabaseCloudServiceImpl {
       inner: self.get_server_impl(),
-      logged_user: self.logged_user.clone(),
+      logged_user: Arc::downgrade(&self.logged_user),
     })
   }
 
   fn database_ai_service(&self) -> Option<Arc<dyn DatabaseAIService>> {
     Some(Arc::new(AFCloudDatabaseCloudServiceImpl {
       inner: self.get_server_impl(),
-      logged_user: self.logged_user.clone(),
+      logged_user: Arc::downgrade(&self.logged_user),
     }))
   }
 
   fn document_service(&self) -> Arc<dyn DocumentCloudService> {
     Arc::new(AFCloudDocumentCloudServiceImpl {
       inner: self.get_server_impl(),
-      logged_user: self.logged_user.clone(),
+      logged_user: Arc::downgrade(&self.logged_user),
     })
   }
 
@@ -189,7 +195,7 @@ impl AppFlowyServer for AppFlowyCloudServer {
       Arc::new(CloudChatServiceImpl {
         inner: self.get_server_impl(),
       }),
-      Arc::new(AIUserServiceImpl(self.logged_user.clone())),
+      self.ai_service.clone(),
     ))
   }
 
@@ -214,6 +220,34 @@ impl AppFlowyServer for AppFlowyCloudServer {
 
   async fn refresh_access_token(&self, reason: &str) {
     let _ = self.client.refresh_token(reason).await;
+  }
+
+  fn billing_service(&self) -> Option<Arc<dyn UserBillingService>> {
+    Some(Arc::new(AFCloudUserServiceImpl::new(
+      self.get_server_impl(),
+      Arc::downgrade(&self.logged_user),
+    )))
+  }
+
+  fn collab_service(&self) -> Arc<dyn UserCollabService> {
+    Arc::new(AFCloudUserServiceImpl::new(
+      self.get_server_impl(),
+      Arc::downgrade(&self.logged_user),
+    ))
+  }
+
+  fn auth_service(&self) -> Arc<dyn UserAuthService> {
+    Arc::new(AFCloudUserServiceImpl::new(
+      self.get_server_impl(),
+      Arc::downgrade(&self.logged_user),
+    ))
+  }
+
+  fn user_profile_service(&self) -> Arc<dyn UserProfileService> {
+    Arc::new(AFCloudUserServiceImpl::new(
+      self.get_server_impl(),
+      Arc::downgrade(&self.logged_user),
+    ))
   }
 }
 

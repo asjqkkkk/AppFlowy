@@ -1,4 +1,4 @@
-use crate::entities::{AuthType, UserWorkspace, WorkspaceType};
+use crate::entities::{AuthProvider, UserWorkspace, WorkspaceType};
 use chrono::{TimeZone, Utc};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::DBConnection;
@@ -168,7 +168,7 @@ impl From<UserWorkspaceTable> for UserWorkspace {
 /// Delete all user workspaces for the given user and auth type.
 pub fn delete_user_all_workspace(
   uid: i64,
-  auth_type: AuthType,
+  auth_type: AuthProvider,
   conn: &mut SqliteConnection,
 ) -> FlowyResult<()> {
   let n = diesel::delete(

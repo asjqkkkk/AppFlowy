@@ -1,8 +1,10 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/features/workspace/logic/personal_subscription_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/debounce.dart';
+import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -29,18 +31,11 @@ Future<void> showCreateWorkspaceDialog(BuildContext context) {
   final state = bloc.state;
   final userName = state.userProfile.name;
 
-  // final subscriptionInfo = state.workspaceSubscriptionInfo;
-  // final isProPlan = subscriptionInfo != null &&
-  //     subscriptionInfo.plan.value >= WorkspacePlanPB.ProPlan.value;
-  // final allowCreateVault = isProPlan || FeatureFlag.createVaultWorkspace.isOn;
-  final allowCreateVault = false;
-
   return showDialog<void>(
     context: context,
     builder: (_) {
       return CreateWorkspaceDialog(
         userName: userName,
-        allowCreateVault: allowCreateVault,
         createWorkspaceCallback: (workspaceName, workspaceIcon, workspaceType) {
           bloc.add(
             UserWorkspaceEvent.createWorkspace(
@@ -61,12 +56,10 @@ class CreateWorkspaceDialog extends StatefulWidget {
   const CreateWorkspaceDialog({
     super.key,
     required this.userName,
-    required this.allowCreateVault,
     required this.createWorkspaceCallback,
   });
 
   final String userName;
-  final bool allowCreateVault;
   final CreateWorkspaceCallback? createWorkspaceCallback;
 
   @override
@@ -169,7 +162,6 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                   ),
                   _WorkspaceType(
                     workspaceType: workspaceType,
-                    allowCreateVault: widget.allowCreateVault,
                     onChanged: (newType) {
                       setState(() => workspaceType = newType);
                     },
@@ -325,12 +317,10 @@ class _WorkspaceName extends StatelessWidget {
 class _WorkspaceType extends StatelessWidget {
   const _WorkspaceType({
     required this.workspaceType,
-    required this.allowCreateVault,
     required this.onChanged,
   });
 
   final WorkspaceType workspaceType;
-  final bool allowCreateVault;
   final void Function(WorkspaceType) onChanged;
 
   @override
@@ -386,11 +376,39 @@ class _WorkspaceType extends StatelessWidget {
               theme.spacing.m,
             ),
             Expanded(
-              child: _WorkspaceTypeCard(
-                workspaceType: WorkspaceType.vault,
-                isDisabled: !allowCreateVault,
-                isSelected: workspaceType == WorkspaceType.vault,
-                onTap: () => onChanged(WorkspaceType.vault),
+              child: BlocProvider(
+                create: (context) => PersonalSubscriptionBloc()
+                  ..add(PersonalSubscriptionEvent.initialize()),
+                child: BlocBuilder<PersonalSubscriptionBloc,
+                    PersonalSubscriptionState>(
+                  buildWhen: (previous, current) =>
+                      previous.isLoading != current.isLoading,
+                  builder: (context, state) {
+                    return Stack(
+                      children: [
+                        _WorkspaceTypeCard(
+                          workspaceType: WorkspaceType.vault,
+                          isDisabled: state.subscription == null ||
+                              !state.subscription!
+                                  .hasActiveVaultWorkspaceSubscription,
+                          isSelected: workspaceType == WorkspaceType.vault,
+                          onTap: () => onChanged(WorkspaceType.vault),
+                          tooltipMessage: state.subscription == null
+                              ? LocaleKeys
+                                  .workspace_cannotGetVaultWorkspaceSubscription
+                                  .tr()
+                              : null,
+                        ),
+                        if (state.isLoading)
+                          Positioned.fill(
+                            child: const Center(
+                              child: CircularProgressIndicator.adaptive(),
+                            ),
+                          ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -406,12 +424,14 @@ class _WorkspaceTypeCard extends StatelessWidget {
     required this.isSelected,
     required this.isDisabled,
     required this.onTap,
+    this.tooltipMessage,
   });
 
   final WorkspaceType workspaceType;
   final bool isSelected;
   final bool isDisabled;
   final VoidCallback onTap;
+  final String? tooltipMessage;
 
   @override
   Widget build(BuildContext context) {
@@ -419,11 +439,8 @@ class _WorkspaceTypeCard extends StatelessWidget {
 
     return FlowyTooltip(
       verticalOffset: 30.0,
+      message: tooltipMessage,
       preferBelow: false,
-      message: isDisabled
-          // ? LocaleKeys.workspace_createVaultWorkspaceDisabled.tr()
-          ? "Coming soon!"
-          : null,
       child: GestureDetector(
         onTap: () {
           if (!isDisabled) {

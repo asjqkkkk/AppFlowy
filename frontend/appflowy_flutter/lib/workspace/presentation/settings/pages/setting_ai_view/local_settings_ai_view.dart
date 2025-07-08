@@ -7,8 +7,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'ai_search_toggle.dart';
-
 class LocalSettingsAIView extends StatelessWidget {
   const LocalSettingsAIView({
     super.key,
@@ -28,8 +26,8 @@ class LocalSettingsAIView extends StatelessWidget {
         title: LocaleKeys.settings_aiPage_title.tr(),
         description: "",
         children: [
-          const AISearchToggle(),
-          const LocalAISetting(),
+          // const AISearchToggle(),
+          LocalAISetting(userId: userProfile.id),
         ],
       ),
     );

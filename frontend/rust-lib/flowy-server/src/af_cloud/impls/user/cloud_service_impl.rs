@@ -12,15 +12,16 @@ use client_api::entity::workspace_dto::{
   WorkspaceMemberInvitation,
 };
 use client_api::entity::{
-  AFWorkspace, AFWorkspaceInvitation, AFWorkspaceSettings, AFWorkspaceSettingsChange, AuthProvider,
-  CollabParams, CreateCollabParams, GotrueTokenResponse, QueryWorkspaceMember,
+  AFWorkspace, AFWorkspaceInvitation, AFWorkspaceSettings, AFWorkspaceSettingsChange,
+  AuthProvider as AFAuthProvider, CollabParams, GotrueTokenResponse, QueryWorkspaceMember,
 };
 use client_api::entity::{QueryCollab, QueryCollabParams};
 use client_api::{Client, ClientConfiguration};
 use collab::preclude::ClientID;
-use collab_entity::{CollabObject, CollabType};
+use collab_entity::CollabType;
 use tracing::{instrument, trace};
 
+use super::dto::{from_af_workspace_invitation_status, to_workspace_invitation_status};
 use crate::af_cloud::define::{LoggedUser, USER_SIGN_IN_URL};
 use crate::af_cloud::impls::user::dto::{
   af_update_from_update_params, from_af_workspace_member, to_af_role, user_profile_from_af_profile,
@@ -28,25 +29,30 @@ use crate::af_cloud::impls::user::dto::{
 use crate::af_cloud::impls::user::util::encryption_type_from_profile;
 use crate::af_cloud::impls::util::check_request_workspace_id_is_match;
 use crate::af_cloud::{AFCloudClient, AFServer};
-use flowy_error::{ErrorCode, FlowyError, FlowyResult};
-use flowy_user_pub::cloud::{UserCloudService, UserCollabParams};
-use flowy_user_pub::entities::{
-  AFCloudOAuthParams, AuthResponse, AuthType, Role, UpdateUserProfileParams, UserProfile,
-  UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
+use flowy_ai_pub::cloud::billing_dto::{
+  PersonalPlan, PersonalSubscriptionCancelRequest, PersonalSubscriptionLinkRequest,
+  PersonalSubscriptionStatus,
 };
-use flowy_user_pub::sql::select_user_workspace;
+use flowy_error::{ErrorCode, FlowyError, FlowyResult};
+use flowy_user_pub::cloud::{
+  UserAuthService, UserBillingService, UserCollabParams, UserCollabService, UserProfileService,
+  UserWorkspaceService,
+};
+use flowy_user_pub::entities::{
+  AFCloudOAuthParams, AuthResponse, Role, UpdateUserProfileParams, UserProfile, UserWorkspace,
+  WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
+};
+use flowy_user_pub::sql::select_user_auth_provider;
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;
 use uuid::Uuid;
 
-use super::dto::{from_af_workspace_invitation_status, to_workspace_invitation_status};
-
-pub(crate) struct AFCloudUserAuthServiceImpl<T> {
+pub(crate) struct AFCloudUserServiceImpl<T> {
   server: T,
   logged_user: Weak<dyn LoggedUser>,
 }
 
-impl<T> AFCloudUserAuthServiceImpl<T> {
+impl<T> AFCloudUserServiceImpl<T> {
   pub(crate) fn new(server: T, logged_user: Weak<dyn LoggedUser>) -> Self {
     Self {
       server,
@@ -56,7 +62,7 @@ impl<T> AFCloudUserAuthServiceImpl<T> {
 }
 
 #[async_trait]
-impl<T> UserCloudService for AFCloudUserAuthServiceImpl<T>
+impl<T> UserAuthService for AFCloudUserServiceImpl<T>
 where
   T: AFServer,
 {
@@ -153,7 +159,7 @@ where
   }
 
   async fn generate_oauth_url_with_provider(&self, provider: &str) -> Result<String, FlowyError> {
-    let provider = AuthProvider::from(provider);
+    let provider = AFAuthProvider::from(provider);
     let try_get_client = self.server.try_get_client();
     let provider = provider.ok_or(anyhow!("invalid provider"))?;
     let url = try_get_client?
@@ -161,7 +167,13 @@ where
       .await?;
     Ok(url)
   }
+}
 
+#[async_trait]
+impl<T> UserProfileService for AFCloudUserServiceImpl<T>
+where
+  T: AFServer,
+{
   async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError> {
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
@@ -187,10 +199,8 @@ where
     let token = client.get_token_str()?;
 
     let mut conn = logged_user.get_sqlite_db(uid)?;
-    let workspace_auth_type = select_user_workspace(workspace_id, &mut conn)
-      .map(|row| AuthType::from(row.workspace_type))
-      .unwrap_or(AuthType::AppFlowyCloud);
-    let profile = user_profile_from_af_profile(token, profile, workspace_auth_type)?;
+    let auth_provider = select_user_auth_provider(uid, &mut conn)?;
+    let profile = user_profile_from_af_profile(token, profile, auth_provider)?;
 
     // Discard the response if the user has switched to a new workspace. This avoids updating the
     // user profile with potentially outdated information when the workspace ID no longer matches.
@@ -198,7 +208,64 @@ where
     check_request_workspace_id_is_match(&workspace_id, &self.logged_user, "get user profile")?;
     Ok(profile)
   }
+}
 
+#[async_trait]
+impl<T> UserCollabService for AFCloudUserServiceImpl<T>
+where
+  T: AFServer,
+{
+  #[instrument(level = "debug", skip_all)]
+  async fn get_user_awareness_doc_state(
+    &self,
+    _uid: i64,
+    workspace_id: &Uuid,
+    object_id: &Uuid,
+    _client_id: ClientID,
+  ) -> Result<Vec<u8>, FlowyError> {
+    let try_get_client = self.server.try_get_client();
+    let cloned_user = self.logged_user.clone();
+    let params = QueryCollabParams {
+      workspace_id: *workspace_id,
+      inner: QueryCollab::new(*object_id, CollabType::UserAwareness),
+    };
+    let resp = try_get_client?.get_collab(params).await?;
+    check_request_workspace_id_is_match(workspace_id, &cloned_user, "get user awareness object")?;
+    Ok(resp.encode_collab.doc_state.to_vec())
+  }
+
+  async fn batch_create_collab_object(
+    &self,
+    workspace_id: &Uuid,
+    objects: Vec<UserCollabParams>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.server.try_get_client();
+    let params = objects
+      .into_iter()
+      .flat_map(|object| {
+        Uuid::from_str(&object.object_id)
+          .map(|object_id| CollabParams {
+            object_id,
+            collab_type: u8::from(object.collab_type).into(),
+            encoded_collab_v1: object.encoded_collab.into(),
+            updated_at: None,
+          })
+          .ok()
+      })
+      .collect::<Vec<_>>();
+    try_get_client?
+      .create_collab_list(workspace_id, params)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(())
+  }
+}
+
+#[async_trait]
+impl<T> UserWorkspaceService for AFCloudUserServiceImpl<T>
+where
+  T: AFServer,
+{
   async fn open_workspace(&self, workspace_id: &Uuid) -> Result<UserWorkspace, FlowyError> {
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
@@ -347,72 +414,6 @@ where
     Ok(members)
   }
 
-  #[instrument(level = "debug", skip_all)]
-  async fn get_user_awareness_doc_state(
-    &self,
-    _uid: i64,
-    workspace_id: &Uuid,
-    object_id: &Uuid,
-    _client_id: ClientID,
-  ) -> Result<Vec<u8>, FlowyError> {
-    let try_get_client = self.server.try_get_client();
-    let cloned_user = self.logged_user.clone();
-    let params = QueryCollabParams {
-      workspace_id: *workspace_id,
-      inner: QueryCollab::new(*object_id, CollabType::UserAwareness),
-    };
-    let resp = try_get_client?.get_collab(params).await?;
-    check_request_workspace_id_is_match(workspace_id, &cloned_user, "get user awareness object")?;
-    Ok(resp.encode_collab.doc_state.to_vec())
-  }
-
-  async fn create_collab_object(
-    &self,
-    collab_object: &CollabObject,
-    data: Vec<u8>,
-  ) -> Result<(), FlowyError> {
-    let try_get_client = self.server.try_get_client();
-    let collab_object = collab_object.clone();
-    let client = try_get_client?;
-    let workspace_id = Uuid::from_str(&collab_object.workspace_id)?;
-    let object_id = Uuid::from_str(&collab_object.object_id)?;
-
-    let params = CreateCollabParams {
-      workspace_id,
-      object_id,
-      collab_type: collab_object.collab_type,
-      encoded_collab_v1: data,
-    };
-    client.create_collab(params).await?;
-    Ok(())
-  }
-
-  async fn batch_create_collab_object(
-    &self,
-    workspace_id: &Uuid,
-    objects: Vec<UserCollabParams>,
-  ) -> Result<(), FlowyError> {
-    let try_get_client = self.server.try_get_client();
-    let params = objects
-      .into_iter()
-      .flat_map(|object| {
-        Uuid::from_str(&object.object_id)
-          .map(|object_id| CollabParams {
-            object_id,
-            collab_type: u8::from(object.collab_type).into(),
-            encoded_collab_v1: object.encoded_collab.into(),
-            updated_at: None,
-          })
-          .ok()
-      })
-      .collect::<Vec<_>>();
-    try_get_client?
-      .create_collab_list(workspace_id, params)
-      .await
-      .map_err(FlowyError::from)?;
-    Ok(())
-  }
-
   async fn leave_workspace(&self, workspace_id: &Uuid) -> Result<(), FlowyError> {
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
@@ -420,6 +421,54 @@ where
     Ok(())
   }
 
+  #[instrument(level = "debug", skip_all, err)]
+  async fn get_workspace_member(
+    &self,
+    workspace_id: &Uuid,
+    uid: i64,
+  ) -> Result<WorkspaceMember, FlowyError> {
+    let try_get_client = self.server.try_get_client();
+    let client = try_get_client?;
+    let params = QueryWorkspaceMember {
+      workspace_id: *workspace_id,
+      uid,
+    };
+    let member = client.get_workspace_member(params).await?;
+    Ok(from_af_workspace_member(member))
+  }
+
+  async fn get_workspace_setting(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<AFWorkspaceSettings, FlowyError> {
+    let workspace_id = workspace_id.to_string();
+    let try_get_client = self.server.try_get_client();
+    let client = try_get_client?;
+    let settings = client.get_workspace_settings(&workspace_id).await?;
+    Ok(settings)
+  }
+
+  async fn update_workspace_setting(
+    &self,
+    workspace_id: &Uuid,
+    workspace_settings: AFWorkspaceSettingsChange,
+  ) -> Result<AFWorkspaceSettings, FlowyError> {
+    trace!("Sync workspace settings: {:?}", workspace_settings);
+    let workspace_id = workspace_id.to_string();
+    let try_get_client = self.server.try_get_client();
+    let client = try_get_client?;
+    let settings = client
+      .update_workspace_settings(&workspace_id, &workspace_settings)
+      .await?;
+    Ok(settings)
+  }
+}
+
+#[async_trait]
+impl<T> UserBillingService for AFCloudUserServiceImpl<T>
+where
+  T: AFServer,
+{
   async fn subscribe_workspace(
     &self,
     workspace_id: Uuid,
@@ -441,32 +490,25 @@ where
     Ok(payment_link)
   }
 
-  async fn get_workspace_member(
+  async fn subscribe_personal(
     &self,
-    workspace_id: &Uuid,
-    uid: i64,
-  ) -> Result<WorkspaceMember, FlowyError> {
+    recurring_interval: RecurringInterval,
+    subscription_plan: PersonalPlan,
+    success_url: String,
+  ) -> Result<String, FlowyError> {
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
-    let params = QueryWorkspaceMember {
-      workspace_id: *workspace_id,
-      uid,
+    let request = PersonalSubscriptionLinkRequest {
+      subscription_plan,
+      recurring_interval,
+      success_url,
+      with_test_clock: None,
     };
-    let member = client.get_workspace_member(params).await?;
-
-    Ok(from_af_workspace_member(member))
+    let payment_link = client.create_personal_subscription(&request).await?;
+    Ok(payment_link)
   }
 
   async fn get_workspace_subscriptions(
-    &self,
-  ) -> Result<Vec<WorkspaceSubscriptionStatus>, FlowyError> {
-    let try_get_client = self.server.try_get_client();
-    let client = try_get_client?;
-    let workspace_subscriptions = client.list_subscription().await?;
-    Ok(workspace_subscriptions)
-  }
-
-  async fn get_workspace_subscription_one(
     &self,
     workspace_id: &Uuid,
   ) -> Result<Vec<WorkspaceSubscriptionStatus>, FlowyError> {
@@ -496,6 +538,31 @@ where
       .await?;
     Ok(())
   }
+  async fn cancel_personal_subscription(
+    &self,
+    plan: PersonalPlan,
+    reason: Option<String>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.server.try_get_client();
+    let client = try_get_client?;
+    client
+      .cancel_personal_subscription(&PersonalSubscriptionCancelRequest {
+        plan,
+        sync: true,
+        reason,
+      })
+      .await?;
+    Ok(())
+  }
+
+  async fn get_personal_subscription_status(
+    &self,
+  ) -> Result<Vec<PersonalSubscriptionStatus>, FlowyError> {
+    let try_get_client = self.server.try_get_client();
+    let client = try_get_client?;
+    let status = client.get_all_personal_subscription_status().await?;
+    Ok(status)
+  }
 
   async fn get_workspace_plan(
     &self,
@@ -521,7 +588,7 @@ where
     Ok(usage)
   }
 
-  async fn get_billing_portal_url(&self) -> Result<String, FlowyError> {
+  async fn billing_portal_url(&self) -> Result<String, FlowyError> {
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
     let url = client.get_portal_session_link().await?;
@@ -551,32 +618,6 @@ where
     let client = try_get_client?;
     let plan_details = client.get_subscription_plan_details().await?;
     Ok(plan_details)
-  }
-
-  async fn get_workspace_setting(
-    &self,
-    workspace_id: &Uuid,
-  ) -> Result<AFWorkspaceSettings, FlowyError> {
-    let workspace_id = workspace_id.to_string();
-    let try_get_client = self.server.try_get_client();
-    let client = try_get_client?;
-    let settings = client.get_workspace_settings(&workspace_id).await?;
-    Ok(settings)
-  }
-
-  async fn update_workspace_setting(
-    &self,
-    workspace_id: &Uuid,
-    workspace_settings: AFWorkspaceSettingsChange,
-  ) -> Result<AFWorkspaceSettings, FlowyError> {
-    trace!("Sync workspace settings: {:?}", workspace_settings);
-    let workspace_id = workspace_id.to_string();
-    let try_get_client = self.server.try_get_client();
-    let client = try_get_client?;
-    let settings = client
-      .update_workspace_settings(&workspace_id, &workspace_settings)
-      .await?;
-    Ok(settings)
   }
 }
 
@@ -652,7 +693,7 @@ fn to_user_workspace(af_workspace: AFWorkspace) -> UserWorkspace {
     icon: af_workspace.icon,
     member_count: af_workspace.member_count.unwrap_or(0),
     role: af_workspace.role.map(|r| r.into()),
-    workspace_type: WorkspaceType::Server,
+    workspace_type: WorkspaceType::Cloud,
   }
 }
 

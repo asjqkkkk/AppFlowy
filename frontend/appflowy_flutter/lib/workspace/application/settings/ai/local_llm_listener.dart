@@ -8,7 +8,7 @@ import 'package:appflowy_backend/protobuf/flowy-notification/subject.pb.dart';
 import 'package:appflowy_backend/rust_stream.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 
-typedef PluginStateCallback = void Function(LocalAIPB state);
+typedef PluginStateCallback = void Function(LocalAIStatePB state);
 typedef PluginResourceCallback = void Function(LackOfAIResourcePB data);
 
 class LocalAIStateListener {
@@ -41,7 +41,7 @@ class LocalAIStateListener {
     result.map((r) {
       switch (ty) {
         case ChatNotification.UpdateLocalAIState:
-          stateCallback?.call(LocalAIPB.fromBuffer(r));
+          stateCallback?.call(LocalAIStatePB.fromBuffer(r));
           break;
         case ChatNotification.LocalAIResourceUpdated:
           resourceCallback?.call(LackOfAIResourcePB.fromBuffer(r));

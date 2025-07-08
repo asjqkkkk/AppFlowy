@@ -168,6 +168,7 @@ impl FlowyError {
   static_flowy_error!(local_ai_disabled, ErrorCode::LocalAIDisabled);
   static_flowy_error!(user_not_login, ErrorCode::UserNotLogin);
   static_flowy_error!(ref_drop, ErrorCode::WeakRefDrop);
+  static_flowy_error!(feature_not_available, ErrorCode::FeatureNotAvailable);
 }
 
 impl std::convert::From<ErrorCode> for FlowyError {

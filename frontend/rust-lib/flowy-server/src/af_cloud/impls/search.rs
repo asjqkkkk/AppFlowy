@@ -9,7 +9,7 @@ use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use lib_infra::async_trait::async_trait;
 use std::sync::Weak;
 use tokio::sync::RwLock;
-use tracing::trace;
+use tracing::debug;
 use uuid::Uuid;
 
 pub(crate) struct AFCloudSearchCloudServiceImpl<T> {
@@ -38,7 +38,7 @@ where
       return Ok(result);
     }
 
-    trace!("[Search] Local AI search returned no results, falling back to local search");
+    debug!("[Search] server search returned no results, falling back to local search");
     let items = tanvity_local_search(&self.state, workspace_id, &query, None, 10, 0.4)
       .await
       .unwrap_or_default();

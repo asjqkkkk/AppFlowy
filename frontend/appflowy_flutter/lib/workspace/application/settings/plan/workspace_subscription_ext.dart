@@ -1,32 +1,36 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbserver.dart';
 import 'package:easy_localization/easy_localization.dart';
+
+enum SubscriptionState {
+  cancelled,
+  actived,
+  newSubscription,
+}
 
 extension SubscriptionInfoHelpers on WorkspaceSubscriptionInfoPB {
   String get label => switch (plan) {
-        WorkspacePlanPB.FreePlan =>
+        SubscriptionPlanPB.Free =>
           LocaleKeys.settings_planPage_planUsage_currentPlan_freeTitle.tr(),
-        WorkspacePlanPB.ProPlan =>
+        SubscriptionPlanPB.Pro =>
           LocaleKeys.settings_planPage_planUsage_currentPlan_proTitle.tr(),
-        WorkspacePlanPB.TeamPlan =>
+        SubscriptionPlanPB.Team =>
           LocaleKeys.settings_planPage_planUsage_currentPlan_teamTitle.tr(),
         _ => 'N/A',
       };
 
   String get info => switch (plan) {
-        WorkspacePlanPB.FreePlan =>
+        SubscriptionPlanPB.Free =>
           LocaleKeys.settings_planPage_planUsage_currentPlan_freeInfo.tr(),
-        WorkspacePlanPB.ProPlan =>
+        SubscriptionPlanPB.Pro =>
           LocaleKeys.settings_planPage_planUsage_currentPlan_proInfo.tr(),
-        WorkspacePlanPB.TeamPlan =>
+        SubscriptionPlanPB.Team =>
           LocaleKeys.settings_planPage_planUsage_currentPlan_teamInfo.tr(),
         _ => 'N/A',
       };
 
   bool get isBillingPortalEnabled {
-    if (plan != WorkspacePlanPB.FreePlan || addOns.isNotEmpty) {
+    if (plan != SubscriptionPlanPB.Free || addOns.isNotEmpty) {
       return true;
     }
 
@@ -51,8 +55,7 @@ extension AllSubscriptionLabels on SubscriptionPlanPB {
 }
 
 extension WorkspaceSubscriptionStatusExt on WorkspaceSubscriptionInfoPB {
-  bool get isCanceled =>
-      planSubscription.status == WorkspaceSubscriptionStatusPB.Canceled;
+  bool get isCanceled => subscription.status == SubscriptionStatusPB.Canceled;
 }
 
 extension WorkspaceAddonsExt on WorkspaceSubscriptionInfoPB {
@@ -61,6 +64,32 @@ extension WorkspaceAddonsExt on WorkspaceSubscriptionInfoPB {
 
   bool get hasAIOnDevice =>
       addOns.any((addon) => addon.type == WorkspaceAddOnPBType.AddOnAiLocal);
+}
+
+extension PersonalSubscriptionStatusExt on PersonalSubscriptionInfoPB {
+  SubscriptionState get subscriptionState {
+    if (subscriptions.isEmpty) {
+      return SubscriptionState.newSubscription;
+    }
+
+    if (subscriptions.any(
+      (subscription) =>
+          subscription.plan == PersonalPlanPB.VaultWorkspace &&
+          subscription.status == SubscriptionStatusPB.Active,
+    )) {
+      return SubscriptionState.actived;
+    }
+
+    if (subscriptions.any(
+      (subscription) =>
+          subscription.plan == PersonalPlanPB.VaultWorkspace &&
+          subscription.status == SubscriptionStatusPB.Canceled,
+    )) {
+      return SubscriptionState.cancelled;
+    }
+
+    return SubscriptionState.newSubscription;
+  }
 }
 
 /// These have to match [SubscriptionSuccessListenable.subscribedPlan] labels
@@ -101,6 +130,40 @@ extension PlanHelper on SubscriptionPlanPB {
         SubscriptionPlanPB.AiMax => 'US\$8',
         SubscriptionPlanPB.AiLocal => 'US\$8',
         _ => 'US\$0',
+      };
+}
+
+extension PersonalPlanHelper on PersonalPlanPB {
+  String get priceMonthBilling => switch (this) {
+        PersonalPlanPB.VaultWorkspace => 'US\$7.5',
+        _ => 'US\$0',
+      };
+
+  String get priceAnnualBilling => switch (this) {
+        PersonalPlanPB.VaultWorkspace => 'US\$6',
+        _ => 'US\$0',
+      };
+}
+
+extension PersonalPlanStatusExt on PersonalSubscriptionInfoPB {
+  bool get isVaultWorkspaceCanceled =>
+      subscriptions
+          .where((sub) => sub.plan == PersonalPlanPB.VaultWorkspace)
+          .firstOrNull
+          ?.status ==
+      SubscriptionStatusPB.Canceled;
+
+  bool get hasActiveVaultWorkspaceSubscription => subscriptions.any(
+        (sub) =>
+            sub.status == SubscriptionStatusPB.Active &&
+            sub.plan == PersonalPlanPB.VaultWorkspace,
+      );
+}
+
+extension ToRecognizablePersonalPlan on PersonalPlanPB {
+  String? toRecognizable() => switch (this) {
+        PersonalPlanPB.VaultWorkspace => 'vault_workspace',
+        _ => null,
       };
 }
 

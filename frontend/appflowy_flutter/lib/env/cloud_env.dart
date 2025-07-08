@@ -257,8 +257,10 @@ Future<AppFlowyCloudConfiguration> configurationFromUri(
   // This setup bypasses the need for Nginx, meaning that the AppFlowy cloud should be running without an Nginx server
   // in the development environment.
   // If you modify following code, please update the corresponding documentation in the appflowy billing.
+
   if (authenticatorType == AuthenticatorType.appflowyCloudDevelop) {
     return AppFlowyCloudConfiguration(
+      // Use port 8100 for the AppFlowy Cloud Gateway. Without gateway, use 8000.
       base_url: "$baseUrl:8000",
       ws_base_url: "ws://${baseUri.host}:8000/ws/v2",
       gotrue_url: "$baseUrl:9999",

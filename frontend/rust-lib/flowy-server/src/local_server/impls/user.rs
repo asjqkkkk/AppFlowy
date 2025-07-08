@@ -10,16 +10,16 @@ use client_api::entity::GotrueTokenResponse;
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::{ClientID, Collab};
-use collab_entity::CollabObject;
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_user::core::UserAwareness;
-use flowy_ai_pub::cloud::billing_dto::WorkspaceUsageAndLimit;
 use flowy_ai_pub::cloud::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_user_pub::DEFAULT_USER_NAME;
-use flowy_user_pub::cloud::{UserCloudService, UserCollabParams};
+use flowy_user_pub::cloud::{
+  UserAuthService, UserCollabParams, UserCollabService, UserProfileService, UserWorkspaceService,
+};
 use flowy_user_pub::entities::*;
 use flowy_user_pub::sql::{
   UserTableChangeset, WorkspaceMemberTable, WorkspaceSettingsChangeset, WorkspaceSettingsTable,
@@ -33,6 +33,7 @@ use lib_infra::box_any::BoxAny;
 use lib_infra::util::timestamp;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tracing::{debug, instrument};
 use uuid::Uuid;
 
 lazy_static! {
@@ -44,7 +45,7 @@ pub(crate) struct LocalServerUserServiceImpl {
 }
 
 #[async_trait]
-impl UserCloudService for LocalServerUserServiceImpl {
+impl UserAuthService for LocalServerUserServiceImpl {
   async fn sign_up(&self, params: BoxAny) -> Result<AuthResponse, FlowyError> {
     let params = params.unbox_or_error::<SignUpParams>()?;
     let uid = ID_GEN.lock().await.next_id();
@@ -96,6 +97,10 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(())
   }
 
+  async fn delete_account(&self) -> Result<(), FlowyError> {
+    Ok(())
+  }
+
   async fn generate_sign_in_url_with_email(&self, _email: &str) -> Result<String, FlowyError> {
     Err(
       FlowyError::local_version_not_support()
@@ -134,7 +139,10 @@ impl UserCloudService for LocalServerUserServiceImpl {
   async fn generate_oauth_url_with_provider(&self, _provider: &str) -> Result<String, FlowyError> {
     Err(FlowyError::internal().with_context("Can't oauth url when using offline mode"))
   }
+}
 
+#[async_trait]
+impl UserProfileService for LocalServerUserServiceImpl {
   async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError> {
     let uid = self.logged_user.user_id()?;
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
@@ -152,7 +160,36 @@ impl UserCloudService for LocalServerUserServiceImpl {
     let profile = select_user_profile(uid, workspace_id, &mut conn)?;
     Ok(profile)
   }
+}
 
+#[async_trait]
+impl UserCollabService for LocalServerUserServiceImpl {
+  async fn get_user_awareness_doc_state(
+    &self,
+    uid: i64,
+    workspace_id: &Uuid,
+    object_id: &Uuid,
+    client_id: ClientID,
+  ) -> Result<Vec<u8>, FlowyError> {
+    let options = CollabOptions::new(object_id.to_string(), client_id);
+    let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
+    let awareness = UserAwareness::create(collab, None)?;
+    let encode_collab = awareness.encode_collab_v1(|_collab| Ok::<_, FlowyError>(()))?;
+    Ok(encode_collab.doc_state.to_vec())
+  }
+
+  async fn batch_create_collab_object(
+    &self,
+    workspace_id: &Uuid,
+    objects: Vec<UserCollabParams>,
+  ) -> Result<(), FlowyError> {
+    Ok(())
+  }
+}
+
+#[async_trait]
+impl UserWorkspaceService for LocalServerUserServiceImpl {
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn open_workspace(&self, workspace_id: &Uuid) -> Result<UserWorkspace, FlowyError> {
     let uid = self.logged_user.user_id()?;
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
@@ -161,12 +198,14 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(UserWorkspace::from(workspace))
   }
 
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn get_all_workspace(&self, uid: i64) -> Result<Vec<UserWorkspace>, FlowyError> {
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
     let workspaces = select_all_user_workspace(uid, &mut conn)?;
     Ok(workspaces)
   }
 
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn create_workspace(
     &self,
     workspace_name: &str,
@@ -204,10 +243,12 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(())
   }
 
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn delete_workspace(&self, workspace_id: &Uuid) -> Result<(), FlowyError> {
     Ok(())
   }
 
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn get_workspace_members(
     &self,
     workspace_id: Uuid,
@@ -217,36 +258,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     Ok(vec![member])
   }
 
-  async fn get_user_awareness_doc_state(
-    &self,
-    uid: i64,
-    workspace_id: &Uuid,
-    object_id: &Uuid,
-    client_id: ClientID,
-  ) -> Result<Vec<u8>, FlowyError> {
-    let options = CollabOptions::new(object_id.to_string(), client_id);
-    let collab = Collab::new_with_options(CollabOrigin::Empty, options)?;
-    let awareness = UserAwareness::create(collab, None)?;
-    let encode_collab = awareness.encode_collab_v1(|_collab| Ok::<_, FlowyError>(()))?;
-    Ok(encode_collab.doc_state.to_vec())
-  }
-
-  async fn create_collab_object(
-    &self,
-    _collab_object: &CollabObject,
-    _data: Vec<u8>,
-  ) -> Result<(), FlowyError> {
-    Ok(())
-  }
-
-  async fn batch_create_collab_object(
-    &self,
-    workspace_id: &Uuid,
-    objects: Vec<UserCollabParams>,
-  ) -> Result<(), FlowyError> {
-    Ok(())
-  }
-
+  #[instrument(level = "debug", skip(self), fields(impl_name = "local"), err)]
   async fn get_workspace_member(
     &self,
     workspace_id: &Uuid,
@@ -255,11 +267,11 @@ impl UserCloudService for LocalServerUserServiceImpl {
     // For local server, only current user is the member
     let conn = self.logged_user.get_sqlite_db(uid)?;
     let result = select_workspace_member(conn, &workspace_id.to_string(), uid);
-
     match result {
       Ok(row) => Ok(WorkspaceMember::from(row)),
       Err(err) => {
         if err.is_record_not_found() {
+          debug!("create workspace member for uid: {}", uid);
           let mut conn = self.logged_user.get_sqlite_db(uid)?;
           let profile = select_user_profile(uid, &workspace_id.to_string(), &mut conn)
             .context("Can't find user profile when create workspace member")?;
@@ -284,27 +296,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     }
   }
 
-  async fn get_workspace_usage(
-    &self,
-    workspace_id: &Uuid,
-  ) -> Result<WorkspaceUsageAndLimit, FlowyError> {
-    Ok(WorkspaceUsageAndLimit {
-      member_count: 1,
-      member_count_limit: 1,
-      storage_bytes: i64::MAX,
-      storage_bytes_limit: i64::MAX,
-      storage_bytes_unlimited: true,
-      single_upload_limit: i64::MAX,
-      single_upload_unlimited: true,
-      ai_responses_count: i64::MAX,
-      ai_responses_count_limit: i64::MAX,
-      ai_image_responses_count: i64::MAX,
-      ai_image_responses_count_limit: 0,
-      local_ai: true,
-      ai_responses_unlimited: true,
-    })
-  }
-
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn get_workspace_setting(
     &self,
     workspace_id: &Uuid,
@@ -339,6 +331,7 @@ impl UserCloudService for LocalServerUserServiceImpl {
     }
   }
 
+  #[instrument(level = "debug", skip_all, fields(impl_name = "local"))]
   async fn update_workspace_setting(
     &self,
     workspace_id: &Uuid,

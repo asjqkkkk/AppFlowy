@@ -578,14 +578,20 @@ pub enum RunningStatePB {
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
-pub struct LocalAIPB {
+pub struct LocalAIStatePB {
   #[pb(index = 1)]
-  pub enabled: bool,
+  pub toggle_on: bool,
 
-  #[pb(index = 2, one_of)]
-  pub lack_of_resource: Option<LackOfAIResourcePB>,
+  #[pb(index = 2)]
+  pub is_vault: bool,
 
   #[pb(index = 3)]
+  pub enabled: bool,
+
+  #[pb(index = 4, one_of)]
+  pub lack_of_resource: Option<LackOfAIResourcePB>,
+
+  #[pb(index = 5)]
   pub is_ready: bool,
 }
 

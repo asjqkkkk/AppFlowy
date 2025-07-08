@@ -8,12 +8,13 @@ import 'package:appflowy/features/page_access_level/logic/page_access_level_stat
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/share_tab/data/repositories/rust_share_with_user_repository_impl.dart';
 import 'package:appflowy/features/share_tab/data/repositories/share_with_user_repository.dart';
+import 'package:appflowy/features/util/extensions.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/workspace/application/view/view_listener.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:bloc/bloc.dart';
+import 'package:flutter/foundation.dart';
 import 'package:protobuf/protobuf.dart';
-import 'package:universal_platform/universal_platform.dart';
 
 export 'page_access_level_event.dart';
 export 'page_access_level_state.dart';
@@ -56,6 +57,9 @@ class PageAccessLevelBloc
   // should ignore the page access level
   // in the row details page, we don't need to check the page access level
   final bool ignorePageAccessLevel;
+
+  // This value is used to compare with the latest shared users to get the diff.
+  SharedUsers _sharedUsers = [];
 
   @override
   Future<void> close() async {
@@ -100,9 +104,14 @@ class PageAccessLevelBloc
     );
 
     final result = await pageAccessRepository.getView(view.id);
-    if (UniversalPlatform.isMobile) {
-      await shareRepository.getSharedUsersInPage(pageId: view.id);
-    }
+
+    final sharedUsers =
+        await shareRepository.getSharedUsersInPage(pageId: view.id);
+    _sharedUsers = sharedUsers.fold(
+      (sharedUsers) => sharedUsers,
+      (_) => [],
+    );
+
     final accessLevel =
         await pageAccessRepository.getAccessLevel(view.id, email);
     final latestView = result.fold(
@@ -223,7 +232,19 @@ class PageAccessLevelBloc
         if (notification == FolderNotification.DidUpdateSharedUsers) {
           result.fold(
             (payload) {
-              // refresh the access level
+              final sharedUsers =
+                  RepeatedSharedUserPB.fromBuffer(payload).sharedUsers;
+              final isSame = setEquals(
+                _sharedUsers.toSet(),
+                sharedUsers.toSet(),
+              );
+
+              _sharedUsers = sharedUsers;
+
+              if (isSame) {
+                return;
+              }
+
               add(PageAccessLevelEvent.refreshAccessLevel());
             },
             (error) => null,

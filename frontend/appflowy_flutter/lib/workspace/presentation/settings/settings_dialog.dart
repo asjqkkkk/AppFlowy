@@ -10,9 +10,8 @@ import 'package:appflowy/workspace/application/settings/appflowy_cloud_urls_bloc
 import 'package:appflowy/workspace/application/settings/settings_dialog_bloc.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/setting_ai_view/settings_ai_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_account_view.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/settings_billing_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_manage_data_view.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/settings_plan_view.dart';
+import 'package:appflowy/workspace/presentation/settings/pages/settings_plan_view/settings_plan_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_shortcuts_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_workspace_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/sites/settings_sites_view.dart';
@@ -34,6 +33,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'pages/setting_ai_view/local_settings_ai_view.dart';
+import 'pages/settings_billing_view/settings_billing_view.dart';
 import 'widgets/setting_cloud.dart';
 
 @visibleForTesting
@@ -60,7 +60,6 @@ class SettingsDialog extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.of(context).size.width * 0.6;
     final theme = AppFlowyTheme.of(context);
     final currentWorkspaceMemberRole =
         context.read<UserWorkspaceBloc>().state.currentWorkspace?.role;
@@ -79,51 +78,57 @@ class SettingsDialog extends StatelessWidget {
 
           return true;
         },
-        builder: (context, state) => FlowyDialog(
-          width: width,
-          constraints: const BoxConstraints(minWidth: 564),
-          child: ScaffoldMessenger(
-            child: Scaffold(
-              backgroundColor: theme.backgroundColorScheme.primary,
-              body: BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
-                builder: (context, userWorkspaceState) {
-                  return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      SizedBox(
-                        width: 204,
-                        child: SettingsMenu(
-                          userProfile: user,
-                          changeSelectedPage: (index) => context
-                              .read<SettingsDialogBloc>()
-                              .add(SettingsDialogEvent.setSelectedPage(index)),
-                          currentPage:
-                              context.read<SettingsDialogBloc>().state.page,
-                          currentUserRole: currentWorkspaceMemberRole,
-                          workspaceType: userWorkspaceState
-                              .currentWorkspace?.workspaceType,
-                          isBillingEnabled: state.isBillingEnabled,
+        builder: (context, state) {
+          return AFModal(
+            constraints: BoxConstraints(
+              maxWidth: 900,
+              maxHeight: 640,
+            ),
+            child: ScaffoldMessenger(
+              child: Scaffold(
+                backgroundColor: Colors.transparent,
+                body: BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
+                  builder: (context, userWorkspaceState) {
+                    return Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 204,
+                          child: SettingsMenu(
+                            userProfile: user,
+                            changeSelectedPage: (index) => context
+                                .read<SettingsDialogBloc>()
+                                .add(
+                                  SettingsDialogEvent.setSelectedPage(index),
+                                ),
+                            currentPage:
+                                context.read<SettingsDialogBloc>().state.page,
+                            currentUserRole: currentWorkspaceMemberRole,
+                            workspaceType: userWorkspaceState
+                                .currentWorkspace?.workspaceType,
+                            isBillingEnabled: state.isBillingEnabled,
+                          ),
                         ),
-                      ),
-                      AFDivider(
-                        axis: Axis.vertical,
-                        color: theme.borderColorScheme.primary,
-                      ),
-                      Expanded(
-                        child: getSettingsView(
-                          userWorkspaceState.currentWorkspace!,
-                          context.read<SettingsDialogBloc>().state.page,
-                          state.userProfile,
-                          userWorkspaceState.currentWorkspace?.role,
+                        AFDivider(
+                          axis: Axis.vertical,
+                          color: theme.borderColorScheme.primary,
                         ),
-                      ),
-                    ],
-                  );
-                },
+                        Expanded(
+                          child: getSettingsView(
+                            userWorkspaceState.currentWorkspace!,
+                            context.read<SettingsDialogBloc>().state.page,
+                            state.userProfile,
+                            userWorkspaceState.currentWorkspace?.role,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
+                ),
               ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

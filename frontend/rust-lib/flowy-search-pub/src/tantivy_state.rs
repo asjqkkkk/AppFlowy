@@ -4,7 +4,7 @@ use std::path::PathBuf;
 use tantivy::directory::MmapDirectory;
 use tantivy::schema::Value;
 use tantivy::{Index, IndexReader, IndexWriter, TantivyDocument, Term};
-use tracing::{error, trace, warn};
+use tracing::{debug, error, trace, warn};
 use uuid::Uuid;
 
 use crate::entities::{ResultIcon, TanvitySearchResponseItem};
@@ -107,7 +107,7 @@ impl DocumentTantivyState {
     name: Option<String>,
     icon: Option<ViewIcon>,
   ) -> FlowyResult<()> {
-    trace!("[Tantivy] Adding document with id:{}, name:{:?}", id, name);
+    debug!("[Tantivy] Adding document with id:{}, name:{:?}", id, name);
     let term = Term::from_field_text(self.field_object_id, id);
     let searcher = self.reader.searcher();
     let query =

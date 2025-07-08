@@ -4,7 +4,7 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/members/workspace_member_bloc.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/billing.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
@@ -93,7 +93,7 @@ class _Description extends StatelessWidget {
     // check the current workspace member count, if it exceed the limit, show a upgrade dialog.
     // prevent hard code here, because the member count may exceed the limit after the invite link is generated.
     if (inviteLink == null &&
-        subscriptionInfo?.plan == WorkspacePlanPB.FreePlan &&
+        subscriptionInfo?.plan == SubscriptionPlanPB.Free &&
         state.members.length >= 2) {
       await showConfirmDialog(
         context: context,
@@ -170,7 +170,7 @@ class _CopyLinkButtonState extends State<_CopyLinkButton> {
         final subscriptionInfo = state.subscriptionInfo;
         // check the current workspace member count, if it exceed the limit, show a upgrade dialog.
         // prevent hard code here, because the member count may exceed the limit after the invite link is generated.
-        if (subscriptionInfo?.plan == WorkspacePlanPB.FreePlan &&
+        if (subscriptionInfo?.plan == SubscriptionPlanPB.Free &&
             state.members.length >= 2) {
           await showConfirmDialog(
             context: context,

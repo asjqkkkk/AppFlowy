@@ -2,7 +2,7 @@ use flowy_folder::view_operation::{GatherEncodedCollab, ViewData};
 use std::str::FromStr;
 use std::sync::Arc;
 
-use collab_folder::{FolderData, SpaceInfo, View};
+use collab_folder::{timestamp, FolderData, SpaceInfo, SpacePermission, View};
 use csv::ReaderBuilder;
 use flowy_folder::entities::icon::UpdateViewIconPayloadPB;
 use flowy_folder::entities::{
@@ -321,7 +321,7 @@ impl EventIntegrationTest {
       .await
   }
 
-  pub async fn create_space<T: ToString>(&self, parent_id: Uuid, name: T) -> ViewPB {
+  pub async fn create_public_space<T: ToString>(&self, parent_id: Uuid, name: T) -> ViewPB {
     let payload = CreateViewPayloadPB {
       parent_view_id: parent_id.to_string(),
       name: name.to_string(),
@@ -334,6 +334,37 @@ impl EventIntegrationTest {
       section: None,
       view_id: None,
       extra: Some(serde_json::to_string(&SpaceInfo::default()).unwrap()),
+    };
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::CreateView)
+      .payload(payload)
+      .async_send()
+      .await
+      .parse_or_panic::<ViewPB>()
+  }
+
+  pub async fn create_private_space<T: ToString>(&self, parent_id: Uuid, name: T) -> ViewPB {
+    let payload = CreateViewPayloadPB {
+      parent_view_id: parent_id.to_string(),
+      name: name.to_string(),
+      thumbnail: None,
+      layout: ViewLayoutPB::Document,
+      initial_data: vec![],
+      meta: Default::default(),
+      set_as_current: false,
+      index: None,
+      section: Some(ViewSectionPB::Private),
+      view_id: None,
+      extra: Some(
+        serde_json::to_string(&SpaceInfo {
+          is_space: true,
+          space_permission: SpacePermission::Private,
+          space_created_at: timestamp(),
+          space_icon: None,
+          space_icon_color: None,
+        })
+        .unwrap(),
+      ),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)
@@ -547,6 +578,20 @@ impl EventIntegrationTest {
   }
 
   pub async fn get_shared_users(&self, view_id: &str) -> FlowyResult<RepeatedSharedUserPB> {
+    // refresh the cache and fetch from cloud again
+    let _ = EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedUsers)
+      .payload(GetSharedUsersPayloadPB {
+        view_id: view_id.to_string(),
+      })
+      .async_send()
+      .await
+      .parse::<RepeatedSharedUserPB>();
+
+    // wait for 1 second to make sure the cache is refreshed
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // fetch from cloud
     EventBuilder::new(self.clone())
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
@@ -557,7 +602,13 @@ impl EventIntegrationTest {
       .parse::<RepeatedSharedUserPB>()
   }
 
-  pub async fn remove_user_from_shared_page(
+  pub async fn remove_user_from_shared_page(&self, view_id: &str, email: &str) -> FlowyResult<()> {
+    self
+      .remove_users_from_shared_page(view_id, vec![email.to_string()])
+      .await
+  }
+
+  pub async fn remove_users_from_shared_page(
     &self,
     view_id: &str,
     emails: Vec<String>,
@@ -590,6 +641,25 @@ impl EventIntegrationTest {
       flowy_error::ErrorCode::RecordNotFound,
       format!("User {} not found in shared users", user_email),
     ))
+  }
+
+  pub async fn get_shared_views(&self) -> Vec<SharedViewPB> {
+    let _ = EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedViews)
+      .async_send()
+      .await;
+
+    // wait for 1 second to make sure the cache is refreshed
+    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+
+    // fetch from cloud
+    let result = EventBuilder::new(self.clone())
+      .event(FolderEvent::GetSharedViews)
+      .async_send()
+      .await
+      .parse::<RepeatedSharedViewResponsePB>()
+      .unwrap();
+    result.shared_views
   }
 }
 

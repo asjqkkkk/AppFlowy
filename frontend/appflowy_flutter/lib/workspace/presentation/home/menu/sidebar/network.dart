@@ -1,78 +1,164 @@
+import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/sidebar/network_indicator_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
+import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/style_widget/button.dart';
 import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class WebSocketIndicator extends StatelessWidget {
   const WebSocketIndicator({super.key, required this.workspaceId});
+
   final String workspaceId;
+
+  static const double _indicatorHeight = 42.0;
 
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (context) => NetworkIndicatorBloc(workspaceId: workspaceId),
       child: BlocBuilder<NetworkIndicatorBloc, NetworkIndicatorState>(
+        buildWhen: (previous, current) =>
+            previous.connectState != current.connectState,
         builder: (context, state) {
-          if (state.connectState == null) {
+          final connectState = state.connectState;
+          if (connectState == null) {
             return const SizedBox.shrink();
-          } else {
-            return Center(child: _icon(state.connectState!, context));
           }
+
+          return _buildStateIndicator(connectState, context);
         },
       ),
     );
   }
-}
 
-Widget _icon(ConnectStatePB connectState, BuildContext context) {
-  const height = 26.0;
-  switch (connectState) {
-    case ConnectStatePB.WSConnecting:
-      return const SizedBox(
-        height: height,
+  Widget _buildStateIndicator(ConnectStatePB state, BuildContext context) {
+    switch (state) {
+      case ConnectStatePB.WSConnecting:
+        return _buildConnectingIndicator(context);
+      case ConnectStatePB.WSConnected:
+        return const SizedBox.shrink();
+      case ConnectStatePB.WSDisconnected:
+        if (UniversalPlatform.isMobile) {
+          return _buildMobileDisconnectedIndicator(context);
+        } else {
+          return _buildDisconnectedIndicator(context);
+        }
+      default:
+        return const SizedBox.shrink();
+    }
+  }
+
+  Widget _buildConnectingIndicator(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    return Container(
+      color: theme.surfaceColorScheme.layer01,
+      height: _indicatorHeight,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: theme.spacing.xxl,
+          vertical: theme.spacing.l,
+        ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
           children: [
             CircularProgressIndicator.adaptive(),
-            HSpace(6),
+            HSpace(8),
             FlowyText(
-              'Connecting...',
-              fontSize: 12,
+              LocaleKeys.network_connecting.tr(),
+              fontSize: 14,
             ),
           ],
         ),
-      );
-    case ConnectStatePB.WSConnected:
-      return SizedBox.shrink();
-    case ConnectStatePB.WSDisconnected:
-      return SizedBox(
-        height: height,
-        child: FlowyButton(
-          radius: BorderRadius.zero,
-          text: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.wifi_off, color: Colors.red, size: 16),
-              HSpace(6),
-              FlowyText(
-                'Click to reconnect',
-                fontSize: 12,
-              ),
-            ],
-          ),
-          onTap: () {
-            context
-                .read<NetworkIndicatorBloc>()
-                .add(const NetworkIndicatorEvent.reconnect());
-          },
+      ),
+    );
+  }
+
+  Widget _buildDisconnectedIndicator(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    return Container(
+      color: theme.surfaceColorScheme.layer01,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: theme.spacing.xxl,
+          vertical: theme.spacing.l,
         ),
-      );
-    default:
-      return const SizedBox.shrink();
+        child: Row(
+          children: [
+            const FlowySvg(FlowySvgs.lost_connection_m),
+            const HSpace(8),
+            FlowyText(
+              LocaleKeys.network_lost_connnection.tr(),
+              fontSize: 14,
+            ),
+            HSpace(theme.spacing.xl),
+            _buildReconnectButton(context, theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileDisconnectedIndicator(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    return Container(
+      color: theme.surfaceColorScheme.layer01,
+      child: Padding(
+        padding: EdgeInsets.symmetric(
+          horizontal: theme.spacing.xxl,
+          vertical: theme.spacing.l,
+        ),
+        child: Row(
+          children: [
+            const FlowySvg(FlowySvgs.lost_connection_m),
+            const HSpace(8),
+            FlowyText(
+              LocaleKeys.network_lost_connnection_mobile.tr(),
+              fontSize: 14,
+            ),
+            const Spacer(),
+            _buildReconnectButton(context, theme),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReconnectButton(
+    BuildContext context,
+    AppFlowyThemeData theme,
+  ) {
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        shape: RoundedRectangleBorder(
+          side: BorderSide(
+            color: theme.borderColorScheme.primary,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
+      child: FlowyButton(
+        margin: EdgeInsets.symmetric(
+          vertical: theme.spacing.xs,
+          horizontal: theme.spacing.l,
+        ),
+        useIntrinsicWidth: true,
+        text: FlowyText(
+          LocaleKeys.network_reconnect.tr(),
+          fontSize: 14,
+          color: AFThemeExtension.of(context).textColor,
+        ),
+        onTap: () {
+          context
+              .read<NetworkIndicatorBloc>()
+              .add(const NetworkIndicatorEvent.reconnect());
+        },
+      ),
+    );
   }
 }

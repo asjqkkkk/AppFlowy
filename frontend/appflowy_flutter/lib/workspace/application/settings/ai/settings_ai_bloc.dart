@@ -69,6 +69,7 @@ class SettingsAIBloc extends Bloc<SettingsAIEvent, SettingsAIState> {
     );
     _loadModelList();
     _loadUserWorkspaceSetting();
+    _getLocalAiState();
   }
 
   void _onToggleAISearch(
@@ -125,7 +126,7 @@ class SettingsAIBloc extends Bloc<SettingsAIEvent, SettingsAIState> {
   ) {
     emit(
       state.copyWith(
-        isLocalAIEnabled: event.pluginState.enabled,
+        isLocalAIEnabled: event.pluginState.toggleOn,
       ),
     );
   }
@@ -176,6 +177,17 @@ class SettingsAIBloc extends Bloc<SettingsAIEvent, SettingsAIState> {
       });
     });
   }
+
+  void _getLocalAiState() {
+    AIEventGetLocalAIState().send().fold(
+      (aiState) {
+        if (!isClosed) {
+          add(SettingsAIEvent.didReceiveAiState(aiState));
+        }
+      },
+      Log.error,
+    );
+  }
 }
 
 sealed class SettingsAIEvent {
@@ -191,7 +203,7 @@ sealed class SettingsAIEvent {
   const factory SettingsAIEvent.didLoadAvailableModels(
     ModelSelectionPB models,
   ) = SettingsAIDidLoadAvailableModels;
-  const factory SettingsAIEvent.didReceiveAiState(LocalAIPB pluginState) =
+  const factory SettingsAIEvent.didReceiveAiState(LocalAIStatePB pluginState) =
       SettingsAIDidUpdateLocalAIState;
 }
 
@@ -224,7 +236,7 @@ class SettingsAIDidLoadAvailableModels extends SettingsAIEvent {
 class SettingsAIDidUpdateLocalAIState extends SettingsAIEvent {
   const SettingsAIDidUpdateLocalAIState(this.pluginState);
 
-  final LocalAIPB pluginState;
+  final LocalAIStatePB pluginState;
 }
 
 class SettingsAIState extends Equatable {

@@ -31,7 +31,7 @@ pub struct SignInParams {
   pub email: String,
   pub password: String,
   pub name: String,
-  pub auth_type: AuthType,
+  pub auth_type: AuthProvider,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug)]
@@ -39,7 +39,7 @@ pub struct SignUpParams {
   pub email: String,
   pub name: String,
   pub password: String,
-  pub auth_type: AuthType,
+  pub auth_type: AuthProvider,
   pub device_id: String,
 }
 
@@ -119,7 +119,7 @@ pub struct UserWorkspace {
 }
 
 fn default_workspace_type() -> WorkspaceType {
-  WorkspaceType::Server
+  WorkspaceType::Cloud
 }
 
 impl UserWorkspace {
@@ -137,7 +137,7 @@ impl UserWorkspace {
       icon: icon.to_string(),
       member_count: 1,
       role: Some(Role::Owner),
-      workspace_type: WorkspaceType::Local,
+      workspace_type: WorkspaceType::Vault,
     }
   }
 }
@@ -149,7 +149,7 @@ pub struct UserProfile {
   pub name: String,
   pub token: String,
   pub icon_url: String,
-  pub auth_type: AuthType,
+  pub auth_type: AuthProvider,
   pub workspace_type: WorkspaceType,
   pub updated_at: i64,
 }
@@ -193,11 +193,11 @@ impl FromStr for EncryptionType {
   }
 }
 
-impl<T> From<(&T, &AuthType)> for UserProfile
+impl<T> From<(&T, &AuthProvider)> for UserProfile
 where
   T: UserAuthResponse,
 {
-  fn from(params: (&T, &AuthType)) -> Self {
+  fn from(params: (&T, &AuthProvider)) -> Self {
     let (value, auth_type) = params;
     let icon_url = value
       .metadata()
@@ -269,100 +269,97 @@ impl UpdateUserProfileParams {
 #[derive(Debug, Clone, Copy, Hash, Serialize_repr, Deserialize_repr, Eq, PartialEq)]
 #[repr(u8)]
 pub enum WorkspaceType {
-  Local = 0,
-  Server = 1,
+  Vault = 0,
+  Cloud = 1,
 }
 
 impl Display for WorkspaceType {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match self {
-      WorkspaceType::Local => write!(f, "Local"),
-      WorkspaceType::Server => write!(f, "Server"),
+      WorkspaceType::Vault => write!(f, "Vault"),
+      WorkspaceType::Cloud => write!(f, "Cloud"),
     }
   }
 }
 
 impl Default for WorkspaceType {
   fn default() -> Self {
-    Self::Local
+    Self::Vault
   }
 }
 
 impl WorkspaceType {
-  pub fn is_local(&self) -> bool {
-    matches!(self, WorkspaceType::Local)
+  pub fn is_vault(&self) -> bool {
+    matches!(self, WorkspaceType::Vault)
   }
 }
 
 impl From<i32> for WorkspaceType {
   fn from(value: i32) -> Self {
     match value {
-      0 => WorkspaceType::Local,
-      1 => WorkspaceType::Server,
-      _ => WorkspaceType::Server,
+      0 => WorkspaceType::Vault,
+      1 => WorkspaceType::Cloud,
+      _ => WorkspaceType::Cloud,
     }
   }
 }
 
-impl From<&AuthType> for WorkspaceType {
-  fn from(value: &AuthType) -> Self {
+impl From<&AuthProvider> for WorkspaceType {
+  fn from(value: &AuthProvider) -> Self {
     match value {
-      AuthType::Local => WorkspaceType::Local,
-      AuthType::AppFlowyCloud => WorkspaceType::Server,
+      AuthProvider::Local => WorkspaceType::Vault,
+      AuthProvider::Cloud => WorkspaceType::Cloud,
     }
   }
 }
 
 #[derive(Debug, Clone, Copy, Hash, Serialize_repr, Deserialize_repr, Eq, PartialEq)]
 #[repr(u8)]
-pub enum AuthType {
-  /// It's a local server, we do fake sign in default.
+pub enum AuthProvider {
   Local = 0,
-  /// Currently not supported. It will be supported in the future when the
-  /// [AppFlowy-Server](https://github.com/AppFlowy-IO/AppFlowy-Server) ready.
-  AppFlowyCloud = 1,
+  Cloud = 1,
 }
 
-impl From<WorkspaceType> for AuthType {
+impl From<WorkspaceType> for AuthProvider {
   fn from(value: WorkspaceType) -> Self {
     match value {
-      WorkspaceType::Local => AuthType::Local,
-      WorkspaceType::Server => AuthType::AppFlowyCloud,
+      WorkspaceType::Vault => AuthProvider::Local,
+      WorkspaceType::Cloud => AuthProvider::Cloud,
     }
   }
 }
 
-impl Display for AuthType {
+impl Display for AuthProvider {
   fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
     match self {
-      AuthType::Local => write!(f, "Local"),
-      AuthType::AppFlowyCloud => write!(f, "AppFlowyCloud"),
+      AuthProvider::Local => write!(f, "Local"),
+      AuthProvider::Cloud => write!(f, "Cloud"),
     }
   }
 }
 
-impl Default for AuthType {
+impl Default for AuthProvider {
   fn default() -> Self {
     Self::Local
   }
 }
 
-impl AuthType {
+impl AuthProvider {
   pub fn is_local(&self) -> bool {
-    matches!(self, AuthType::Local)
+    matches!(self, AuthProvider::Local)
   }
 
   pub fn is_appflowy_cloud(&self) -> bool {
-    matches!(self, AuthType::AppFlowyCloud)
+    matches!(self, AuthProvider::Cloud)
   }
 }
 
-impl From<i32> for AuthType {
+impl From<i32> for AuthProvider {
   fn from(value: i32) -> Self {
     match value {
-      0 => AuthType::Local,
-      1 => AuthType::AppFlowyCloud,
-      _ => AuthType::Local,
+      0 => AuthProvider::Local,
+      1 => AuthProvider::Cloud,
+      _ => AuthProvider::Local,
     }
   }
 }
@@ -465,4 +462,9 @@ pub struct WorkspaceInvitation {
   pub inviter_name: Option<String>,
   pub status: WorkspaceInvitationStatus,
   pub updated_at: DateTime<Utc>,
+}
+
+pub struct CheckVaultResult {
+  pub is_vault: bool,
+  pub is_vault_enabled: bool,
 }

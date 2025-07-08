@@ -13,7 +13,7 @@ use std::sync::{Arc, Weak};
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::timeout;
-use tracing::{error, info, instrument, warn};
+use tracing::{error, info, instrument, trace, warn};
 use uuid::Uuid;
 
 impl AppLifeCycleImpl {
@@ -54,39 +54,38 @@ impl AppLifeCycleImpl {
   pub(crate) async fn start_instant_collab_data_provider(
     &self,
     user_id: i64,
-    workspace_id: &Uuid,
-    workspace_type: &WorkspaceType,
+    workspace_id: Uuid,
+    workspace_type: WorkspaceType,
     _user_config: &UserConfig,
     user_paths: &UserPaths,
   ) {
     let instant_indexed_data_provider = self.instant_indexed_data_writer.clone();
     let runtime = self.runtime.clone();
-    let workspace_id_cloned = *workspace_id;
-    let workspace_type_cloned = *workspace_type;
     let user_paths = user_paths.clone();
     let folder_manager = self.folder_manager.clone();
     let weak_logged_user = Arc::downgrade(&self.logged_user);
 
     self.runtime.spawn(async move {
+      trace!(
+        "[Indexing] Starting instant collab data provider for workspace: {}/{}",
+        workspace_id,
+        workspace_type
+      );
+
       if !Self::wait_for_folder_ready(&folder_manager).await {
         return;
       }
 
       if let Some(instant_indexed_data_provider) = instant_indexed_data_provider {
         instant_indexed_data_provider.clear_consumers().await;
-
-        // Add embedding consumer when workspace type is local
-        #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
-        {
-          if workspace_type_cloned.is_local() {
-            instant_indexed_data_provider
-              .register_consumer(Box::new(EditingCollabDataEmbeddingConsumer::new()))
-              .await;
-          }
+        if workspace_type.is_vault() {
+          instant_indexed_data_provider
+            .register_consumer(Box::new(EditingCollabDataEmbeddingConsumer::new()))
+            .await;
         }
 
         match EditingCollabDataSearchConsumer::new(
-          &workspace_id_cloned,
+          &workspace_id,
           user_paths.tanvity_index_path(user_id),
           folder_manager,
           weak_logged_user,
@@ -109,7 +108,7 @@ impl AppLifeCycleImpl {
           info!(
             "[Indexing] editing collab data provider with {} consumers for workspace: {:?}",
             instant_indexed_data_provider.num_consumers().await,
-            workspace_id_cloned
+            workspace_id
           );
           if let Err(err) = instant_indexed_data_provider
             .spawn_instant_indexed_provider(&runtime.inner)
@@ -173,7 +172,7 @@ impl AppLifeCycleImpl {
       );
       #[cfg(any(target_os = "linux", target_os = "macos", target_os = "windows"))]
       {
-        if workspace_type_cloned.is_local() {
+        if workspace_type_cloned.is_vault() {
           new_full_indexed_data_writer
             .register_full_indexed_consumer(Box::new(
               crate::startup_full_data_consumer::EmbeddingFullIndexConsumer,

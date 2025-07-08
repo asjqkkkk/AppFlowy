@@ -3,7 +3,7 @@ use client_api::entity::auth_dto::{UpdateUserParams, UserMetaData};
 use client_api::entity::{AFRole, AFUserProfile, AFWorkspaceInvitationStatus, AFWorkspaceMember};
 
 use flowy_user_pub::entities::{
-  AuthType, Role, USER_METADATA_ICON_URL, UpdateUserProfileParams, UserProfile,
+  AuthProvider, Role, USER_METADATA_ICON_URL, UpdateUserProfileParams, UserProfile,
   WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
 };
 
@@ -25,7 +25,7 @@ pub fn af_update_from_update_params(update: UpdateUserProfileParams) -> UpdateUs
 pub fn user_profile_from_af_profile(
   token: String,
   profile: AFUserProfile,
-  auth_type: AuthType,
+  auth_type: AuthProvider,
 ) -> Result<UserProfile, Error> {
   let icon_url = {
     profile
@@ -42,7 +42,7 @@ pub fn user_profile_from_af_profile(
     name: profile.name.unwrap_or("".to_string()),
     token,
     icon_url: icon_url.unwrap_or_default(),
-    auth_type: AuthType::AppFlowyCloud,
+    auth_type: AuthProvider::Cloud,
     uid: profile.uid,
     updated_at: profile.updated_at,
     workspace_type,

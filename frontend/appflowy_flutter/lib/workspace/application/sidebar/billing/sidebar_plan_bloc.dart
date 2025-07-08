@@ -9,6 +9,7 @@ import 'package:appflowy_backend/dispatch/error.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/billing.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:bloc/bloc.dart';
@@ -51,7 +52,7 @@ class SidebarPlanBloc extends Bloc<SidebarPlanEvent, SidebarPlanState> {
   }
 
   void _onPaymentSuccessful() {
-    final plan = _subscriptionListener.subscribedPlan;
+    final plan = _subscriptionListener.workspaceSubscriptionPlan;
     Log.info("Subscription success listenable triggered: $plan");
 
     if (!isClosed) {

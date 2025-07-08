@@ -44,7 +44,7 @@ impl SearchHandler for DocumentLocalSearchHandler {
         None => {
           yield Ok(
             CreateSearchResultPBArgs::default()
-              .local_search_result(None)
+              .local_search(None)
               .build()
               .unwrap(),
           );
@@ -56,7 +56,7 @@ impl SearchHandler for DocumentLocalSearchHandler {
               if items.is_empty() {
                 yield Ok(
                   CreateSearchResultPBArgs::default()
-                    .local_search_result(None)
+                    .local_search(None)
                     .build()
                     .unwrap(),
                 );
@@ -65,7 +65,7 @@ impl SearchHandler for DocumentLocalSearchHandler {
                 let search_result = RepeatedLocalSearchResponseItemPB { items };
                 yield Ok(
                   CreateSearchResultPBArgs::default()
-                    .local_search_result(Some(search_result))
+                    .local_search(Some(search_result))
                     .build()
                     .unwrap(),
                 );

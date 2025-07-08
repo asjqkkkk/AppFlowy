@@ -82,7 +82,7 @@ class DomainItem extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isFreePlan = plan == WorkspacePlanPB.FreePlan;
+    final isFreePlan = plan == SubscriptionPlanPB.Free;
     if (isFreePlan) {
       return const Padding(
         padding: EdgeInsets.only(

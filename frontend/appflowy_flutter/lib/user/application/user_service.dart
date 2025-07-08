@@ -10,7 +10,7 @@ import 'package:fixnum/fixnum.dart';
 import 'package:flutter/foundation.dart';
 
 abstract class IUserBackendService {
-  Future<FlowyResult<void, FlowyError>> cancelSubscription(
+  Future<FlowyResult<void, FlowyError>> cancelWorkspaceSubscription(
     String workspaceId,
     SubscriptionPlanPB plan,
     String? reason,
@@ -18,6 +18,15 @@ abstract class IUserBackendService {
   Future<FlowyResult<PaymentLinkPB, FlowyError>> createSubscription(
     String workspaceId,
     SubscriptionPlanPB plan,
+  );
+
+  Future<FlowyResult<PaymentLinkPB, FlowyError>> createPersonalSubscription(
+    PersonalPlanPB plan,
+  );
+
+  Future<FlowyResult<void, FlowyError>> cancelPersonalSubscription(
+    PersonalPlanPB plan,
+    String? reason,
   );
 }
 
@@ -261,6 +270,11 @@ class UserBackendService implements IUserBackendService {
     return UserEventGetWorkspaceSubscriptionInfo(params).send();
   }
 
+  static Future<FlowyResult<PersonalSubscriptionInfoPB, FlowyError>>
+      refreshPersonalSubscription() {
+    return UserEventGetPersonalSubscription().send();
+  }
+
   @override
   Future<FlowyResult<PaymentLinkPB, FlowyError>> createSubscription(
     String workspaceId,
@@ -269,14 +283,14 @@ class UserBackendService implements IUserBackendService {
     final request = SubscribeWorkspacePB()
       ..workspaceId = workspaceId
       ..recurringInterval = RecurringIntervalPB.Year
-      ..workspaceSubscriptionPlan = plan
+      ..plan = plan
       ..successUrl =
           '${kDebugMode ? _baseBetaUrl : _baseProdUrl}/after-payment?plan=${plan.toRecognizable()}';
     return UserEventSubscribeWorkspace(request).send();
   }
 
   @override
-  Future<FlowyResult<void, FlowyError>> cancelSubscription(
+  Future<FlowyResult<void, FlowyError>> cancelWorkspaceSubscription(
     String workspaceId,
     SubscriptionPlanPB plan, [
     String? reason,
@@ -292,7 +306,7 @@ class UserBackendService implements IUserBackendService {
     return UserEventCancelWorkspaceSubscription(request).send();
   }
 
-  Future<FlowyResult<void, FlowyError>> updateSubscriptionPeriod(
+  Future<FlowyResult<void, FlowyError>> updateWorkspaceSubscriptionPeriod(
     String workspaceId,
     SubscriptionPlanPB plan,
     RecurringIntervalPB interval,
@@ -308,5 +322,31 @@ class UserBackendService implements IUserBackendService {
   // NOTE: This function is irreversible and will delete the current user's account.
   static Future<FlowyResult<void, FlowyError>> deleteCurrentAccount() {
     return UserEventDeleteAccount().send();
+  }
+
+  @override
+  Future<FlowyResult<PaymentLinkPB, FlowyError>> createPersonalSubscription(
+    PersonalPlanPB plan,
+  ) {
+    final request = SubscribePersonalPB()
+      ..recurringInterval = RecurringIntervalPB.Year
+      ..plan = plan
+      ..successUrl =
+          '${kDebugMode ? _baseBetaUrl : _baseProdUrl}/after-payment?plan=${plan.toRecognizable()}';
+    return UserEventSubscribePersonalPlan(request).send();
+  }
+
+  @override
+  Future<FlowyResult<void, FlowyError>> cancelPersonalSubscription(
+    PersonalPlanPB plan,
+    String? reason,
+  ) {
+    final request = CancelPersonalSubscriptionPB()..plan = plan;
+
+    if (reason != null) {
+      request.reason = reason;
+    }
+
+    return UserEventCancelPersonalSubscription(request).send();
   }
 }

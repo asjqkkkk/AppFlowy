@@ -13,7 +13,7 @@ use collab_entity::CollabType;
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
-use dashmap::DashMap;
+use dashmap::{DashMap, Entry};
 use rayon::prelude::*;
 use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
@@ -60,7 +60,6 @@ pub struct DatabaseManager {
   collab_builder: Weak<WorkspaceCollabAdaptor>,
   cloud_service: Arc<dyn DatabaseCloudService>,
   ai_service: Arc<dyn DatabaseAIService>,
-  removal_timeout: Duration,
 }
 
 impl Drop for DatabaseManager {
@@ -77,13 +76,7 @@ impl DatabaseManager {
     cloud_service: Arc<dyn DatabaseCloudService>,
     ai_service: Arc<dyn DatabaseAIService>,
   ) -> Self {
-    let removal_timeout = if cfg!(debug_assertions) {
-      Duration::from_secs(60) // Shorter timeout for debug builds
-    } else {
-      Duration::from_secs(60 * 10)
-    };
-
-    let manager = Self {
+    Self {
       user: database_user,
       workspace_database: Default::default(),
       task_scheduler,
@@ -92,12 +85,7 @@ impl DatabaseManager {
       collab_builder,
       cloud_service,
       ai_service,
-      removal_timeout,
-    };
-
-    // Start periodic cleanup task
-    manager.start_periodic_cleanup();
-    manager
+    }
   }
 
   fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
@@ -306,17 +294,23 @@ impl DatabaseManager {
     drop(workspace_database);
 
     if let Some(database_id) = database_id {
-      if let Some(editor_entry) = self
-        .database_editors
-        .get(&database_id)
-        .map(|e| e.value().clone())
-      {
-        if let Some(editor) = editor_entry.get_resource().await {
-          debug!(
+      let entry = self.database_editors.entry(database_id);
+      if let Entry::Occupied(entry) = entry {
+        if let Some(editor) = entry.get().get_resource().await {
+          info!(
             "[Database lifecycle]: close database view:{}/{}",
-            database_id, view_id
+            entry.key(),
+            view_id
           );
           editor.close_view(view_id).await;
+          let num_views = editor.num_of_opening_views().await;
+          if num_views == 0 {
+            info!(
+              "[Database lifecycle]: close database editor: {}",
+              entry.key()
+            );
+            entry.remove();
+          }
         }
       }
     }
@@ -928,65 +922,6 @@ impl DatabaseManager {
       .workspace_database
       .load_full()
       .ok_or_else(|| FlowyError::internal().with_context("Workspace database not initialized"))
-  }
-
-  /// Start a periodic cleanup task to remove old entries from removing_editor
-  fn start_periodic_cleanup(&self) {
-    let weak_database_editors = Arc::downgrade(&self.database_editors);
-    let cleanup_interval = if cfg!(debug_assertions) {
-      Duration::from_secs(30)
-    } else {
-      Duration::from_secs(120)
-    };
-    let base_timeout = self.removal_timeout;
-    tokio::spawn(async move {
-      let mut interval = tokio::time::interval(cleanup_interval);
-      interval.tick().await;
-
-      loop {
-        interval.tick().await;
-        if let Some(database_editors) = weak_database_editors.upgrade() {
-          let mut to_remove = Vec::new();
-          let timeout = base_timeout;
-          if database_editors.is_empty() {
-            continue;
-          }
-
-          debug!(
-            "[Database lifecycle]: {} opening databases",
-            database_editors.len()
-          );
-          for entry in database_editors.iter() {
-            let database_id = entry.key();
-            if entry.value().can_be_removed(timeout).await {
-              if let Some(resource) = entry.value().get_resource().await {
-                let num_views = resource.num_of_opening_views().await;
-                debug!(
-                  "[Database lifecycle]: Periodic cleanup: database {} has {} opening views",
-                  database_id, num_views
-                );
-                if num_views > 0 {
-                  continue;
-                }
-              }
-
-              debug!(
-                "[Database lifecycle]: Periodic cleanup database {}",
-                database_id
-              );
-              to_remove.push(database_id.clone());
-            }
-          }
-
-          // Remove expired entries and close databases
-          for database_id in to_remove {
-            database_editors.remove(&database_id);
-          }
-        } else {
-          break;
-        }
-      }
-    });
   }
 }
 

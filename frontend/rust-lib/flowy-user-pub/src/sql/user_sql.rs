@@ -1,6 +1,6 @@
 use crate::cloud::UserUpdate;
 use crate::entities::{
-  AuthType, Role, UpdateUserProfileParams, UserProfile, UserWorkspace, WorkspaceType,
+  AuthProvider, Role, UpdateUserProfileParams, UserProfile, UserWorkspace, WorkspaceType,
 };
 use crate::sql::{
   WorkspaceMemberTable, select_user_workspace, upsert_user_workspace, upsert_workspace_member,
@@ -8,7 +8,7 @@ use crate::sql::{
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::schema::user_table;
 use flowy_sqlite::{DBConnection, ExpressionMethods, RunQueryDsl, prelude::*};
-use tracing::trace;
+use tracing::{instrument, trace};
 
 /// The order of the fields in the struct must be the same as the order of the fields in the table.
 /// Check out the [schema.rs] for table schema.
@@ -25,8 +25,8 @@ pub struct UserTable {
 }
 
 #[allow(deprecated)]
-impl From<(UserProfile, AuthType)> for UserTable {
-  fn from(value: (UserProfile, AuthType)) -> Self {
+impl From<(UserProfile, AuthProvider)> for UserTable {
+  fn from(value: (UserProfile, AuthProvider)) -> Self {
     let (user_profile, auth_type) = value;
     UserTable {
       id: user_profile.uid.to_string(),
@@ -118,7 +118,7 @@ pub fn insert_local_workspace(
       joined_at: None,
     };
 
-    upsert_user_workspace(uid, WorkspaceType::Local, user_workspace.clone(), conn)?;
+    upsert_user_workspace(uid, WorkspaceType::Vault, user_workspace.clone(), conn)?;
     upsert_workspace_member(conn, row)?;
     Ok::<_, FlowyError>(())
   })?;
@@ -126,6 +126,7 @@ pub fn insert_local_workspace(
   Ok(user_workspace)
 }
 
+#[instrument(level = "debug", skip(conn), err)]
 fn select_user_table_row(uid: i64, conn: &mut SqliteConnection) -> Result<UserTable, FlowyError> {
   let row = user_table::dsl::user_table
     .filter(user_table::id.eq(&uid.to_string()))
@@ -139,6 +140,7 @@ fn select_user_table_row(uid: i64, conn: &mut SqliteConnection) -> Result<UserTa
   Ok(row)
 }
 
+#[instrument(level = "debug", skip(conn), err)]
 pub fn select_user_profile(
   uid: i64,
   workspace_id: &str,
@@ -154,7 +156,7 @@ pub fn select_user_profile(
     name: row.name,
     token: row.token,
     icon_url: row.icon_url,
-    auth_type: AuthType::from(row.auth_type),
+    auth_type: AuthProvider::from(row.auth_type),
     workspace_type,
     updated_at: row.updated_at,
   };
@@ -162,12 +164,12 @@ pub fn select_user_profile(
   Ok(user)
 }
 
-pub fn select_user_auth_type(
+pub fn select_user_auth_provider(
   uid: i64,
   conn: &mut SqliteConnection,
-) -> Result<AuthType, FlowyError> {
+) -> Result<AuthProvider, FlowyError> {
   let row = select_user_table_row(uid, conn)?;
-  Ok(AuthType::from(row.auth_type))
+  Ok(AuthProvider::from(row.auth_type))
 }
 
 pub fn select_user_token(uid: i64, conn: &mut SqliteConnection) -> Result<String, FlowyError> {

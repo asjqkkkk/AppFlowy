@@ -19,7 +19,7 @@ async fn af_cloud_folder_sync_duplicated_document_test() {
 
   // Create a test space
   let space = test
-    .create_space(workspace_id, "Test space".to_string())
+    .create_public_space(workspace_id, "Test space".to_string())
     .await;
   assert!(space.extra.is_some());
 
@@ -104,7 +104,7 @@ async fn af_cloud_folder_sync_duplicated_database_test() {
 
   // Create a test space
   let space = test
-    .create_space(workspace_id, "Test space".to_string())
+    .create_public_space(workspace_id, "Test space".to_string())
     .await;
   assert!(space.extra.is_some());
 

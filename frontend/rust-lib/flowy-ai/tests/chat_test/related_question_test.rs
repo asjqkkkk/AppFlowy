@@ -2,7 +2,7 @@ use crate::{TestContext, collect_stream, load_asset_content};
 use uuid::Uuid;
 
 #[tokio::test]
-async fn local_ollama_test_context_related_questions() {
+async fn local_ai_test_context_related_questions() {
   let context = TestContext::new().unwrap();
   let mut chat = context.create_chat(vec![]).await;
   let stream = chat
