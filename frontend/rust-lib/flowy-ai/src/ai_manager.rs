@@ -11,11 +11,12 @@ use flowy_ai_pub::persistence::{
 };
 use std::collections::HashMap;
 
-use dashmap::DashMap;
+use dashmap::{DashMap, Entry};
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService, ChatSettings, UpdateChatParams};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 
+use crate::chat_file::ChatLocalFileStorage;
 use crate::completion::AICompletion;
 use crate::model_select::{
   GLOBAL_ACTIVE_MODEL_KEY, LocalAiSource, LocalModelStorageImpl, ModelSelectionControl,
@@ -235,59 +236,7 @@ impl AIManager {
 
   pub async fn open_chat(&self, chat_id: &Uuid) -> Result<(), FlowyError> {
     info!("[Chat] open chat: {}", chat_id);
-    self.chats.entry(*chat_id).or_insert_with(|| {
-      Arc::new(Chat::new(
-        self.user_service.user_id().unwrap(),
-        *chat_id,
-        self.user_service.clone(),
-        self.cloud_service_wm.clone(),
-      ))
-    });
-
-    if self.local_ai_controller.is_enabled().await? {
-      let workspace_id = self.user_service.workspace_id()?;
-      let rag_ids = self.get_rag_ids(chat_id).await?;
-
-      let uid = self.user_service.user_id()?;
-      let mut conn = self.user_service.sqlite_connection(uid)?;
-      let summary = select_chat_summary(&mut conn, chat_id).unwrap_or_default();
-      let model = self.get_active_model(&chat_id.to_string()).await;
-      self
-        .local_ai_controller
-        .open_chat(&workspace_id, chat_id, &model.name, rag_ids, summary)
-        .await?;
-    }
-
-    let user_service = self.user_service.clone();
-    let cloud_service_wm = self.cloud_service_wm.clone();
-    let store_preferences = self.store_preferences.clone();
-    let external_service = self.external_service.clone();
-    let local_ai = self.local_ai_controller.clone();
-    let chat_id = *chat_id;
-    tokio::spawn(async move {
-      match refresh_chat_setting(
-        &user_service,
-        &cloud_service_wm,
-        &store_preferences,
-        &chat_id,
-      )
-      .await
-      {
-        Ok(settings) => {
-          local_ai.set_rag_ids(&chat_id, &settings.rag_ids).await;
-          let rag_ids = settings
-            .rag_ids
-            .into_iter()
-            .flat_map(|r| Uuid::from_str(&r).ok())
-            .collect();
-          let _ = sync_chat_documents(user_service, external_service, rag_ids).await;
-        },
-        Err(err) => {
-          error!("failed to refresh chat settings: {}", err);
-        },
-      }
-    });
-
+    self.get_or_create_chat_instance(chat_id).await?;
     Ok(())
   }
 
@@ -335,7 +284,7 @@ impl AIManager {
     uid: &i64,
     parent_view_id: &Uuid,
     chat_id: &Uuid,
-  ) -> Result<Arc<Chat>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     let workspace_id = self.user_service.workspace_id()?;
     let rag_ids = if self.user_service.is_anon().await? {
       vec![]
@@ -353,14 +302,7 @@ impl AIManager {
       .create_chat(uid, &workspace_id, chat_id, rag_ids, "", json!({}))
       .await?;
 
-    let chat = Arc::new(Chat::new(
-      self.user_service.user_id()?,
-      *chat_id,
-      self.user_service.clone(),
-      self.cloud_service_wm.clone(),
-    ));
-    self.chats.insert(*chat_id, chat.clone());
-    Ok(chat)
+    Ok(())
   }
 
   pub async fn stream_chat_message(
@@ -500,9 +442,8 @@ impl AIManager {
         }
       }
       let chat_ids = self.chats.iter().map(|c| *c.key()).collect::<Vec<_>>();
-      self.chats.clear();
-
       for chat_id in chat_ids {
+        self.close_chat(&chat_id).await?;
         self.open_chat(&chat_id).await?;
       }
     } else {
@@ -630,19 +571,79 @@ impl AIManager {
   }
 
   pub async fn get_or_create_chat_instance(&self, chat_id: &Uuid) -> Result<Arc<Chat>, FlowyError> {
-    let chat = self.chats.get(chat_id).as_deref().cloned();
-    match chat {
-      None => {
+    let entry = self.chats.entry(*chat_id);
+    match entry {
+      Entry::Occupied(occupied) => Ok(occupied.get().clone()),
+      Entry::Vacant(vacant) => {
+        info!("[Chat] create chat: {}", chat_id);
+        let file_storage = match self.user_service.user_data_dir() {
+          Ok(root) => ChatLocalFileStorage::new(root).ok().map(Arc::new),
+          Err(_) => None,
+        };
+
         let chat = Arc::new(Chat::new(
           self.user_service.user_id()?,
           *chat_id,
           self.user_service.clone(),
           self.cloud_service_wm.clone(),
+          file_storage.clone(),
         ));
-        self.chats.insert(*chat_id, chat.clone());
+        vacant.insert(chat.clone());
+
+        if self.local_ai_controller.is_enabled().await? {
+          info!("[Chat] create chat with local AI: {}", chat_id);
+          let workspace_id = self.user_service.workspace_id()?;
+          let rag_ids = self.get_rag_ids(chat_id).await?;
+
+          let uid = self.user_service.user_id()?;
+          let mut conn = self.user_service.sqlite_connection(uid)?;
+          let summary = select_chat_summary(&mut conn, chat_id).unwrap_or_default();
+          let model = self.get_active_model(&chat_id.to_string()).await;
+          self
+            .local_ai_controller
+            .open_chat(
+              &workspace_id,
+              chat_id,
+              &model.name,
+              rag_ids,
+              summary,
+              file_storage,
+            )
+            .await?;
+        }
+
+        let user_service = self.user_service.clone();
+        let cloud_service_wm = self.cloud_service_wm.clone();
+        let store_preferences = self.store_preferences.clone();
+        let external_service = self.external_service.clone();
+        let local_ai = self.local_ai_controller.clone();
+        let chat_id = *chat_id;
+        tokio::spawn(async move {
+          match refresh_chat_setting(
+            &user_service,
+            &cloud_service_wm,
+            &store_preferences,
+            &chat_id,
+          )
+          .await
+          {
+            Ok(settings) => {
+              local_ai.set_rag_ids(&chat_id, &settings.rag_ids).await;
+              let rag_ids = settings
+                .rag_ids
+                .into_iter()
+                .flat_map(|r| Uuid::from_str(&r).ok())
+                .collect();
+              let _ = sync_chat_documents(user_service, external_service, rag_ids).await;
+            },
+            Err(err) => {
+              error!("failed to refresh chat settings: {}", err);
+            },
+          }
+        });
+
         Ok(chat)
       },
-      Some(chat) => Ok(chat),
     }
   }
 

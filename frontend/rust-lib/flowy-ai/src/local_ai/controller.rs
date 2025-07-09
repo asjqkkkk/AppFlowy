@@ -8,6 +8,7 @@ use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use lib_infra::async_trait::async_trait;
 
+use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::{LLMChatController, LLMChatInfo};
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::AIModel;
@@ -46,7 +47,6 @@ const LOCAL_AI_SETTING_KEY: &str = "appflowy_local_ai_setting:v1";
 pub struct LocalAIController {
   llm_controller: LLMChatController,
   resource: Arc<LocalAIResourceController>,
-  current_chat_id: ArcSwapOption<Uuid>,
   store_preferences: Weak<KVStorePreferences>,
   user_service: Arc<dyn AIUserService>,
   pub(crate) ollama: ArcSwapOption<Ollama>,
@@ -84,7 +84,6 @@ impl LocalAIController {
     Self {
       llm_controller,
       resource: local_ai_resource,
-      current_chat_id: ArcSwapOption::default(),
       store_preferences,
       user_service,
       ollama,
@@ -224,10 +223,6 @@ impl LocalAIController {
     Some(self.resource.get_llm_setting().chat_model_name)
   }
 
-  pub async fn set_chat_rag_ids(&self, chat_id: &Uuid, rag_ids: &[String]) {
-    self.llm_controller.set_rag_ids(chat_id, rag_ids).await;
-  }
-
   pub async fn open_chat(
     &self,
     workspace_id: &Uuid,
@@ -235,16 +230,8 @@ impl LocalAIController {
     model: &str,
     rag_ids: Vec<String>,
     summary: String,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
   ) -> FlowyResult<()> {
-    // Only keep one chat open at a time. Since loading multiple models at the same time will cause
-    // memory issues.
-    if let Some(current_chat_id) = self.current_chat_id.load().as_ref() {
-      if current_chat_id.as_ref() != chat_id {
-        debug!("[Chat] close previous chat: {}", current_chat_id);
-        self.close_chat(current_chat_id);
-      }
-    }
-
     let info = LLMChatInfo {
       chat_id: *chat_id,
       workspace_id: *workspace_id,
@@ -252,8 +239,7 @@ impl LocalAIController {
       rag_ids,
       summary,
     };
-    self.current_chat_id.store(Some(Arc::new(*chat_id)));
-    self.llm_controller.open_chat(info).await?;
+    self.llm_controller.open_chat(info, file_storage).await?;
     Ok(())
   }
 

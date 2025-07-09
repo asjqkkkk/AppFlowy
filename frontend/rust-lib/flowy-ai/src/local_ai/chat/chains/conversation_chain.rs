@@ -98,7 +98,7 @@ impl ConversationalRetrieverChain {
 
   pub async fn get_related_questions(&self, question: &str) -> Result<Vec<String>, FlowyError> {
     let context = self.latest_context.load();
-    let rag_ids = self.retriever.get_rag_ids();
+    let rag_ids = self.retriever.get_rag_ids().await;
 
     if context.is_empty() {
       trace!("[Chat] No context available. Generating related questions");
@@ -121,7 +121,7 @@ impl ConversationalRetrieverChain {
     &self,
     question: &str,
   ) -> Result<Either<Vec<Document>, StreamValue>, ChainError> {
-    let rag_ids = self.retriever.get_rag_ids();
+    let rag_ids = self.retriever.get_rag_ids().await;
     trace!(
       "Get document for question: {}, RAG IDs: {:?}",
       question, rag_ids

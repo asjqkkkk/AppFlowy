@@ -89,7 +89,7 @@ MetadataCollection parseMetadata(String? s) {
       } else if (map.containsKey("id") && map["id"] != null) {
         metadata.add(ChatMessageRefSource.fromJson(map));
       } else {
-        Log.info("Unsupported metadata format: $map");
+        // do nothing
       }
     }
 

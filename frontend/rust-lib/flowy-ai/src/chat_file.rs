@@ -4,13 +4,13 @@ use tokio::fs;
 use tracing::error;
 use uuid::Uuid;
 
-pub struct ChatFileStorage {
+pub struct ChatLocalFileStorage {
   pub storage_path: PathBuf,
 }
 
-impl ChatFileStorage {
+impl ChatLocalFileStorage {
   pub fn new(root: PathBuf) -> FlowyResult<Self> {
-    let storage_path = root.join("chat").join("files");
+    let storage_path = root.join("chat").join("local_files");
     std::fs::create_dir_all(&storage_path)?;
     Ok(Self { storage_path })
   }
@@ -18,7 +18,6 @@ impl ChatFileStorage {
   pub async fn get_files_for_chat(&self, chat_id: &str) -> FlowyResult<Vec<String>> {
     let chat_dir = self.storage_path.join(chat_id);
     if !chat_dir.exists() {
-      error!("Chat directory does not exist: {:?}", chat_dir);
       return Ok(vec![]);
     }
 

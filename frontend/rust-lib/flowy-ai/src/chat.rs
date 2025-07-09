@@ -1,4 +1,4 @@
-use crate::chat_file_storage::ChatFileStorage;
+use crate::chat_file::ChatLocalFileStorage;
 use crate::entities::{
   ChatMessageErrorPB, ChatMessageListPB, ChatMessagePB, EmbedFileErrorPB, PredefinedFormatPB,
   RepeatedRelatedQuestionPB, StreamMessageParams,
@@ -42,7 +42,7 @@ pub struct Chat {
   latest_message_id: Arc<AtomicI64>,
   stop_stream: Arc<AtomicBool>,
   stream_buffer: Arc<Mutex<StringBuffer>>,
-  file_storage: Option<ChatFileStorage>,
+  file_storage: Option<Arc<ChatLocalFileStorage>>,
 }
 
 impl Chat {
@@ -51,11 +51,8 @@ impl Chat {
     chat_id: Uuid,
     user_service: Arc<dyn AIUserService>,
     chat_service: Arc<ChatServiceMiddleware>,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
   ) -> Chat {
-    let file_storage = match user_service.application_root_dir() {
-      Ok(root) => ChatFileStorage::new(root).ok(),
-      Err(_) => None,
-    };
     Chat {
       uid,
       chat_id,
@@ -119,7 +116,6 @@ impl Chat {
       }
     }
 
-    let has_files = !files.is_empty();
     let CreatedChatMessage {
       message: question,
       embed_file_errors: errors,
@@ -131,7 +127,7 @@ impl Chat {
         &params.message,
         params.message_type.clone(),
         params.prompt_id.clone(),
-        files,
+        files.clone(),
       )
       .await
       .map_err(|err| {
@@ -144,6 +140,9 @@ impl Chat {
         let _ = file_storage.delete_file(&file_path).await;
       }
 
+      // remove the file from the list when embedding failed
+      files.retain(|file| file != &file_path);
+
       chat_notification_builder(
         self.chat_id.to_string(),
         ChatNotification::FailedToEmbedFile,
@@ -152,7 +151,7 @@ impl Chat {
       .send();
     }
 
-    if has_files {
+    if !files.is_empty() {
       chat_notification_builder(
         self.chat_id.to_string(),
         ChatNotification::DidAddNewChatFile,

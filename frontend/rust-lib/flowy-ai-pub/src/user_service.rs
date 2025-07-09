@@ -12,6 +12,7 @@ pub trait AIUserService: Send + Sync + 'static {
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError>;
   fn application_root_dir(&self) -> Result<PathBuf, FlowyError>;
+  fn user_data_dir(&self) -> Result<PathBuf, FlowyError>;
 }
 
 #[derive(Clone, Default)]

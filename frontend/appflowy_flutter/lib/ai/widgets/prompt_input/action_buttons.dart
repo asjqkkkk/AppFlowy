@@ -154,19 +154,14 @@ class _AttachedFiles extends StatelessWidget {
                   children: [
                     ListView.separated(
                       padding: const EdgeInsets.symmetric(
-                        vertical: 8.0,
                         horizontal: 12,
+                        vertical: 3,
                       ),
-                      separatorBuilder: (context, index) => const HSpace(
-                        DesktopAIPromptSizes.attachedFilesPreviewSpacing - 6,
-                      ),
+                      separatorBuilder: (context, index) => const HSpace(6),
                       itemCount: state.files.length,
-                      itemBuilder: (context, index) => SizedBox(
-                        height: 60,
-                        child: AttachedFilePreview(
-                          key: ValueKey(state.files[index]),
-                          file: state.files[index],
-                        ),
+                      itemBuilder: (context, index) => AttachedFilePreview(
+                        key: ValueKey(state.files[index]),
+                        file: state.files[index],
                       ),
                     ),
                     if (state.files.isEmpty)
@@ -237,13 +232,11 @@ class AttachedFilePreview extends StatefulWidget {
   const AttachedFilePreview({
     required this.file,
     this.onDeleted,
-    this.minWidth = 200,
     super.key,
   });
 
   final ChatFile file;
   final VoidCallback? onDeleted;
-  final double minWidth;
 
   @override
   State<AttachedFilePreview> createState() => _AttachedFilePreviewState();
@@ -258,10 +251,6 @@ class _AttachedFilePreviewState extends State<AttachedFilePreview> {
       children: [
         Container(
           margin: const EdgeInsetsDirectional.only(top: 6, end: 6),
-          constraints: BoxConstraints(
-            maxWidth: 240,
-            minWidth: widget.minWidth,
-          ),
           decoration: BoxDecoration(
             border: Border.all(
               color: Theme.of(context).dividerColor,
@@ -270,7 +259,6 @@ class _AttachedFilePreviewState extends State<AttachedFilePreview> {
           ),
           padding: const EdgeInsets.all(8.0),
           child: Row(
-            mainAxisSize: MainAxisSize.min,
             children: [
               Container(
                 decoration: BoxDecoration(
@@ -288,7 +276,7 @@ class _AttachedFilePreviewState extends State<AttachedFilePreview> {
                 ),
               ),
               const HSpace(8),
-              Flexible(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisAlignment: MainAxisAlignment.center,

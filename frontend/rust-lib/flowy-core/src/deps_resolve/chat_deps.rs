@@ -214,6 +214,10 @@ impl AIUserService for AIUserServiceImpl {
       self.upgrade_user()?.get_application_root_dir(),
     ))
   }
+
+  fn user_data_dir(&self) -> Result<PathBuf, FlowyError> {
+    self.upgrade_user()?.get_user_data_dir()
+  }
 }
 
 #[derive(Clone)]
@@ -236,18 +240,12 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
-    chat_id: Option<Uuid>,
     query: &str,
     limit: usize,
     rag_ids: &[String],
     score_threshold: f32,
     _full_search: bool,
   ) -> FlowyResult<Vec<LangchainDocument>> {
-    let mut rag_ids = rag_ids.to_vec();
-    if let Some(chat_id) = chat_id.map(|v| v.to_string()) {
-      rag_ids.retain(|v| v != &chat_id);
-    }
-
     if rag_ids.is_empty() {
       debug!(
         "[VectorStore:tanvity] No rag_ids provided for query: {}, returning empty result",
@@ -260,7 +258,7 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
       &self.state,
       workspace_id,
       query,
-      Some(rag_ids),
+      Some(rag_ids.to_vec()),
       limit,
       score_threshold,
     )

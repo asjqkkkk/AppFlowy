@@ -197,7 +197,6 @@ impl MultipleSourceRetrieverStore for SqliteVectorStore {
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
-    _chat_id: Option<Uuid>,
     query: &str,
     limit: usize,
     rag_ids: &[String],
@@ -407,7 +406,6 @@ impl VectorStore for SqliteVectorStore {
     self
       .read_documents(
         &workspace_id,
-        None,
         query,
         limit,
         &rag_ids,

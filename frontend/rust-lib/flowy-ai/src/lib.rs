@@ -14,7 +14,7 @@ pub mod ai_tool;
 pub mod embeddings;
 pub use embeddings::store::SqliteVectorStore;
 
-mod chat_file_storage;
+mod chat_file;
 mod middleware;
 mod model_select;
 #[cfg(test)]

@@ -5,11 +5,10 @@ use std::error::Error;
 use uuid::Uuid;
 
 pub mod multi_source_retriever;
-pub mod sqlite_retriever;
 
 #[async_trait]
 pub trait AFRetriever: Send + Sync + 'static {
-  fn get_rag_ids(&self) -> Vec<&str>;
+  async fn get_rag_ids(&self) -> Vec<String>;
   fn set_rag_ids(&mut self, new_rag_ids: Vec<String>);
 
   async fn retrieve_documents(&self, query: &str)
@@ -24,7 +23,6 @@ pub trait MultipleSourceRetrieverStore: Send + Sync {
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
-    chat_id: Option<Uuid>,
     query: &str,
     limit: usize,
     rag_ids: &[String],
