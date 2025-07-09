@@ -30,7 +30,7 @@ use lib_infra::async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::{debug, error};
+use tracing::error;
 use uuid::Uuid;
 
 pub struct ServerProvider {
@@ -206,7 +206,6 @@ impl ServerProvider {
     &self,
     auth_type: AuthProvider,
   ) -> FlowyResult<Arc<dyn AppFlowyServer>> {
-    debug!("get_server: auth_type={:?}", auth_type);
     if let Some(r) = self.providers.get(&auth_type) {
       return Ok(r.value().clone());
     }

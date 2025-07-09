@@ -322,6 +322,14 @@ impl AIManager {
     })
   }
 
+  pub async fn get_chat_attached_files(&self, chat_id: &str) -> FlowyResult<Vec<String>> {
+    let chat_id = Uuid::from_str(chat_id)?;
+    match self.chats.get(&chat_id) {
+      None => Ok(vec![]),
+      Some(chat) => chat.get_chat_attached_files().await,
+    }
+  }
+
   pub async fn create_chat(
     &self,
     uid: &i64,

@@ -53,6 +53,10 @@ pub fn init(ai_manager: Weak<AIManager>) -> AFPlugin {
       AIEvent::SetCustomPromptDatabaseConfiguration,
       set_custom_prompt_database_configuration_handler,
     )
+    .event(
+      AIEvent::GetAttachedChatFiles,
+      get_chat_attached_files_handler,
+    )
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -137,4 +141,7 @@ pub enum AIEvent {
 
   #[event(input = "CustomPromptDatabaseConfigurationPB")]
   SetCustomPromptDatabaseConfiguration = 36,
+
+  #[event(input = "ChatId", output = "AttachedChatFilesPB")]
+  GetAttachedChatFiles = 37,
 }

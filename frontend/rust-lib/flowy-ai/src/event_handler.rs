@@ -34,6 +34,7 @@ pub(crate) async fn stream_chat_message_handler(
     question_stream_port,
     format,
     prompt_id,
+    files,
   } = data;
 
   let message_type = match message_type {
@@ -50,6 +51,7 @@ pub(crate) async fn stream_chat_message_handler(
     question_stream_port,
     format,
     prompt_id,
+    files,
   };
 
   let ai_manager = upgrade_ai_manager(ai_manager)?;
@@ -400,4 +402,14 @@ pub(crate) async fn set_custom_prompt_database_configuration_handler(
     .await?;
 
   Ok(())
+}
+
+pub(crate) async fn get_chat_attached_files_handler(
+  data: AFPluginData<ChatId>,
+  ai_manager: AFPluginState<Weak<AIManager>>,
+) -> DataResult<AttachedChatFilesPB, FlowyError> {
+  let chat_id = data.try_into_inner()?.value;
+  let ai_manager = upgrade_ai_manager(ai_manager)?;
+  let files = ai_manager.get_chat_attached_files(&chat_id).await?;
+  data_result_ok(AttachedChatFilesPB { files })
 }

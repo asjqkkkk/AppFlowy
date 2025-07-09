@@ -6,25 +6,20 @@ use crate::notification::{
 use anyhow::Error;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
-use futures::Sink;
 use lib_infra::async_trait::async_trait;
-use std::collections::HashMap;
 
 use crate::local_ai::chat::{LLMChatController, LLMChatInfo};
-use crate::stream_message::StreamMessage;
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::AIModel;
 use flowy_ai_pub::persistence::{
   LocalAIModelTable, ModelType, select_local_ai_model, upsert_local_ai_model,
 };
 use flowy_ai_pub::user_service::{AIUserService, ValidateVaultResult};
-use futures_util::SinkExt;
 use lib_infra::util::get_operating_system;
 use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
@@ -413,102 +408,6 @@ impl LocalAIController {
       .toggle_plugin(is_toggle_on, result.can_use_local_ai(), &result)
       .await?;
     Ok(is_toggle_on)
-  }
-
-  // #[instrument(level = "debug", skip_all)]
-  // pub async fn index_message_metadata(
-  //   &self,
-  //   chat_id: &Uuid,
-  //   metadata_list: &[ChatMessageMetadata],
-  //   index_process_sink: &mut (impl Sink<String> + Unpin),
-  // ) -> FlowyResult<()> {
-  //   if !self.is_enabled() {
-  //     info!("[Local AI] local ai is disabled, skip indexing");
-  //     return Ok(());
-  //   }
-  //
-  //   for metadata in metadata_list {
-  //     let mut file_metadata = HashMap::new();
-  //     file_metadata.insert("id".to_string(), json!(&metadata.id));
-  //     file_metadata.insert("name".to_string(), json!(&metadata.name));
-  //     file_metadata.insert("source".to_string(), json!(&metadata.source));
-  //
-  //     let file_path = Path::new(&metadata.data.content);
-  //     if !file_path.exists() {
-  //       return Err(
-  //         FlowyError::record_not_found().with_context(format!("File not found: {:?}", file_path)),
-  //       );
-  //     }
-  //     info!(
-  //       "[Local AI] embed file: {:?}, with metadata: {:?}",
-  //       file_path, file_metadata
-  //     );
-  //
-  //     match &metadata.data.content_type {
-  //       ContextLoader::Unknown => {
-  //         error!(
-  //           "[Local AI] unsupported content type: {:?}",
-  //           metadata.data.content_type
-  //         );
-  //       },
-  //       ContextLoader::Text | ContextLoader::Markdown | ContextLoader::PDF => {
-  //         self
-  //           .process_index_file(
-  //             chat_id,
-  //             file_path.to_path_buf(),
-  //             &file_metadata,
-  //             index_process_sink,
-  //           )
-  //           .await?;
-  //       },
-  //     }
-  //   }
-  //
-  //   Ok(())
-  // }
-
-  #[allow(dead_code)]
-  async fn process_index_file(
-    &self,
-    chat_id: &Uuid,
-    file_path: PathBuf,
-    index_metadata: &HashMap<String, serde_json::Value>,
-    index_process_sink: &mut (impl Sink<String> + Unpin),
-  ) -> Result<(), FlowyError> {
-    let file_name = file_path
-      .file_name()
-      .unwrap_or_default()
-      .to_string_lossy()
-      .to_string();
-
-    let _ = index_process_sink
-      .send(
-        StreamMessage::StartIndexFile {
-          file_name: file_name.clone(),
-        }
-        .to_string(),
-      )
-      .await;
-
-    let result = self
-      .llm_controller
-      .embed_file(chat_id, file_path, Some(index_metadata.clone()))
-      .await;
-    match result {
-      Ok(_) => {
-        let _ = index_process_sink
-          .send(StreamMessage::EndIndexFile { file_name }.to_string())
-          .await;
-      },
-      Err(err) => {
-        let _ = index_process_sink
-          .send(StreamMessage::IndexFileError { file_name }.to_string())
-          .await;
-        error!("[Local AI] failed to index file: {:?}", err);
-      },
-    }
-
-    Ok(())
   }
 
   #[instrument(level = "debug", skip_all)]

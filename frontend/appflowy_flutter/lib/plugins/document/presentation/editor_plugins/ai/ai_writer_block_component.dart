@@ -500,8 +500,13 @@ class MainContentArea extends StatelessWidget {
               AiWriterCommand.makeShorter,
             ].contains(state.command),
             textController: textController,
-            onSubmitted: (message, format, _, promptId) {
-              cubit.runCommand(state.command, message, format, promptId);
+            onSubmitted: (message, format, files, mentions, promptId) {
+              cubit.runCommand(
+                state.command,
+                message,
+                format,
+                promptId,
+              );
             },
             onStopStreaming: () => cubit.stopStream(),
             selectedSourcesNotifier: cubit.selectedSourcesNotifier,

@@ -9,6 +9,7 @@ use uuid::Uuid;
 
 pub struct MultipleSourceRetriever {
   workspace_id: Uuid,
+  chat_id: Uuid,
   vector_stores: Vec<Arc<dyn MultipleSourceRetrieverStore>>,
   num_docs: usize,
   rag_ids: Vec<String>,
@@ -19,6 +20,7 @@ pub struct MultipleSourceRetriever {
 impl MultipleSourceRetriever {
   pub fn new<V: Into<Arc<dyn MultipleSourceRetrieverStore>>>(
     workspace_id: Uuid,
+    chat_id: Uuid,
     vector_stores: Vec<V>,
     rag_ids: Vec<String>,
     num_docs: usize,
@@ -26,6 +28,7 @@ impl MultipleSourceRetriever {
   ) -> Self {
     MultipleSourceRetriever {
       workspace_id,
+      chat_id,
       vector_stores: vector_stores.into_iter().map(|v| v.into()).collect(),
       num_docs,
       rag_ids,
@@ -78,11 +81,13 @@ impl AFRetriever for MultipleSourceRetriever {
         let rag_ids = self.rag_ids.clone();
         let workspace_id = self.workspace_id;
         let score_threshold = self.score_threshold;
+        let chat_id = self.chat_id;
 
         async move {
           vector_store
             .read_documents(
               &workspace_id,
+              Some(chat_id),
               &query,
               num_docs,
               &rag_ids,

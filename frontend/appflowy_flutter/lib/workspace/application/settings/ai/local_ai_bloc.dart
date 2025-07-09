@@ -106,9 +106,9 @@ class LocalAISettingBloc
 
   void _startListening() {
     listener.start(
-      stateCallback: (pluginState) {
+      stateCallback: (localAIState) {
         if (!isClosed) {
-          add(LocalAISettingEvent.didReceiveAiState(pluginState));
+          add(LocalAISettingEvent.didReceiveAiState(localAIState));
         }
       },
       resourceCallback: (data) {

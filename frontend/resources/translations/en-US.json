@@ -324,7 +324,9 @@
     "stopTooltip": "Stop generating",
     "localAiUnavailable": "Local AI is not available",
     "localAiUnavailableDescription": "You need to enable Local AI in order to use this feature.",
-    "goToSettings": "Go to Settings"
+    "goToSettings": "Go to Settings",
+    "noFilesAttached": "No files attached",
+    "addMoreFiles": "Add more files"
   },
   "trash": {
     "text": "Trash",

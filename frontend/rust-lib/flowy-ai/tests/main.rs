@@ -1,5 +1,6 @@
 mod chat_test;
 mod complete_test;
+mod content_extract;
 mod summary_test;
 mod translate_test;
 
@@ -49,6 +50,9 @@ pub struct TestContext {
 impl TestContext {
   pub fn new() -> anyhow::Result<Self> {
     setup_log();
+
+    // Initialize sqlite-vec extension before creating vector DB
+    flowy_sqlite_vec::init_sqlite_vector_extension();
 
     let ollama_url = "http://localhost:11434";
     let url = Url::parse(ollama_url)?;

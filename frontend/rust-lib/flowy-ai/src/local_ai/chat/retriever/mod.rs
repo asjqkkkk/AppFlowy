@@ -19,9 +19,12 @@ pub trait AFRetriever: Send + Sync + 'static {
 #[async_trait]
 pub trait MultipleSourceRetrieverStore: Send + Sync {
   fn retriever_name(&self) -> &'static str;
+
+  #[allow(clippy::too_many_arguments)]
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
+    chat_id: Option<Uuid>,
     query: &str,
     limit: usize,
     rag_ids: &[String],

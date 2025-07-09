@@ -337,6 +337,7 @@ impl Chain for ConversationalRetrieverChain {
             let final_value = if suggested_questions.is_empty() {
               value.clone()
             } else {
+              // TODO(nathan): select question
               let formatted_questions = suggested_questions
                 .iter()
                 .enumerate()

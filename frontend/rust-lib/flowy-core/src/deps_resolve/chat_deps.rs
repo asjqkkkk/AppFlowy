@@ -236,17 +236,31 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
+    chat_id: Option<Uuid>,
     query: &str,
     limit: usize,
     rag_ids: &[String],
     score_threshold: f32,
     _full_search: bool,
   ) -> FlowyResult<Vec<LangchainDocument>> {
+    let mut rag_ids = rag_ids.to_vec();
+    if let Some(chat_id) = chat_id.map(|v| v.to_string()) {
+      rag_ids.retain(|v| v != &chat_id);
+    }
+
+    if rag_ids.is_empty() {
+      debug!(
+        "[VectorStore:tanvity] No rag_ids provided for query: {}, returning empty result",
+        query
+      );
+      return Ok(vec![]);
+    }
+
     let docs = tanvity_local_search(
       &self.state,
       workspace_id,
       query,
-      Some(rag_ids.to_vec()),
+      Some(rag_ids),
       limit,
       score_threshold,
     )
@@ -254,8 +268,8 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
 
     match docs {
       None => Ok(vec![]),
-      Some(docs) => Ok(
-        docs
+      Some(docs) => {
+        let docs = docs
           .into_iter()
           .map(|v| LangchainDocument {
             page_content: v.content,
@@ -271,8 +285,15 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
             .collect(),
             score: v.score,
           })
-          .collect(),
-      ),
+          .collect::<Vec<_>>();
+
+        debug!(
+          "[VectorStore:tanvity] found {} result for  query: {}",
+          docs.len(),
+          query,
+        );
+        Ok(docs)
+      },
     }
   }
 }

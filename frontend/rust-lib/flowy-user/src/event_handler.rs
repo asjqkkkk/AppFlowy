@@ -838,7 +838,7 @@ pub async fn get_ws_connect_state_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<ConnectStateNotificationPB, FlowyError> {
   let manager = upgrade_manager(manager)?;
-  let response = manager.get_ws_connect_state()?;
+  let response = manager.get_ws_connect_state().await?;
   data_result_ok(ConnectStateNotificationPB::from(response))
 }
 

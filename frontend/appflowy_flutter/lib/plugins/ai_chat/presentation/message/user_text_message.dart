@@ -52,14 +52,13 @@ class ChatUserMessageWidget extends StatelessWidget {
       return const [];
     }
 
-    final refSourceMetadata =
-        message.metadata?[messageRefSourceJsonStringKey] as String?;
-    if (refSourceMetadata != null) {
-      return chatFilesFromMetadataString(refSourceMetadata);
+    final sourceMetadata = message.metadata?[messageSourceKey] as String?;
+    if (sourceMetadata != null) {
+      return chatFilesFromMetadataString(sourceMetadata);
     }
 
     final chatFileList =
-        message.metadata![messageChatFileListKey] as List<ChatFile>?;
+        message.metadata![messageSendFileListKey] as List<ChatFile>?;
     return chatFileList ?? [];
   }
 }

@@ -22,8 +22,9 @@ use langchain_rust::vectorstore::{VecStoreOptions, VectorStore};
 use ollama_rs::Ollama;
 use serde_json::json;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Weak};
-use tracing::trace;
+use tracing::{instrument, trace};
 use uuid::Uuid;
 
 pub struct LLMChat {
@@ -52,7 +53,8 @@ impl LLMChat {
       .unwrap_or(SimpleMemory::new().into());
 
     let retriever = create_retriever(
-      &info.workspace_id,
+      info.workspace_id,
+      info.chat_id,
       info.rag_ids.clone(),
       store.clone(),
       retriever_sources,
@@ -83,6 +85,23 @@ impl LLMChat {
   pub fn set_rag_ids(&mut self, rag_ids: Vec<String>) {
     self.prompt.set_rag_ids(&rag_ids);
     self.chain.retriever.set_rag_ids(rag_ids);
+  }
+
+  #[instrument(skip_all, err)]
+  pub async fn embed_file_from_path(
+    &self,
+    chat_id: Uuid,
+    file_path: PathBuf,
+  ) -> FlowyResult<serde_json::Value> {
+    let store = self
+      .store
+      .as_ref()
+      .ok_or_else(|| FlowyError::local_ai().with_context("VectorStore is not initialized"))
+      .cloned()?;
+    let metadata = store
+      .embed_file_from_path(&self.info.workspace_id, &chat_id, file_path.clone())
+      .await?;
+    Ok(metadata)
   }
 
   pub async fn search(
@@ -192,7 +211,8 @@ fn create_formatter_prompt_with_format(
 }
 
 fn create_retriever(
-  workspace_id: &Uuid,
+  workspace_id: Uuid,
+  chat_id: Uuid,
   rag_ids: Vec<String>,
   store: Option<SqliteVectorStore>,
   retrievers_sources: Vec<Weak<dyn MultipleSourceRetrieverStore>>,
@@ -222,11 +242,12 @@ fn create_retriever(
   );
 
   Box::new(MultipleSourceRetriever::new(
-    *workspace_id,
+    workspace_id,
+    chat_id,
     stores,
     rag_ids.clone(),
     5,
-    0.2,
+    0.1,
   ))
 }
 

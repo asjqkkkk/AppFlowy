@@ -38,6 +38,7 @@ class ChatStreamManager {
     String message,
     PredefinedFormat? format,
     String? promptId,
+    List<ChatFilePB>? files,
   ) {
     final payload = StreamChatPayloadPB(
       chatId: chatId,
@@ -45,6 +46,7 @@ class ChatStreamManager {
       messageType: ChatMessageTypePB.User,
       questionStreamPort: Int64(questionStream!.nativePort),
       answerStreamPort: Int64(answerStream!.nativePort),
+      files: files,
     );
 
     if (format != null) {
@@ -63,8 +65,9 @@ class ChatStreamManager {
     String message,
     PredefinedFormat? format,
     String? promptId,
+    List<ChatFilePB>? files,
   ) async {
-    final payload = buildStreamPayload(message, format, promptId);
+    final payload = buildStreamPayload(message, format, promptId, files);
     return AIEventStreamMessage(payload).send();
   }
 

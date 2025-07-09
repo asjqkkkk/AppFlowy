@@ -146,9 +146,11 @@ impl UserManager {
     Ok(controller)
   }
 
-  pub(crate) fn get_ws_connect_state(&self) -> FlowyResult<ConnectState> {
+  pub(crate) async fn get_ws_connect_state(&self) -> FlowyResult<ConnectState> {
     let workspace_id = self.workspace_id()?;
-    if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
+    if self.authenticate_user.is_anon().await? {
+      Ok(ConnectState::Connected)
+    } else if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
       Ok(controller.connect_state())
     } else {
       Err(FlowyError::internal().with_context("Connection not found"))

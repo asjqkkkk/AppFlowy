@@ -1,11 +1,13 @@
-use crate::embeddings::document_indexer::split_text_into_chunks;
+use crate::ai_tool::markdown::MdReader;
+use crate::ai_tool::pdf::PdfReader;
+use crate::ai_tool::text_split::{RAGSource, split_text_into_chunks};
 use crate::embeddings::embedder::{Embedder, OllamaEmbedder};
 use crate::embeddings::indexer::{EmbeddingModel, IndexerProvider};
 use crate::local_ai::chat::retriever::MultipleSourceRetrieverStore;
 use async_trait::async_trait;
 use flowy_ai_pub::cloud::CollabType;
 use flowy_ai_pub::entities::{RAG_IDS, SOURCE_ID};
-use flowy_error::{FlowyError, FlowyResult};
+use flowy_error::{FlowyError, FlowyResult, internal_error};
 use flowy_sqlite_vec::db::VectorSqliteDB;
 use flowy_sqlite_vec::entities::{EmbeddedContent, SqliteEmbeddedDocument};
 use futures::stream::{self, StreamExt};
@@ -16,8 +18,9 @@ use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbedd
 use serde_json::Value;
 use std::collections::HashMap;
 use std::error::Error;
+use std::path::PathBuf;
 use std::sync::{Arc, Weak};
-use tracing::{error, trace, warn};
+use tracing::{debug, error, instrument, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -83,6 +86,106 @@ impl SqliteVectorStore {
         FlowyError::internal().with_context(format!("Failed to select embedded content: {}", err))
       })
   }
+
+  #[instrument(level = "debug", skip_all, err)]
+  pub async fn embed_file_from_path(
+    &self,
+    workspace_id: &Uuid,
+    chat_id: &Uuid,
+    file_path: PathBuf,
+  ) -> FlowyResult<serde_json::Value> {
+    let file_id = file_path
+      .to_str()
+      .ok_or_else(|| FlowyError::internal().with_context("File path is not valid UTF-8"))?
+      .to_string();
+    let file_name = file_path
+      .file_name()
+      .and_then(|s| s.to_str())
+      .unwrap_or("document")
+      .to_string();
+
+    // Read file content in a blocking thread
+    let embedder = self.create_embedder()?;
+    let vector_db = match self.vector_db.upgrade() {
+      Some(db) => db,
+      None => return Err(FlowyError::internal().with_context("Vector database not initialized")),
+    };
+    let indexer = self
+      .indexer_provider
+      .indexer_for(CollabType::Document)
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to get indexer for Document"))?;
+
+    let embedding_model = embedder.model();
+    let (chunks, metadata) = tokio::task::spawn_blocking(move || {
+      let extension = file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase())
+        .ok_or_else(|| {
+          FlowyError::invalid_data().with_context("File has no extension".to_string())
+        })?;
+
+      let content = match extension.as_str() {
+        "md" | "markdown" | "txt" => {
+          let reader = MdReader::new(&file_path);
+          reader.read_markdown()?
+        },
+        "pdf" => {
+          let reader = PdfReader::new(file_path);
+          reader.read_all().map_err(internal_error)?
+        },
+        _ => {
+          return Err(
+            FlowyError::invalid_data()
+              .with_context(format!("Unsupported file type: {}", extension)),
+          );
+        },
+      };
+
+      debug!(
+        "[VectorStore] Embedding file: {}, content length: {}",
+        file_id,
+        content.len()
+      );
+      let (chunks, metadata) = split_text_into_chunks(
+        &file_id,
+        vec![content],
+        embedding_model,
+        2000,
+        100,
+        RAGSource::LocalFile { file_name },
+      )?;
+
+      debug!(
+        "[VectorStore] Embedding file: {}, chunks: {:?}, metadata: {:?}",
+        file_id, chunks, metadata,
+      );
+      Ok::<_, FlowyError>((chunks, metadata))
+    })
+    .await
+    .map_err(|e| {
+      FlowyError::internal().with_context(format!("Failed to run blocking task: {}", e))
+    })??;
+
+    let embedded_chunks = indexer.embed(&embedder, chunks).await?;
+    if embedded_chunks.is_empty() {
+      return Err(FlowyError::internal().with_context("Cannot embed empty content"));
+    }
+
+    debug!(
+      "[VectorStore] save {} embedded chunks to disk",
+      embedded_chunks.len()
+    );
+    vector_db
+      .upsert_collabs_embeddings(
+        &workspace_id.to_string(),
+        &chat_id.to_string(),
+        embedded_chunks,
+      )
+      .await?;
+
+    Ok(metadata)
+  }
 }
 
 #[async_trait]
@@ -94,6 +197,7 @@ impl MultipleSourceRetrieverStore for SqliteVectorStore {
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
+    _chat_id: Option<Uuid>,
     query: &str,
     limit: usize,
     rag_ids: &[String],
@@ -131,13 +235,17 @@ impl MultipleSourceRetrieverStore for SqliteVectorStore {
       )
       .await?;
 
-    trace!(
-      "[VectorStore] Found {} results for query:{}, rag_ids: {:?}, score_threshold: {}",
+    debug!(
+      "[VectorStore:sqlitevec] found {} results for query:{}, rag_ids: {:?}, score_threshold: {}",
       results.len(),
       query,
       rag_ids,
       score_threshold
     );
+
+    for result in results.iter() {
+      debug!("[VectorStore:sqlitevec] {}", result);
+    }
 
     // Convert results to Documents
     let documents = results
@@ -214,10 +322,11 @@ impl VectorStore for SqliteVectorStore {
             EmbeddingModel::NomicEmbedText,
             2000,
             200,
+            RAGSource::AppFlowyDocument,
           );
 
           match chunks_result {
-            Ok(chunks) => match indexer_clone.embed(&embedder_clone, chunks).await {
+            Ok((chunks, _)) => match indexer_clone.embed(&embedder_clone, chunks).await {
               Ok(chunks) => {
                 if let Err(e) = vector_db_clone
                   .upsert_collabs_embeddings(&workspace_id_str, &object_id_str, chunks)
@@ -298,6 +407,7 @@ impl VectorStore for SqliteVectorStore {
     self
       .read_documents(
         &workspace_id,
+        None,
         query,
         limit,
         &rag_ids,

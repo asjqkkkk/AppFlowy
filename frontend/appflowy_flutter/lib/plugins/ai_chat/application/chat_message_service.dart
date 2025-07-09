@@ -1,14 +1,7 @@
 import 'dart:convert';
 
 import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
-import 'package:appflowy/workspace/application/view/view_ext.dart';
-import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-ai/protobuf.dart';
-import 'package:appflowy_backend/protobuf/flowy-document/entities.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
-import 'package:appflowy_result/appflowy_result.dart';
-import 'package:nanoid/nanoid.dart';
 
 /// Indicate file source from appflowy document
 const appflowySource = "appflowy";
@@ -56,8 +49,9 @@ List<ChatFile> chatFilesFromMetadataString(String? s) {
 
 ChatFile? chatFileFromMap(Map<String, dynamic>? map) {
   if (map == null) return null;
+  if (map.isEmpty) return null;
 
-  final filePath = map['source'] as String?;
+  final filePath = map['id'] as String?;
   final fileName = map['name'] as String?;
 
   if (filePath == null || fileName == null) {
@@ -118,53 +112,6 @@ MetadataCollection parseMetadata(String? s) {
   }
 
   return MetadataCollection(sources: metadata, progress: progress);
-}
-
-Future<List<ChatMessageMetaPB>> metadataPBFromMetadata(
-  Map<String, dynamic>? map,
-) async {
-  if (map == null) return [];
-
-  final List<ChatMessageMetaPB> metadata = [];
-
-  for (final value in map.values) {
-    switch (value) {
-      case ViewPB _ when value.layout.isDocumentView:
-        final payload = OpenDocumentPayloadPB(documentId: value.id);
-        await DocumentEventGetDocumentText(payload).send().fold(
-          (pb) {
-            metadata.add(
-              ChatMessageMetaPB(
-                id: value.id,
-                name: value.name,
-                data: pb.text,
-                loaderType: ContextLoaderTypePB.Txt,
-                source: appflowySource,
-              ),
-            );
-          },
-          (err) => Log.error('Failed to get document text: $err'),
-        );
-        break;
-      case ChatFile(
-          filePath: final filePath,
-          fileName: final fileName,
-          fileType: final fileType,
-        ):
-        metadata.add(
-          ChatMessageMetaPB(
-            id: nanoid(8),
-            name: fileName,
-            data: filePath,
-            loaderType: fileType,
-            source: filePath,
-          ),
-        );
-        break;
-    }
-  }
-
-  return metadata;
 }
 
 List<ChatFile> chatFilesFromMessageMetadata(
