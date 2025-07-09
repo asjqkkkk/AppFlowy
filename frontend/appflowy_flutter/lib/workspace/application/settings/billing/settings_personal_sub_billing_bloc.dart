@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
+import 'package:appflowy_result/appflowy_result.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:appflowy/core/helpers/url_launcher.dart';
@@ -32,6 +33,7 @@ class SettingsPersonalSubscriptionBillingBloc extends Bloc<
     on<_AddSubscription>(_onAddSubscription);
     on<_CancelSubscription>(_onCancelSubscription);
     on<_PaymentSuccessful>(_onPaymentSuccessful);
+    on<_DidLoadSubscriptionInfo>(_onDidLoadSubscriptionInfo);
   }
 
   late final UserBackendService _userService;
@@ -51,18 +53,7 @@ class SettingsPersonalSubscriptionBillingBloc extends Bloc<
   ) async {
     emit(const SettingsPersonalSubscriptionBillingState.loading());
 
-    final subscriptionInfo = await _fetchSubscriptionInfo();
-    if (subscriptionInfo == null) {
-      emit(const SettingsPersonalSubscriptionBillingState.error());
-      return;
-    }
-
-    emit(
-      SettingsPersonalSubscriptionBillingState.ready(
-        subscriptionInfo: subscriptionInfo,
-        subscriptionState: subscriptionInfo.subscriptionState,
-      ),
-    );
+    await _fetchSubscriptionInfo();
   }
 
   Future<void> _onAddSubscription(
@@ -116,30 +107,33 @@ class SettingsPersonalSubscriptionBillingBloc extends Bloc<
     _PaymentSuccessful event,
     Emitter<SettingsPersonalSubscriptionBillingState> emit,
   ) async {
-    final subscriptionInfo = await _fetchSubscriptionInfo();
-    if (subscriptionInfo != null) {
-      emit(
+    await _fetchSubscriptionInfo();
+  }
+
+  Future<void> _onDidLoadSubscriptionInfo(
+    _DidLoadSubscriptionInfo event,
+    Emitter<SettingsPersonalSubscriptionBillingState> emit,
+  ) async {
+    event.result.fold(
+      (info) => emit(
         SettingsPersonalSubscriptionBillingState.ready(
-          subscriptionInfo: subscriptionInfo,
-          subscriptionState: subscriptionInfo.subscriptionState,
+          subscriptionInfo: info,
+          subscriptionState: info.subscriptionState,
         ),
-      );
-    }
+      ),
+      (error) => {},
+    );
   }
 
   // Helper Methods
 
-  Future<PersonalSubscriptionInfoPB?> _fetchSubscriptionInfo() async {
+  Future<void> _fetchSubscriptionInfo() async {
     final result = await UserBackendService.refreshPersonalSubscription();
-    return result.fold(
-      (info) => info,
-      (error) {
-        add(
-          const SettingsPersonalSubscriptionBillingEvent.started(),
-        );
-        Log.error('Failed to fetch personal subscription info', error);
-        return null;
-      },
+    if (isClosed) return;
+    add(
+      SettingsPersonalSubscriptionBillingEvent.didLoadSubscriptionInfo(
+        result,
+      ),
     );
   }
 
@@ -192,6 +186,10 @@ class SettingsPersonalSubscriptionBillingEvent
     with _$SettingsPersonalSubscriptionBillingEvent {
   const factory SettingsPersonalSubscriptionBillingEvent.started() = _Started;
 
+  const factory SettingsPersonalSubscriptionBillingEvent.didLoadSubscriptionInfo(
+    FlowyResult<PersonalSubscriptionInfoPB, FlowyError> result,
+  ) = _DidLoadSubscriptionInfo;
+
   const factory SettingsPersonalSubscriptionBillingEvent.addSubscription(
     PersonalPlanPB plan,
   ) = _AddSubscription;
@@ -213,10 +211,6 @@ class SettingsPersonalSubscriptionBillingState extends Equatable
   const factory SettingsPersonalSubscriptionBillingState.initial() = _Initial;
 
   const factory SettingsPersonalSubscriptionBillingState.loading() = _Loading;
-
-  const factory SettingsPersonalSubscriptionBillingState.error({
-    @Default(null) FlowyError? error,
-  }) = _Error;
 
   const factory SettingsPersonalSubscriptionBillingState.ready({
     required PersonalSubscriptionInfoPB subscriptionInfo,
@@ -240,7 +234,6 @@ class SettingsPersonalSubscriptionBillingState extends Equatable
   @override
   List<Object?> get props => maybeWhen(
         orElse: () => const [],
-        error: (error) => [error],
         ready: (subscriptionInfo, isLoading, subscriptionState) => [
           subscriptionInfo,
           isLoading,
