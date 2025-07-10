@@ -301,15 +301,16 @@ class ViewTitleBar extends StatelessWidget {
         message: tooltipText,
         child: Row(
           textBaseline: TextBaseline.alphabetic,
-          crossAxisAlignment: CrossAxisAlignment.baseline,
           children: [
             HSpace(theme.spacing.xs),
             icon,
             const HSpace(4.0), // ask designer to provide the spacing
+            // using fixed height to align the text with the icon
             Text(
               text,
               style: theme.textStyle.caption
-                  .enhanced(color: theme.textColorScheme.tertiary),
+                  .enhanced(color: theme.textColorScheme.tertiary)
+                  .copyWith(height: 1),
             ),
             HSpace(theme.spacing.xs),
           ],
