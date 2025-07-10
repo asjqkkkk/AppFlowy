@@ -84,8 +84,6 @@ Future<bool?> showAddAttachmentMenu(
       backgroundColor:
           ToolbarColorExtension.of(context).toolbarMenuBackgroundColor,
       elevation: 20,
-      isScrollControlled: false,
-      enableDraggableScrollable: true,
       builder: (_) => _AddAttachmentMenu(
         documentId: documentId,
         isLocalMode: isLocalMode,

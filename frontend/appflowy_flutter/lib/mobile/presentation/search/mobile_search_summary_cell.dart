@@ -3,6 +3,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/home/tab/mobile_space_tab.dart';
 import 'package:appflowy/mobile/presentation/search/mobile_search_cell.dart';
+import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:appflowy/startup/tasks/app_widget.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
@@ -160,14 +161,16 @@ class _MobileSearchSummaryCellState extends State<MobileSearchSummaryCell> {
   }
 
   void showPageReferences(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
-    showMobileBottomSheet(
+    showDraggableMobileBottomSheet(
       AppGlobals.rootNavKey.currentContext ?? context,
-      showDragHandle: true,
-      showDivider: false,
-      enableDraggableScrollable: true,
-      backgroundColor: theme.surfaceColorScheme.primary,
-      builder: (_) => SearchSourceReferenceBottomSheet(summary.sources),
+      headerBuilder: (context) => DragHandle(),
+      initialExtent: 0.7,
+      stops: [0.0, 0.7, 1.0],
+      builder: (context) {
+        return SearchSourceReferenceBottomSheet(
+          summary.sources,
+        );
+      },
     );
   }
 }

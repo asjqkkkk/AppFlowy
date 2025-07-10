@@ -1,7 +1,6 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
-import 'package:appflowy/mobile/presentation/bottom_sheet/show_transition_bottom_sheet.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_mobile_quick_action_button.dart';
 import 'package:appflowy/plugins/database/application/database_controller.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
@@ -10,7 +9,6 @@ import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
@@ -58,37 +56,30 @@ class MobileDatabaseViewQuickActions extends StatelessWidget {
           context,
           _Action.changeIcon,
           () {
+            final height = MediaQuery.sizeOf(context).height * 0.6;
             showMobileBottomSheet(
               context,
               showDragHandle: true,
               showDivider: false,
               showHeader: true,
               title: LocaleKeys.titleBar_pageIcon.tr(),
-              backgroundColor: AFThemeExtension.of(context).background,
-              enableDraggableScrollable: true,
-              minChildSize: 0.6,
-              initialChildSize: 0.61,
-              scrollableWidgetBuilder: (_, controller) {
-                return Expanded(
-                  child: FlowyIconEmojiPicker(
-                    tabs: const [PickerTabType.icon],
-                    enableBackgroundColorSelection: false,
-                    onSelectedEmoji: (r) {
-                      ViewBackendService.updateViewIcon(
-                        view: view,
-                        viewIcon: r.data,
-                      );
-                      Navigator.pop(context);
-                    },
-                  ),
+              constraints: BoxConstraints(
+                maxHeight: height,
+              ),
+              builder: (context) {
+                return FlowyIconEmojiPicker(
+                  tabs: const [PickerTabType.icon],
+                  enableBackgroundColorSelection: false,
+                  onSelectedEmoji: (r) {
+                    ViewBackendService.updateViewIcon(
+                      view: view,
+                      viewIcon: r.data,
+                    );
+                    Navigator.pop(context);
+                  },
                 );
               },
-              builder: (_) => const SizedBox.shrink(),
-            ).then((_) {
-              if (context.mounted) {
-                Navigator.pop(context);
-              }
-            });
+            );
           },
           !isInline,
         ),

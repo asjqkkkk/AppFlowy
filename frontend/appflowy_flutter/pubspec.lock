@@ -1945,8 +1945,8 @@ packages:
     dependency: "direct main"
     description:
       path: sheet
-      ref: e44458d
-      resolved-ref: e44458d2359565324e117bb3d41da04f5e60362e
+      ref: f8b13d9
+      resolved-ref: f8b13d987528e184b5ebe9a66002b97fa144ecc2
       url: "https://github.com/jamesblasco/modal_bottom_sheet"
     source: git
     version: "1.0.0"
