@@ -4,6 +4,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/loading.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
 import 'package:appflowy/workspace/application/action_navigation/navigation_action.dart';
 import 'package:appflowy/workspace/application/home/home_setting_bloc.dart';
@@ -33,6 +34,9 @@ class SidebarWorkspace extends StatefulWidget {
 
 class _SidebarWorkspaceState extends State<SidebarWorkspace> {
   Loading? loadingIndicator;
+  // if the process time <= 100ms, the loading indicator will not be shown
+  final Debounce showDebounce =
+      Debounce(duration: const Duration(milliseconds: 100));
 
   final ValueNotifier<bool> onHover = ValueNotifier(false);
   int maxRetryCount = 3;
@@ -49,6 +53,8 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
   void dispose() {
     onHover.dispose();
     openWorkspaceNotifier.removeListener(_openWorkspaceFromInvitation);
+    showDebounce.dispose();
+    loadingIndicator?.stop();
 
     super.dispose();
   }
@@ -122,11 +128,25 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
     final isLoading = actionResult.isLoading;
 
     if (isLoading) {
-      loadingIndicator ??= Loading(context)..start();
+      showDebounce.call(() {
+        if (mounted && loadingIndicator == null) {
+          loadingIndicator = Loading(context)..start();
+          Log.debug(
+            'workspace - show loading indicator ${actionType.toString()}',
+          );
+        }
+      });
       return;
     } else {
-      loadingIndicator?.stop();
-      loadingIndicator = null;
+      showDebounce.dispose();
+
+      if (loadingIndicator != null) {
+        loadingIndicator!.stop();
+        loadingIndicator = null;
+        Log.debug(
+          'workspace - hide loading indicator ${actionType.toString()}',
+        );
+      }
     }
 
     if (result == null) {
