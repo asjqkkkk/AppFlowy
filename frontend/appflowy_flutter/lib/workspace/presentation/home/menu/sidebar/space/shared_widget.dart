@@ -502,19 +502,22 @@ class SpacePopup extends StatelessWidget {
         direction: PopoverDirection.bottomWithLeftAligned,
         clickHandler: PopoverClickHandler.gestureDetector,
         offset: const Offset(0, 4),
-        popupBuilder: (_) => MultiBlocProvider(
-          providers: [
-            BlocProvider.value(
-              value: context.read<SpaceBloc>(),
+        popupBuilder: (_) {
+          return MultiBlocProvider(
+            providers: [
+              BlocProvider.value(
+                value: context.read<SpaceBloc>(),
+              ),
+              if (context.read<UserWorkspaceBloc?>() != null)
+                BlocProvider.value(
+                  value: context.read<UserWorkspaceBloc>(),
+                ),
+            ],
+            child: SidebarSpaceMenu(
+              showCreateButton: showCreateButton,
             ),
-            BlocProvider.value(
-              value: context.read<UserWorkspaceBloc>(),
-            ),
-          ],
-          child: SidebarSpaceMenu(
-            showCreateButton: showCreateButton,
-          ),
-        ),
+          );
+        },
         child: FlowyButton(
           useIntrinsicWidth: useIntrinsicWidth,
           expand: expand,
