@@ -4,7 +4,6 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/debounce.dart';
-import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -141,32 +140,36 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
           ),
           Expanded(
             child: AFModalBody(
-              child: Column(
-                children: [
-                  _IconAndDescription(
-                    textController: textController,
-                    icon: icon,
-                    onChangeIcon: (newIcon) {
-                      setState(() => icon = newIcon);
-                    },
-                  ),
-                  VSpace(
-                    theme.spacing.xxl,
-                  ),
-                  _WorkspaceName(
-                    textController: textController,
-                    focusNode: focusNode,
-                  ),
-                  VSpace(
-                    theme.spacing.xl,
-                  ),
-                  _WorkspaceType(
-                    workspaceType: workspaceType,
-                    onChanged: (newType) {
-                      setState(() => workspaceType = newType);
-                    },
-                  ),
-                ],
+              child: BlocProvider(
+                create: (context) => PersonalSubscriptionBloc()
+                  ..add(PersonalSubscriptionEvent.initialize()),
+                child: Column(
+                  children: [
+                    _IconAndDescription(
+                      textController: textController,
+                      icon: icon,
+                      onChangeIcon: (newIcon) {
+                        setState(() => icon = newIcon);
+                      },
+                    ),
+                    VSpace(
+                      theme.spacing.xxl,
+                    ),
+                    _WorkspaceName(
+                      textController: textController,
+                      focusNode: focusNode,
+                    ),
+                    VSpace(
+                      theme.spacing.xl,
+                    ),
+                    _WorkspaceType(
+                      workspaceType: workspaceType,
+                      onChanged: (newType) {
+                        setState(() => workspaceType = newType);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -367,6 +370,7 @@ class _WorkspaceType extends StatelessWidget {
             Expanded(
               child: _WorkspaceTypeCard(
                 workspaceType: WorkspaceType.cloud,
+                isLoading: false,
                 isDisabled: false,
                 isSelected: workspaceType == WorkspaceType.cloud,
                 onTap: () => onChanged(WorkspaceType.cloud),
@@ -376,39 +380,26 @@ class _WorkspaceType extends StatelessWidget {
               theme.spacing.m,
             ),
             Expanded(
-              child: BlocProvider(
-                create: (context) => PersonalSubscriptionBloc()
-                  ..add(PersonalSubscriptionEvent.initialize()),
-                child: BlocBuilder<PersonalSubscriptionBloc,
-                    PersonalSubscriptionState>(
-                  buildWhen: (previous, current) =>
-                      previous.isLoading != current.isLoading,
-                  builder: (context, state) {
-                    return Stack(
-                      children: [
-                        _WorkspaceTypeCard(
-                          workspaceType: WorkspaceType.vault,
-                          isDisabled: state.subscription == null ||
-                              !state.subscription!
-                                  .hasActiveVaultWorkspaceSubscription,
-                          isSelected: workspaceType == WorkspaceType.vault,
-                          onTap: () => onChanged(WorkspaceType.vault),
-                          tooltipMessage: state.subscription == null
-                              ? LocaleKeys
-                                  .workspace_cannotGetVaultWorkspaceSubscription
-                                  .tr()
-                              : null,
-                        ),
-                        if (state.isLoading)
-                          Positioned.fill(
-                            child: const Center(
-                              child: CircularProgressIndicator.adaptive(),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+              child: BlocBuilder<PersonalSubscriptionBloc,
+                  PersonalSubscriptionState>(
+                builder: (context, state) {
+                  final isVaultLoading =
+                      state is PersonalSubscriptionStateLoading;
+                  final isVaultDisabled =
+                      state is PersonalSubscriptionStateLoaded &&
+                          !state.hasVaultSubscription;
+
+                  return _WorkspaceTypeCard(
+                    workspaceType: WorkspaceType.vault,
+                    isDisabled: isVaultLoading || isVaultDisabled,
+                    isLoading: isVaultLoading,
+                    isSelected: workspaceType == WorkspaceType.vault,
+                    onTap: () => onChanged(WorkspaceType.vault),
+                    tooltipMessage: !isVaultLoading && isVaultDisabled
+                        ? LocaleKeys.workspace_createVaultWorkspaceDisabled.tr()
+                        : null,
+                  );
+                },
               ),
             ),
           ],
@@ -422,6 +413,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
   const _WorkspaceTypeCard({
     required this.workspaceType,
     required this.isSelected,
+    required this.isLoading,
     required this.isDisabled,
     required this.onTap,
     this.tooltipMessage,
@@ -429,6 +421,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
 
   final WorkspaceType workspaceType;
   final bool isSelected;
+  final bool isLoading;
   final bool isDisabled;
   final VoidCallback onTap;
   final String? tooltipMessage;
@@ -464,15 +457,23 @@ class _WorkspaceTypeCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                FlowySvg(
-                  workspaceType == WorkspaceType.cloud
-                      ? FlowySvgs.cloud_m
-                      : FlowySvgs.lock_m,
-                  size: Size.square(20),
-                  color: isDisabled
-                      ? theme.iconColorScheme.tertiary
-                      : theme.iconColorScheme.primary,
-                ),
+                if (isLoading)
+                  SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                else
+                  FlowySvg(
+                    workspaceType == WorkspaceType.cloud
+                        ? FlowySvgs.cloud_m
+                        : FlowySvgs.lock_m,
+                    size: Size.square(20),
+                    color: isDisabled
+                        ? theme.iconColorScheme.tertiary
+                        : theme.iconColorScheme.primary,
+                  ),
                 HSpace(
                   theme.spacing.l,
                 ),

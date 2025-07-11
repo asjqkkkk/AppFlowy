@@ -120,7 +120,7 @@
     "vaultWorkspace": "Vault",
     "vaultIndicator": "Vault",
     "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
-    "createVaultWorkspaceDisabled": "Create secure, offline Vaults with Pro.\nUpgrade to unlock!",
+    "createVaultWorkspaceDisabled": "Create secure, offline Vaults by purchasing an addon!",
     "cannotGetVaultWorkspaceSubscription": "Cannot get Vault workspace subscription information",
     "createANewWorkspace": "Create a new workspace",
     "createWorkspaceDescription": "Separate your work into organized workspaces with full control over team access and data privacy",

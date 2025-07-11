@@ -755,8 +755,8 @@ extension CommonOperations on WidgetTester {
 
     // click the create button
     final createButton = find.byKey(createWorkspaceButtonKey);
-    expect(createButton, findsOneWidget);
-    await tapButton(createButton);
+    await tapButton(createButton, pumpAndSettle: false);
+    await pump(const Duration(milliseconds: 500));
 
     // input the workspace name
     final workspaceNameInput = find.descendant(
@@ -764,7 +764,7 @@ extension CommonOperations on WidgetTester {
       matching: find.byType(TextField),
     );
     await enterText(workspaceNameInput, name);
-    await pumpAndSettle();
+    await pump(const Duration(milliseconds: 500));
 
     await tapButton(
       find.text(LocaleKeys.workspace_create.tr()),
