@@ -85,10 +85,7 @@ class MobileAccountProfile extends StatelessWidget {
                       showCloseButton: true,
                       title: LocaleKeys.settings_profilePage_editAvatar.tr(),
                       backgroundColor: theme.surfaceColorScheme.layer01,
-                      enableDraggableScrollable: true,
-                      minChildSize: 0.6,
-                      initialChildSize: 0.61,
-                      scrollableWidgetBuilder: (ctx, controller) {
+                      builder: (context) {
                         final isNetworkImageAvatar =
                             profile.avatarUrl.isNotEmpty &&
                                 profile.avatarUrl.startsWith('http');
@@ -109,12 +106,11 @@ class MobileAccountProfile extends StatelessWidget {
                               bloc.add(
                                 ProfileSettingEvent.updateAvatar(r.emoji),
                               );
-                              if (!r.keepOpen) Navigator.pop(ctx);
+                              if (!r.keepOpen) Navigator.pop(context);
                             },
                           ),
                         );
                       },
-                      builder: (_) => const SizedBox.shrink(),
                     );
                   },
                   child: context.buildAvatar(

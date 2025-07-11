@@ -7,6 +7,7 @@ import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'profile_description_markdown_render.dart';
 import 'role_badge.dart';
 
 class ProfilePreviewWidget extends StatelessWidget {
@@ -203,11 +204,9 @@ extension ProfileCardBuildContextExtension on BuildContext {
         ),
         child: Padding(
           padding: EdgeInsets.all(theme.spacing.l),
-          child: Text(
-            profile.aboutMe,
+          child: PreviewDescriptionMarkdownRender(
+            description: profile.aboutMe,
             textAlign: textAlign,
-            style: theme.textStyle.caption
-                .standard(color: theme.textColorScheme.primary),
           ),
         ),
       ),
