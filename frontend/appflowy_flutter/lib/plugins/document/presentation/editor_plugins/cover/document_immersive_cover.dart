@@ -245,6 +245,7 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
                     );
                     if (!r.keepOpen) Navigator.pop(context);
                   },
+                  headerBackgroundColor: theme.surfaceColorScheme.layer01,
                 ),
               ),
             );

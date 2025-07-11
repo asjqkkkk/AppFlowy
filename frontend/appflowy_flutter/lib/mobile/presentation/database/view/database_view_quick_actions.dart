@@ -8,6 +8,7 @@ import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -56,6 +57,7 @@ class MobileDatabaseViewQuickActions extends StatelessWidget {
           context,
           _Action.changeIcon,
           () {
+            final theme = AppFlowyTheme.of(context);
             final height = MediaQuery.sizeOf(context).height * 0.6;
             showMobileBottomSheet(
               context,
@@ -63,20 +65,21 @@ class MobileDatabaseViewQuickActions extends StatelessWidget {
               showDivider: false,
               showHeader: true,
               title: LocaleKeys.titleBar_pageIcon.tr(),
-              constraints: BoxConstraints(
-                maxHeight: height,
-              ),
               builder: (context) {
-                return FlowyIconEmojiPicker(
-                  tabs: const [PickerTabType.icon],
-                  enableBackgroundColorSelection: false,
-                  onSelectedEmoji: (r) {
-                    ViewBackendService.updateViewIcon(
-                      view: view,
-                      viewIcon: r.data,
-                    );
-                    Navigator.pop(context);
-                  },
+                return SizedBox(
+                  height: height,
+                  child: FlowyIconEmojiPicker(
+                    tabs: const [PickerTabType.icon],
+                    enableBackgroundColorSelection: false,
+                    onSelectedEmoji: (r) {
+                      ViewBackendService.updateViewIcon(
+                        view: view,
+                        viewIcon: r.data,
+                      );
+                      Navigator.pop(context);
+                    },
+                    headerBackgroundColor: theme.surfaceColorScheme.layer01,
+                  ),
                 );
               },
             );

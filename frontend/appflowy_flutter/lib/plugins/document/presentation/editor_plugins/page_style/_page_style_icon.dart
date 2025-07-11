@@ -102,6 +102,7 @@ class _PageStyleIconState extends State<PageStyleIcon> {
                 );
                 if (!r.keepOpen) Navigator.pop(context);
               },
+              headerBackgroundColor: theme.surfaceColorScheme.layer01,
             ),
           ),
         );

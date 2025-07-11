@@ -10,9 +10,7 @@ import 'package:appflowy/util/field_type_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:go_router/go_router.dart';
-import 'package:sheet/sheet.dart';
 
-import '../../bottom_sheet/bottom_sheet_buttons.dart';
 import 'mobile_create_field_screen.dart';
 import 'mobile_edit_field_screen.dart';
 import 'mobile_field_picker_list.dart';
@@ -38,22 +36,13 @@ Future<FieldType?> showFieldTypeGridBottomSheet(
   BuildContext context, {
   required String title,
 }) {
-  return showDraggableMobileBottomSheet<FieldType>(
+  return showMobileBottomSheet<FieldType>(
     context,
-    fit: SheetFit.loose,
-    stops: const [0.0, 0.5, 1.0],
-    headerBuilder: (context) {
-      return BottomSheetHeaderV2(
-        title: title,
-        showDivider: false,
-        leading: BottomSheetCloseButton(
-          onTap: () => context.pop(),
-        ),
-        trailing: BottomSheetDoneButton(
-          onDone: () => context.pop(),
-        ),
-      );
-    },
+    showDragHandle: true,
+    showDivider: false,
+    showHeader: true,
+    showCloseButton: true,
+    title: title,
     builder: (context) {
       final typeOptionMenuItemValue = mobileSupportedFieldTypes
           .map(
@@ -69,14 +58,11 @@ Future<FieldType?> showFieldTypeGridBottomSheet(
             ),
           )
           .toList();
-      return SingleChildScrollView(
-        controller: PrimaryScrollController.of(context),
-        child: Padding(
-          padding: EdgeInsets.all(16 * context.scale),
-          child: TypeOptionMenu<FieldType>(
-            values: typeOptionMenuItemValue,
-            scaleFactor: context.scale,
-          ),
+      return Padding(
+        padding: EdgeInsets.all(16 * context.scale),
+        child: TypeOptionMenu<FieldType>(
+          values: typeOptionMenuItemValue,
+          scaleFactor: context.scale,
         ),
       );
     },

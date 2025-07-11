@@ -111,6 +111,7 @@ class _PromptInputMobileSelectSourcesButtonState
 
           await showDraggableMobileBottomSheet<void>(
             context,
+            initialExtent: 0.5,
             stops: [0.0, 0.5, 1.0],
             headerBuilder: (context) => BottomSheetHeaderV2(
               title: LocaleKeys.chat_selectSources.tr(),

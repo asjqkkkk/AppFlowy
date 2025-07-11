@@ -105,7 +105,6 @@ class MobileViewPageMoreButton extends StatelessWidget {
           context,
           showDragHandle: true,
           showDivider: false,
-          backgroundColor: AFThemeExtension.of(context).background,
           builder: (_) => MultiBlocProvider(
             providers: [
               BlocProvider.value(value: context.read<ViewBloc>()),
