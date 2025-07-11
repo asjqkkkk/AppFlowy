@@ -11,7 +11,6 @@ use flowy_user_pub::entities::*;
 use flowy_user_pub::sql::UserWorkspaceChangeset;
 use lib_dispatch::prelude::*;
 use lib_infra::box_any::BoxAny;
-use serde_json::Value;
 use std::str::FromStr;
 use std::sync::Weak;
 use std::{convert::TryInto, sync::Arc};
@@ -112,7 +111,7 @@ pub async fn get_user_profile_handler(
 
   // When the user is logged in with a local account, the email field is a placeholder and should
   // not be exposed to the client. So we set the email field to an empty string.
-  if user_profile.auth_type == AuthType::Local {
+  if user_profile.auth_type == AuthProvider::Local {
     user_profile.email = "".to_string();
   }
 
@@ -334,7 +333,7 @@ pub async fn oauth_sign_in_handler(
 ) -> DataResult<UserProfilePB, FlowyError> {
   let manager = upgrade_manager(manager)?;
   let params = data.into_inner();
-  let authenticator: AuthType = params.auth_type.into();
+  let authenticator: AuthProvider = params.auth_type.into();
   let user_profile = manager
     .sign_up(authenticator, BoxAny::new(params.map))
     .await?;
@@ -348,7 +347,7 @@ pub async fn gen_sign_in_url_handler(
 ) -> DataResult<SignInUrlPB, FlowyError> {
   let manager = upgrade_manager(manager)?;
   let params = data.into_inner();
-  let authenticator: AuthType = params.authenticator.into();
+  let authenticator: AuthProvider = params.authenticator.into();
   let sign_in_url = manager
     .generate_sign_in_url_with_email(&authenticator, &params.email)
     .await?;
@@ -500,22 +499,6 @@ pub async fn open_anon_user_handler(
 ) -> Result<(), FlowyError> {
   let manager = upgrade_manager(manager)?;
   manager.open_anon_user().await?;
-  Ok(())
-}
-
-pub async fn push_realtime_event_handler(
-  payload: AFPluginData<RealtimePayloadPB>,
-  manager: AFPluginState<Weak<UserManager>>,
-) -> Result<(), FlowyError> {
-  match serde_json::from_str::<Value>(&payload.into_inner().json_str) {
-    Ok(json) => {
-      let manager = upgrade_manager(manager)?;
-      manager.receive_realtime_event(json).await;
-    },
-    Err(e) => {
-      tracing::error!("Deserialize RealtimePayload failed: {:?}", e);
-    },
-  }
   Ok(())
 }
 
@@ -748,8 +731,9 @@ pub async fn get_workspace_subscription_info_handler(
 ) -> DataResult<WorkspaceSubscriptionInfoPB, FlowyError> {
   let params = params.try_into_inner()?;
   let manager = upgrade_manager(manager)?;
+  let workspace_id = Uuid::from_str(&params.workspace_id)?;
   let subs = manager
-    .get_workspace_subscription_info(params.workspace_id)
+    .get_workspace_subscription_info(workspace_id)
     .await?;
   data_result_ok(subs)
 }
@@ -803,20 +787,6 @@ pub async fn update_workspace_subscription_payment_period_handler(
     .await
 }
 
-#[tracing::instrument(level = "debug", skip_all, err)]
-pub async fn get_subscription_plan_details_handler(
-  manager: AFPluginState<Weak<UserManager>>,
-) -> DataResult<RepeatedSubscriptionPlanDetailPB, FlowyError> {
-  let manager = upgrade_manager(manager)?;
-  let plans = manager
-    .get_subscription_plan_details()
-    .await?
-    .into_iter()
-    .map(SubscriptionPlanDetailPB::from)
-    .collect::<Vec<_>>();
-  data_result_ok(RepeatedSubscriptionPlanDetailPB { items: plans })
-}
-
 #[tracing::instrument(level = "info", skip_all, err)]
 pub async fn get_workspace_member_info(
   param: AFPluginData<WorkspaceMemberIdPB>,
@@ -868,7 +838,7 @@ pub async fn get_ws_connect_state_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> DataResult<ConnectStateNotificationPB, FlowyError> {
   let manager = upgrade_manager(manager)?;
-  let response = manager.get_ws_connect_state()?;
+  let response = manager.get_ws_connect_state().await?;
   data_result_ok(ConnectStateNotificationPB::from(response))
 }
 
@@ -878,4 +848,36 @@ pub async fn start_ws_connect_handler(
   let manager = upgrade_manager(manager)?;
   manager.start_ws_connect_state().await?;
   Ok(())
+}
+
+#[tracing::instrument(level = "info", skip_all, err)]
+pub async fn subscribe_personal_plan_handler(
+  params: AFPluginData<SubscribePersonalPB>,
+  manager: AFPluginState<Weak<UserManager>>,
+) -> DataResult<PaymentLinkPB, FlowyError> {
+  let params = params.try_into_inner()?;
+  let manager = upgrade_manager(manager)?;
+  let payment_link = manager.subscribe_personal(params).await?;
+  data_result_ok(PaymentLinkPB { payment_link })
+}
+
+pub async fn cancel_personal_subscription_handler(
+  param: AFPluginData<CancelPersonalSubscriptionPB>,
+  manager: AFPluginState<Weak<UserManager>>,
+) -> Result<(), FlowyError> {
+  let param = param.into_inner();
+  let manager = upgrade_manager(manager)?;
+  manager
+    .cancel_personal_subscription(param.plan.into(), Some(param.reason))
+    .await?;
+  Ok(())
+}
+
+#[tracing::instrument(level = "debug", skip_all, err)]
+pub async fn get_personal_subscription_info_handler(
+  manager: AFPluginState<Weak<UserManager>>,
+) -> DataResult<PersonalSubscriptionInfoPB, FlowyError> {
+  let manager = upgrade_manager(manager)?;
+  let subs = manager.get_personal_subscription_info().await?;
+  data_result_ok(subs)
 }

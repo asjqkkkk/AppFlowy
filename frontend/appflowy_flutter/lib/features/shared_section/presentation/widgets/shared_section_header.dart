@@ -44,7 +44,7 @@ class SharedSectionHeader extends StatelessWidget {
           children: [
             FlowySvg(
               FlowySvgs.shared_with_me_m,
-              color: theme.badgeColorScheme.color13Thick2,
+              color: theme.otherColorsColorScheme.iconShared,
             ),
             SizedBox(width: theme.spacing.s),
             Text(

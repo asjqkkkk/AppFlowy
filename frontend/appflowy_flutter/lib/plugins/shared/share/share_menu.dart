@@ -13,6 +13,7 @@ import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/billing.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -151,7 +152,7 @@ class _ShareMenuState extends State<ShareMenu>
                   .state
                   .workspaceSubscriptionInfo
                   ?.plan ==
-              WorkspacePlanPB.ProPlan;
+              SubscriptionPlanPB.Pro;
 
           return share_section.ShareTab(
             workspaceId: workspaceId,

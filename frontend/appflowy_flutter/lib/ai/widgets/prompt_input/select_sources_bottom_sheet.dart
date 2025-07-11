@@ -1,9 +1,8 @@
 import 'package:appflowy/ai/service/view_selector_cubit.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/mobile/presentation/base/flowy_search_text_field.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
-import 'package:appflowy/plugins/base/drag_handler.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/home/menu/view/view_item.dart';
@@ -67,8 +66,6 @@ class _PromptInputMobileSelectSourcesButtonState
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
-
     return ViewSelector(
       key: key,
       viewSelectorCubit: cubit,
@@ -112,22 +109,21 @@ class _PromptInputMobileSelectSourcesButtonState
         onTap: () async {
           key.currentState?.refreshViews();
 
-          await showMobileBottomSheet<void>(
+          await showDraggableMobileBottomSheet<void>(
             context,
-            backgroundColor: theme.surfaceColorScheme.primary,
-            maxChildSize: 0.98,
-            enableDraggableScrollable: true,
-            scrollableWidgetBuilder: (_, scrollController) {
-              return Expanded(
-                child: BlocProvider.value(
-                  value: cubit,
-                  child: _MobileSelectSourcesSheetBody(
-                    scrollController: scrollController,
-                  ),
-                ),
+            stops: [0.0, 0.5, 1.0],
+            headerBuilder: (context) => BottomSheetHeaderV2(
+              title: LocaleKeys.chat_selectSources.tr(),
+              leading: BottomSheetCloseButton(
+                onTap: () => Navigator.of(context).pop(),
+              ),
+            ),
+            builder: (context) {
+              return BlocProvider.value(
+                value: cubit,
+                child: _MobileSelectSourcesSheetBody(),
               );
             },
-            builder: (context) => const SizedBox.shrink(),
           );
           if (context.mounted) {
             widget.onUpdateSelectedSources(cubit.selectedSourceIds);
@@ -145,56 +141,13 @@ class _PromptInputMobileSelectSourcesButtonState
 }
 
 class _MobileSelectSourcesSheetBody extends StatelessWidget {
-  const _MobileSelectSourcesSheetBody({
-    required this.scrollController,
-  });
-
-  final ScrollController scrollController;
+  const _MobileSelectSourcesSheetBody();
 
   @override
   Widget build(BuildContext context) {
     return CustomScrollView(
-      controller: scrollController,
-      shrinkWrap: true,
+      controller: PrimaryScrollController.of(context),
       slivers: [
-        SliverPersistentHeader(
-          pinned: true,
-          delegate: _Header(
-            child: ColoredBox(
-              color: AppFlowyTheme.of(context).surfaceColorScheme.primary,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const DragHandle(),
-                  SizedBox(
-                    height: 44.0,
-                    child: Center(
-                      child: FlowyText.medium(
-                        LocaleKeys.chat_selectSources.tr(),
-                        fontSize: 16.0,
-                      ),
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16.0,
-                      vertical: 8.0,
-                    ),
-                    child: SizedBox(
-                      height: 44.0,
-                      child: FlowySearchTextField(
-                        controller: context
-                            .read<ViewSelectorCubit>()
-                            .filterTextController,
-                      ),
-                    ),
-                  ),
-                  const Divider(height: 0.5, thickness: 0.5),
-                ],
-              ),
-            ),
-          ),
-        ),
         BlocBuilder<ViewSelectorCubit, ViewSelectorState>(
           builder: (context, state) {
             return SliverList(
@@ -266,33 +219,5 @@ class _MobileSelectSourcesSheetBody extends StatelessWidget {
         ),
       ],
     );
-  }
-}
-
-class _Header extends SliverPersistentHeaderDelegate {
-  const _Header({
-    required this.child,
-  });
-
-  final Widget child;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
-  }
-
-  @override
-  double get maxExtent => 120.5;
-
-  @override
-  double get minExtent => 120.5;
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
-    return false;
   }
 }

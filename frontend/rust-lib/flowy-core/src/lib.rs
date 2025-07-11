@@ -40,7 +40,7 @@ use crate::startup_full_data_provider::FullIndexedDataWriter;
 use app_life_cycle::AppLifeCycleImpl;
 use flowy_sqlite::DBConnection;
 use flowy_user::services::action_interceptor::ActionInterceptors;
-use flowy_user_pub::entities::WorkspaceType;
+use flowy_user_pub::entities::{CheckVaultResult, WorkspaceType};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use flowy_user_pub::workspace_collab::adaptor_trait::WorkspaceCollabIndexer;
 use lib_infra::async_trait::async_trait;
@@ -134,9 +134,13 @@ impl AppFlowyCore {
     let store_preference = Arc::new(KVStorePreferences::new(&config.storage_path).unwrap());
     info!("🔥{:?}", &config);
 
+    // Initialize sqlite-vec extension early before any vector DB operations
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
-    flowy_ai::embeddings::context::EmbedContext::shared()
-      .init_vector_db(PathBuf::from(&config.storage_path));
+    {
+      flowy_sqlite_vec::init_sqlite_vector_extension();
+      flowy_ai::embeddings::context::EmbedContext::shared()
+        .init_vector_db(PathBuf::from(&config.storage_path));
+    }
 
     let task_scheduler = TaskDispatcher::new(Duration::from_secs(10));
     let task_dispatcher = Arc::new(RwLock::new(task_scheduler));
@@ -167,7 +171,7 @@ impl AppFlowyCore {
     let server_provider = Arc::new(ServerProvider::new(
       config.clone(),
       Arc::downgrade(&store_preference),
-      ServerUserImpl(Arc::downgrade(&authenticate_user)),
+      Arc::downgrade(&authenticate_user),
       instant_indexed_data_writer.as_ref().map(Arc::downgrade),
     ));
 
@@ -289,7 +293,7 @@ impl AppFlowyCore {
       search_manager: Arc::downgrade(&search_manager),
       instant_indexed_data_writer,
       full_indexed_data_writer: Arc::downgrade(&full_indexed_data_writer),
-      logged_user: Arc::new(ServerUserImpl(Arc::downgrade(&authenticate_user))),
+      logged_user: Arc::new(LoggedUserImpl(Arc::downgrade(&authenticate_user))),
       runtime: runtime.clone(),
       full_indexed_finish_sender,
     };
@@ -345,9 +349,9 @@ impl AppFlowyCore {
   }
 }
 
-struct ServerUserImpl(Weak<AuthenticateUser>);
+struct LoggedUserImpl(Weak<AuthenticateUser>);
 
-impl ServerUserImpl {
+impl LoggedUserImpl {
   fn upgrade_user(&self) -> Result<Arc<AuthenticateUser>, FlowyError> {
     let user = self
       .0
@@ -358,21 +362,21 @@ impl ServerUserImpl {
 }
 
 #[async_trait]
-impl LoggedUser for ServerUserImpl {
+impl LoggedUser for LoggedUserImpl {
   fn workspace_id(&self) -> FlowyResult<Uuid> {
     self.upgrade_user()?.workspace_id()
   }
 
   fn workspace_type(&self) -> FlowyResult<WorkspaceType> {
-    self.upgrade_user()?.workspace_type()
+    self.upgrade_user()?.get_current_workspace_type()
   }
 
   fn user_id(&self) -> FlowyResult<i64> {
     self.upgrade_user()?.user_id()
   }
 
-  async fn is_local_mode(&self) -> FlowyResult<bool> {
-    self.upgrade_user()?.is_local_mode().await
+  async fn validate_vault(&self) -> FlowyResult<CheckVaultResult> {
+    self.upgrade_user()?.validate_vault().await
   }
 
   async fn is_anon(&self) -> FlowyResult<bool> {

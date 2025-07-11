@@ -1,4 +1,4 @@
-use crate::entities::LocalAIPB;
+use crate::entities::{LackOfAIResourcePB, LocalAIStatePB};
 use crate::local_ai::resource::{LLMResourceService, LocalAIResourceController};
 use crate::notification::{
   APPFLOWY_AI_NOTIFICATION_KEY, ChatNotification, chat_notification_builder,
@@ -6,27 +6,23 @@ use crate::notification::{
 use anyhow::Error;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
-use futures::Sink;
 use lib_infra::async_trait::async_trait;
-use std::collections::HashMap;
 
+use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::{LLMChatController, LLMChatInfo};
-use crate::stream_message::StreamMessage;
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::AIModel;
 use flowy_ai_pub::persistence::{
   LocalAIModelTable, ModelType, select_local_ai_model, upsert_local_ai_model,
 };
-use flowy_ai_pub::user_service::AIUserService;
-use futures_util::SinkExt;
+use flowy_ai_pub::user_service::{AIUserService, ValidateVaultResult};
 use lib_infra::util::get_operating_system;
 use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::{Arc, Weak};
-use tracing::{debug, error, info, instrument, trace, warn};
+use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -51,7 +47,6 @@ const LOCAL_AI_SETTING_KEY: &str = "appflowy_local_ai_setting:v1";
 pub struct LocalAIController {
   llm_controller: LLMChatController,
   resource: Arc<LocalAIResourceController>,
-  current_chat_id: ArcSwapOption<Uuid>,
   store_preferences: Weak<KVStorePreferences>,
   user_service: Arc<dyn AIUserService>,
   pub(crate) ollama: ArcSwapOption<Ollama>,
@@ -89,15 +84,22 @@ impl LocalAIController {
     Self {
       llm_controller,
       resource: local_ai_resource,
-      current_chat_id: ArcSwapOption::default(),
       store_preferences,
       user_service,
       ollama,
     }
   }
 
-  pub async fn reload_ollama_client(&self, workspace_id: &str) {
-    if !self.is_enabled_on_workspace(workspace_id) {
+  pub async fn reload_ollama_client(
+    &self,
+    workspace_id: &str,
+    is_vault: bool,
+    is_vault_enabled: bool,
+  ) -> bool {
+    if !self
+      .is_enabled_on_workspace(workspace_id, is_vault, is_vault_enabled)
+      .unwrap_or(false)
+    {
       #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
       {
         trace!("[Local AI] local ai is disabled, clear ollama client",);
@@ -105,14 +107,14 @@ impl LocalAIController {
         shared.set_ollama(None);
         self.ollama.store(None);
       }
-      return;
+      return false;
     }
 
     let setting = self.resource.get_llm_setting();
     if let Some(ollama) = self.ollama.load_full() {
       if ollama.url_str() == setting.ollama_server_url {
         info!("[Local AI] ollama client is already initialized");
-        return;
+        return true;
       }
     }
 
@@ -134,12 +136,16 @@ impl LocalAIController {
           }
         }
         self.ollama.store(Some(new_ollama.clone()));
+        true
       },
-      Err(err) => error!(
-        "[Local AI] failed to create ollama client: {:?}, thread: {:?}",
-        err,
-        std::thread::current().id()
-      ),
+      Err(err) => {
+        error!(
+          "[Local AI] failed to create ollama client: {:?}, thread: {:?}",
+          err,
+          std::thread::current().id()
+        );
+        false
+      },
     }
   }
 
@@ -153,43 +159,68 @@ impl LocalAIController {
   /// Indicate whether the local AI is enabled.
   /// AppFlowy store the value in local storage isolated by workspace id. Each workspace can have
   /// different settings.
-  pub fn is_enabled(&self) -> bool {
-    if !get_operating_system().is_desktop() {
-      return false;
-    }
-
-    if let Ok(workspace_id) = self.user_service.workspace_id() {
-      self.is_enabled_on_workspace(&workspace_id.to_string())
-    } else {
-      false
-    }
+  pub async fn is_enabled(&self) -> FlowyResult<bool> {
+    let workspace_id = self.user_service.workspace_id()?;
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
+    self.is_enabled_on_workspace(
+      &workspace_id.to_string(),
+      result.is_vault,
+      result.is_vault_enabled,
+    )
   }
 
-  pub fn is_enabled_on_workspace(&self, workspace_id: &str) -> bool {
+  pub fn is_enabled_on_workspace(
+    &self,
+    workspace_id: &str,
+    is_vault: bool,
+    is_vault_enabled: bool,
+  ) -> FlowyResult<bool> {
+    debug!(
+      "[Local AI] check local ai enabled for workspace: {}, is_vault: {}, is_vault_enabled:{}",
+      workspace_id, is_vault, is_vault_enabled
+    );
     if !get_operating_system().is_desktop() {
-      return false;
+      return Ok(false);
+    }
+
+    if is_vault && !is_vault_enabled {
+      info!("Current workspace is vault, but vault is not enabled, skip local AI");
+      return Err(FlowyError::feature_not_available().with_context("Vault is not enabled"));
     }
 
     let key = local_ai_enabled_key(workspace_id);
+    match self.upgrade_store_preferences() {
+      Ok(store) => Ok(store.get_bool(&key).unwrap_or(false)),
+      Err(_) => Ok(false),
+    }
+  }
+
+  pub fn is_toggle_on_workspace(&self, workspace_id: &Uuid) -> bool {
+    if !get_operating_system().is_desktop() {
+      return false;
+    }
+
+    let key = local_ai_enabled_key(&workspace_id.to_string());
     match self.upgrade_store_preferences() {
       Ok(store) => store.get_bool(&key).unwrap_or(false),
       Err(_) => false,
     }
   }
 
-  pub fn get_local_chat_model(&self) -> Option<String> {
-    if !self.is_enabled() {
-      return None;
+  pub fn set_toggle_on_workspace(&self, workspace_id: &str, is_on: bool) {
+    let key = local_ai_enabled_key(workspace_id);
+    if let Ok(store) = self.upgrade_store_preferences() {
+      store.set_bool(&key, is_on).unwrap_or_else(|e| {
+        error!(
+          "[Local AI] failed to set toggle on workspace: {}, error: {}",
+          workspace_id, e
+        );
+      });
     }
-    Some(self.resource.get_llm_setting().chat_model_name)
   }
 
-  pub async fn set_chat_rag_ids(&self, chat_id: &Uuid, rag_ids: &[String]) {
-    if !self.is_enabled() {
-      return;
-    }
-
-    self.llm_controller.set_rag_ids(chat_id, rag_ids).await;
+  pub fn get_local_chat_model(&self) -> Option<String> {
+    Some(self.resource.get_llm_setting().chat_model_name)
   }
 
   pub async fn open_chat(
@@ -199,21 +230,8 @@ impl LocalAIController {
     model: &str,
     rag_ids: Vec<String>,
     summary: String,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
   ) -> FlowyResult<()> {
-    if !self.is_enabled() {
-      warn!("[chat] local ai is disabled, skip open chat");
-      return Ok(());
-    }
-
-    // Only keep one chat open at a time. Since loading multiple models at the same time will cause
-    // memory issues.
-    if let Some(current_chat_id) = self.current_chat_id.load().as_ref() {
-      if current_chat_id.as_ref() != chat_id {
-        debug!("[Chat] close previous chat: {}", current_chat_id);
-        self.close_chat(current_chat_id);
-      }
-    }
-
     let info = LLMChatInfo {
       chat_id: *chat_id,
       workspace_id: *workspace_id,
@@ -221,8 +239,7 @@ impl LocalAIController {
       rag_ids,
       summary,
     };
-    self.current_chat_id.store(Some(Arc::new(*chat_id)));
-    self.llm_controller.open_chat(info).await?;
+    self.llm_controller.open_chat(info, file_storage).await?;
     Ok(())
   }
 
@@ -318,27 +335,46 @@ impl LocalAIController {
   }
 
   #[instrument(level = "debug", skip_all)]
-  pub async fn get_local_ai_state(&self) -> LocalAIPB {
-    let enabled = self.is_enabled();
-    if !enabled {
-      return LocalAIPB {
-        enabled,
-        lack_of_resource: None,
-        is_ready: self.is_ready().await,
-      };
-    }
+  pub async fn refresh_local_ai_state(&self, notify: bool) -> FlowyResult<LocalAIStatePB> {
+    let workspace_id = self.user_service.workspace_id()?;
+    let result = self.user_service.validate_vault().await?;
+    let toggle_on = self.is_toggle_on_workspace(&workspace_id);
     let lack_of_resource = self.resource.get_lack_of_resource().await;
-    LocalAIPB {
-      enabled,
+    let state = LocalAIStatePB {
+      toggle_on,
+      is_vault: result.is_vault,
+      enabled: result.can_use_local_ai(),
       lack_of_resource,
       is_ready: self.is_ready().await,
+    };
+    if notify {
+      chat_notification_builder(
+        APPFLOWY_AI_NOTIFICATION_KEY,
+        ChatNotification::UpdateLocalAIState,
+      )
+      .payload(state.clone())
+      .send();
     }
+
+    Ok(state)
   }
 
   #[instrument(level = "debug", skip_all)]
   pub async fn restart_plugin(&self) {
-    if let Err(err) = check_local_ai_resources(&self.resource, &self.llm_controller).await {
-      error!("[Local AI] failed to setup plugin: {:?}", err);
+    if let Some(lack_of_resource) = check_resources(&self.resource).await {
+      let result = self.user_service.validate_vault().await.unwrap_or_default();
+      chat_notification_builder(
+        APPFLOWY_AI_NOTIFICATION_KEY,
+        ChatNotification::UpdateLocalAIState,
+      )
+      .payload(LocalAIStatePB {
+        toggle_on: true,
+        is_vault: result.is_vault,
+        enabled: result.can_use_local_ai(),
+        lack_of_resource: Some(lack_of_resource),
+        is_ready: self.is_ready().await,
+      })
+      .send();
     }
   }
 
@@ -351,173 +387,64 @@ impl LocalAIController {
 
   pub async fn toggle_local_ai(&self) -> FlowyResult<bool> {
     let workspace_id = self.user_service.workspace_id()?;
-    let key = local_ai_enabled_key(&workspace_id.to_string());
-    let store_preferences = self.upgrade_store_preferences()?;
-    let enabled = !store_preferences.get_bool(&key).unwrap_or(false);
-    tracing::trace!("[Local AI] toggle local ai, enabled: {}", enabled,);
-    store_preferences.set_bool(&key, enabled)?;
-    self.toggle_plugin(enabled).await?;
-    Ok(enabled)
-  }
-
-  // #[instrument(level = "debug", skip_all)]
-  // pub async fn index_message_metadata(
-  //   &self,
-  //   chat_id: &Uuid,
-  //   metadata_list: &[ChatMessageMetadata],
-  //   index_process_sink: &mut (impl Sink<String> + Unpin),
-  // ) -> FlowyResult<()> {
-  //   if !self.is_enabled() {
-  //     info!("[Local AI] local ai is disabled, skip indexing");
-  //     return Ok(());
-  //   }
-  //
-  //   for metadata in metadata_list {
-  //     let mut file_metadata = HashMap::new();
-  //     file_metadata.insert("id".to_string(), json!(&metadata.id));
-  //     file_metadata.insert("name".to_string(), json!(&metadata.name));
-  //     file_metadata.insert("source".to_string(), json!(&metadata.source));
-  //
-  //     let file_path = Path::new(&metadata.data.content);
-  //     if !file_path.exists() {
-  //       return Err(
-  //         FlowyError::record_not_found().with_context(format!("File not found: {:?}", file_path)),
-  //       );
-  //     }
-  //     info!(
-  //       "[Local AI] embed file: {:?}, with metadata: {:?}",
-  //       file_path, file_metadata
-  //     );
-  //
-  //     match &metadata.data.content_type {
-  //       ContextLoader::Unknown => {
-  //         error!(
-  //           "[Local AI] unsupported content type: {:?}",
-  //           metadata.data.content_type
-  //         );
-  //       },
-  //       ContextLoader::Text | ContextLoader::Markdown | ContextLoader::PDF => {
-  //         self
-  //           .process_index_file(
-  //             chat_id,
-  //             file_path.to_path_buf(),
-  //             &file_metadata,
-  //             index_process_sink,
-  //           )
-  //           .await?;
-  //       },
-  //     }
-  //   }
-  //
-  //   Ok(())
-  // }
-
-  #[allow(dead_code)]
-  async fn process_index_file(
-    &self,
-    chat_id: &Uuid,
-    file_path: PathBuf,
-    index_metadata: &HashMap<String, serde_json::Value>,
-    index_process_sink: &mut (impl Sink<String> + Unpin),
-  ) -> Result<(), FlowyError> {
-    let file_name = file_path
-      .file_name()
-      .unwrap_or_default()
-      .to_string_lossy()
-      .to_string();
-
-    let _ = index_process_sink
-      .send(
-        StreamMessage::StartIndexFile {
-          file_name: file_name.clone(),
-        }
-        .to_string(),
-      )
-      .await;
-
-    let result = self
-      .llm_controller
-      .embed_file(chat_id, file_path, Some(index_metadata.clone()))
-      .await;
-    match result {
-      Ok(_) => {
-        let _ = index_process_sink
-          .send(StreamMessage::EndIndexFile { file_name }.to_string())
-          .await;
-      },
-      Err(err) => {
-        let _ = index_process_sink
-          .send(StreamMessage::IndexFileError { file_name }.to_string())
-          .await;
-        error!("[Local AI] failed to index file: {:?}", err);
-      },
-    }
-
-    Ok(())
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
+    let is_toggle_on = !self.is_toggle_on_workspace(&workspace_id);
+    self.set_toggle_on_workspace(&workspace_id.to_string(), is_toggle_on);
+    self
+      .toggle_plugin(is_toggle_on, result.can_use_local_ai(), &result)
+      .await?;
+    Ok(is_toggle_on)
   }
 
   #[instrument(level = "debug", skip_all)]
-  pub(crate) async fn toggle_plugin(&self, enabled: bool) -> FlowyResult<()> {
-    info!(
-      "[Local AI] enable: {}, thread id: {:?}",
-      enabled,
-      std::thread::current().id()
-    );
-    if enabled {
-      if let Err(err) = check_local_ai_resources(&self.resource, &self.llm_controller).await {
-        error!("[Local AI] failed to initialize local ai: {:?}", err);
-      }
+  pub(crate) async fn toggle_plugin(
+    &self,
+    toggle_on: bool,
+    enabled: bool,
+    vault_result: &ValidateVaultResult,
+  ) -> FlowyResult<()> {
+    let lack_of_resource = if enabled {
+      check_resources(&self.resource).await
     } else {
-      chat_notification_builder(
-        APPFLOWY_AI_NOTIFICATION_KEY,
-        ChatNotification::UpdateLocalAIState,
-      )
-      .payload(LocalAIPB {
-        enabled,
-        lack_of_resource: None,
-        is_ready: self.is_ready().await,
-      })
-      .send();
-    }
+      None
+    };
+
+    chat_notification_builder(
+      APPFLOWY_AI_NOTIFICATION_KEY,
+      ChatNotification::UpdateLocalAIState,
+    )
+    .payload(LocalAIStatePB {
+      toggle_on,
+      is_vault: vault_result.is_vault,
+      enabled: vault_result.can_use_local_ai(),
+      lack_of_resource,
+      is_ready: self.is_ready().await,
+    })
+    .send();
     Ok(())
   }
 }
 
-#[instrument(level = "debug", skip_all, err)]
-async fn check_local_ai_resources(
+async fn check_resources(
   llm_resource: &Arc<LocalAIResourceController>,
-  llm_controller: &LLMChatController,
-) -> FlowyResult<()> {
+) -> Option<LackOfAIResourcePB> {
   let lack_of_resource = llm_resource.get_lack_of_resource().await;
-
-  chat_notification_builder(
-    APPFLOWY_AI_NOTIFICATION_KEY,
-    ChatNotification::UpdateLocalAIState,
-  )
-  .payload(LocalAIPB {
-    enabled: true,
-    lack_of_resource: lack_of_resource.clone(),
-    is_ready: llm_controller.is_ready().await,
-  })
-  .send();
-
   if let Some(lack_of_resource) = lack_of_resource {
     info!(
       "[Local AI] lack of resource: {:?} to initialize plugin, thread: {:?}",
       lack_of_resource,
       std::thread::current().id()
     );
+
     chat_notification_builder(
       APPFLOWY_AI_NOTIFICATION_KEY,
       ChatNotification::LocalAIResourceUpdated,
     )
-    .payload(lack_of_resource)
+    .payload(lack_of_resource.clone())
     .send();
-
-    return Ok(());
+    return Some(lack_of_resource);
   }
-
-  Ok(())
+  None
 }
 
 pub struct LLMResourceServiceImpl {

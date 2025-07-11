@@ -9,7 +9,7 @@ use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use lib_infra::async_trait::async_trait;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::trace;
+use tracing::debug;
 use uuid::Uuid;
 
 pub struct LocalSearchServiceImpl {
@@ -35,15 +35,19 @@ impl SearchCloudService for LocalSearchServiceImpl {
           Err(err) => tracing::error!("[Search] Local AI search failed: {:?}", err),
         }
       } else {
-        tracing::error!("[Search] Could not acquire local AI scheduler");
+        tracing::error!("[Search] local AI search scheduler not available");
       }
     }
 
     if !results.is_empty() {
+      debug!(
+        "[Search] Local AI search returned {} results",
+        results.len()
+      );
       return Ok(results);
     }
 
-    trace!("[Search] Local AI search returned no results, falling back to local search");
+    debug!("[Search] Local AI search returned no results, falling back to tanvity search");
     let items = tanvity_local_search(&self.state, workspace_id, &query, None, 10, 0.4)
       .await
       .unwrap_or_default();
@@ -59,7 +63,7 @@ impl SearchCloudService for LocalSearchServiceImpl {
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     {
       if search_results.is_empty() {
-        trace!("[Search] No search results to summarize");
+        debug!("[Search] No search results to summarize");
         return Ok(SearchSummaryResult { summaries: vec![] });
       }
 
@@ -69,15 +73,19 @@ impl SearchCloudService for LocalSearchServiceImpl {
           .generate_summary(&query, &setting.chat_model_name, search_results)
           .await
         {
-          Ok(results) => return Ok(results),
+          Ok(results) => {
+            debug!(
+              "[Search] Local AI search summary generated with {} items",
+              results.summaries.len()
+            );
+            return Ok(results);
+          },
           Err(err) => tracing::error!("Local AI search failed: {:?}", err),
         }
       } else {
         tracing::error!("Could not acquire local AI scheduler");
       }
     }
-
-    //
     Ok(SearchSummaryResult { summaries: vec![] })
   }
 }

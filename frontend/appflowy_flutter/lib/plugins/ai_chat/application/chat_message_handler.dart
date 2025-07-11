@@ -56,7 +56,7 @@ class ChatMessageHandler {
       text: message.content,
       createdAt: message.createdAt.toDateTime(),
       metadata: {
-        messageRefSourceJsonStringKey: metadata,
+        messageSourceKey: metadata,
       },
     );
   }
@@ -87,7 +87,7 @@ class ChatMessageHandler {
   /// Create a streaming question message
   Message createQuestionStreamMessage(
     QuestionStream stream,
-    Map<String, dynamic>? sentMetadata,
+    Map<String, ChatFile>? files,
   ) {
     final now = DateTime.now();
     questionStreamMessageId = timestamp().toString();
@@ -97,8 +97,7 @@ class ChatMessageHandler {
       metadata: {
         "$QuestionStream": stream,
         "chatId": chatId,
-        if (sentMetadata != null)
-          messageChatFileListKey: sentMetadata[messageChatFileListKey],
+        if (files != null) messageSendFileListKey: files.values.toList(),
       },
       id: questionStreamMessageId,
       createdAt: now,

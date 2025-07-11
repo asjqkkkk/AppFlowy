@@ -34,6 +34,7 @@ pub mod document;
 pub mod document_event;
 pub mod event_builder;
 pub mod folder_event;
+mod search_event;
 pub mod user_event;
 
 const LOG_LEVEL: &str = "trace";
@@ -123,11 +124,11 @@ impl EventIntegrationTest {
     Ok(())
   }
 
-  pub async fn connect_ws(&self) -> FlowyResult<()> {
+  pub async fn start_ws_connect_manually(&self) -> FlowyResult<()> {
     let workspace_id = self.get_workspace_id().await;
     self
       .user_manager
-      .connect_workspace_ws_conn(&workspace_id)
+      .start_ws_connect_manually(&workspace_id)
       .await?;
     Ok(())
   }
@@ -191,13 +192,12 @@ impl EventIntegrationTest {
     oid: &str,
     collab_type: CollabType,
   ) -> Result<Vec<u8>, FlowyError> {
-    let server = self.server_provider.get_server()?;
-
     let workspace_id = self.get_current_workspace().await.id;
     let oid = Uuid::from_str(oid)?;
     let uid = self.get_user_profile().await?.id;
-    let doc_state = server
-      .folder_service()
+    let doc_state = self
+      .server_provider
+      .get_folder_service()?
       .get_folder_doc_state(
         &Uuid::from_str(&workspace_id).unwrap(),
         uid,

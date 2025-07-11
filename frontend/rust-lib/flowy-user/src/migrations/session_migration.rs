@@ -106,7 +106,7 @@ impl<'de> Visitor<'de> for SessionVisitor {
           icon: "".to_owned(),
           member_count: 1,
           role: Some(Role::Owner),
-          workspace_type: WorkspaceType::Local,
+          workspace_type: WorkspaceType::Vault,
         })
       }
     }

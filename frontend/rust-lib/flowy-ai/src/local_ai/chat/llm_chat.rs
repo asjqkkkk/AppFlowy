@@ -1,4 +1,5 @@
 use crate::SqliteVectorStore;
+use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::LLMChatInfo;
 use crate::local_ai::chat::chains::conversation_chain::{
   ConversationalRetrieverChain, ConversationalRetrieverChainBuilder,
@@ -6,7 +7,6 @@ use crate::local_ai::chat::chains::conversation_chain::{
 use crate::local_ai::chat::format_prompt::AFContextPrompt;
 use crate::local_ai::chat::llm::LLMOllama;
 use crate::local_ai::chat::retriever::multi_source_retriever::MultipleSourceRetriever;
-use crate::local_ai::chat::retriever::sqlite_retriever::RetrieverOption;
 use crate::local_ai::chat::retriever::{AFRetriever, MultipleSourceRetrieverStore};
 use crate::local_ai::chat::summary_memory::SummaryMemory;
 use flowy_ai_pub::cloud::{QuestionStreamValue, ResponseFormat, StreamAnswer};
@@ -20,11 +20,13 @@ use langchain_rust::prompt_args;
 use langchain_rust::schemas::{Document, Message};
 use langchain_rust::vectorstore::{VecStoreOptions, VectorStore};
 use ollama_rs::Ollama;
-use serde_json::json;
+use serde_json::{Value, json};
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::{Arc, Weak};
-use tracing::trace;
+use tracing::{debug, instrument, trace};
 use uuid::Uuid;
+pub type RetrieverOption = VecStoreOptions<Value>;
 
 pub struct LLMChat {
   store: Option<SqliteVectorStore>,
@@ -42,6 +44,7 @@ impl LLMChat {
     store: Option<SqliteVectorStore>,
     user_service: Option<Weak<dyn AIUserService>>,
     retriever_sources: Vec<Weak<dyn MultipleSourceRetrieverStore>>,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
   ) -> FlowyResult<Self> {
     let response_format = ResponseFormat::default();
     let formatter = create_formatter_prompt_with_format(&response_format, &info.rag_ids);
@@ -52,10 +55,12 @@ impl LLMChat {
       .unwrap_or(SimpleMemory::new().into());
 
     let retriever = create_retriever(
-      &info.workspace_id,
+      info.workspace_id,
+      info.chat_id,
       info.rag_ids.clone(),
       store.clone(),
       retriever_sources,
+      file_storage,
     );
     let builder =
       ConversationalRetrieverChainBuilder::new(info.workspace_id, llm, retriever, store.clone())
@@ -83,6 +88,23 @@ impl LLMChat {
   pub fn set_rag_ids(&mut self, rag_ids: Vec<String>) {
     self.prompt.set_rag_ids(&rag_ids);
     self.chain.retriever.set_rag_ids(rag_ids);
+  }
+
+  #[instrument(skip_all, err)]
+  pub async fn embed_file_from_path(
+    &self,
+    chat_id: Uuid,
+    file_path: PathBuf,
+  ) -> FlowyResult<serde_json::Value> {
+    let store = self
+      .store
+      .as_ref()
+      .ok_or_else(|| FlowyError::local_ai().with_context("VectorStore is not initialized"))
+      .cloned()?;
+    let metadata = store
+      .embed_file_from_path(&self.info.workspace_id, &chat_id, file_path.clone())
+      .await?;
+    Ok(metadata)
   }
 
   pub async fn search(
@@ -159,7 +181,7 @@ impl LLMChat {
     message: &str,
     format: ResponseFormat,
   ) -> Result<StreamAnswer, FlowyError> {
-    trace!("[chat]: {} stream question: {}", self.info.chat_id, message);
+    debug!("[chat]: {} stream question: {}", self.info.chat_id, message);
     self.prompt.update_format(&format)?;
     let input_variables = prompt_args! {
         "question" => message,
@@ -192,10 +214,12 @@ fn create_formatter_prompt_with_format(
 }
 
 fn create_retriever(
-  workspace_id: &Uuid,
+  workspace_id: Uuid,
+  chat_id: Uuid,
   rag_ids: Vec<String>,
   store: Option<SqliteVectorStore>,
   retrievers_sources: Vec<Weak<dyn MultipleSourceRetrieverStore>>,
+  local_file_storage: Option<Arc<ChatLocalFileStorage>>,
 ) -> Box<dyn AFRetriever> {
   trace!(
     "[VectorStore]: {} create retriever with rag_ids: {:?}",
@@ -222,11 +246,13 @@ fn create_retriever(
   );
 
   Box::new(MultipleSourceRetriever::new(
-    *workspace_id,
+    workspace_id,
+    chat_id,
     stores,
     rag_ids.clone(),
     5,
-    0.2,
+    0.1,
+    local_file_storage,
   ))
 }
 

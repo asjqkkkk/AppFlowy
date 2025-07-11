@@ -4,7 +4,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/type_option_menu_item.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/_toolbar_theme.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/startup/tasks/app_widget.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -58,21 +58,25 @@ Future<bool?> showAddBlockMenu(
   required EditorState editorState,
   required Selection selection,
 }) async =>
-    showMobileBottomSheet<bool>(
+    showDraggableMobileBottomSheet<bool>(
       context,
-      showHeader: true,
-      showDragHandle: true,
-      showCloseButton: true,
-      title: LocaleKeys.button_add.tr(),
-      barrierColor: Colors.transparent,
-      backgroundColor:
-          ToolbarColorExtension.of(context).toolbarMenuBackgroundColor,
-      elevation: 20,
-      enableDraggableScrollable: true,
-      builder: (_) => Padding(
-        padding: EdgeInsets.all(16 * context.scale),
-        child: AddBlockMenu(selection: selection, editorState: editorState),
+      headerBuilder: (context) => BottomSheetHeaderV2(
+        title: LocaleKeys.button_add.tr(),
+        leading: BottomSheetCloseButton(
+          onTap: () => Navigator.of(context).pop(),
+        ),
       ),
+      initialExtent: 0.5,
+      stops: const [0.0, 0.5, 1.0],
+      builder: (context) {
+        return SingleChildScrollView(
+          controller: PrimaryScrollController.of(context),
+          child: Padding(
+            padding: EdgeInsets.all(16 * context.scale),
+            child: AddBlockMenu(selection: selection, editorState: editorState),
+          ),
+        );
+      },
     );
 
 class AddBlockMenu extends StatelessWidget {

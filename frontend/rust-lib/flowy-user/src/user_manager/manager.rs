@@ -20,12 +20,11 @@ use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::schema::user_table;
 use flowy_sqlite::ConnectionPool;
 use flowy_sqlite::{query_dsl::*, DBConnection, ExpressionMethods};
-use flowy_user_pub::cloud::UserCloudServiceProvider;
+use flowy_user_pub::cloud::UserServerProvider;
 use flowy_user_pub::entities::*;
 use flowy_user_pub::workspace_service::WorkspaceDataImporter;
 use lib_infra::box_any::BoxAny;
 use semver::Version;
-use serde_json::Value;
 use std::string::ToString;
 use std::sync::{Arc, Weak};
 use tokio_stream::wrappers::WatchStream;
@@ -43,7 +42,7 @@ use flowy_user_pub::sql::*;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 
 pub struct UserManager {
-  pub(crate) cloud_service: Weak<dyn UserCloudServiceProvider>,
+  pub(crate) cloud_service: Weak<dyn UserServerProvider>,
   pub(crate) store_preferences: Arc<KVStorePreferences>,
   pub app_life_cycle: RwLock<Arc<dyn AppLifeCycle>>,
   pub(crate) workspace_collab_adaptor: Weak<WorkspaceCollabAdaptor>,
@@ -62,7 +61,7 @@ impl Drop for UserManager {
 
 impl UserManager {
   pub fn new(
-    cloud_services: Weak<dyn UserCloudServiceProvider>,
+    cloud_services: Weak<dyn UserServerProvider>,
     store_preferences: Arc<KVStorePreferences>,
     workspace_collab_adaptor: Weak<WorkspaceCollabAdaptor>,
     authenticate_user: Arc<AuthenticateUser>,
@@ -87,7 +86,7 @@ impl UserManager {
     user_manager
   }
 
-  pub fn cloud_service(&self) -> FlowyResult<Arc<dyn UserCloudServiceProvider>> {
+  pub fn cloud_service(&self) -> FlowyResult<Arc<dyn UserServerProvider>> {
     self
       .cloud_service
       .upgrade()
@@ -143,16 +142,17 @@ impl UserManager {
             .filter(|&anon_id| anon_id == session.user_id)
             .is_some()
           {
-            Ok(WorkspaceType::Local)
+            Ok(WorkspaceType::Vault)
           } else {
             Err(err)
           }
         })?;
 
       let uid = session.user_id;
-      let auth_type = select_user_auth_type(uid, &mut conn)?;
-      let token = self.token_from_auth_type(&auth_type)?;
-      cloud_service.set_server_auth_type(&auth_type, token.clone())?;
+      let auth_provider = select_user_auth_provider(uid, &mut conn)?;
+      let token = self.token_from_auth_provider(&auth_provider)?;
+      cloud_service.set_token(token.clone())?;
+      cloud_service.set_auth_provider(&auth_provider)?;
 
       event!(
         tracing::Level::INFO,
@@ -163,12 +163,14 @@ impl UserManager {
 
       self.prepare_user(&session).await;
       self.prepare_backup(&session).await;
-      self.spawn_observe_token_changed(&auth_type, token).await;
+      self
+        .spawn_observe_token_changed(&auth_provider, token)
+        .await;
 
       // Do the user data migration if needed.
       event!(tracing::Level::INFO, "Prepare user data migration");
       let mut conn = self.db_connection(uid)?;
-      let user_auth_type = select_user_auth_type(uid, &mut conn)?;
+      let auth_provider = select_user_auth_provider(uid, &mut conn)?;
       match (
         self
           .authenticate_user
@@ -179,7 +181,7 @@ impl UserManager {
         (Ok(collab_db), Ok(sqlite_pool)) => {
           run_data_migration(
             &session,
-            &user_auth_type,
+            &auth_provider,
             collab_db,
             sqlite_pool,
             self.store_preferences.clone(),
@@ -248,6 +250,14 @@ impl UserManager {
     self.authenticate_user.database.get_connection(uid)
   }
 
+  pub fn get_workspace_type(&self, workspace_id: &Uuid) -> Result<WorkspaceType, FlowyError> {
+    self.authenticate_user.get_workspace_type(workspace_id)
+  }
+
+  pub fn get_current_workspace_type(&self) -> Result<WorkspaceType, FlowyError> {
+    self.authenticate_user.get_current_workspace_type()
+  }
+
   pub fn db_pool(&self, uid: i64) -> Result<Arc<ConnectionPool>, FlowyError> {
     self.authenticate_user.database.get_pool(uid)
   }
@@ -273,13 +283,13 @@ impl UserManager {
   pub async fn sign_in(
     &self,
     params: SignInParams,
-    auth_type: AuthType,
+    auth_type: AuthProvider,
   ) -> Result<UserProfile, FlowyError> {
     let cloud_service = self.cloud_service()?;
-    cloud_service.set_server_auth_type(&auth_type, None)?;
+    cloud_service.set_auth_provider(&auth_type)?;
 
     let response: AuthResponse = cloud_service
-      .get_user_service()?
+      .auth_service()?
       .sign_in(BoxAny::new(params))
       .await?;
     let session = Session::from(&response);
@@ -338,13 +348,13 @@ impl UserManager {
   #[tracing::instrument(level = "info", skip(self, params))]
   pub async fn sign_up(
     &self,
-    auth_type: AuthType,
+    auth_type: AuthProvider,
     params: BoxAny,
   ) -> Result<UserProfile, FlowyError> {
     let cloud_service = self.cloud_service()?;
-    cloud_service.set_server_auth_type(&auth_type, None)?;
+    cloud_service.set_auth_provider(&auth_type)?;
 
-    let auth_service = cloud_service.get_user_service()?;
+    let auth_service = cloud_service.auth_service()?;
     let response: AuthResponse = auth_service.sign_up(params).await?;
     let new_user_profile = UserProfile::from((&response, &auth_type));
     self
@@ -358,7 +368,7 @@ impl UserManager {
     &self,
     new_user_profile: &UserProfile,
     response: AuthResponse,
-    auth_type: &AuthType,
+    auth_type: &AuthProvider,
   ) -> FlowyResult<()> {
     let new_session = Session::from(&response);
     self
@@ -438,7 +448,7 @@ impl UserManager {
   pub async fn delete_account(&self) -> Result<(), FlowyError> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .auth_service()?
       .delete_account()
       .await?;
     Ok(())
@@ -457,15 +467,11 @@ impl UserManager {
   ) -> Result<(), FlowyError> {
     let changeset = UserTableChangeset::new(params.clone());
     let session = self.get_session()?;
-    upsert_user_profile_change(
-      session.user_id,
-      &session.workspace_id,
-      self.db_connection(session.user_id)?,
-      changeset,
-    )?;
+    let db = self.db_connection(session.user_id)?;
+    upsert_user_profile_change(session.user_id, &session.workspace_id, db, changeset)?;
     self
       .cloud_service()?
-      .get_user_service()?
+      .user_profile_service()?
       .update_user(params)
       .await?;
 
@@ -509,7 +515,7 @@ impl UserManager {
     workspace_id: &str,
   ) -> FlowyResult<()> {
     // If the user is a local user, no need to refresh the user profile
-    if old_user_profile.workspace_type.is_local() {
+    if old_user_profile.workspace_type.is_vault() {
       return Ok(());
     }
 
@@ -520,7 +526,7 @@ impl UserManager {
     let uid = old_user_profile.uid;
     let result: Result<UserProfile, FlowyError> = self
       .cloud_service()?
-      .get_user_service()?
+      .user_profile_service()?
       .get_user_profile(uid, workspace_id)
       .await;
 
@@ -566,10 +572,10 @@ impl UserManager {
     self.authenticate_user.user_paths.user_data_dir(uid)
   }
 
-  pub fn token_from_auth_type(&self, auth_type: &AuthType) -> FlowyResult<Option<String>> {
+  pub fn token_from_auth_provider(&self, auth_type: &AuthProvider) -> FlowyResult<Option<String>> {
     match auth_type {
-      AuthType::Local => Ok(None),
-      AuthType::AppFlowyCloud => {
+      AuthProvider::Local => Ok(None),
+      AuthProvider::Cloud => {
         let uid = self.user_id()?;
         let mut conn = self.db_connection(uid)?;
         Ok(select_user_token(uid, &mut conn).ok())
@@ -608,22 +614,16 @@ impl UserManager {
     Ok(())
   }
 
-  pub async fn receive_realtime_event(&self, json: Value) {
-    if let Ok(user_service) = self.cloud_service().and_then(|v| v.get_user_service()) {
-      user_service.receive_realtime_event(json)
-    }
-  }
-
   #[instrument(level = "info", skip_all)]
   pub(crate) async fn generate_sign_in_url_with_email(
     &self,
-    authenticator: &AuthType,
+    authenticator: &AuthProvider,
     email: &str,
   ) -> Result<String, FlowyError> {
     let cloud_service = self.cloud_service()?;
-    cloud_service.set_server_auth_type(authenticator, None)?;
+    cloud_service.set_auth_provider(authenticator)?;
 
-    let auth_service = cloud_service.get_user_service()?;
+    let auth_service = cloud_service.auth_service()?;
     let url = auth_service.generate_sign_in_url_with_email(email).await?;
     Ok(url)
   }
@@ -636,8 +636,8 @@ impl UserManager {
   ) -> Result<GotrueTokenResponse, FlowyError> {
     self
       .cloud_service()?
-      .set_server_auth_type(&AuthType::AppFlowyCloud, None)?;
-    let auth_service = self.cloud_service()?.get_user_service()?;
+      .set_auth_provider(&AuthProvider::Cloud)?;
+    let auth_service = self.cloud_service()?.auth_service()?;
     let response = auth_service.sign_in_with_password(email, password).await?;
     Ok(response)
   }
@@ -650,8 +650,8 @@ impl UserManager {
   ) -> Result<(), FlowyError> {
     self
       .cloud_service()?
-      .set_server_auth_type(&AuthType::AppFlowyCloud, None)?;
-    let auth_service = self.cloud_service()?.get_user_service()?;
+      .set_auth_provider(&AuthProvider::Cloud)?;
+    let auth_service = self.cloud_service()?.auth_service()?;
     auth_service
       .sign_in_with_magic_link(email, redirect_to)
       .await?;
@@ -666,8 +666,8 @@ impl UserManager {
   ) -> Result<GotrueTokenResponse, FlowyError> {
     self
       .cloud_service()?
-      .set_server_auth_type(&AuthType::AppFlowyCloud, None)?;
-    let auth_service = self.cloud_service()?.get_user_service()?;
+      .set_auth_provider(&AuthProvider::Cloud)?;
+    let auth_service = self.cloud_service()?.auth_service()?;
     let response = auth_service.sign_in_with_passcode(email, passcode).await?;
     Ok(response)
   }
@@ -679,8 +679,8 @@ impl UserManager {
   ) -> Result<String, FlowyError> {
     self
       .cloud_service()?
-      .set_server_auth_type(&AuthType::AppFlowyCloud, None)?;
-    let auth_service = self.cloud_service()?.get_user_service()?;
+      .set_auth_provider(&AuthProvider::Cloud)?;
+    let auth_service = self.cloud_service()?.auth_service()?;
     let url = auth_service
       .generate_oauth_url_with_provider(oauth_provider)
       .await?;
@@ -691,7 +691,7 @@ impl UserManager {
   async fn save_auth_data(
     &self,
     response: &impl UserAuthResponse,
-    auth_type: AuthType,
+    auth_type: AuthProvider,
     session: &Session,
   ) -> Result<(), FlowyError> {
     let user_profile = UserProfile::from((response, &auth_type));
@@ -720,7 +720,11 @@ impl UserManager {
   }
 
   #[instrument(level = "info", skip_all)]
-  async fn spawn_observe_token_changed(&self, auth_type: &AuthType, current_token: Option<String>) {
+  async fn spawn_observe_token_changed(
+    &self,
+    auth_type: &AuthProvider,
+    current_token: Option<String>,
+  ) {
     // Set the token if the current cloud service using token to authenticate
     // Currently, only the AppFlowy cloud using token to init the client api.
     if auth_type.is_appflowy_cloud() {
@@ -812,7 +816,7 @@ fn mark_all_migrations_as_applied(sqlite_pool: &Arc<ConnectionPool>) {
 
 pub(crate) fn run_data_migration(
   session: &Session,
-  user_auth_type: &AuthType,
+  user_auth_type: &AuthProvider,
   collab_db: Weak<CollabKVDB>,
   sqlite_pool: Arc<ConnectionPool>,
   kv: Arc<KVStorePreferences>,
@@ -838,7 +842,7 @@ pub(crate) fn run_data_migration(
 
 #[instrument(level = "info", skip_all, err)]
 pub async fn sign_out(
-  cloud_services: &Arc<dyn UserCloudServiceProvider>,
+  cloud_services: &Arc<dyn UserServerProvider>,
   session: &Session,
   authenticate_user: &AuthenticateUser,
   conn: DBConnection,
@@ -853,7 +857,7 @@ pub async fn sign_out(
   authenticate_user.database.close(session.user_id)?;
   authenticate_user.set_session(None)?;
 
-  let server = cloud_services.get_user_service()?;
+  let server = cloud_services.auth_service()?;
   if let Err(err) = server.sign_out(None).await {
     event!(tracing::Level::ERROR, "{:?}", err);
   }
@@ -862,7 +866,7 @@ pub async fn sign_out(
 }
 async fn observe_token_change(
   mut current_token: Option<String>,
-  weak_cloud_services: Weak<dyn UserCloudServiceProvider>,
+  weak_cloud_services: Weak<dyn UserServerProvider>,
   weak_authenticate_user: Weak<AuthenticateUser>,
   mut token_state_rx: WatchStream<UserTokenState>,
   controller_by_wid: Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
@@ -954,7 +958,7 @@ async fn handle_refresh(
 
 #[instrument(level = "info", skip_all)]
 pub(crate) async fn handle_invalid_token(
-  service: &Arc<dyn UserCloudServiceProvider>,
+  service: &Arc<dyn UserServerProvider>,
   auth_user: &Arc<AuthenticateUser>,
 ) -> FlowyResult<()> {
   let session = auth_user.get_session()?;

@@ -1,9 +1,11 @@
 import 'package:appflowy/ai/ai.dart';
 import 'package:appflowy/ai/widgets/prompt_input/mentioned_page_text_span.dart';
+import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_input_control_cubit.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:extended_text_field/extended_text_field.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -23,8 +25,12 @@ class MobileChatInput extends StatefulWidget {
   final bool isStreaming;
   final void Function() onStopStreaming;
   final ValueNotifier<List<String>> selectedSourcesNotifier;
-  final void Function(String, PredefinedFormat?, Map<String, dynamic>)
-      onSubmitted;
+  final void Function(
+    String,
+    PredefinedFormat?,
+    Map<String, ChatFile> files,
+    Map<String, ViewPB> mentions,
+  ) onSubmitted;
   final void Function(List<String>) onUpdateSelectedSources;
 
   @override
@@ -190,7 +196,10 @@ class _MobileChatInputState extends State<MobileChatInput> {
 
   void onSubmitText(String text) {
     // get the attached files and mentioned pages
-    final metadata = context.read<AIPromptInputBloc>().consumeMetadata();
+    final files = context.read<AIPromptInputBloc>().consumeAttachedFiles();
+    final mentions =
+        context.read<AIPromptInputBloc>().consumeAttachedMentions();
+    context.read<AIPromptInputBloc>().clearMetadata();
 
     final bloc = context.read<AIPromptInputBloc>();
     final showPredefinedFormats = bloc.state.showPredefinedFormats;
@@ -199,7 +208,8 @@ class _MobileChatInputState extends State<MobileChatInput> {
     widget.onSubmitted(
       text,
       showPredefinedFormats ? predefinedFormat : null,
-      metadata,
+      files,
+      mentions,
     );
   }
 
@@ -214,14 +224,20 @@ class _MobileChatInputState extends State<MobileChatInput> {
     final query = paletteState.query ?? '';
     if (query.isEmpty) return;
     final sources = (paletteState.askAISources ?? []).map((e) => e.id).toList();
-    final metadata =
-        context.read<AIPromptInputBloc?>()?.consumeMetadata() ?? {};
+    final files = context.read<AIPromptInputBloc>().consumeAttachedFiles();
+    final mentions =
+        context.read<AIPromptInputBloc>().consumeAttachedMentions();
     final promptState = context.read<AIPromptInputBloc?>()?.state;
     final predefinedFormat = promptState?.predefinedFormat;
     if (sources.isNotEmpty) {
       widget.onUpdateSelectedSources(sources);
     }
-    widget.onSubmitted.call(query, predefinedFormat, metadata);
+    widget.onSubmitted.call(
+      query,
+      predefinedFormat,
+      files,
+      mentions,
+    );
   }
 
   void handleTextControllerChanged() {

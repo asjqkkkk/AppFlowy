@@ -82,6 +82,12 @@ class _MobileFolderState extends State<_MobileFolder> {
     BuildContext context,
     SidebarSectionsState state,
   ) {
+    if (!context.watch<SpaceBloc>().state.isInitialized) {
+      return [
+        const SizedBox.shrink(),
+      ];
+    }
+
     if (context.watch<SpaceBloc>().state.spaces.isNotEmpty) {
       return [
         const MobileSpace(),

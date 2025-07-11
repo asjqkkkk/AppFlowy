@@ -88,8 +88,7 @@ class TextMessageWidget extends StatelessWidget {
 
     final stream = message.metadata?["$AnswerStream"];
     final questionId = message.metadata?[messageQuestionIdKey];
-    final refSourceJsonString =
-        message.metadata?[messageRefSourceJsonStringKey] as String?;
+    final refSourceJsonString = message.metadata?[messageSourceKey] as String?;
 
     return BlocSelector<ChatSelectMessageBloc, ChatSelectMessageState, bool>(
       selector: (state) => state.isSelectingMessages,
@@ -143,7 +142,7 @@ class TextMessageWidget extends StatelessWidget {
     BuildContext context,
     ChatMessageRefSource metadata,
   ) async {
-    // When the source of metatdata is appflowy, which means it is a appflowy page
+    // Check the RAGSource for different source types
     if (metadata.source == "appflowy") {
       final sidebarView =
           await ViewBackendService.getView(metadata.id).toNullable();
@@ -153,6 +152,13 @@ class TextMessageWidget extends StatelessWidget {
       return;
     }
 
+    // Check the RAGSource for different source types
+    if (metadata.source == "local_file") {
+      Log.debug("local_file: ${metadata.name}");
+      return;
+    }
+
+    // Check the RAGSource for different source types
     if (metadata.source == "web") {
       if (isURL(metadata.name)) {
         late Uri uri;

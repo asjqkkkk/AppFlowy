@@ -13,7 +13,9 @@ use flowy_error::FlowyResult;
 use flowy_folder_pub::cloud::FolderCloudService;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use flowy_storage_pub::cloud::StorageCloudService;
-use flowy_user_pub::cloud::UserCloudService;
+use flowy_user_pub::cloud::{
+  UserAuthService, UserBillingService, UserCollabService, UserProfileService, UserWorkspaceService,
+};
 use flowy_user_pub::entities::UserTokenState;
 use lib_infra::async_trait::async_trait;
 use tokio::sync::RwLock;
@@ -89,7 +91,11 @@ pub trait AppFlowyServer: Send + Sync + 'static {
   /// # Returns
   ///
   /// An `Arc` wrapping the `UserCloudService` interface.
-  fn user_service(&self) -> Arc<dyn UserCloudService>;
+  fn user_service(&self) -> Arc<dyn UserWorkspaceService>;
+  fn auth_service(&self) -> Arc<dyn UserAuthService>;
+  fn user_profile_service(&self) -> Arc<dyn UserProfileService>;
+  fn billing_service(&self) -> Option<Arc<dyn UserBillingService>>;
+  fn collab_service(&self) -> Arc<dyn UserCollabService>;
 
   /// Provides a service for managing workspaces and folders in a cloud environment. This includes
   /// functionalities to create workspaces, and fetch data, snapshots, and updates related to specific folders.

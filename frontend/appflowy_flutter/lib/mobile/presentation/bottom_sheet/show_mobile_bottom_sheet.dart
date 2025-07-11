@@ -49,14 +49,7 @@ Future<T?> showMobileBottomSheet<T>(
   double? elevation,
   bool showDoneButton = false,
   void Function(BuildContext context)? onDone,
-  bool enableDraggableScrollable = false,
   bool enableScrollable = false,
-  // this field is only used if showDragHandle is true
-  Widget Function(BuildContext, ScrollController)? scrollableWidgetBuilder,
-  // only used when enableDraggableScrollable is true
-  double minChildSize = 0.5,
-  double maxChildSize = 0.8,
-  double initialChildSize = 0.51,
   double bottomSheetPadding = 0,
   bool enablePadding = true,
   WidgetBuilder? dragHandleBuilder,
@@ -129,37 +122,7 @@ Future<T?> showMobileBottomSheet<T>(
 
       // ----- header area -----
 
-      if (enableDraggableScrollable) {
-        final keyboardSize =
-            context.bottomSheetPadding() / MediaQuery.of(context).size.height;
-        return DraggableScrollableSheet(
-          expand: false,
-          snap: true,
-          initialChildSize: (initialChildSize + keyboardSize).clamp(0, 1),
-          minChildSize: (minChildSize + keyboardSize).clamp(0, 1.0),
-          maxChildSize: (maxChildSize + keyboardSize).clamp(0, 1.0),
-          builder: (context, scrollController) {
-            return Column(
-              children: [
-                ...children,
-                scrollableWidgetBuilder?.call(
-                      context,
-                      scrollController,
-                    ) ??
-                    Expanded(
-                      child: Scrollbar(
-                        controller: scrollController,
-                        child: SingleChildScrollView(
-                          controller: scrollController,
-                          child: child,
-                        ),
-                      ),
-                    ),
-              ],
-            );
-          },
-        );
-      } else if (enableScrollable) {
+      if (enableScrollable) {
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [

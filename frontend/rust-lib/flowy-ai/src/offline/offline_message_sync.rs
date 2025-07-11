@@ -1,7 +1,7 @@
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  MessageCursor, ModelList, RepeatedChatMessage, RepeatedRelatedQuestion, ResponseFormat,
-  StreamAnswer, StreamComplete, UpdateChatParams,
+  CreatedChatMessage, MessageCursor, ModelList, RepeatedChatMessage, RepeatedRelatedQuestion,
+  ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_ai_pub::persistence::{
   ChatMessageTable, ChatTable, update_chat_is_sync, update_chat_message_is_sync, upsert_chat,
@@ -11,7 +11,6 @@ use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;
 use serde_json::Value;
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -97,17 +96,27 @@ impl ChatCloudService for AutoSyncChatService {
     message: &str,
     message_type: ChatMessageType,
     prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError> {
-    let message = self
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError> {
+    let result = self
       .cloud_service
-      .create_question(workspace_id, chat_id, message, message_type, prompt_id)
+      .create_question(
+        workspace_id,
+        chat_id,
+        message,
+        message_type,
+        prompt_id,
+        file_paths,
+      )
       .await?;
-    self.upsert_message(chat_id, message.clone(), true).await?;
+    self
+      .upsert_message(chat_id, result.message.clone(), true)
+      .await?;
     // TODO: implement background sync
     // self
     //   .update_message_is_sync(chat_id, message.message_id)
     //   .await?;
-    Ok(message)
+    Ok(result)
   }
 
   async fn create_answer(
@@ -213,11 +222,10 @@ impl ChatCloudService for AutoSyncChatService {
     workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     self
       .cloud_service
-      .embed_file(workspace_id, file_path, chat_id, metadata)
+      .embed_file(workspace_id, file_path, chat_id)
       .await
   }
 

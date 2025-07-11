@@ -6,7 +6,7 @@ use tracing::instrument;
 
 use flowy_error::FlowyResult;
 use flowy_sqlite::kv::KVStorePreferences;
-use flowy_user_pub::entities::{AuthType, WorkspaceType};
+use flowy_user_pub::entities::{AuthProvider, WorkspaceType};
 
 use crate::migrations::migration::UserDataMigration;
 use crate::migrations::session_migration::get_v0_session_workspace;
@@ -36,17 +36,17 @@ impl UserDataMigration for AnonUserWorkspaceTableMigration {
     &self,
     user: &Session,
     _collab_db: &Weak<CollabKVDB>,
-    user_auth_type: &AuthType,
+    user_auth_type: &AuthProvider,
     db: &mut SqliteConnection,
     store_preferences: &Arc<KVStorePreferences>,
   ) -> FlowyResult<()> {
     // For historical reason, anon user doesn't have a workspace in user_workspace_table.
     // So we need to create a new entry for the anon user in the user_workspace_table.
-    if matches!(user_auth_type, AuthType::Local) {
+    if matches!(user_auth_type, AuthProvider::Local) {
       if let Some(mut user_workspace) = get_v0_session_workspace(store_preferences) {
         if select_user_workspace(&user_workspace.id, db).ok().is_none() {
-          user_workspace.workspace_type = WorkspaceType::Local;
-          upsert_user_workspace(user.user_id, WorkspaceType::Local, user_workspace, db)?;
+          user_workspace.workspace_type = WorkspaceType::Vault;
+          upsert_user_workspace(user.user_id, WorkspaceType::Vault, user_workspace, db)?;
         }
       }
     }

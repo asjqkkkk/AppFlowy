@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:appflowy/user/application/ws_connect_state_listener.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
@@ -23,13 +25,9 @@ class NetworkIndicatorBloc
       },
     );
 
-    UserEventGetWSConnectState().send().then((value) {
-      if (isClosed) return;
-
-      value.fold(
-        (data) => add(NetworkIndicatorEvent.connectStateChanged(data.state)),
-        (error) => Log.error(error.toString()),
-      );
+    _checkConnectionState();
+    _timer = Timer.periodic(const Duration(minutes: 1), (_) {
+      _checkConnectionState();
     });
 
     on<NetworkIndicatorEvent>((event, emit) async {
@@ -48,11 +46,23 @@ class NetworkIndicatorBloc
 
   @override
   Future<void> close() async {
+    _timer?.cancel();
     await _listener.stop();
     await super.close();
   }
 
   final WsConnectStateListener _listener;
+  Timer? _timer;
+
+  void _checkConnectionState() {
+    UserEventGetWSConnectState().send().then((value) {
+      if (isClosed) return;
+      value.fold(
+        (data) => add(NetworkIndicatorEvent.connectStateChanged(data.state)),
+        (error) => Log.error(error.toString()),
+      );
+    });
+  }
 }
 
 @freezed

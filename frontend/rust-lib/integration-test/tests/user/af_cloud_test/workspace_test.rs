@@ -9,8 +9,8 @@ use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::EventIntegrationTest;
 use flowy_core::DEFAULT_NAME;
 use flowy_user::entities::AFRolePB;
-use flowy_user_pub::cloud::UserCloudServiceProvider;
-use flowy_user_pub::entities::{AuthType, WorkspaceType};
+use flowy_user_pub::cloud::UserServerProvider;
+use flowy_user_pub::entities::{AuthProvider, WorkspaceType};
 use std::time::Duration;
 use tokio::task::LocalSet;
 use tokio::time::sleep;
@@ -25,7 +25,7 @@ async fn af_cloud_workspace_delete() {
   assert_eq!(workspaces.len(), 1);
 
   let created_workspace = test
-    .create_workspace("my second workspace", WorkspaceType::Server)
+    .create_workspace("my second workspace", WorkspaceType::Cloud)
     .await;
   assert_eq!(created_workspace.name, "my second workspace");
   let workspaces = get_synced_workspaces(&test, user_profile_pb.id).await;
@@ -75,7 +75,7 @@ async fn af_cloud_create_workspace_test() {
   assert_eq!(workspaces.len(), 1);
 
   let created_workspace = test
-    .create_workspace("my second workspace", WorkspaceType::Server)
+    .create_workspace("my second workspace", WorkspaceType::Cloud)
     .await;
   assert_eq!(created_workspace.name, "my second workspace");
 
@@ -213,7 +213,7 @@ async fn setup_second_workspace(
 ) -> flowy_user::entities::UserWorkspacePB {
   // Create second workspace
   let user_workspace = test
-    .create_workspace("second workspace", WorkspaceType::Server)
+    .create_workspace("second workspace", WorkspaceType::Cloud)
     .await;
 
   // Switch to second workspace
@@ -471,7 +471,7 @@ async fn af_cloud_create_local_workspace_test() {
 
   // Test: Create a local workspace
   let local_workspace = test
-    .create_workspace("my local workspace", WorkspaceType::Local)
+    .create_workspace("my local workspace", WorkspaceType::Vault)
     .await;
 
   // Verify: Local workspace was created correctly
@@ -531,7 +531,7 @@ async fn af_cloud_create_local_workspace_test() {
 
   // Test: Create a server workspace
   let server_workspace = test
-    .create_workspace("my server workspace", WorkspaceType::Server)
+    .create_workspace("my server workspace", WorkspaceType::Cloud)
     .await;
 
   // Verify: Server workspace was created correctly
@@ -558,13 +558,15 @@ async fn af_cloud_create_local_workspace_test() {
     .expect("Server workspace should exist");
   assert_eq!(found_server_workspace.name, "my server workspace");
 
-  // Verify: Server-side only recognizes cloud workspaces (not local ones)
   let user_profile = test.get_user_profile().await.unwrap();
   test
     .server_provider
-    .set_server_auth_type(&AuthType::AppFlowyCloud, Some(user_profile.token.clone()))
+    .set_token(Some(user_profile.token.clone()))
     .unwrap();
-  test.server_provider.set_token(&user_profile.token).unwrap();
+  test
+    .server_provider
+    .set_auth_provider(&AuthProvider::Cloud)
+    .unwrap();
 
   let user_service = test.server_provider.get_server().unwrap().user_service();
   let server_workspaces = user_service

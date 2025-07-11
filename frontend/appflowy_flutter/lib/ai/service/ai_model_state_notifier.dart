@@ -24,6 +24,7 @@ class AIModelState {
     required this.tooltip,
     required this.isEditable,
     required this.localAIEnabled,
+    required this.supportChatWithFile,
   });
   final AiType type;
 
@@ -38,6 +39,7 @@ class AIModelState {
 
   final bool isEditable;
   final bool localAIEnabled;
+  final bool supportChatWithFile;
 }
 
 class AIModelStateNotifier {
@@ -53,7 +55,7 @@ class AIModelStateNotifier {
   final LocalAIStateListener? _localAIListener;
   final AIModelSwitchListener _aiModelSwitchListener;
 
-  LocalAIPB? _localAIState;
+  LocalAIStatePB? _localAIState;
   List<AIModelPB> _availableModels = [];
   AIModelPB? _selectedModel;
 
@@ -169,6 +171,7 @@ class AIModelStateNotifier {
         tooltip: null,
         isEditable: true,
         localAIEnabled: false,
+        supportChatWithFile: false,
       );
 
   /// Core logic computing the state from local and selection data
@@ -188,7 +191,7 @@ class AIModelStateNotifier {
       return _defaultState();
     }
 
-    final enabled = _localAIState!.enabled;
+    final enabled = _localAIState!.toggleOn;
     final running = _localAIState!.isReady;
     final hintKey = enabled
         ? (running
@@ -201,12 +204,15 @@ class AIModelStateNotifier {
             : LocaleKeys.settings_aiPage_keys_localAINotReadyTextFieldPrompt)
         : LocaleKeys.settings_aiPage_keys_localAIDisabledTextFieldPrompt;
 
+    final supportChatWithFile = _localAIState!.isVault;
+
     return AIModelState(
       type: AiType.local,
       hintText: hintKey.tr(),
       tooltip: tooltipKey?.tr(),
       isEditable: enabled && running,
       localAIEnabled: enabled,
+      supportChatWithFile: supportChatWithFile,
     );
   }
 }

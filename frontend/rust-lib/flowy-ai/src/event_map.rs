@@ -1,23 +1,18 @@
-use std::sync::{Arc, Weak};
-
-use strum_macros::Display;
-
-use crate::completion::AICompletion;
 use flowy_derive::{Flowy_Event, ProtoBuf_Enum};
 use lib_dispatch::prelude::*;
+use std::sync::Weak;
+use strum_macros::Display;
 
 use crate::ai_manager::AIManager;
 use crate::event_handler::*;
 
 pub fn init(ai_manager: Weak<AIManager>) -> AFPlugin {
   let strong_ai_manager = ai_manager.upgrade().unwrap();
-  let user_service = Arc::downgrade(&strong_ai_manager.user_service);
-  let cloud_service = Arc::downgrade(&strong_ai_manager.cloud_service_wm);
-  let ai_tools = Arc::new(AICompletion::new(cloud_service, user_service));
+  let ai_completion = strong_ai_manager.ai_completion();
   AFPlugin::new()
     .name("flowy-ai")
     .state(ai_manager)
-    .state(ai_tools)
+    .state(ai_completion)
     .event(AIEvent::StreamMessage, stream_chat_message_handler)
     .event(AIEvent::LoadPrevMessage, load_prev_message_handler)
     .event(AIEvent::LoadNextMessage, load_next_message_handler)
@@ -58,6 +53,10 @@ pub fn init(ai_manager: Weak<AIManager>) -> AFPlugin {
       AIEvent::SetCustomPromptDatabaseConfiguration,
       set_custom_prompt_database_configuration_handler,
     )
+    .event(
+      AIEvent::GetAttachedChatFiles,
+      get_chat_attached_files_handler,
+    )
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -97,11 +96,11 @@ pub enum AIEvent {
   RestartLocalAI = 17,
 
   /// Enable or disable local AI
-  #[event(output = "LocalAIPB")]
+  #[event(output = "LocalAIStatePB")]
   ToggleLocalAI = 18,
 
   /// Return LocalAIPB that contains the current state of the local AI
-  #[event(output = "LocalAIPB")]
+  #[event(output = "LocalAIStatePB")]
   GetLocalAIState = 19,
 
   #[event(input = "CreateChatContextPB")]
@@ -142,4 +141,7 @@ pub enum AIEvent {
 
   #[event(input = "CustomPromptDatabaseConfigurationPB")]
   SetCustomPromptDatabaseConfiguration = 36,
+
+  #[event(input = "ChatId", output = "AttachedChatFilesPB")]
+  GetAttachedChatFiles = 37,
 }

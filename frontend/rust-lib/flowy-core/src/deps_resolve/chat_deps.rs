@@ -10,7 +10,7 @@ use flowy_ai::local_ai::controller::LocalAIController;
 use flowy_ai_pub::cloud::ChatCloudService;
 use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_ai_pub::persistence::AFCollabMetadata;
-use flowy_ai_pub::user_service::AIUserService;
+use flowy_ai_pub::user_service::{AIUserService, ValidateVaultResult};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_folder::ViewLayout;
 use flowy_folder_pub::cloud::{FolderCloudService, FullSyncCollabParams};
@@ -43,7 +43,7 @@ impl ChatDepsResolver {
     folder_service: impl FolderService,
     local_ai: Arc<LocalAIController>,
   ) -> Arc<AIManager> {
-    let user_service = ChatUserServiceImpl(authenticate_user);
+    let user_service = AIUserServiceImpl(authenticate_user);
     Arc::new(AIManager::new(
       cloud_service,
       user_service,
@@ -172,8 +172,8 @@ impl AIExternalService for ChatQueryServiceImpl {
   }
 }
 
-pub struct ChatUserServiceImpl(Weak<AuthenticateUser>);
-impl ChatUserServiceImpl {
+pub struct AIUserServiceImpl(pub Weak<AuthenticateUser>);
+impl AIUserServiceImpl {
   fn upgrade_user(&self) -> Result<Arc<AuthenticateUser>, FlowyError> {
     let user = self
       .0
@@ -184,7 +184,7 @@ impl ChatUserServiceImpl {
 }
 
 #[async_trait]
-impl AIUserService for ChatUserServiceImpl {
+impl AIUserService for AIUserServiceImpl {
   fn user_id(&self) -> Result<i64, FlowyError> {
     self.upgrade_user()?.user_id()
   }
@@ -193,8 +193,12 @@ impl AIUserService for ChatUserServiceImpl {
     self.upgrade_user()?.is_anon().await
   }
 
-  async fn is_local_model(&self) -> FlowyResult<bool> {
-    self.upgrade_user()?.is_local_mode().await
+  async fn validate_vault(&self) -> FlowyResult<ValidateVaultResult> {
+    let result = self.upgrade_user()?.validate_vault().await?;
+    Ok(ValidateVaultResult {
+      is_vault: result.is_vault,
+      is_vault_enabled: result.is_vault_enabled,
+    })
   }
 
   fn workspace_id(&self) -> Result<Uuid, FlowyError> {
@@ -209,6 +213,10 @@ impl AIUserService for ChatUserServiceImpl {
     Ok(PathBuf::from(
       self.upgrade_user()?.get_application_root_dir(),
     ))
+  }
+
+  fn user_data_dir(&self) -> Result<PathBuf, FlowyError> {
+    self.upgrade_user()?.get_user_data_dir()
   }
 }
 
@@ -238,6 +246,14 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
     score_threshold: f32,
     _full_search: bool,
   ) -> FlowyResult<Vec<LangchainDocument>> {
+    if rag_ids.is_empty() {
+      debug!(
+        "[VectorStore:tanvity] No rag_ids provided for query: {}, returning empty result",
+        query
+      );
+      return Ok(vec![]);
+    }
+
     let docs = tanvity_local_search(
       &self.state,
       workspace_id,
@@ -250,8 +266,8 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
 
     match docs {
       None => Ok(vec![]),
-      Some(docs) => Ok(
-        docs
+      Some(docs) => {
+        let docs = docs
           .into_iter()
           .map(|v| LangchainDocument {
             page_content: v.content,
@@ -267,8 +283,15 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
             .collect(),
             score: v.score,
           })
-          .collect(),
-      ),
+          .collect::<Vec<_>>();
+
+        debug!(
+          "[VectorStore:tanvity] found {} result for  query: {}",
+          docs.len(),
+          query,
+        );
+        Ok(docs)
+      },
     }
   }
 }

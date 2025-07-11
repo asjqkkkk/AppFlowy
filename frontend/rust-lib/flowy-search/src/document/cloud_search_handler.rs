@@ -75,7 +75,6 @@ impl SearchHandler for DocumentCloudSearchHandler {
         }
       };
       trace!("[Search] ai search result: {:?}", result_items);
-
       // Prepare input for search summary generation.
       let summary_input: Vec<SearchResult> = result_items
         .iter()
@@ -113,7 +112,7 @@ impl SearchHandler for DocumentCloudSearchHandler {
       yield Ok(
         CreateSearchResultPBArgs::default()
           .searching(false)
-          .search_result(Some(search_result))
+          .online_search(Some(search_result))
           .generating_ai_summary(!result_items.is_empty())
           .build()
           .unwrap(),

@@ -11,7 +11,7 @@ use rusqlite::{ToSql, params};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use tracing::{trace, warn};
+use tracing::{instrument, trace, warn};
 use uuid::Uuid;
 use zerocopy::IntoBytes;
 
@@ -21,14 +21,21 @@ pub struct VectorSqliteDB {
 
 impl VectorSqliteDB {
   pub fn new(root: PathBuf) -> Result<Self> {
+    // Initialize the sqlite-vec extension globally before creating any connections
+    init_sqlite_vector_extension();
+
     let db_path = root.join("vector.db");
 
     // Setup the connection manager with the database path
     let manager = SqliteConnectionManager::file(db_path);
 
     // Initialize SQLite extensions and settings in each new connection
-    let manager = manager.with_init(|_| {
+    let manager = manager.with_init(|conn| {
+      // Also initialize for each connection as a safety measure
       init_sqlite_vector_extension();
+
+      // Enable WAL mode for better concurrency
+      conn.execute_batch("PRAGMA journal_mode=WAL;")?;
       Ok(())
     });
 
@@ -247,6 +254,7 @@ impl VectorSqliteDB {
 
   /// Inserts or replaces all of `fragments` for the given (workspace_id, object_id),
   /// deleting anything else in that scope first, and storing the new vector blobs.
+  #[instrument(level = "debug", skip_all, err)]
   pub async fn upsert_collabs_embeddings(
     &self,
     workspace_id: &str,

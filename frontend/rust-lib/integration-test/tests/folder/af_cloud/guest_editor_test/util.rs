@@ -67,7 +67,7 @@ impl AccessLevelTest for EventIntegrationTest {
   async fn create_and_open_workspace(&self, workspace_name: String) -> UserWorkspacePB {
     // 1. create a workspace
     let workspace = self
-      .create_workspace(&workspace_name, WorkspaceType::Server)
+      .create_workspace(&workspace_name, WorkspaceType::Cloud)
       .await;
     // 2. open the workspace
 

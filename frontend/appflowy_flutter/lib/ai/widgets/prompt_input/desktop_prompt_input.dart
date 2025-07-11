@@ -1,10 +1,10 @@
 import 'package:appflowy/ai/ai.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_input_control_cubit.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_user_cubit.dart';
 import 'package:appflowy/plugins/ai_chat/presentation/layout_define.dart';
-import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/settings/settings_dialog_bloc.dart';
@@ -14,8 +14,8 @@ import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/file_picker/file_picker_service.dart';
-import 'package:flowy_infra_ui/flowy_infra_ui.dart';
+import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
+import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,7 +25,8 @@ import 'browse_prompts_button.dart';
 typedef OnPromptInputSubmitted = void Function(
   String input,
   PredefinedFormat? predefinedFormat,
-  Map<String, dynamic> metadata,
+  Map<String, ChatFile> files,
+  Map<String, ViewPB> mentions,
   String? promptId,
 );
 
@@ -288,8 +289,12 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
     final query = paletteState.query ?? '';
     if (query.isEmpty) return;
     final sources = (paletteState.askAISources ?? []).map((e) => e.id).toList();
-    final metadata =
-        context.read<AIPromptInputBloc?>()?.consumeMetadata() ?? {};
+    final files =
+        context.read<AIPromptInputBloc?>()?.consumeAttachedFiles() ?? {};
+    final mentions =
+        context.read<AIPromptInputBloc?>()?.consumeAttachedMentions() ?? {};
+    context.read<AIPromptInputBloc>().clearMetadata();
+
     final promptBloc = context.read<AIPromptInputBloc?>();
     final promptId = promptBloc?.promptId;
     final promptState = promptBloc?.state;
@@ -297,7 +302,13 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
     if (sources.isNotEmpty) {
       widget.onUpdateSelectedSources(sources);
     }
-    widget.onSubmitted.call(query, predefinedFormat, metadata, promptId ?? '');
+    widget.onSubmitted.call(
+      query,
+      predefinedFormat,
+      files,
+      mentions,
+      promptId ?? '',
+    );
   }
 
   void startMentionPageFromButton() {
@@ -352,7 +363,10 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
     }
 
     // get the attached files and mentioned pages
-    final metadata = context.read<AIPromptInputBloc>().consumeMetadata();
+    final files = context.read<AIPromptInputBloc>().consumeAttachedFiles();
+    final mentions =
+        context.read<AIPromptInputBloc>().consumeAttachedMentions();
+    context.read<AIPromptInputBloc>().clearMetadata();
 
     final bloc = context.read<AIPromptInputBloc>();
     final showPredefinedFormats = bloc.state.showPredefinedFormats;
@@ -361,7 +375,8 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
     widget.onSubmitted(
       userInput,
       showPredefinedFormats ? predefinedFormat : null,
-      metadata,
+      files,
+      mentions,
       bloc.promptId,
     );
   }
@@ -727,7 +742,11 @@ class _PromptBottomActions extends StatelessWidget {
 
               if (extraBottomActionButton != null) extraBottomActionButton!,
               // _mentionButton(context),
-              if (state.supportChatWithFile) _attachmentButton(context),
+              if (state.modelState.supportChatWithFile)
+                _attachmentButton(
+                  context,
+                  context.read<AIPromptInputBloc>().objectId,
+                ),
               _sendButton(),
             ],
           );
@@ -771,15 +790,10 @@ class _PromptBottomActions extends StatelessWidget {
   //   );
   // }
 
-  Widget _attachmentButton(BuildContext context) {
+  Widget _attachmentButton(BuildContext context, String chatId) {
     return PromptInputAttachmentButton(
-      onTap: () async {
-        final path = await getIt<FilePickerService>().pickFiles(
-          dialogTitle: '',
-          type: FileType.custom,
-          allowedExtensions: ["pdf", "txt", "md"],
-        );
-
+      chatId: chatId,
+      onSelectFiles: (path) async {
         if (path == null) {
           return;
         }

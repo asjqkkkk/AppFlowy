@@ -12,7 +12,7 @@ part 'ai_prompt_input_bloc.freezed.dart';
 
 class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
   AIPromptInputBloc({
-    required String objectId,
+    required this.objectId,
     required PredefinedFormat? predefinedFormat,
   })  : aiModelStateNotifier = AIModelStateNotifier(objectId: objectId),
         super(AIPromptInputState.initial(predefinedFormat)) {
@@ -22,6 +22,7 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
   }
 
   final AIModelStateNotifier aiModelStateNotifier;
+  final String objectId;
 
   String? promptId;
 
@@ -132,17 +133,26 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
     });
   }
 
-  Map<String, dynamic> consumeMetadata() {
+  Map<String, ViewPB> consumeAttachedMentions() {
     final metadata = {
-      for (final file in state.attachedFiles) file.filePath: file,
       for (final page in state.mentionedPages) page.id: page,
     };
 
-    if (metadata.isNotEmpty && !isClosed) {
-      add(const AIPromptInputEvent.clearMetadata());
-    }
+    return metadata;
+  }
+
+  Map<String, ChatFile> consumeAttachedFiles() {
+    final metadata = {
+      for (final file in state.attachedFiles) file.filePath: file,
+    };
 
     return metadata;
+  }
+
+  void clearMetadata() {
+    if (!isClosed) {
+      add(const AIPromptInputEvent.clearMetadata());
+    }
   }
 }
 
@@ -175,7 +185,6 @@ class AIPromptInputEvent with _$AIPromptInputEvent {
 class AIPromptInputState with _$AIPromptInputState {
   const factory AIPromptInputState({
     required AIModelState modelState,
-    required bool supportChatWithFile,
     required bool showPredefinedFormats,
     required PredefinedFormat? predefinedFormat,
     required List<ChatFile> attachedFiles,
@@ -191,8 +200,8 @@ class AIPromptInputState with _$AIPromptInputState {
           hintText: '',
           localAIEnabled: false,
           tooltip: null,
+          supportChatWithFile: false,
         ),
-        supportChatWithFile: false,
         showPredefinedFormats: format != null,
         predefinedFormat: format,
         attachedFiles: [],

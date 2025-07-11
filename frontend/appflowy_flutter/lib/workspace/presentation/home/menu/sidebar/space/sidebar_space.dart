@@ -39,9 +39,7 @@ class SidebarSpace extends StatelessWidget {
         final currentWorkspace = state.currentWorkspace;
         final currentWorkspaceId = currentWorkspace?.workspaceId ?? '';
         final currentUserRole = state.workspaces
-                .firstWhereOrNull(
-                  (e) => e.workspaceId == currentWorkspaceId,
-                )
+                .firstWhereOrNull((e) => e.workspaceId == currentWorkspaceId)
                 ?.role ??
             state.currentWorkspace?.role;
         // only show spaces if the user role is member or owner

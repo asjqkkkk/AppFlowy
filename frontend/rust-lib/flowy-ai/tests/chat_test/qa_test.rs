@@ -9,7 +9,7 @@ use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
 use uuid::Uuid;
 
 #[tokio::test]
-async fn local_ollama_test_simple_question() {
+async fn local_ai_test_simple_question() {
   let context = TestContext::new().unwrap();
   let mut chat = context.create_chat(vec![]).await;
   let stream = chat
@@ -48,7 +48,7 @@ async fn local_ollama_test_simple_question() {
 }
 
 #[tokio::test]
-async fn local_ollama_test_chat_with_multiple_docs_retrieve() {
+async fn local_ai_test_chat_with_multiple_docs_retrieve() {
   let context = TestContext::new().unwrap();
   let mut chat = context.create_chat(vec![]).await;
   let mut ids = vec![];
@@ -126,7 +126,7 @@ async fn local_ollama_test_chat_with_multiple_docs_retrieve() {
 }
 
 #[tokio::test]
-async fn local_ollama_test_chat_format() {
+async fn local_ai_test_chat_format() {
   let context = TestContext::new().unwrap();
   let mut chat = context.create_chat(vec![]).await;
   let mut format = ResponseFormat::new();
@@ -143,7 +143,7 @@ async fn local_ollama_test_chat_format() {
 }
 
 #[tokio::test]
-async fn local_ollama_test_chat_related_question() {
+async fn local_ai_test_chat_related_question() {
   setup_log();
 
   let ollama = LLMOllama::default().with_model("llama3.1");

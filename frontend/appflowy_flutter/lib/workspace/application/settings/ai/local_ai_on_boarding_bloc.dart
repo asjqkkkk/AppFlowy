@@ -5,6 +5,7 @@ import 'package:appflowy/workspace/application/subscription_success_listenable/s
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/billing.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
@@ -33,7 +34,7 @@ class LocalAIOnBoardingBloc
 
     add(
       LocalAIOnBoardingEvent.paymentSuccessful(
-        _successListenable.subscribedPlan,
+        _successListenable.workspaceSubscriptionPlan,
       ),
     );
   }

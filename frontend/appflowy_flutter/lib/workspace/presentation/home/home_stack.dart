@@ -13,6 +13,7 @@ import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/home/home_setting_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/network.dart';
 import 'package:appflowy/workspace/presentation/home/navigation.dart';
 import 'package:appflowy/workspace/presentation/home/tabs/tabs_manager.dart';
 import 'package:appflowy/workspace/presentation/home/toast.dart';
@@ -44,11 +45,13 @@ class HomeStack extends StatefulWidget {
     required this.delegate,
     required this.layout,
     required this.userProfile,
+    required this.workspaceId,
   });
 
   final HomeStackDelegate delegate;
   final HomeLayout layout;
   final UserProfilePB userProfile;
+  final String workspaceId;
 
   @override
   State<HomeStack> createState() => _HomeStackState();
@@ -93,6 +96,9 @@ class _HomeStackState extends State<HomeStack> with WindowListener {
                                 child: Column(
                                   children: [
                                     pm.stackTopBar(layout: widget.layout),
+                                    WebSocketIndicator(
+                                      workspaceId: widget.workspaceId,
+                                    ),
                                     Expanded(
                                       child: PageStack(
                                         pageManager: pm,

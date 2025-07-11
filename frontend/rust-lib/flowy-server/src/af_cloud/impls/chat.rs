@@ -1,4 +1,5 @@
 #![allow(unused_variables)]
+
 use crate::af_cloud::AFServer;
 use client_api::entity::ai_dto::{
   ChatQuestionQuery, CompleteTextParams, RepeatedRelatedQuestion, ResponseFormat,
@@ -9,12 +10,11 @@ use client_api::entity::chat_dto::{
 };
 use flowy_ai_pub::cloud::{
   AFWorkspaceSettingsChange, AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings,
-  ModelList, StreamAnswer, StreamComplete, UpdateChatParams,
+  CreatedChatMessage, ModelList, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_error::FlowyError;
 use futures_util::{StreamExt, TryStreamExt};
 use lib_infra::async_trait::async_trait;
-use serde_json::Value;
 use std::collections::HashMap;
 use std::path::Path;
 use tracing::trace;
@@ -60,7 +60,8 @@ where
     message: &str,
     message_type: ChatMessageType,
     prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError> {
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError> {
     let chat_id = chat_id.to_string();
     let try_get_client = self.inner.try_get_client();
     let params = CreateChatMessageParams {
@@ -73,7 +74,10 @@ where
       .create_question(workspace_id, &chat_id, params)
       .await
       .map_err(FlowyError::from)?;
-    Ok(message)
+    Ok(CreatedChatMessage {
+      message,
+      embed_file_errors: HashMap::new(),
+    })
   }
 
   async fn create_answer(
@@ -214,7 +218,6 @@ where
     workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     Err(
       FlowyError::not_support()

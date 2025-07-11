@@ -47,12 +47,14 @@ class PromptInputFile extends StatelessWidget {
 class ChatFilePreview extends StatefulWidget {
   const ChatFilePreview({
     required this.file,
-    required this.onDeleted,
+    this.onDeleted,
+    this.minWidth = 200,
     super.key,
   });
 
   final ChatFile file;
-  final VoidCallback onDeleted;
+  final VoidCallback? onDeleted;
+  final double minWidth;
 
   @override
   State<ChatFilePreview> createState() => _ChatFilePreviewState();
@@ -74,7 +76,10 @@ class _ChatFilePreviewState extends State<ChatFilePreview> {
               children: [
                 Container(
                   margin: const EdgeInsetsDirectional.only(top: 6, end: 6),
-                  constraints: const BoxConstraints(maxWidth: 240),
+                  constraints: BoxConstraints(
+                    maxWidth: 240,
+                    minWidth: widget.minWidth,
+                  ),
                   decoration: BoxDecoration(
                     border: Border.all(
                       color: Theme.of(context).dividerColor,
@@ -121,9 +126,9 @@ class _ChatFilePreviewState extends State<ChatFilePreview> {
                     ],
                   ),
                 ),
-                if (isHover)
+                if (isHover && widget.onDeleted != null)
                   _CloseButton(
-                    onTap: widget.onDeleted,
+                    onTap: widget.onDeleted!,
                   ).positioned(top: 0, right: 0),
               ],
             ),

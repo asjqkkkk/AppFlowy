@@ -6,8 +6,8 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/page_style
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_style/_page_style_util.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -76,35 +76,36 @@ class _PageStyleIconState extends State<PageStyleIcon> {
     Navigator.pop(context);
     final pageStyleIconBloc = PageStyleIconBloc(view: widget.view)
       ..add(const PageStyleIconEvent.initial());
+
+    final height = MediaQuery.sizeOf(context).height * 0.6;
+    final theme = AppFlowyTheme.of(context);
+
     showMobileBottomSheet(
       context,
       showDragHandle: true,
       showDivider: false,
       showHeader: true,
       title: LocaleKeys.titleBar_pageIcon.tr(),
-      backgroundColor: AFThemeExtension.of(context).background,
-      enableDraggableScrollable: true,
-      minChildSize: 0.6,
-      initialChildSize: 0.61,
-      scrollableWidgetBuilder: (ctx, controller) {
+      backgroundColor: theme.surfaceColorScheme.layer01,
+      builder: (context) {
         return BlocProvider.value(
           value: pageStyleIconBloc,
-          child: Expanded(
+          child: SizedBox(
+            height: height,
             child: FlowyIconEmojiPicker(
               initialType: icon.type.toPickerTabType(),
-              documentId: widget.view.id,
               tabs: widget.tabs,
+              documentId: widget.view.id,
               onSelectedEmoji: (r) {
                 pageStyleIconBloc.add(
                   PageStyleIconEvent.updateIcon(r.data, true),
                 );
-                if (!r.keepOpen) Navigator.pop(ctx);
+                if (!r.keepOpen) Navigator.pop(context);
               },
             ),
           ),
         );
       },
-      builder: (_) => const SizedBox.shrink(),
     );
   }
 }

@@ -6,6 +6,7 @@ pub mod retriever;
 mod summary_memory;
 
 use crate::SqliteVectorStore;
+use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::llm::LLMOllama;
 use crate::local_ai::chat::llm_chat::LLMChat;
 use crate::local_ai::chat::retriever::MultipleSourceRetrieverStore;
@@ -24,12 +25,10 @@ use flowy_database_pub::cloud::{SummaryRowContent, TranslateRowContent};
 use flowy_error::{FlowyError, FlowyResult};
 use futures_util::StreamExt;
 use ollama_rs::Ollama;
-use serde_json::Value;
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::{debug, info, warn};
+use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
 type OllamaClientRef = Arc<RwLock<Option<Weak<Ollama>>>>;
@@ -82,16 +81,20 @@ impl LLMChatController {
   }
 
   pub async fn set_rag_ids(&self, chat_id: &Uuid, rag_ids: &[String]) {
-    debug!(
-      "[Chat] Setting RAG IDs for chat:{}, rag_ids:{:?}",
-      chat_id, rag_ids
-    );
     if let Some(chat) = self.get_chat(chat_id) {
+      debug!(
+        "[Chat] Setting RAG IDs for chat:{}, rag_ids:{:?}",
+        chat_id, rag_ids
+      );
       chat.write().await.set_rag_ids(rag_ids.to_vec());
     }
   }
 
-  async fn create_chat_if_not_exist(&self, info: LLMChatInfo) -> FlowyResult<()> {
+  async fn create_chat_if_not_exist(
+    &self,
+    info: LLMChatInfo,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
+  ) -> FlowyResult<()> {
     let store = self.store.read().await.clone();
     let client = self
       .client
@@ -118,14 +121,19 @@ impl LLMChatController {
         store,
         Some(self.user_service.clone()),
         retriever_sources,
+        file_storage,
       )?;
       e.insert(Arc::new(RwLock::new(chat)));
     }
     Ok(())
   }
 
-  pub async fn open_chat(&self, info: LLMChatInfo) -> FlowyResult<()> {
-    let _ = self.create_chat_if_not_exist(info).await;
+  pub async fn open_chat(
+    &self,
+    info: LLMChatInfo,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
+  ) -> FlowyResult<()> {
+    let _ = self.create_chat_if_not_exist(info, file_storage).await;
     Ok(())
   }
 
@@ -205,13 +213,37 @@ impl LLMChatController {
     Ok(stream)
   }
 
+  #[instrument(skip_all, err)]
   pub async fn embed_file(
     &self,
-    _chat_id: &Uuid,
-    _file_path: PathBuf,
-    _metadata: Option<HashMap<String, Value>>,
-  ) -> FlowyResult<()> {
-    Ok(())
+    chat_id: &Uuid,
+    file_path: PathBuf,
+  ) -> FlowyResult<serde_json::Value> {
+    if !file_path.exists() {
+      return Err(
+        FlowyError::record_not_found().with_context("File path does not exist when embedding file"),
+      );
+    }
+
+    info!(
+      "[Chat] {} Embedding file from path: {}",
+      chat_id,
+      file_path.display()
+    );
+
+    let chat = self
+      .chat_by_id
+      .get(chat_id)
+      .map(|v| v.value().clone())
+      .ok_or_else(|| FlowyError::internal().with_context("Chat not found"))?;
+
+    let metadata = chat
+      .read()
+      .await
+      .embed_file_from_path(*chat_id, file_path.clone())
+      .await?;
+
+    Ok(metadata)
   }
 
   pub async fn get_related_question(

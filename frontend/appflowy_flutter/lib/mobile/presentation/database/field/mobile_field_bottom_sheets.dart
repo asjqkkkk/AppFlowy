@@ -9,9 +9,10 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 import 'package:appflowy/util/field_type_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:go_router/go_router.dart';
+import 'package:sheet/sheet.dart';
 
+import '../../bottom_sheet/bottom_sheet_buttons.dart';
 import 'mobile_create_field_screen.dart';
 import 'mobile_edit_field_screen.dart';
 import 'mobile_field_picker_list.dart';
@@ -37,15 +38,22 @@ Future<FieldType?> showFieldTypeGridBottomSheet(
   BuildContext context, {
   required String title,
 }) {
-  return showMobileBottomSheet<FieldType>(
+  return showDraggableMobileBottomSheet<FieldType>(
     context,
-    showHeader: true,
-    showDragHandle: true,
-    showCloseButton: true,
-    elevation: 20,
-    title: title,
-    backgroundColor: AFThemeExtension.of(context).background,
-    enableDraggableScrollable: true,
+    fit: SheetFit.loose,
+    stops: const [0.0, 0.5, 1.0],
+    headerBuilder: (context) {
+      return BottomSheetHeaderV2(
+        title: title,
+        showDivider: false,
+        leading: BottomSheetCloseButton(
+          onTap: () => context.pop(),
+        ),
+        trailing: BottomSheetDoneButton(
+          onDone: () => context.pop(),
+        ),
+      );
+    },
     builder: (context) {
       final typeOptionMenuItemValue = mobileSupportedFieldTypes
           .map(
@@ -61,11 +69,14 @@ Future<FieldType?> showFieldTypeGridBottomSheet(
             ),
           )
           .toList();
-      return Padding(
-        padding: EdgeInsets.all(16 * context.scale),
-        child: TypeOptionMenu<FieldType>(
-          values: typeOptionMenuItemValue,
-          scaleFactor: context.scale,
+      return SingleChildScrollView(
+        controller: PrimaryScrollController.of(context),
+        child: Padding(
+          padding: EdgeInsets.all(16 * context.scale),
+          child: TypeOptionMenu<FieldType>(
+            values: typeOptionMenuItemValue,
+            scaleFactor: context.scale,
+          ),
         ),
       );
     },

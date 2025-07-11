@@ -5,8 +5,8 @@ use flowy_ai::local_ai::controller::LocalAIController;
 use flowy_ai_pub::cloud::chat_dto::{ChatAuthor, ChatAuthorType};
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  DEFAULT_AI_MODEL_NAME, MessageCursor, ModelList, RelatedQuestion, RepeatedChatMessage,
-  ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
+  CreatedChatMessage, DEFAULT_AI_MODEL_NAME, MessageCursor, ModelList, RelatedQuestion,
+  RepeatedChatMessage, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_ai_pub::persistence::{
   ChatMessageTable, ChatTable, ChatTableChangeset, deserialize_chat_metadata, deserialize_rag_ids,
@@ -20,10 +20,10 @@ use lib_infra::async_trait::async_trait;
 use lib_infra::util::timestamp;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::trace;
+use tracing::{debug, trace};
 use uuid::Uuid;
 
 lazy_static! {
@@ -79,15 +79,42 @@ impl ChatCloudService for LocalChatServiceImpl {
     message: &str,
     message_type: ChatMessageType,
     _prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError> {
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError> {
+    let mut metadatas = vec![];
+    let mut errors = HashMap::new();
+    for file in file_paths {
+      match self
+        .local_ai
+        .embed_file(chat_id, PathBuf::from(&file))
+        .await
+      {
+        Ok(metadata) => {
+          metadatas.push(metadata);
+        },
+        Err(err) => {
+          errors.insert(file, err.msg);
+        },
+      }
+    }
+
+    let uid = self.logged_user.user_id()?;
     let message_id = ID_GEN.lock().await.next_id();
-    let message = match message_type {
-      ChatMessageType::System => ChatMessage::new_system(message_id, message.to_string()),
-      ChatMessageType::User => ChatMessage::new_human(message_id, message.to_string(), None),
+    let mut message = match message_type {
+      ChatMessageType::System => ChatMessage::new_system(uid, message_id, message.to_string()),
+      ChatMessageType::User => ChatMessage::new_human(uid, message_id, message.to_string(), None),
     };
 
+    message.metadata = json!(metadatas);
+    debug!(
+      "Creating question message: {:?}, chat_id: {}",
+      message, chat_id
+    );
     self.upsert_message(chat_id, message.clone()).await?;
-    Ok(message)
+    Ok(CreatedChatMessage {
+      message,
+      embed_file_errors: errors,
+    })
   }
 
   async fn create_answer(
@@ -231,12 +258,11 @@ impl ChatCloudService for LocalChatServiceImpl {
     _workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     if self.local_ai.is_ready().await {
       self
         .local_ai
-        .embed_file(chat_id, file_path.to_path_buf(), metadata)
+        .embed_file(chat_id, file_path.to_path_buf())
         .await
         .map_err(|err| FlowyError::local_ai().with_context(err))?;
       Ok(())

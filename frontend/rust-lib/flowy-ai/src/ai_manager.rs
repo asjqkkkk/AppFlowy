@@ -11,21 +11,23 @@ use flowy_ai_pub::persistence::{
 };
 use std::collections::HashMap;
 
-use dashmap::DashMap;
+use dashmap::{DashMap, Entry};
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService, ChatSettings, UpdateChatParams};
-use flowy_error::{ErrorCode, FlowyError, FlowyResult};
+use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 
+use crate::chat_file::ChatLocalFileStorage;
+use crate::completion::AICompletion;
 use crate::model_select::{
   GLOBAL_ACTIVE_MODEL_KEY, LocalAiSource, LocalModelStorageImpl, ModelSelectionControl,
   ServerAiSource, ServerModelStorageImpl, SourceKey,
 };
 use crate::notification::{ChatNotification, chat_notification_builder};
+use flowy_ai_pub::cloud::billing_dto::PersonalPlan;
 use flowy_ai_pub::persistence::{
   AFCollabMetadata, batch_insert_collab_metadata, batch_select_collab_metadata,
 };
 use flowy_ai_pub::user_service::AIUserService;
-use flowy_sqlite::DBConnection;
 use flowy_storage_pub::storage::StorageService;
 use lib_infra::async_trait::async_trait;
 use serde_json::json;
@@ -56,17 +58,18 @@ pub trait AIExternalService: Send + Sync + 'static {
 }
 
 pub struct AIManager {
-  pub cloud_service_wm: Arc<ChatServiceMiddleware>,
-  pub user_service: Arc<dyn AIUserService>,
-  pub external_service: Arc<dyn AIExternalService>,
+  cloud_service_wm: Arc<ChatServiceMiddleware>,
+  user_service: Arc<dyn AIUserService>,
+  external_service: Arc<dyn AIExternalService>,
   chats: Arc<DashMap<Uuid, Arc<Chat>>>,
-  pub local_ai_controller: Arc<LocalAIController>,
-  pub store_preferences: Arc<KVStorePreferences>,
+  store_preferences: Arc<KVStorePreferences>,
   model_control: Mutex<ModelSelectionControl>,
+
+  pub local_ai_controller: Arc<LocalAIController>,
 }
 impl Drop for AIManager {
   fn drop(&mut self) {
-    tracing::trace!("[Drop] drop ai manager");
+    trace!("[Drop] drop ai manager");
   }
 }
 
@@ -103,32 +106,57 @@ impl AIManager {
     }
   }
 
-  async fn reload_with_workspace_id(&self, workspace_id: &Uuid) {
-    // Check if local AI is enabled for this workspace and if we're in local mode
-    let result = self.user_service.is_local_model().await;
-    if let Err(err) = &result {
-      if matches!(err.code, ErrorCode::UserNotLogin) {
-        info!("[AI Manager] User not logged in, skipping local AI reload");
-        return;
-      }
-    }
+  pub(crate) fn ai_completion(&self) -> Arc<AICompletion> {
+    let user_service = Arc::downgrade(&self.user_service);
+    let cloud_service = Arc::downgrade(&self.cloud_service_wm);
+    Arc::new(AICompletion::new(cloud_service, user_service))
+  }
 
-    let is_local = result.unwrap_or(false);
+  pub async fn on_cancel_personal_subscriptions(&self, plan: &PersonalPlan) {
+    match plan {
+      PersonalPlan::VaultWorkspace => {
+        if let Ok(workspace_id) = self.user_service.workspace_id() {
+          let local_ai_controller = self.local_ai_controller.clone();
+          tokio::spawn(async move {
+            if local_ai_controller.is_toggle_on_workspace(&workspace_id) {
+              let _ = local_ai_controller.refresh_local_ai_state(true).await;
+            }
+          });
+        }
+      },
+    }
+  }
+
+  async fn reload_with_workspace_id(&self, workspace_id: &Uuid) {
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
     let is_enabled = self
       .local_ai_controller
-      .is_enabled_on_workspace(&workspace_id.to_string());
+      .is_enabled_on_workspace(
+        &workspace_id.to_string(),
+        result.is_vault,
+        result.is_vault_enabled,
+      )
+      .unwrap_or(false);
+
+    let is_toggle_on = self
+      .local_ai_controller
+      .is_toggle_on_workspace(workspace_id);
+
     let is_ready = self.local_ai_controller.is_ready().await;
     info!(
-      "[AI Manager] Reloading workspace: {}, is_local: {}, is_enabled: {}, is_ready: {}",
-      workspace_id, is_local, is_enabled, is_ready
+      "[AI Manager] Reloading workspace: {},  is_enabled: {},is_ready: {}",
+      workspace_id, is_enabled, is_ready
     );
 
     // Shutdown AI if it's running but shouldn't be (not enabled and not in local mode)
-    if is_ready && !is_enabled && !is_local {
+    if is_ready && !is_enabled {
       info!("[AI Manager] Local AI is running but not enabled, shutting it down");
       let local_ai = self.local_ai_controller.clone();
       tokio::spawn(async move {
-        if let Err(err) = local_ai.toggle_plugin(false).await {
+        if let Err(err) = local_ai
+          .toggle_plugin(is_toggle_on, is_enabled, &result)
+          .await
+        {
           error!("[AI Manager] failed to shutdown local AI: {:?}", err);
         }
       });
@@ -140,7 +168,10 @@ impl AIManager {
       info!("[AI Manager] Local AI is enabled but not running, starting it now");
       let local_ai = self.local_ai_controller.clone();
       tokio::spawn(async move {
-        if let Err(err) = local_ai.toggle_plugin(true).await {
+        if let Err(err) = local_ai
+          .toggle_plugin(is_toggle_on, is_enabled, &result)
+          .await
+        {
           error!("[AI Manager] failed to start local AI: {:?}", err);
         }
       });
@@ -153,11 +184,17 @@ impl AIManager {
     }
   }
 
-  async fn prepare_local_ai(&self, workspace_id: &Uuid, is_enabled: bool) {
-    self
+  async fn prepare_local_ai(&self, workspace_id: &Uuid) {
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
+    let is_enabled = self
       .local_ai_controller
-      .reload_ollama_client(&workspace_id.to_string())
+      .reload_ollama_client(
+        &workspace_id.to_string(),
+        result.is_vault,
+        result.is_vault_enabled,
+      )
       .await;
+
     if is_enabled {
       self
         .model_control
@@ -173,12 +210,7 @@ impl AIManager {
 
   #[instrument(skip_all, err)]
   pub async fn on_launch_if_authenticated(&self, workspace_id: &Uuid) -> Result<(), FlowyError> {
-    let is_enabled = self
-      .local_ai_controller
-      .is_enabled_on_workspace(&workspace_id.to_string());
-
-    info!("{} local ai is enabled: {}", workspace_id, is_enabled);
-    self.prepare_local_ai(workspace_id, is_enabled).await;
+    self.prepare_local_ai(workspace_id).await;
     self.reload_with_workspace_id(workspace_id).await;
     Ok(())
   }
@@ -204,58 +236,7 @@ impl AIManager {
 
   pub async fn open_chat(&self, chat_id: &Uuid) -> Result<(), FlowyError> {
     info!("[Chat] open chat: {}", chat_id);
-    self.chats.entry(*chat_id).or_insert_with(|| {
-      Arc::new(Chat::new(
-        self.user_service.user_id().unwrap(),
-        *chat_id,
-        self.user_service.clone(),
-        self.cloud_service_wm.clone(),
-      ))
-    });
-
-    if self.local_ai_controller.is_enabled() {
-      let workspace_id = self.user_service.workspace_id()?;
-      let uid = self.user_service.user_id()?;
-      let mut conn = self.user_service.sqlite_connection(uid)?;
-      let rag_ids = self.get_rag_ids(chat_id, &mut conn).await?;
-      let summary = select_chat_summary(&mut conn, chat_id).unwrap_or_default();
-      let model = self.get_active_model(&chat_id.to_string()).await;
-      self
-        .local_ai_controller
-        .open_chat(&workspace_id, chat_id, &model.name, rag_ids, summary)
-        .await?;
-    }
-
-    let user_service = self.user_service.clone();
-    let cloud_service_wm = self.cloud_service_wm.clone();
-    let store_preferences = self.store_preferences.clone();
-    let external_service = self.external_service.clone();
-    let local_ai = self.local_ai_controller.clone();
-    let chat_id = *chat_id;
-    tokio::spawn(async move {
-      match refresh_chat_setting(
-        &user_service,
-        &cloud_service_wm,
-        &store_preferences,
-        &chat_id,
-      )
-      .await
-      {
-        Ok(settings) => {
-          local_ai.set_rag_ids(&chat_id, &settings.rag_ids).await;
-          let rag_ids = settings
-            .rag_ids
-            .into_iter()
-            .flat_map(|r| Uuid::from_str(&r).ok())
-            .collect();
-          let _ = sync_chat_documents(user_service, external_service, rag_ids).await;
-        },
-        Err(err) => {
-          error!("failed to refresh chat settings: {}", err);
-        },
-      }
-    });
-
+    self.get_or_create_chat_instance(chat_id).await?;
     Ok(())
   }
 
@@ -290,12 +271,20 @@ impl AIManager {
     })
   }
 
+  pub async fn get_chat_attached_files(&self, chat_id: &str) -> FlowyResult<Vec<String>> {
+    let chat_id = Uuid::from_str(chat_id)?;
+    match self.chats.get(&chat_id) {
+      None => Ok(vec![]),
+      Some(chat) => chat.get_chat_attached_files().await,
+    }
+  }
+
   pub async fn create_chat(
     &self,
     uid: &i64,
     parent_view_id: &Uuid,
     chat_id: &Uuid,
-  ) -> Result<Arc<Chat>, FlowyError> {
+  ) -> Result<(), FlowyError> {
     let workspace_id = self.user_service.workspace_id()?;
     let rag_ids = if self.user_service.is_anon().await? {
       vec![]
@@ -313,14 +302,7 @@ impl AIManager {
       .create_chat(uid, &workspace_id, chat_id, rag_ids, "", json!({}))
       .await?;
 
-    let chat = Arc::new(Chat::new(
-      self.user_service.user_id()?,
-      *chat_id,
-      self.user_service.clone(),
-      self.cloud_service_wm.clone(),
-    ));
-    self.chats.insert(*chat_id, chat.clone());
-    Ok(chat)
+    Ok(())
   }
 
   pub async fn stream_chat_message(
@@ -383,9 +365,14 @@ impl AIManager {
       .await?;
 
     if need_restart {
+      let result = self.user_service.validate_vault().await.unwrap_or_default();
       self
         .local_ai_controller
-        .reload_ollama_client(&workspace_id.to_string())
+        .reload_ollama_client(
+          &workspace_id.to_string(),
+          result.is_vault,
+          result.is_vault_enabled,
+        )
         .await;
       self.local_ai_controller.restart_plugin().await;
     }
@@ -437,7 +424,7 @@ impl AIManager {
     let enabled = self.local_ai_controller.toggle_local_ai().await?;
     let workspace_id = self.user_service.workspace_id()?;
     if enabled {
-      self.prepare_local_ai(&workspace_id, enabled).await;
+      self.prepare_local_ai(&workspace_id).await;
       if let Some(name) = self.local_ai_controller.get_local_chat_model() {
         let model = AIModel::local(name, "".to_string());
         info!(
@@ -455,9 +442,8 @@ impl AIManager {
         }
       }
       let chat_ids = self.chats.iter().map(|c| *c.key()).collect::<Vec<_>>();
-      self.chats.clear();
-
       for chat_id in chat_ids {
+        self.close_chat(&chat_id).await?;
         self.open_chat(&chat_id).await?;
       }
     } else {
@@ -498,6 +484,7 @@ impl AIManager {
     }
   }
 
+  #[instrument(skip_all, level = "debug", err)]
   pub async fn get_local_available_models(
     &self,
     source: Option<String>,
@@ -541,8 +528,9 @@ impl AIManager {
     source: String,
     setting_only: bool,
   ) -> FlowyResult<ModelSelectionPB> {
-    let is_local_mode = self.user_service.is_local_model().await?;
-    if is_local_mode {
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
+    if result.is_vault {
+      debug!("[Model Selection] Vault workspace detected, using local models only");
       return self.get_local_available_models(Some(source)).await;
     }
 
@@ -583,19 +571,79 @@ impl AIManager {
   }
 
   pub async fn get_or_create_chat_instance(&self, chat_id: &Uuid) -> Result<Arc<Chat>, FlowyError> {
-    let chat = self.chats.get(chat_id).as_deref().cloned();
-    match chat {
-      None => {
+    let entry = self.chats.entry(*chat_id);
+    match entry {
+      Entry::Occupied(occupied) => Ok(occupied.get().clone()),
+      Entry::Vacant(vacant) => {
+        info!("[Chat] create chat: {}", chat_id);
+        let file_storage = match self.user_service.user_data_dir() {
+          Ok(root) => ChatLocalFileStorage::new(root).ok().map(Arc::new),
+          Err(_) => None,
+        };
+
         let chat = Arc::new(Chat::new(
           self.user_service.user_id()?,
           *chat_id,
           self.user_service.clone(),
           self.cloud_service_wm.clone(),
+          file_storage.clone(),
         ));
-        self.chats.insert(*chat_id, chat.clone());
+        vacant.insert(chat.clone());
+
+        if self.local_ai_controller.is_enabled().await? {
+          info!("[Chat] create chat with local AI: {}", chat_id);
+          let workspace_id = self.user_service.workspace_id()?;
+          let rag_ids = self.get_rag_ids(chat_id).await?;
+
+          let uid = self.user_service.user_id()?;
+          let mut conn = self.user_service.sqlite_connection(uid)?;
+          let summary = select_chat_summary(&mut conn, chat_id).unwrap_or_default();
+          let model = self.get_active_model(&chat_id.to_string()).await;
+          self
+            .local_ai_controller
+            .open_chat(
+              &workspace_id,
+              chat_id,
+              &model.name,
+              rag_ids,
+              summary,
+              file_storage,
+            )
+            .await?;
+        }
+
+        let user_service = self.user_service.clone();
+        let cloud_service_wm = self.cloud_service_wm.clone();
+        let store_preferences = self.store_preferences.clone();
+        let external_service = self.external_service.clone();
+        let local_ai = self.local_ai_controller.clone();
+        let chat_id = *chat_id;
+        tokio::spawn(async move {
+          match refresh_chat_setting(
+            &user_service,
+            &cloud_service_wm,
+            &store_preferences,
+            &chat_id,
+          )
+          .await
+          {
+            Ok(settings) => {
+              local_ai.set_rag_ids(&chat_id, &settings.rag_ids).await;
+              let rag_ids = settings
+                .rag_ids
+                .into_iter()
+                .flat_map(|r| Uuid::from_str(&r).ok())
+                .collect();
+              let _ = sync_chat_documents(user_service, external_service, rag_ids).await;
+            },
+            Err(err) => {
+              error!("failed to refresh chat settings: {}", err);
+            },
+          }
+        });
+
         Ok(chat)
       },
-      Some(chat) => Ok(chat),
     }
   }
 
@@ -672,12 +720,10 @@ impl AIManager {
     Ok(())
   }
 
-  pub async fn get_rag_ids(
-    &self,
-    chat_id: &Uuid,
-    conn: &mut DBConnection,
-  ) -> FlowyResult<Vec<String>> {
-    match select_chat_rag_ids(&mut *conn, &chat_id.to_string()) {
+  pub async fn get_rag_ids(&self, chat_id: &Uuid) -> FlowyResult<Vec<String>> {
+    let uid = self.user_service.user_id()?;
+    let mut conn = self.user_service.sqlite_connection(uid)?;
+    match select_chat_rag_ids(&mut conn, &chat_id.to_string()) {
       Ok(ids) => {
         return Ok(ids);
       },

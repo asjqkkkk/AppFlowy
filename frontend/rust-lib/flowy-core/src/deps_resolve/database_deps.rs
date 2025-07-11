@@ -54,11 +54,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
     object_id: &Uuid,
     summary_row: SummaryRowContent,
   ) -> Result<String, FlowyError> {
-    if self
-      .ai_manager
-      .local_ai_controller
-      .is_enabled_on_workspace(&workspace_id.to_string())
-    {
+    if self.ai_manager.local_ai_controller.is_enabled().await? {
       let model = self
         .ai_manager
         .get_active_model(&object_id.to_string())
@@ -82,11 +78,7 @@ impl DatabaseAIService for DatabaseAIServiceMiddleware {
     translate_row: TranslateRowContent,
     language: &str,
   ) -> Result<TranslateRowResponse, FlowyError> {
-    if self
-      .ai_manager
-      .local_ai_controller
-      .is_enabled_on_workspace(&workspace_id.to_string())
-    {
+    if self.ai_manager.local_ai_controller.is_enabled().await? {
       let model = self
         .ai_manager
         .get_active_model(&workspace_id.to_string())

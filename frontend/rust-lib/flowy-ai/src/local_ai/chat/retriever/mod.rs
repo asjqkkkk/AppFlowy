@@ -5,11 +5,10 @@ use std::error::Error;
 use uuid::Uuid;
 
 pub mod multi_source_retriever;
-pub mod sqlite_retriever;
 
 #[async_trait]
 pub trait AFRetriever: Send + Sync + 'static {
-  fn get_rag_ids(&self) -> Vec<&str>;
+  async fn get_rag_ids(&self) -> Vec<String>;
   fn set_rag_ids(&mut self, new_rag_ids: Vec<String>);
 
   async fn retrieve_documents(&self, query: &str)
@@ -19,6 +18,8 @@ pub trait AFRetriever: Send + Sync + 'static {
 #[async_trait]
 pub trait MultipleSourceRetrieverStore: Send + Sync {
   fn retriever_name(&self) -> &'static str;
+
+  #[allow(clippy::too_many_arguments)]
   async fn read_documents(
     &self,
     workspace_id: &Uuid,

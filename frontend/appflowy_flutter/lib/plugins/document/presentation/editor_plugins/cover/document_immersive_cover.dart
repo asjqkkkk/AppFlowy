@@ -19,9 +19,9 @@ import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:auto_size_text_field/auto_size_text_field.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/widget/ignore_parent_gesture.dart';
 import 'package:flutter/material.dart';
@@ -217,20 +217,24 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
       onTap: () async {
         final pageStyleIconBloc = PageStyleIconBloc(view: widget.view)
           ..add(const PageStyleIconEvent.initial());
+
+        final theme = AppFlowyTheme.of(context);
+        final height = MediaQuery.sizeOf(context).height * 0.6;
+
         await showMobileBottomSheet(
           context,
           showDragHandle: true,
           showDivider: false,
           showHeader: true,
           title: LocaleKeys.titleBar_pageIcon.tr(),
-          backgroundColor: AFThemeExtension.of(context).background,
-          enableDraggableScrollable: true,
-          minChildSize: 0.6,
-          initialChildSize: 0.61,
-          scrollableWidgetBuilder: (_, controller) {
+          backgroundColor: theme.surfaceColorScheme.layer01,
+          builder: (context) {
             return BlocProvider.value(
               value: pageStyleIconBloc,
-              child: Expanded(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxHeight: height,
+                ),
                 child: FlowyIconEmojiPicker(
                   initialType: icon.type.toPickerTabType(),
                   tabs: widget.tabs,
@@ -245,7 +249,6 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
               ),
             );
           },
-          builder: (_) => const SizedBox.shrink(),
         );
       },
     );

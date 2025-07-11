@@ -121,6 +121,7 @@
     "vaultIndicator": "Vault",
     "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
     "createVaultWorkspaceDisabled": "Create secure, offline Vaults with Pro.\nUpgrade to unlock!",
+    "cannotGetVaultWorkspaceSubscription": "Cannot get Vault workspace subscription information",
     "createANewWorkspace": "Create a new workspace",
     "createWorkspaceDescription": "Separate your work into organized workspaces with full control over team access and data privacy",
     "workspaceName": "Workspace name",
@@ -323,7 +324,9 @@
     "stopTooltip": "Stop generating",
     "localAiUnavailable": "Local AI is not available",
     "localAiUnavailableDescription": "You need to enable Local AI in order to use this feature.",
-    "goToSettings": "Go to Settings"
+    "goToSettings": "Go to Settings",
+    "noFilesAttached": "No files attached",
+    "addMoreFiles": "Add more files"
   },
   "trash": {
     "text": "Trash",
@@ -375,6 +378,12 @@
       "fail": "Unable to copy debug info to clipboard"
     },
     "feedback": "Feedback"
+  },
+  "network": {
+    "lost_connnection_mobile": "Disconnected.",
+    "lost_connnection": "Disconnected from cloud. Reconnect to sync changes",
+    "reconnect": "Reconnect",
+    "connecting": "Connecting..."
   },
   "menuAppHeader": {
     "moreButtonToolTip": "Remove, rename, and more...",
@@ -958,11 +967,12 @@
         "localAIInitializing": "Local AI is loading. This may take a few seconds depending on your device",
         "localAINotReadyTextFieldPrompt": "You can not edit while Local AI is loading",
         "localAIDisabledTextFieldPrompt": "You can not edit while Local AI is disabled",
+        "localAIWithoutSubscription": "You cannot use local AI with Vault Workspace unless you have an active Vault Workspace subscription",
         "failToLoadLocalAI": "Failed to start local AI.",
         "restartLocalAI": "Restart",
         "disableLocalAITitle": "Disable local AI",
         "disableLocalAIDescription": "Do you want to disable local AI?",
-        "localAIToggleTitle": "AppFlowy Local AI (LAI)",
+        "localAIToggleTitle": "AppFlowy Local AI",
         "localAIToggleSubTitle": "Run the most advanced local AI models within AppFlowy for ultimate privacy and security",
         "offlineAIInstruction1": "Follow the",
         "offlineAIInstruction2": "instruction",
@@ -1019,7 +1029,8 @@
           "proInfo": "Perfect for small and medium teams up to 10 members.",
           "teamInfo": "Perfect for all productive and well-organized teams..",
           "upgrade": "Change plan",
-          "canceledInfo": "Your plan is cancelled, you will be downgraded to the Free plan on {}."
+          "canceledInfo": "Your plan is cancelled, you will be downgraded to the Free plan on {}.",
+          "vaultWorkspaceTitle": "Vault Workspace"
         },
         "addons": {
           "title": "Add-ons",
@@ -1037,6 +1048,12 @@
             "price": "{}",
             "priceInfo": "Per user per month billed annually",
             "recommend": "Recommend M1 or newer"
+          },
+          "vaultWorkspace": {
+            "title": "Vault Workspace",
+            "description": "Private and offline— AI runs locally, no data transfer",
+            "price": "{}",
+            "priceInfo": "Per user per month billed annually"
           }
         },
         "deal": {
@@ -1079,6 +1096,14 @@
           "description": "Unlock unlimited AI On-device on your device",
           "activeDescription": "Next invoice due on {}",
           "canceledDescription": "AI On-device for Mac will be available until {}"
+        },
+        "vaultWorkspace": {
+          "label": "Vault Workspace",
+          "description": "Private and offline— AI runs locally, no data transfer",
+          "activeDescription": "Next invoice due on {}",
+          "canceledDescription": "Vault Workspace will be available until {}",
+          "unSubscribeDialogTitle": "",
+          "unSubscribeMessage": "You will no longer have access to the Vault Workspace features if you cancel it"
         },
         "removeDialog": {
           "title": "Remove {}",

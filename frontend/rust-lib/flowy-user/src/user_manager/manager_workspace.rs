@@ -3,9 +3,9 @@ use client_api::entity::billing_dto::{RecurringInterval, SubscriptionPlanDetail}
 use client_api::entity::billing_dto::{SubscriptionPlan, WorkspaceUsageAndLimit};
 
 use crate::entities::{
-  RepeatedUserWorkspacePB, SubscribeWorkspacePB, SuccessWorkspaceSubscriptionPB,
-  UpdateUserWorkspaceSettingPB, UserProfilePB, UserWorkspacePB, WorkspaceSettingsPB,
-  WorkspaceSubscriptionInfoPB, WorkspaceTypePB,
+  PersonalSubscriptionInfoPB, RepeatedUserWorkspacePB, SubscribePersonalPB, SubscribeWorkspacePB,
+  SuccessWorkspaceSubscriptionPB, UpdateUserWorkspaceSettingPB, UserProfilePB, UserWorkspacePB,
+  WorkspaceSettingsPB, WorkspaceSubscriptionInfoPB, WorkspaceTypePB,
 };
 use crate::notification::{send_notification, UserNotification};
 use crate::services::billing_check::PeriodicallyCheckBillingState;
@@ -17,17 +17,18 @@ use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_folder_pub::entities::{ImportFrom, ImportedCollabData, ImportedFolderData};
+use flowy_server_pub::billing_dto::PersonalPlan;
 use flowy_sqlite::ConnectionPool;
-use flowy_user_pub::cloud::{UserCloudService, UserCloudServiceProvider};
+use flowy_user_pub::cloud::{UserServerProvider, UserWorkspaceService};
 use flowy_user_pub::entities::{
-  AuthType, Role, UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember,
-  WorkspaceType,
+  AuthProvider, Role, UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus,
+  WorkspaceMember, WorkspaceType,
 };
 use flowy_user_pub::session::Session;
 use flowy_user_pub::sql::*;
 use std::str::FromStr;
 use std::sync::Arc;
-use tracing::{error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 
 impl UserManager {
@@ -126,14 +127,14 @@ impl UserManager {
     let user_id = current_session.user_id;
     let workspace_id = Uuid::parse_str(&current_session.workspace_id)?;
     let weak_user_collab_db = Arc::downgrade(&user_collab_db);
-    let weak_user_cloud_service = self.cloud_service()?.get_user_service()?;
+    let collab_service = self.cloud_service()?.collab_service()?;
     match upload_collab_objects_data(
       user_id,
       weak_user_collab_db,
       &workspace_id,
       &user.auth_type,
       collab_data,
-      weak_user_cloud_service,
+      collab_service,
       client_id,
     )
     .await
@@ -178,18 +179,18 @@ impl UserManager {
       current_workspace_id, workspace_id, workspace_type
     );
     let workspace_id_str = workspace_id.to_string();
-    let auth_type = AuthType::from(workspace_type);
-    let token = self.token_from_auth_type(&auth_type)?;
+    let uid = self.user_id()?;
+    let mut db = self.db_connection(uid)?;
+    let auth_provider = select_user_auth_provider(uid, &mut db)?;
     let cloud_service = self.cloud_service()?;
-    cloud_service.set_server_auth_type(&auth_type, token)?;
+    cloud_service.set_auth_provider(&auth_provider)?;
+
     let controller =
       self.init_workspace_controller_if_need(workspace_id, &workspace_type, &cloud_service)?;
-
-    let uid = self.user_id()?;
     let profile = self
       .get_user_profile_from_disk(uid, &workspace_id_str)
       .await?;
-    if let Err(err) = cloud_service.set_token(&profile.token) {
+    if let Err(err) = cloud_service.set_token(Some(profile.token.clone())) {
       error!("Set token failed: {}", err);
     }
 
@@ -199,7 +200,7 @@ impl UserManager {
         if err.is_record_not_found() {
           sync_workspace(
             workspace_id,
-            cloud_service.get_user_service()?,
+            cloud_service.workspace_service()?,
             uid,
             workspace_type,
             self.db_pool(uid)?,
@@ -212,7 +213,7 @@ impl UserManager {
       Ok(row) => {
         let user_workspace = UserWorkspace::from(row);
         let workspace_id = *workspace_id;
-        let user_service = cloud_service.get_user_service()?;
+        let user_service = cloud_service.workspace_service()?;
         let pool = self.db_pool(uid)?;
         tokio::spawn(async move {
           let _ = sync_workspace(&workspace_id, user_service, uid, workspace_type, pool).await;
@@ -269,19 +270,13 @@ impl UserManager {
     workspace_icon: &str,
     workspace_type: WorkspaceType,
   ) -> FlowyResult<UserWorkspace> {
-    let auth_type = AuthType::from(workspace_type);
-    let token = self.token_from_auth_type(&auth_type)?;
-    let cloud_service = self.cloud_service()?;
-    cloud_service.set_server_auth_type(&auth_type, token)?;
-
     let new_workspace = self
       .cloud_service()?
-      .get_user_service()?
-      .create_workspace(workspace_name, workspace_icon)
+      .create_workspace(workspace_name, workspace_icon, workspace_type)
       .await?;
 
     info!(
-      "create workspace: {}, name:{}, auth_type: {:?}",
+      "create workspace: {}, name:{}, workspace_type: {:?}",
       new_workspace.id, new_workspace.name, workspace_type
     );
 
@@ -299,7 +294,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .patch_workspace(workspace_id, changeset.name.clone(), changeset.icon.clone())
       .await?;
 
@@ -322,7 +317,7 @@ impl UserManager {
     info!("leave workspace: {}", workspace_id);
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .leave_workspace(workspace_id)
       .await?;
 
@@ -349,7 +344,7 @@ impl UserManager {
 
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .delete_workspace(workspace_id)
       .await?;
 
@@ -370,7 +365,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .invite_workspace_member(invitee_email, workspace_id, role)
       .await?;
     Ok(())
@@ -380,7 +375,7 @@ impl UserManager {
     let status = Some(WorkspaceInvitationStatus::Pending);
     let invitations = self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .list_workspace_invitations(status)
       .await?;
     Ok(invitations)
@@ -389,7 +384,7 @@ impl UserManager {
   pub async fn accept_workspace_invitation(&self, invite_id: String) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .accept_workspace_invitations(invite_id)
       .await?;
     Ok(())
@@ -402,7 +397,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .remove_workspace_member(user_email, workspace_id)
       .await?;
     Ok(())
@@ -414,7 +409,7 @@ impl UserManager {
   ) -> FlowyResult<Vec<WorkspaceMember>> {
     let members = self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .get_workspace_members(workspace_id)
       .await?;
     Ok(members)
@@ -427,7 +422,7 @@ impl UserManager {
   ) -> FlowyResult<WorkspaceMember> {
     let member = self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .get_workspace_member(&workspace_id, uid)
       .await?;
     Ok(member)
@@ -441,7 +436,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .update_workspace_member(user_email, workspace_id, role)
       .await?;
     Ok(())
@@ -459,7 +454,7 @@ impl UserManager {
   pub async fn get_all_user_workspaces(
     &self,
     uid: i64,
-    auth_type: AuthType,
+    auth_type: AuthProvider,
   ) -> FlowyResult<Vec<UserWorkspace>> {
     // 1) Load & return the local copy immediately
     let mut conn = self.db_connection(uid)?;
@@ -467,7 +462,7 @@ impl UserManager {
 
     // 2) If both cloud service and pool are available, fire off a background sync
     if let (Ok(service), Ok(pool)) = (
-      self.cloud_service().and_then(|v| v.get_user_service()),
+      self.cloud_service().and_then(|v| v.workspace_service()),
       self.db_pool(uid),
     ) {
       let auth_copy = auth_type;
@@ -523,17 +518,37 @@ impl UserManager {
     &self,
     workspace_subscription: SubscribeWorkspacePB,
   ) -> FlowyResult<String> {
+    debug!("subscribe workspace for {:?}", workspace_subscription);
     let workspace_id = Uuid::from_str(&workspace_subscription.workspace_id)?;
     let payment_link = self
       .cloud_service()?
-      .get_user_service()?
+      .billing_service()?
       .subscribe_workspace(
         workspace_id,
         workspace_subscription.recurring_interval.into(),
-        workspace_subscription.workspace_subscription_plan.into(),
+        workspace_subscription.plan.into(),
         workspace_subscription.success_url,
       )
       .await?;
+    debug!("Payment link for workspace subscription: {}", payment_link);
+
+    Ok(payment_link)
+  }
+
+  #[instrument(level = "info", skip(self), err)]
+  pub async fn subscribe_personal(&self, subscription: SubscribePersonalPB) -> FlowyResult<String> {
+    debug!("subscribe personal subscription: {:?}", subscription);
+    let payment_link = self
+      .cloud_service()?
+      .billing_service()?
+      .subscribe_personal(
+        subscription.recurring_interval.into(),
+        subscription.plan.into(),
+        subscription.success_url,
+      )
+      .await?;
+
+    debug!("Payment link for personal subscription: {}", payment_link);
 
     Ok(payment_link)
   }
@@ -541,16 +556,47 @@ impl UserManager {
   #[instrument(level = "info", skip(self), err)]
   pub async fn get_workspace_subscription_info(
     &self,
-    workspace_id: String,
+    workspace_id: Uuid,
   ) -> FlowyResult<WorkspaceSubscriptionInfoPB> {
-    let workspace_id = Uuid::from_str(&workspace_id)?;
-    let subscriptions = self
-      .cloud_service()?
-      .get_user_service()?
-      .get_workspace_subscription_one(&workspace_id)
-      .await?;
+    let workspace_type = self.authenticate_user.get_workspace_type(&workspace_id)?;
+    match workspace_type {
+      WorkspaceType::Vault => Ok(WorkspaceSubscriptionInfoPB::default_from_workspace_id(
+        workspace_id,
+      )),
+      WorkspaceType::Cloud => {
+        let subscriptions = self
+          .cloud_service()?
+          .billing_service()?
+          .get_workspace_subscriptions(&workspace_id)
+          .await?;
 
-    Ok(WorkspaceSubscriptionInfoPB::from(subscriptions))
+        Ok(WorkspaceSubscriptionInfoPB::from(subscriptions))
+      },
+    }
+  }
+
+  #[instrument(level = "info", skip(self), err)]
+  pub async fn get_personal_subscription_info(&self) -> FlowyResult<PersonalSubscriptionInfoPB> {
+    let result = self
+      .cloud_service()?
+      .billing_service()?
+      .get_personal_subscription_status()
+      .await;
+
+    match result {
+      Ok(subscriptions) => {
+        let info = PersonalSubscriptionInfoPB::from(subscriptions);
+        self.authenticate_user.cache_personal_subscription(&info)?;
+        Ok(info)
+      },
+      Err(err) => {
+        error!("Failed to get personal subscription info: {}", err);
+        match self.authenticate_user.get_cached_personal_subscription() {
+          None => Err(err),
+          Some(info) => Ok(info),
+        }
+      },
+    }
   }
 
   #[instrument(level = "info", skip(self), err)]
@@ -562,9 +608,31 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .get_user_service()?
+      .billing_service()?
       .cancel_workspace_subscription(workspace_id, plan, reason)
       .await?;
+    Ok(())
+  }
+
+  #[instrument(level = "info", skip(self), err)]
+  pub async fn cancel_personal_subscription(
+    &self,
+    plan: PersonalPlan,
+    reason: Option<String>,
+  ) -> FlowyResult<()> {
+    self
+      .cloud_service()?
+      .billing_service()?
+      .cancel_personal_subscription(plan.clone(), reason)
+      .await?;
+
+    self.authenticate_user.remove_cached_personal_subscription();
+    self
+      .app_life_cycle
+      .read()
+      .await
+      .on_cancel_personal_subscriptions(&plan)
+      .await;
     Ok(())
   }
 
@@ -575,19 +643,25 @@ impl UserManager {
     plan: SubscriptionPlan,
     recurring_interval: RecurringInterval,
   ) -> FlowyResult<()> {
-    self
-      .cloud_service()?
-      .get_user_service()?
-      .update_workspace_subscription_payment_period(workspace_id, plan, recurring_interval)
-      .await?;
-    Ok(())
+    let workspace_type = self.authenticate_user.get_workspace_type(workspace_id)?;
+    match workspace_type {
+      WorkspaceType::Vault => Ok(()),
+      WorkspaceType::Cloud => {
+        self
+          .cloud_service()?
+          .billing_service()?
+          .update_workspace_subscription_payment_period(workspace_id, plan, recurring_interval)
+          .await?;
+        Ok(())
+      },
+    }
   }
 
   #[instrument(level = "info", skip(self), err)]
   pub async fn get_subscription_plan_details(&self) -> FlowyResult<Vec<SubscriptionPlanDetail>> {
     let plan_details = self
       .cloud_service()?
-      .get_user_service()?
+      .billing_service()?
       .get_subscription_plan_details()
       .await?;
     Ok(plan_details)
@@ -598,11 +672,17 @@ impl UserManager {
     &self,
     workspace_id: &Uuid,
   ) -> FlowyResult<WorkspaceUsageAndLimit> {
-    let workspace_usage = self
-      .cloud_service()?
-      .get_user_service()?
-      .get_workspace_usage(workspace_id)
-      .await?;
+    let workspace_type = self.authenticate_user.get_workspace_type(workspace_id)?;
+    let workspace_usage = match workspace_type {
+      WorkspaceType::Vault => WorkspaceUsageAndLimit::unlimited(),
+      WorkspaceType::Cloud => {
+        self
+          .cloud_service()?
+          .billing_service()?
+          .get_workspace_usage(workspace_id)
+          .await?
+      },
+    };
 
     // Check if the current workspace storage is not unlimited. If it is not unlimited,
     // verify whether the storage bytes exceed the storage limit.
@@ -626,8 +706,8 @@ impl UserManager {
   pub async fn get_billing_portal_url(&self) -> FlowyResult<String> {
     let url = self
       .cloud_service()?
-      .get_user_service()?
-      .get_billing_portal_url()
+      .billing_service()?
+      .billing_portal_url()
       .await?;
     Ok(url)
   }
@@ -637,7 +717,7 @@ impl UserManager {
     updated_settings: UpdateUserWorkspaceSettingPB,
   ) -> FlowyResult<()> {
     let workspace_id = Uuid::from_str(&updated_settings.workspace_id)?;
-    let cloud_service = self.cloud_service()?.get_user_service()?;
+    let cloud_service = self.cloud_service()?.workspace_service()?;
     let settings = cloud_service
       .update_workspace_setting(&workspace_id, updated_settings.clone().into())
       .await?;
@@ -678,7 +758,6 @@ impl UserManager {
         let old_pb = pb.clone();
         let workspace_id = *workspace_id;
 
-        // Spawn a task to sync remote settings using the helper
         let pool = self.db_pool(uid)?;
         let cloud_service = self.cloud_service()?;
         tokio::spawn(async move {
@@ -689,7 +768,7 @@ impl UserManager {
       Err(err) => {
         if err.is_record_not_found() {
           trace!("No workspace settings found, fetch from remote");
-          let service = self.cloud_service()?.get_user_service()?;
+          let service = self.cloud_service()?.workspace_service()?;
           let settings = service.get_workspace_setting(workspace_id).await?;
           let pb = WorkspaceSettingsPB::from(&settings);
           let mut conn = self.db_connection(uid)?;
@@ -735,15 +814,16 @@ impl UserManager {
     Ok(member)
   }
 
+  #[instrument(level = "debug", skip_all, err)]
   async fn get_workspace_member_info_from_remote(
     &self,
     workspace_id: &Uuid,
     uid: i64,
   ) -> FlowyResult<WorkspaceMember> {
-    trace!("get workspace member info from remote: {}", workspace_id);
+    debug!("get workspace member info from remote: {}", workspace_id);
     let member = self
       .cloud_service()?
-      .get_user_service()?
+      .workspace_service()?
       .get_workspace_member(workspace_id, uid)
       .await?;
 
@@ -797,13 +877,13 @@ fn is_older_than_n_minutes(updated_at: NaiveDateTime, minutes: i64) -> bool {
 }
 
 async fn sync_workspace_settings(
-  cloud_service: Arc<dyn UserCloudServiceProvider>,
+  cloud_service: Arc<dyn UserServerProvider>,
   workspace_id: Uuid,
   old_pb: WorkspaceSettingsPB,
   uid: i64,
   pool: Arc<ConnectionPool>,
 ) -> FlowyResult<()> {
-  let service = cloud_service.get_user_service()?;
+  let service = cloud_service.workspace_service()?;
   let settings = service.get_workspace_setting(&workspace_id).await?;
   let new_pb = WorkspaceSettingsPB::from(&settings);
   if new_pb != old_pb {
@@ -823,7 +903,7 @@ async fn sync_workspace_settings(
 
 async fn sync_workspace(
   workspace_id: &Uuid,
-  user_service: Arc<dyn UserCloudService>,
+  user_service: Arc<dyn UserWorkspaceService>,
   uid: i64,
   workspace_type: WorkspaceType,
   pool: Arc<ConnectionPool>,
