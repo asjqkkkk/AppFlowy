@@ -235,3 +235,12 @@ pub fn select_answer_where_match_reply_message_id(
     .first::<ChatMessageTable>(&mut *conn)
     .optional()
 }
+
+pub fn chat_auth_type_from_i64(value: i64) -> ChatAuthorType {
+  match value {
+    1 => ChatAuthorType::Human,
+    2 => ChatAuthorType::System,
+    3 => ChatAuthorType::AI,
+    _ => ChatAuthorType::Unknown,
+  }
+}

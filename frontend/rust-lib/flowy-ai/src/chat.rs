@@ -1,6 +1,6 @@
 use crate::chat_file::ChatLocalFileStorage;
 use crate::entities::{
-  ChatMessageErrorPB, ChatMessageListPB, ChatMessagePB, EmbedFileErrorPB, PredefinedFormatPB,
+  ChatMessageErrorPB, ChatMessageListPB, ChatMessagePB, PredefinedFormatPB,
   RepeatedRelatedQuestionPB, StreamMessageParams,
 };
 use crate::middleware::chat_service_mw::ChatServiceMiddleware;
@@ -69,7 +69,11 @@ impl Chat {
   pub async fn get_chat_attached_files(&self) -> FlowyResult<Vec<String>> {
     match &self.file_storage {
       None => Ok(vec![]),
-      Some(storage) => storage.get_files_for_chat(&self.chat_id.to_string()).await,
+      Some(storage) => {
+        storage
+          .get_files_for_chat(&self.chat_id.to_string(), None)
+          .await
+      },
     }
   }
 
@@ -102,23 +106,9 @@ impl Chat {
     let uid = self.user_service.user_id()?;
     let workspace_id = self.user_service.workspace_id()?;
 
-    // copy file to custom location
-    let mut files = vec![];
-    for file in &params.files {
-      if let Some(file_storage) = &self.file_storage {
-        if let Ok(Some(file_path)) = file_storage
-          .copy_file(&self.chat_id, PathBuf::from(&file.file_path))
-          .await
-          .map(|v| v.to_str().map(|v| v.to_string()))
-        {
-          files.push(file_path);
-        }
-      }
-    }
-
     let CreatedChatMessage {
       message: question,
-      embed_file_errors: errors,
+      embed_files,
     } = self
       .chat_service
       .create_question(
@@ -127,7 +117,7 @@ impl Chat {
         &params.message,
         params.message_type.clone(),
         params.prompt_id.clone(),
-        files.clone(),
+        params.files.iter().map(|f| f.file_path.clone()).collect(),
       )
       .await
       .map_err(|err| {
@@ -135,23 +125,7 @@ impl Chat {
         FlowyError::server_error()
       })?;
 
-    for (file_path, error) in errors {
-      if let Some(file_storage) = &self.file_storage {
-        let _ = file_storage.delete_file(&file_path).await;
-      }
-
-      // remove the file from the list when embedding failed
-      files.retain(|file| file != &file_path);
-
-      chat_notification_builder(
-        self.chat_id.to_string(),
-        ChatNotification::FailedToEmbedFile,
-      )
-      .payload(EmbedFileErrorPB { file_path, error })
-      .send();
-    }
-
-    if !files.is_empty() {
+    if !embed_files.is_empty() {
       chat_notification_builder(
         self.chat_id.to_string(),
         ChatNotification::DidAddNewChatFile,
@@ -234,7 +208,7 @@ impl Chat {
     tokio::spawn(async move {
       let mut answer_sink = IsolateSink::new(Isolate::new(answer_stream_port));
       match cloud_service
-        .stream_answer(&workspace_id, &chat_id, question_id, format, ai_model)
+        .stream_question(&workspace_id, &chat_id, question_id, format, ai_model)
         .await
       {
         Ok(mut stream) => {
@@ -276,6 +250,11 @@ impl Chat {
                         })
                         .to_string(),
                       )
+                      .await;
+                  },
+                  QuestionStreamValue::Progress { value } => {
+                    let _ = answer_sink
+                      .send(StreamMessage::OnProcess(value).to_string())
                       .await;
                   },
                 }

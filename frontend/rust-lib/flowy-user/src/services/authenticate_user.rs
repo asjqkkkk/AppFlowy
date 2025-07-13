@@ -22,7 +22,7 @@ use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicI64, Ordering};
 use std::sync::{Arc, Weak};
-use tracing::{error, info};
+use tracing::{debug, error, info};
 use uuid::Uuid;
 
 const PERSONAL_SUBSCRIPTION_KEY: &str = "personal_subscription_v1";
@@ -79,16 +79,22 @@ impl AuthenticateUser {
     &self,
     subscription: &PersonalSubscriptionInfoPB,
   ) -> FlowyResult<()> {
-    if let Err(err) = self
-      .store_preferences
-      .set_object(PERSONAL_SUBSCRIPTION_KEY, subscription)
-    {
-      error!("Failed to store personal subscription info: {}", err);
+    if subscription.subscriptions.is_empty() {
+      self.store_preferences.remove(PERSONAL_SUBSCRIPTION_KEY);
+    } else {
+      debug!("Caching personal subscription info: {:?}", subscription);
+      if let Err(err) = self
+        .store_preferences
+        .set_object(PERSONAL_SUBSCRIPTION_KEY, subscription)
+      {
+        error!("Failed to store personal subscription info: {}", err);
+      }
     }
     Ok(())
   }
 
   pub(crate) fn remove_cached_personal_subscription(&self) {
+    debug!("Caching personal subscription info");
     self.store_preferences.remove(PERSONAL_SUBSCRIPTION_KEY)
   }
 

@@ -43,6 +43,7 @@ class AnswerStream {
   void Function(String message)? _onAIMaxRequired;
   void Function(MetadataCollection metadata)? _onMetadata;
   void Function(AIFollowUpData)? _onAIFollowUp;
+  void Function(String)? _onProgress;
   // Caches for events that occur before listen() is called.
   final List<String> _pendingAIMaxRequiredEvents = [];
   bool _pendingLocalAINotReady = false;
@@ -102,6 +103,9 @@ class AnswerStream {
       } catch (e) {
         Log.error('Error deserializing AIFollowUp data: $e\nRaw JSON: $s');
       }
+    } else if (event.startsWith(AIStreamEventPrefix.progress)) {
+      final progress = event.substring(AIStreamEventPrefix.progress.length);
+      _onProgress?.call(progress);
     }
   }
 
@@ -129,6 +133,7 @@ class AnswerStream {
     void Function(MetadataCollection metadata)? onMetadata,
     void Function()? onLocalAIInitializing,
     void Function(AIFollowUpData)? onAIFollowUp,
+    void Function(String progress)? onProgress,
   }) {
     _onData = onData;
     _onStart = onStart;
@@ -140,6 +145,7 @@ class AnswerStream {
     _onMetadata = onMetadata;
     _onLocalAIInitializing = onLocalAIInitializing;
     _onAIFollowUp = onAIFollowUp;
+    _onProgress = onProgress;
     // Flush pending AI_MAX_REQUIRED events.
     if (_onAIMaxRequired != null && _pendingAIMaxRequiredEvents.isNotEmpty) {
       for (final msg in _pendingAIMaxRequiredEvents) {
@@ -170,22 +176,12 @@ class QuestionStream {
           if (_onData != null) {
             _onData!(_text);
           }
+        } else if (event.startsWith("step:")) {
+          final step = event.substring(5);
+          _onStep?.call(step);
         } else if (event.startsWith("message_id:")) {
           final messageId = event.substring(11);
           _onMessageId?.call(messageId);
-        } else if (event.startsWith("start_index_file:")) {
-          final indexName = event.substring(17);
-          _onFileIndexStart?.call(indexName);
-        } else if (event.startsWith("end_index_file:")) {
-          final indexName = event.substring(10);
-          _onFileIndexEnd?.call(indexName);
-        } else if (event.startsWith("index_file_error:")) {
-          final indexName = event.substring(16);
-          _onFileIndexError?.call(indexName);
-        } else if (event.startsWith("index_start:")) {
-          _onIndexStart?.call();
-        } else if (event.startsWith("index_end:")) {
-          _onIndexEnd?.call();
         } else if (event.startsWith("done:")) {
           _onDone?.call();
         } else if (event.startsWith("error:")) {
@@ -214,11 +210,7 @@ class QuestionStream {
   void Function(String text)? _onData;
   void Function(String error)? _onError;
   void Function(String messageId)? _onMessageId;
-  void Function(String indexName)? _onFileIndexStart;
-  void Function(String indexName)? _onFileIndexEnd;
-  void Function(String indexName)? _onFileIndexError;
-  void Function()? _onIndexStart;
-  void Function()? _onIndexEnd;
+  void Function(String step)? _onStep;
   void Function()? _onDone;
   int get nativePort => _port.sendPort.nativePort;
   bool get hasStarted => _hasStarted;
@@ -235,23 +227,14 @@ class QuestionStream {
     void Function(String text)? onData,
     void Function(String error)? onError,
     void Function(String messageId)? onMessageId,
-    void Function(String indexName)? onFileIndexStart,
-    void Function(String indexName)? onFileIndexEnd,
-    void Function(String indexName)? onFileIndexFail,
-    void Function()? onIndexStart,
-    void Function()? onIndexEnd,
+    void Function(String step)? onStep,
     void Function()? onDone,
   }) {
     _onData = onData;
     _onError = onError;
     _onMessageId = onMessageId;
 
-    _onFileIndexStart = onFileIndexStart;
-    _onFileIndexEnd = onFileIndexEnd;
-    _onFileIndexError = onFileIndexFail;
-
-    _onIndexStart = onIndexStart;
-    _onIndexEnd = onIndexEnd;
+    _onStep = onStep;
     _onDone = onDone;
   }
 }

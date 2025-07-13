@@ -8,7 +8,7 @@ use flowy_database_pub::cloud::TranslateItem;
 async fn local_ai_test_database_translate() {
   setup_log();
 
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = LLMOllama::default();
   let chain = DatabaseTranslateChain::new(ollama);
 
   let data = TranslateRowData {

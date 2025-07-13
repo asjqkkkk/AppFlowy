@@ -1,4 +1,5 @@
 use crate::{TestContext, collect_stream, load_asset_content};
+use flowy_ai::local_ai::chat::llm_chat::StreamQuestionOptions;
 use uuid::Uuid;
 
 #[tokio::test]
@@ -6,7 +7,11 @@ async fn local_ai_test_context_related_questions() {
   let context = TestContext::new().unwrap();
   let mut chat = context.create_chat(vec![]).await;
   let stream = chat
-    .stream_question("hello world", Default::default())
+    .stream_question(
+      "hello world",
+      Default::default(),
+      StreamQuestionOptions::default(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
@@ -21,7 +26,11 @@ async fn local_ai_test_context_related_questions() {
     .unwrap();
 
   let stream = chat
-    .stream_question("Compare rust with js", Default::default())
+    .stream_question(
+      "Compare rust with js",
+      Default::default(),
+      StreamQuestionOptions::default(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
@@ -38,6 +47,7 @@ async fn local_ai_test_context_related_questions() {
     .stream_question(
       result.suggested_questions[0].content.as_str(),
       Default::default(),
+      StreamQuestionOptions::default(),
     )
     .await
     .unwrap();

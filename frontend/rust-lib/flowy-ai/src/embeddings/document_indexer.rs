@@ -5,7 +5,7 @@ use flowy_ai_pub::entities::EmbeddedChunk;
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 pub struct DocumentIndexer;
@@ -34,7 +34,6 @@ impl Indexer for DocumentIndexer {
       200,
       RAGSource::AppFlowyDocument,
     )
-    .map(|v| v.0)
   }
 
   async fn embed(
@@ -60,6 +59,10 @@ impl Indexer for DocumentIndexer {
       contents.push(chunks[i].content.as_ref().unwrap().to_owned());
     }
 
+    debug!(
+      "[Embedding] Requesting embeddings for content: {:?}",
+      contents
+    );
     let request = GenerateEmbeddingsRequest::new(
       embedder.model().name().to_string(),
       EmbeddingsInput::Multiple(contents),

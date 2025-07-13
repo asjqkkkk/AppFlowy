@@ -10,6 +10,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    chat_local_file (file_id) {
+        file_id -> Text,
+        chat_id -> Text,
+        file_path -> Text,
+        file_content -> Text,
+    }
+}
+
+diesel::table! {
     chat_local_setting_table (chat_id) {
         chat_id -> Text,
         local_model_path -> Text,
@@ -175,6 +184,7 @@ diesel::table! {
 
 diesel::allow_tables_to_appear_in_same_query!(
   af_collab_metadata,
+  chat_local_file,
   chat_local_setting_table,
   chat_message_table,
   chat_table,

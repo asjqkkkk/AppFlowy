@@ -8,8 +8,8 @@ mod summary_memory;
 use crate::SqliteVectorStore;
 use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::llm::LLMOllama;
-use crate::local_ai::chat::llm_chat::LLMChat;
-use crate::local_ai::chat::retriever::MultipleSourceRetrieverStore;
+use crate::local_ai::chat::llm_chat::{LLMChat, StreamQuestionOptions};
+use crate::local_ai::chat::retriever::RetrieverStore;
 use crate::local_ai::completion::chain::CompletionChain;
 use crate::local_ai::database::summary::DatabaseSummaryChain;
 use crate::local_ai::database::translate::DatabaseTranslateChain;
@@ -41,7 +41,7 @@ pub struct LLMChatInfo {
   pub summary: String,
 }
 
-pub type RetrieversSources = RwLock<Vec<Arc<dyn MultipleSourceRetrieverStore>>>;
+pub type RetrieversSources = RwLock<Vec<Arc<dyn RetrieverStore>>>;
 
 pub struct LLMChatController {
   chat_by_id: DashMap<Uuid, Arc<RwLock<LLMChat>>>,
@@ -61,7 +61,7 @@ impl LLMChatController {
     }
   }
 
-  pub async fn set_retriever_sources(&self, sources: Vec<Arc<dyn MultipleSourceRetrieverStore>>) {
+  pub async fn set_retriever_sources(&self, sources: Vec<Arc<dyn RetrieverStore>>) {
     *self.retriever_sources.write().await = sources;
   }
 
@@ -213,12 +213,44 @@ impl LLMChatController {
     Ok(stream)
   }
 
+  pub async fn copy_file(
+    &self,
+    chat_id: &Uuid,
+    message_id: i64,
+    source_path: PathBuf,
+  ) -> FlowyResult<String> {
+    let chat = self
+      .chat_by_id
+      .get(chat_id)
+      .map(|v| v.value().clone())
+      .ok_or_else(|| FlowyError::internal().with_context("Chat not found"))?;
+    chat.read().await.copy_file(message_id, source_path).await
+  }
+
   #[instrument(skip_all, err)]
-  pub async fn embed_file(
+  pub async fn generate_embed_file_metadata(
     &self,
     chat_id: &Uuid,
     file_path: PathBuf,
   ) -> FlowyResult<serde_json::Value> {
+    if !file_path.exists() {
+      return Err(
+        FlowyError::record_not_found().with_context("File path does not exist when embedding file"),
+      );
+    }
+
+    let chat = self
+      .chat_by_id
+      .get(chat_id)
+      .map(|v| v.value().clone())
+      .ok_or_else(|| FlowyError::internal().with_context("Chat not found"))?;
+
+    let metadata = chat.read().await.metadata_from_path(file_path.clone())?;
+    Ok(metadata)
+  }
+
+  #[instrument(skip_all, err)]
+  pub async fn embed_file(&self, chat_id: &Uuid, file_path: PathBuf) -> FlowyResult<()> {
     if !file_path.exists() {
       return Err(
         FlowyError::record_not_found().with_context("File path does not exist when embedding file"),
@@ -236,14 +268,8 @@ impl LLMChatController {
       .get(chat_id)
       .map(|v| v.value().clone())
       .ok_or_else(|| FlowyError::internal().with_context("Chat not found"))?;
-
-    let metadata = chat
-      .read()
-      .await
-      .embed_file_from_path(*chat_id, file_path.clone())
-      .await?;
-
-    Ok(metadata)
+    chat.read().await.embed_file_from_path(file_path).await?;
+    Ok(())
   }
 
   pub async fn get_related_question(
@@ -290,10 +316,15 @@ impl LLMChatController {
     question: &str,
     format: ResponseFormat,
     model_name: &str,
+    options: StreamQuestionOptions,
   ) -> FlowyResult<StreamAnswer> {
     if let Some(chat) = self.get_chat(chat_id) {
       chat.write().await.set_chat_model(model_name);
-      let response = chat.write().await.stream_question(question, format).await;
+      let response = chat
+        .write()
+        .await
+        .stream_question(question, format, options)
+        .await;
       return response;
     }
 

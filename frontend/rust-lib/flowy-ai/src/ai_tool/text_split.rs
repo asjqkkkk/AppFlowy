@@ -40,11 +40,11 @@ pub fn split_text_into_chunks(
   chunk_size: usize,
   overlap: usize,
   source: RAGSource,
-) -> Result<(Vec<EmbeddedChunk>, serde_json::Value), FlowyError> {
+) -> Result<Vec<EmbeddedChunk>, FlowyError> {
   debug_assert!(matches!(embedding_model, EmbeddingModel::NomicEmbedText));
 
   if paragraphs.is_empty() {
-    return Ok((vec![], json!({})));
+    return Ok(vec![]);
   }
   let split_contents = group_paragraphs_by_max_content_len(paragraphs, chunk_size, overlap);
   let metadata = json!({
@@ -87,7 +87,7 @@ pub fn split_text_into_chunks(
     chunk_size,
     overlap
   );
-  Ok((chunks, metadata))
+  Ok(chunks)
 }
 
 fn group_paragraphs_by_max_content_len(

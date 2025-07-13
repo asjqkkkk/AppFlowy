@@ -537,9 +537,11 @@ class MainContentArea extends StatelessWidget {
                 const HSpace(6.0),
                 Expanded(
                   child: AILoadingIndicator(
-                    text: state.command == AiWriterCommand.explain
-                        ? LocaleKeys.ai_analyzing.tr()
-                        : LocaleKeys.ai_editing.tr(),
+                    texts: [
+                      state.command == AiWriterCommand.explain
+                          ? LocaleKeys.ai_analyzing.tr()
+                          : LocaleKeys.ai_editing.tr(),
+                    ],
                   ),
                 ),
                 const HSpace(8.0),

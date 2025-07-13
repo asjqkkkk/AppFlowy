@@ -25,6 +25,7 @@ class AIStreamEventPrefix {
   static const localAINotReady = 'local_ai_not_ready:';
   static const localAIDisabled = 'local_ai_disabled:';
   static const aiFollowUp = 'ai_follow_up:';
+  static const progress = 'progress:';
 }
 
 enum AiType {

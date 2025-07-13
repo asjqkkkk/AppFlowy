@@ -36,7 +36,7 @@ impl Default for LocalAISetting {
   fn default() -> Self {
     Self {
       ollama_server_url: "http://localhost:11434".to_string(),
-      chat_model_name: "llama3.1:latest".to_string(),
+      chat_model_name: "gemma3:4b".to_string(),
       embedding_model_name: "nomic-embed-text:latest".to_string(),
     }
   }

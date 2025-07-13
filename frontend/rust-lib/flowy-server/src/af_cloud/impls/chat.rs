@@ -15,7 +15,6 @@ use flowy_ai_pub::cloud::{
 use flowy_error::FlowyError;
 use futures_util::{StreamExt, TryStreamExt};
 use lib_infra::async_trait::async_trait;
-use std::collections::HashMap;
 use std::path::Path;
 use tracing::trace;
 use uuid::Uuid;
@@ -76,7 +75,7 @@ where
       .map_err(FlowyError::from)?;
     Ok(CreatedChatMessage {
       message,
-      embed_file_errors: HashMap::new(),
+      embed_files: vec![],
     })
   }
 
@@ -101,7 +100,7 @@ where
     Ok(message)
   }
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     workspace_id: &Uuid,
     chat_id: &Uuid,

@@ -111,6 +111,10 @@ impl ContextRelatedQuestionChain {
       .questions
       .retain(|v| rag_ids.iter().any(|id| id.as_ref() == v.object_id));
 
+    debug!(
+      "Generated context:{}, related questions: {:?}",
+      context, parsed_result.questions
+    );
     Ok(parsed_result.questions)
   }
 

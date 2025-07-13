@@ -52,6 +52,7 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
   @override
   void dispose() {
     onHover.dispose();
+    loadingIndicator = null;
     openWorkspaceNotifier.removeListener(_openWorkspaceFromInvitation);
     showDebounce.dispose();
     loadingIndicator?.stop();

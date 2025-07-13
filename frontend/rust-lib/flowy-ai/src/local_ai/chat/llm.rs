@@ -11,7 +11,8 @@ use tokio_stream::StreamExt;
 use ollama_rs::Ollama;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::parameters::FormatType;
-use ollama_rs::models::ModelOptions;
+use ollama_rs::models::{ModelInfo, ModelOptions};
+use tracing::debug;
 
 #[derive(Debug, Clone)]
 pub struct LLMOllama {
@@ -24,7 +25,7 @@ pub struct LLMOllama {
 impl Default for LLMOllama {
   fn default() -> Self {
     LLMOllama {
-      model_name: "llama3.1".to_string(),
+      model_name: "gemma3:4b".to_string(),
       ollama: Arc::new(Ollama::default()),
       format: None,
       options: None,
@@ -63,7 +64,61 @@ impl LLMOllama {
   }
 
   pub fn set_model(&mut self, model: &str) {
+    debug!("set model {}", model);
     self.model_name = model.to_string();
+  }
+
+  /// Get model information from Ollama API using the built-in method
+  pub async fn get_model_info(&self) -> Result<ModelInfo, LLMError> {
+    debug!("get model:{} info", self.model_name);
+    self
+      .ollama
+      .show_model_info(self.model_name.clone())
+      .await
+      .map_err(LLMError::from)
+  }
+
+  pub fn estimate_token_count(&self, text: &str) -> usize {
+    // Simple heuristic: ~4 characters per token for English text
+    // This is model-dependent, but provides a reasonable approximation
+    (text.len() as f32 / 4.0).ceil() as usize
+  }
+
+  /// Calculate how many messages can fit in the context window
+  pub async fn calculate_message_capacity(
+    &self,
+    messages: &[Message],
+    reserved_tokens: usize, // Reserve tokens for system prompt, response, etc.
+  ) -> Result<usize, LLMError> {
+    let model_info = self.get_model_info().await?;
+    // Extract context length from ModelInfo - it's in the model_info map
+    let context_length = model_info
+      .model_info
+      .get("context_length")
+      .and_then(|v| v.as_u64())
+      .map(|v| v as usize)
+      .unwrap_or(4096); // Default to 4k if not found
+
+    // Reserve space for system messages, response, and safety margin
+    let available_tokens = context_length.saturating_sub(reserved_tokens);
+    let mut total_tokens = 0;
+    let mut message_count = 0;
+
+    debug!(
+      "[Tokens]: Available tokens before processing messages: {}",
+      available_tokens
+    );
+    // Start from the most recent messages and work backwards
+    for message in messages.iter().rev() {
+      let message_tokens = self.estimate_token_count(&message.content) + 10; // +10 for role/metadata
+      if total_tokens + message_tokens > available_tokens {
+        break;
+      }
+      total_tokens += message_tokens;
+      message_count += 1;
+    }
+
+    Ok(message_count)
   }
 
   fn generate_request(&self, messages: &[Message]) -> ChatMessageRequest {
