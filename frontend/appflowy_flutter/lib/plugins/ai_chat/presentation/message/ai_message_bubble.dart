@@ -406,7 +406,7 @@ class ChatAIMessagePopup extends StatelessWidget {
     return MobileQuickActionButton(
       onTap: () async {
         final bloc = context.read<AIPromptInputBloc>();
-        final (models, _) = bloc.aiModelStateNotifier.getModelSelection();
+        final models = bloc.aiModelStateNotifier.modelSelection.availableModels;
         final result = await showChangeModelBottomSheet(context, models);
         if (result != null) {
           onChangeModel?.call(result);

@@ -2,7 +2,7 @@ use crate::ai_tool::markdown::MdReader;
 use crate::ai_tool::pdf::{PdfConfig, PdfReader};
 use crate::ai_tool::text_split::{RAGSource, split_text_into_chunks};
 use crate::embeddings::embedder::{Embedder, OllamaEmbedder};
-use crate::embeddings::indexer::{EmbeddingModel, IndexerProvider};
+use crate::embeddings::indexer::{IndexerProvider, LocalEmbeddingModel};
 use crate::local_ai::chat::retriever::{EmbedFileProgress, RetrieverStore};
 use async_trait::async_trait;
 use flowy_ai_pub::cloud::CollabType;
@@ -201,7 +201,7 @@ impl SqliteVectorStore {
         vec![content],
         embedding_model,
         1000,
-        50,
+        200,
         RAGSource::LocalFile {
           file_name: file_name_clone,
         },
@@ -410,7 +410,7 @@ impl SqliteVectorStore {
           vec![content],
           embedding_model,
           1000,
-          50,
+          200,
           RAGSource::LocalFile {
             file_name: file_name_clone,
           },
@@ -636,8 +636,8 @@ impl VectorStore for SqliteVectorStore {
           let chunks_result = split_text_into_chunks(
             &object_id_str,
             vec![paragraph],
-            EmbeddingModel::NomicEmbedText,
-            2000,
+            LocalEmbeddingModel::NomicEmbedText,
+            1000,
             200,
             RAGSource::AppFlowyDocument,
           );

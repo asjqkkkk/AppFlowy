@@ -111,10 +111,7 @@ impl AuthenticateUser {
     let is_vault = matches!(workspace_type, WorkspaceType::Vault)
       && matches!(auth_provider, AuthProvider::Cloud);
 
-    let is_vault_enabled = if cfg!(debug_assertions) {
-      // In debug mode, we assume vault is enabled for testing purposes
-      true
-    } else {
+    let is_vault_enabled = {
       match self.get_cached_personal_subscription() {
         None => false,
         Some(info) => info

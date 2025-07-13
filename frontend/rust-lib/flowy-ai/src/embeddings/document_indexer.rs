@@ -1,6 +1,6 @@
 use crate::ai_tool::text_split::{RAGSource, split_text_into_chunks};
 use crate::embeddings::embedder::Embedder;
-use crate::embeddings::indexer::{EmbeddingModel, Indexer};
+use crate::embeddings::indexer::{Indexer, LocalEmbeddingModel};
 use flowy_ai_pub::entities::EmbeddedChunk;
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;
@@ -16,7 +16,7 @@ impl Indexer for DocumentIndexer {
     &self,
     object_id: Uuid,
     paragraphs: Vec<String>,
-    model: EmbeddingModel,
+    model: LocalEmbeddingModel,
   ) -> Result<Vec<EmbeddedChunk>, FlowyError> {
     if paragraphs.is_empty() {
       warn!(

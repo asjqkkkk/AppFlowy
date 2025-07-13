@@ -1,4 +1,4 @@
-use crate::embeddings::indexer::EmbeddingModel;
+use crate::embeddings::indexer::LocalEmbeddingModel;
 use flowy_ai_pub::entities::{EmbeddedChunk, SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_error::FlowyError;
 use serde_json::json;
@@ -36,12 +36,15 @@ impl RAGSource {
 pub fn split_text_into_chunks(
   object_id: &str,
   paragraphs: Vec<String>,
-  embedding_model: EmbeddingModel,
+  embedding_model: LocalEmbeddingModel,
   chunk_size: usize,
   overlap: usize,
   source: RAGSource,
 ) -> Result<Vec<EmbeddedChunk>, FlowyError> {
-  debug_assert!(matches!(embedding_model, EmbeddingModel::NomicEmbedText));
+  debug_assert!(matches!(
+    embedding_model,
+    LocalEmbeddingModel::NomicEmbedText
+  ));
 
   if paragraphs.is_empty() {
     return Ok(vec![]);
@@ -70,7 +73,7 @@ pub fn split_text_into_chunks(
         embeddings: None,
         metadata: Some(metadata_string),
         fragment_index: index as i32,
-        embedder_type: 0,
+        dimension: embedding_model.dimension(),
       });
     } else {
       debug!(

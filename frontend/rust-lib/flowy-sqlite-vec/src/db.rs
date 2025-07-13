@@ -369,7 +369,7 @@ impl VectorSqliteDB {
             frag.content.clone().unwrap_or_default(),
             frag.metadata,
             frag.fragment_index,
-            frag.embedder_type,
+            0,
             frag
               .embeddings
               .as_ref()

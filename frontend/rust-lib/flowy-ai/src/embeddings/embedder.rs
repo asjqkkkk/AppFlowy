@@ -1,4 +1,4 @@
-use crate::embeddings::indexer::EmbeddingModel;
+use crate::embeddings::indexer::LocalEmbeddingModel;
 use flowy_error::FlowyResult;
 use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::GenerateEmbeddingsResponse;
@@ -20,8 +20,8 @@ impl Embedder {
     }
   }
 
-  pub fn model(&self) -> EmbeddingModel {
-    EmbeddingModel::NomicEmbedText
+  pub fn model(&self) -> LocalEmbeddingModel {
+    LocalEmbeddingModel::NomicEmbedText
   }
 }
 

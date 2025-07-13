@@ -91,8 +91,8 @@ pub struct EmbeddedChunk {
   pub content: Option<String>,
   pub metadata: Option<String>,
   pub fragment_index: i32,
-  pub embedder_type: i32,
   pub embeddings: Option<Vec<f32>>,
+  pub dimension: usize,
 }
 
 #[derive(Debug, Clone)]
