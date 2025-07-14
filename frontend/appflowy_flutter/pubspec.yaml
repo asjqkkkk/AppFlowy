@@ -262,6 +262,12 @@ dependency_overrides:
       ref: cb27c508f840e888e6e5a7408c6b89d5995e48c8
       path: flutter_web_auth_2
 
+  pdfx:
+    git:
+      url: https://github.com/richardshiue/packages.flutter.git
+      ref: becdf25
+      path: packages/pdfx
+
 flutter:
   generate: true
   uses-material-design: true

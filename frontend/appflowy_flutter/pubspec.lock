@@ -1622,10 +1622,11 @@ packages:
   pdfx:
     dependency: "direct main"
     description:
-      name: pdfx
-      sha256: "29db9b71d46bf2335e001f91693f2c3fbbf0760e4c2eb596bf4bafab211471c1"
-      url: "https://pub.dev"
-    source: hosted
+      path: "packages/pdfx"
+      ref: becdf25
+      resolved-ref: becdf2593048c06963e5fad633bd203bd254313e
+      url: "https://github.com/richardshiue/packages.flutter.git"
+    source: git
     version: "2.9.2"
   percent_indicator:
     dependency: "direct main"
