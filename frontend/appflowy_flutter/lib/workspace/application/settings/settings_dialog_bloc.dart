@@ -91,12 +91,6 @@ class SettingsDialogBloc
     UserProfilePB userProfile, [
     AFRolePB? currentWorkspaceMemberRole,
   ]) async {
-    if ([
-      WorkspaceTypePB.LocalW,
-    ].contains(userProfile.workspaceType)) {
-      return false;
-    }
-
     if (currentWorkspaceMemberRole == null ||
         currentWorkspaceMemberRole != AFRolePB.Owner) {
       return false;
