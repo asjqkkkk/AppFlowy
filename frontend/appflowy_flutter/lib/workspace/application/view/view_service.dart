@@ -269,6 +269,11 @@ class ViewBackendService {
     return FolderEventGetAllViewsWithPermission().send();
   }
 
+  static Future<FlowyResult<GetMentionablePersonsResponsePB, FlowyError>>
+      getWorkspaceMentionablePersons() async {
+    return FolderEventGetMentionablePersons().send();
+  }
+
   static Future<FlowyResult<ViewPB, FlowyError>> getView(
     String viewId,
   ) async {

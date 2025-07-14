@@ -1,6 +1,6 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/models/mention_menu_item.dart';
-import 'package:appflowy/features/mension_person/data/repositories/mock_mention_repository.dart';
+import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
@@ -46,7 +46,7 @@ class MentionMenu extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       child: BlocProvider(
         create: (_) => MentionBloc(
-          repository: MockMentionRepository(),
+          repository: RustMentionRepository(),
           workspaceId: workspaceId,
           query: query,
           sendNotification: sendNotification,

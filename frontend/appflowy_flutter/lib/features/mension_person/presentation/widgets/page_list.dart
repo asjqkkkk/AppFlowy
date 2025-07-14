@@ -1,3 +1,4 @@
+import 'package:appflowy/features/mension_person/data/repositories/mock_mention_repository.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
@@ -25,7 +26,8 @@ class PageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mentionState = context.read<MentionBloc>().state,
+    final mentionBloc = context.read<MentionBloc>(),
+        mentionState = mentionBloc.state,
         itemMap = context.read<MentionItemMap>();
     final showMorePage = mentionState.showMorePage, query = mentionState.query;
     final theme = AppFlowyTheme.of(context);
@@ -96,40 +98,50 @@ class PageList extends StatelessWidget {
             return const SizedBox.shrink();
           }
 
-          return Padding(
-            padding: EdgeInsets.all(theme.spacing.m),
-            child: AFMenuSection(
-              title: LocaleKeys.document_mentionMenu_pages.tr(),
-              children: [
-                ...List.generate(displayedViews.length, (index) {
-                  final view = displayedViews[index];
-                  return MentionMenuItenVisibilityDetector(
-                    id: view.id,
-                    child: AFTextMenuItem(
-                      selected: mentionState.selectedId == view.id,
-                      leading: SizedBox(
-                        width: 24,
-                        child: Center(child: view.buildIcon(context)),
-                      ),
-                      title: view.nameOrDefault,
-                      backgroundColor: context.mentionItemBGColor,
-                      onTap: () => onPageSelected(view, context),
+          final hidePersonList = mentionState.persons.isEmpty &&
+              mentionBloc.repository is! MockMentionRepository;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (!hidePersonList) AFDivider(),
+              Padding(
+                padding: EdgeInsets.all(theme.spacing.m),
+                child: AFMenuSection(
+                  title: LocaleKeys.document_mentionMenu_pages.tr(),
+                  children: [
+                    ...List.generate(displayedViews.length, (index) {
+                      final view = displayedViews[index];
+                      return MentionMenuItenVisibilityDetector(
+                        id: view.id,
+                        child: AFTextMenuItem(
+                          selected: mentionState.selectedId == view.id,
+                          leading: SizedBox(
+                            width: 24,
+                            child: Center(child: view.buildIcon(context)),
+                          ),
+                          title: view.nameOrDefault,
+                          backgroundColor: context.mentionItemBGColor,
+                          onTap: () => onPageSelected(view, context),
+                        ),
+                      );
+                    }),
+                    createPageItem(
+                      context: context,
+                      id: createPageId,
+                      onTap: () => onPageCreate(context),
                     ),
-                  );
-                }),
-                createPageItem(
-                  context: context,
-                  id: createPageId,
-                  onTap: () => onPageCreate(context),
+                    if (showMoreResult)
+                      MoreResultsItem(
+                        num: recentViews.length - 4,
+                        onTap: onShowMore,
+                        id: showMoreId,
+                      ),
+                  ],
                 ),
-                if (showMoreResult)
-                  MoreResultsItem(
-                    num: recentViews.length - 4,
-                    onTap: onShowMore,
-                    id: showMoreId,
-                  ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),

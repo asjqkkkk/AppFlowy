@@ -28,6 +28,7 @@ use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::MentionablePersons;
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use flowy_user_pub::cloud::{
@@ -498,6 +499,16 @@ impl FolderCloudService for ServerProvider {
     self
       .get_folder_service()?
       .get_shared_views(workspace_id)
+      .await
+  }
+
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError> {
+    self
+      .get_folder_service()?
+      .get_workspace_mentionable_persons(workspace_id)
       .await
   }
 }

@@ -1,5 +1,5 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
-import 'package:appflowy/features/mension_person/data/repositories/mock_mention_repository.dart';
+import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/hover_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/mobile/mobile_person_profile_card.dart';
@@ -69,7 +69,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         documentId: widget.pageId,
         personId: widget.personId,
         workspaceId: workspaceId,
-        repository: MockMentionRepository(),
+        repository: RustMentionRepository(),
         personListCache: getIt<PersonListCache>(),
       )..add(PersonEvent.initial()),
       child: BlocListener<PersonBloc, PersonState>(
@@ -180,6 +180,35 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
             child: richText,
           )
         : richText;
+  }
+
+  Widget buildUnknownPerson(BuildContext context) {
+    final theme = AppFlowyTheme.of(context),
+        color = theme.textColorScheme.tertiary,
+        style = widget.textStyle?.copyWith(
+              color: color,
+              leadingDistribution: TextLeadingDistribution.even,
+            ) ??
+            theme.textStyle.body.standard(color: color);
+    return Padding(
+      padding: EdgeInsets.only(right: theme.spacing.xs),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '@',
+              style: style.copyWith(
+                color: theme.textColorScheme.tertiary,
+              ),
+            ),
+            TextSpan(
+              text: LocaleKeys.document_mentionMenu_anonym.tr(),
+              style: style,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   void checkForPositionAndSize() {

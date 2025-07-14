@@ -1,3 +1,4 @@
+import 'package:appflowy/features/mension_person/data/repositories/mock_mention_repository.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
@@ -25,7 +26,8 @@ class PersonList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.read<MentionBloc>().state,
+    final bloc = context.read<MentionBloc>(),
+        state = bloc.state,
         itemMap = context.read<MentionItemMap>(),
         userWorkspaceBloc = context.read<UserWorkspaceBloc?>(),
         theme = AppFlowyTheme.of(context),
@@ -37,7 +39,13 @@ class PersonList extends StatelessWidget {
         userState = userWorkspaceBloc.userProfile;
 
     if (workspaceType == WorkspaceTypePB.LocalW) return const SizedBox.shrink();
+
     final persons = state.persons, showMorePersons = state.showMorePersons;
+
+    final hidePersonList =
+        persons.isEmpty && bloc.repository is! MockMentionRepository;
+    if (hidePersonList) return const SizedBox.shrink();
+
     final hasMorePersons = persons.length > 4;
     final showMoreResult = !showMorePersons && hasMorePersons;
     List<Person> displayPersons = List.of(persons);
@@ -58,11 +66,11 @@ class PersonList extends StatelessWidget {
         .tr(args: ['show more person']);
     void onShowMore() {
       if (!showMoreResult) return;
-      context.read<MentionBloc>().add(
-            MentionEvent.showMorePersons(
-              UniversalPlatform.isMobile ? '' : persons[4].id,
-            ),
-          );
+      bloc.add(
+        MentionEvent.showMorePersons(
+          UniversalPlatform.isMobile ? '' : persons[4].id,
+        ),
+      );
     }
 
     if (showMoreResult) {
@@ -104,11 +112,11 @@ class PersonList extends StatelessWidget {
                   onTap: onShowMore,
                   id: id,
                 ),
-              PersonListInviteItem(),
+              if (bloc.repository is MockMentionRepository)
+                PersonListInviteItem(),
             ],
           ),
         ),
-        AFDivider(),
       ],
     );
   }

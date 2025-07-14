@@ -1,3 +1,5 @@
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+
 class Person {
   Person({
     required this.id,
@@ -22,6 +24,17 @@ class Person {
         invited = false,
         deleted = false;
 
+  Person.fromProto(MentionablePersonPB person)
+      : id = person.uuid,
+        name = person.name,
+        email = person.email,
+        role = _fromProtoRole(person.role),
+        avatarUrl = person.avatarUrl,
+        coverImageUrl = person.coverImageUrl,
+        description = person.description,
+        invited = person.invited,
+        deleted = false;
+
   final String id;
   final String name;
   final String email;
@@ -33,6 +46,18 @@ class Person {
   final bool deleted;
 
   bool get isEmpty => id.isEmpty || email.isEmpty;
+
+  static PersonRole _fromProtoRole(MentionablePersonTypePB role) {
+    switch (role) {
+      case MentionablePersonTypePB.WorkspaceMember:
+        return PersonRole.member;
+      case MentionablePersonTypePB.WorkspaceGuest:
+        return PersonRole.guest;
+      case MentionablePersonTypePB.Contact:
+        return PersonRole.contact;
+    }
+    return PersonRole.member;
+  }
 }
 
 enum PersonRole {

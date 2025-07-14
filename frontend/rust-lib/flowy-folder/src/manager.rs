@@ -1,11 +1,11 @@
 use crate::entities::icon::UpdateViewIconParams;
 use crate::entities::{
   AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, FolderSnapshotPB,
-  MoveNestedViewParams, RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB,
-  RepeatedViewIdPB, RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB,
-  UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB,
-  view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
-  view_pb_without_child_views_from_arc,
+  GetMentionablePersonsResponsePB, MoveNestedViewParams, RepeatedSharedUserPB,
+  RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewIdPB, RepeatedViewPB, SharedUserPB,
+  SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB,
+  WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views,
+  view_pb_without_child_views, view_pb_without_child_views_from_arc,
 };
 use crate::manager_observer::{
   ChildViewChangeReason, notify_child_views_changed, notify_did_update_section_views,
@@ -2974,6 +2974,21 @@ impl FolderManager {
       .collect();
     let combined_views = [views_with_permission, shared_views].concat();
     Ok(combined_views)
+  }
+
+  pub async fn get_mentionable_persons(&self) -> FlowyResult<GetMentionablePersonsResponsePB> {
+    let workspace_id = self.user.workspace_id()?;
+    let result = self
+      .cloud_service()?
+      .get_workspace_mentionable_persons(&workspace_id)
+      .await?;
+    Ok(GetMentionablePersonsResponsePB {
+      persons: result
+        .persons
+        .into_iter()
+        .map(|person| person.into())
+        .collect(),
+    })
   }
 }
 

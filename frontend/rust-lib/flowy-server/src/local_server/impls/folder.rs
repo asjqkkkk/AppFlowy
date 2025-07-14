@@ -16,6 +16,7 @@ use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
 };
 use flowy_folder_pub::entities::PublishPayload;
+use flowy_server_pub::MentionablePersons;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
@@ -206,6 +207,13 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
   }
 
   async fn get_shared_views(&self, _workspace_id: &Uuid) -> Result<SharedViews, FlowyError> {
+    Err(FlowyError::local_version_not_support())
+  }
+
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError> {
     Err(FlowyError::local_version_not_support())
   }
 }

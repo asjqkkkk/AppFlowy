@@ -661,3 +661,12 @@ pub(crate) async fn get_all_views_with_permission_handler(
   let views = folder.get_all_view_pbs_with_permission().await?;
   data_result_ok(RepeatedViewPB::from(views))
 }
+
+#[tracing::instrument(level = "debug", skip(folder))]
+pub(crate) async fn get_mentionable_persons_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<GetMentionablePersonsResponsePB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let mentionable_persons = folder.get_mentionable_persons().await?;
+  data_result_ok(mentionable_persons)
+}

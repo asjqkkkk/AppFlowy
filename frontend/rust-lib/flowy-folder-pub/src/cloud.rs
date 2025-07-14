@@ -1,7 +1,7 @@
 use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::{
-  PublishInfo,
+  MentionablePersons, PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
@@ -119,6 +119,12 @@ pub trait FolderCloudService: Send + Sync + 'static {
 
   /// Get the shared views of a workspace
   async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError>;
+
+  /// Get the mentionable persons in a workspace
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError>;
 }
 
 #[derive(Debug)]

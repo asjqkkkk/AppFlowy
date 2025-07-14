@@ -4,6 +4,7 @@ use client_api::entity::{
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
+use flowy_server_pub::MentionablePersons;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
@@ -316,6 +317,18 @@ where
     let try_get_client = self.inner.try_get_client();
     let resp = try_get_client?
       .get_shared_views(workspace_id)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(resp)
+  }
+
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_workspace_mentionable_persons(workspace_id)
       .await
       .map_err(FlowyError::from)?;
     Ok(resp)

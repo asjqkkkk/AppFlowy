@@ -2267,6 +2267,7 @@
       "emailInputError": "Please enter a valid email address.",
       "inviteEmailSent": "The invitation emails have been sent.",
       "you": "You",
+      "anonym": "anonym",
       "personItemTooltip": "{} will be notified after enabling notifications.",
       "deletedAccount": "Deleted Account",
       "type": "Type",
