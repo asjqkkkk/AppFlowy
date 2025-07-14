@@ -1007,6 +1007,7 @@
         },
         "addons": {
           "title": "Workspace Add-ons",
+          "tooltip": "Workspace add-ons are tied to the single workspace you purchased them from",
           "addLabel": "Add",
           "activeLabel": "Added",
           "aiMax": {
@@ -1031,6 +1032,7 @@
         },
         "accountAddons": {
           "title": "Account Add-ons",
+          "tooltip": "Account add-ons are linked to your AppFlowy account. No matter which workspace you purchase it from, you can create unlimited Vaults under the same cloud account",
           "addLabel": "Add",
           "activeLabel": "Added"
         },

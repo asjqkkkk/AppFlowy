@@ -88,6 +88,7 @@ class ChatFile extends Equatable {
         fileType = ChatFileTypePB.Txt;
         break;
       case '.md':
+      case '.markdown':
         fileType = ChatFileTypePB.Markdown;
         break;
       default:

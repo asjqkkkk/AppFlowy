@@ -11,6 +11,7 @@ class FlowyTooltip extends StatelessWidget {
     this.margin,
     this.verticalOffset,
     this.padding,
+    this.maxWidth = 600,
     this.child,
   });
 
@@ -21,11 +22,27 @@ class FlowyTooltip extends StatelessWidget {
   final Widget? child;
   final double? verticalOffset;
   final EdgeInsets? padding;
+  final double maxWidth;
 
   @override
   Widget build(BuildContext context) {
     if (message == null && richMessage == null) {
       return child ?? const SizedBox.shrink();
+    }
+
+    // If maxWidth is specified and we have a text message, use richMessage to apply constraints
+    InlineSpan? effectiveRichMessage = richMessage;
+    if (message != null && richMessage == null) {
+      effectiveRichMessage = WidgetSpan(
+        child: Container(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: Text(
+            message!,
+            style: context.tooltipTextStyle(),
+            softWrap: true,
+          ),
+        ),
+      );
     }
 
     return Tooltip(
@@ -41,9 +58,8 @@ class FlowyTooltip extends StatelessWidget {
         borderRadius: BorderRadius.circular(10.0),
       ),
       waitDuration: _tooltipWaitDuration,
-      message: message,
-      textStyle: message != null ? context.tooltipTextStyle() : null,
-      richMessage: richMessage,
+      message: richMessage == null ? null : message,
+      richMessage: effectiveRichMessage ?? richMessage,
       preferBelow: preferBelow,
       child: child,
     );

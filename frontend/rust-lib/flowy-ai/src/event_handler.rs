@@ -219,7 +219,7 @@ pub(crate) async fn chat_file_handler(
   let data = data.try_into_inner()?;
   let file_path = PathBuf::from(&data.file_path);
 
-  let allowed_extensions = ["pdf", "md", "txt"];
+  let allowed_extensions = ["pdf", "md", "markdown", "txt"];
   let extension = file_path
     .extension()
     .and_then(|ext| ext.to_str())
@@ -233,7 +233,7 @@ pub(crate) async fn chat_file_handler(
   if !allowed_extensions.contains(&extension) {
     return Err(FlowyError::new(
       ErrorCode::UnsupportedFileFormat,
-      "Only support pdf,md and txt",
+      "Only support pdf, md, markdown and txt",
     ));
   }
   let file_size = fs::metadata(&file_path)
