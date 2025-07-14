@@ -84,6 +84,11 @@ sealed class UserWorkspaceEvent {
     required UserWorkspacePB workspace,
   }) =>
       WorkspaceEventEmitCurrentWorkspace(workspace: workspace);
+
+  factory UserWorkspaceEvent.subscribePersonalPlan({
+    required PersonalPlanPB plan,
+  }) =>
+      WorkspaceEventSubscribePersonalPlan(plan: plan);
 }
 
 /// Initializes the workspace bloc.
@@ -206,4 +211,12 @@ class WorkspaceEventEmitCurrentWorkspace extends UserWorkspaceEvent {
   });
 
   final UserWorkspacePB workspace;
+}
+
+class WorkspaceEventSubscribePersonalPlan extends UserWorkspaceEvent {
+  WorkspaceEventSubscribePersonalPlan({
+    required this.plan,
+  });
+
+  final PersonalPlanPB plan;
 }

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/workspace/data/repositories/workspace_repository.dart';
 import 'package:appflowy/features/workspace/logic/workspace_event.dart';
 import 'package:appflowy/features/workspace/logic/workspace_state.dart';
@@ -8,6 +9,7 @@ import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy/user/application/user_listener.dart';
+import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
@@ -40,6 +42,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     required this.userProfile,
     this.initialWorkspaceId,
   })  : _listener = UserListener(userProfile: userProfile),
+        _userService = UserBackendService(userId: userProfile.id),
         super(UserWorkspaceState.initial(userProfile)) {
     on<WorkspaceEventInitialize>(_onInitialize);
     on<WorkspaceEventFetchWorkspaces>(_onFetchWorkspaces);
@@ -58,12 +61,14 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     on<WorkspaceEventEmitWorkspaces>(_onEmitWorkspaces);
     on<WorkspaceEventEmitUserProfile>(_onEmitUserProfile);
     on<WorkspaceEventEmitCurrentWorkspace>(_onEmitCurrentWorkspace);
+    on<WorkspaceEventSubscribePersonalPlan>(_onSubscribePersonalPlan);
   }
 
   final String? initialWorkspaceId;
   final WorkspaceRepository repository;
   final UserProfilePB userProfile;
   final UserListener _listener;
+  final UserBackendService _userService;
 
   @override
   Future<void> close() {
@@ -553,6 +558,17 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
           }
         }
       },
+    );
+  }
+
+  Future<void> _onSubscribePersonalPlan(
+    WorkspaceEventSubscribePersonalPlan event,
+    Emitter<UserWorkspaceState> emit,
+  ) async {
+    final result = await _userService.createPersonalSubscription(event.plan);
+    result.fold(
+      (link) => afLaunchUrlString(link.paymentLink),
+      (error) => Log.error(error.msg, error),
     );
   }
 

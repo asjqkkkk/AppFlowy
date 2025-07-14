@@ -50,7 +50,7 @@
                 // base_url: "$baseUrl:8000",
                 // set the gateway url:
                 // base_url: "$baseUrl:8100",
-                //"APPFLOWY_CLOUD_BASE_BILLING_URL": "http://localhost:4242",
+                // "APPFLOWY_CLOUD_BASE_BILLING_URL": "http://localhost:4242",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },

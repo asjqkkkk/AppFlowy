@@ -35,6 +35,14 @@ Future<void> showCreateWorkspaceDialog(BuildContext context) {
     builder: (_) {
       return CreateWorkspaceDialog(
         userName: userName,
+        onSubscribeVaultWorkspace: () {
+          // open checkout link
+          bloc.add(
+            UserWorkspaceEvent.subscribePersonalPlan(
+              plan: PersonalPlanPB.VaultWorkspace,
+            ),
+          );
+        },
         createWorkspaceCallback: (workspaceName, workspaceIcon, workspaceType) {
           bloc.add(
             UserWorkspaceEvent.createWorkspace(
@@ -56,10 +64,12 @@ class CreateWorkspaceDialog extends StatefulWidget {
     super.key,
     required this.userName,
     required this.createWorkspaceCallback,
+    required this.onSubscribeVaultWorkspace,
   });
 
   final String userName;
   final CreateWorkspaceCallback? createWorkspaceCallback;
+  final VoidCallback onSubscribeVaultWorkspace;
 
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -164,6 +174,7 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
                     ),
                     _WorkspaceType(
                       workspaceType: workspaceType,
+                      onTapWhenDisabled: widget.onSubscribeVaultWorkspace,
                       onChanged: (newType) {
                         setState(() => workspaceType = newType);
                       },
@@ -321,10 +332,12 @@ class _WorkspaceType extends StatelessWidget {
   const _WorkspaceType({
     required this.workspaceType,
     required this.onChanged,
+    required this.onTapWhenDisabled,
   });
 
   final WorkspaceType workspaceType;
   final void Function(WorkspaceType) onChanged;
+  final VoidCallback onTapWhenDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -391,12 +404,19 @@ class _WorkspaceType extends StatelessWidget {
 
                   return _WorkspaceTypeCard(
                     workspaceType: WorkspaceType.vault,
-                    isDisabled: isVaultLoading || isVaultDisabled,
+                    isDisabled: false,
                     isLoading: isVaultLoading,
                     isSelected: workspaceType == WorkspaceType.vault,
-                    onTap: () => onChanged(WorkspaceType.vault),
+                    onTap: () {
+                      if (isVaultDisabled) {
+                        onTapWhenDisabled();
+                      } else {
+                        onChanged(WorkspaceType.vault);
+                      }
+                    },
                     tooltipMessage: !isVaultLoading && isVaultDisabled
-                        ? LocaleKeys.workspace_createVaultWorkspaceDisabled.tr()
+                        ? LocaleKeys.workspace_clickToSubscribeVaultWorkspace
+                            .tr()
                         : null,
                   );
                 },
