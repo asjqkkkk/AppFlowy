@@ -306,6 +306,7 @@ class _WorkspaceMenuItemIcon extends StatelessWidget {
               UserWorkspaceEvent.updateWorkspaceIcon(
                 workspaceId: workspace.workspaceId,
                 icon: result.emoji,
+                workspaceType: workspace.workspaceType,
               ),
             ),
       ),
@@ -427,6 +428,7 @@ class _WorkspaceMenuItemTrailing extends StatelessWidget {
             context.read<UserWorkspaceBloc>().add(
                   UserWorkspaceEvent.renameWorkspace(
                     workspaceId: workspace.workspaceId,
+                    workspaceType: workspace.workspaceType,
                     name: name,
                   ),
                 );
@@ -448,6 +450,7 @@ class _WorkspaceMenuItemTrailing extends StatelessWidget {
         context.read<UserWorkspaceBloc>().add(
               UserWorkspaceEvent.deleteWorkspace(
                 workspaceId: workspace.workspaceId,
+                workspaceType: workspace.workspaceType,
               ),
             );
         context.popToHome();

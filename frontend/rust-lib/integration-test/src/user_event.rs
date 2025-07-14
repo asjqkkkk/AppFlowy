@@ -345,6 +345,7 @@ impl EventIntegrationTest {
     let payload = RenameWorkspacePB {
       workspace_id: workspace_id.to_owned(),
       new_name: new_name.to_owned(),
+      workspace_type: WorkspaceTypePB::ServerW,
     };
     match EventBuilder::new(self.clone())
       .event(UserEvent::RenameWorkspace)
@@ -366,6 +367,7 @@ impl EventIntegrationTest {
     let payload = ChangeWorkspaceIconPB {
       workspace_id: workspace_id.to_owned(),
       new_icon: new_icon.to_owned(),
+      workspace_type: WorkspaceTypePB::ServerW,
     };
     match EventBuilder::new(self.clone())
       .event(UserEvent::ChangeWorkspaceIcon)

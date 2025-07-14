@@ -222,6 +222,7 @@ class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
               UserWorkspaceEvent.updateWorkspaceIcon(
                 workspaceId: widget.workspace.workspaceId,
                 icon: result.emoji,
+                workspaceType: widget.workspace.workspaceType,
               ),
             ),
       ),

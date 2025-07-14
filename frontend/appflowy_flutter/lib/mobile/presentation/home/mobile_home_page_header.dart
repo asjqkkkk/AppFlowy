@@ -135,6 +135,7 @@ class _MobileWorkspace extends StatelessWidget {
                       UserWorkspaceEvent.updateWorkspaceIcon(
                         workspaceId: currentWorkspace.workspaceId,
                         icon: result.emoji,
+                        workspaceType: currentWorkspace.workspaceType,
                       ),
                     ),
               ),

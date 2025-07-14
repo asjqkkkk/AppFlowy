@@ -233,8 +233,18 @@ impl UserServerProvider for ServerProvider {
 
   /// Returns the [UserWorkspaceService] base on the current [AuthProvider].
   /// Creates a new [AppFlowyServer] if it doesn't exist.
-  fn workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
+  fn current_workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
     let workspace_type = self.get_current_workspace_type()?;
+    let service = self
+      .get_server_from_workspace_type(workspace_type)?
+      .user_service();
+    Ok(service)
+  }
+
+  fn workspace_service(
+    &self,
+    workspace_type: WorkspaceType,
+  ) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
     let service = self
       .get_server_from_workspace_type(workspace_type)?
       .user_service();

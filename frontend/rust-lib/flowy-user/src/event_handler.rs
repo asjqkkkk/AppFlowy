@@ -614,13 +614,15 @@ pub async fn create_workspace_handler(
 
 #[tracing::instrument(level = "debug", skip_all, err)]
 pub async fn delete_workspace_handler(
-  delete_workspace_param: AFPluginData<UserWorkspaceIdPB>,
+  delete_workspace_param: AFPluginData<DeleteWorkspaceIdPB>,
   manager: AFPluginState<Weak<UserManager>>,
 ) -> Result<(), FlowyError> {
-  let workspace_id = delete_workspace_param.try_into_inner()?.workspace_id;
+  let params = delete_workspace_param.try_into_inner()?;
   let manager = upgrade_manager(manager)?;
-  let workspace_id = Uuid::from_str(&workspace_id)?;
-  manager.delete_workspace(&workspace_id).await?;
+  let workspace_id = Uuid::from_str(&params.workspace_id)?;
+  manager
+    .delete_workspace(&workspace_id, params.workspace_type.into())
+    .await?;
   Ok(())
 }
 
@@ -639,7 +641,9 @@ pub async fn rename_workspace_handler(
     role: None,
     member_count: None,
   };
-  manager.patch_workspace(&workspace_id, changeset).await?;
+  manager
+    .patch_workspace(&workspace_id, changeset, params.workspace_type.into())
+    .await?;
   Ok(())
 }
 
@@ -658,7 +662,9 @@ pub async fn change_workspace_icon_handler(
     role: None,
     member_count: None,
   };
-  manager.patch_workspace(&workspace_id, changeset).await?;
+  manager
+    .patch_workspace(&workspace_id, changeset, params.workspace_type.into())
+    .await?;
   Ok(())
 }
 

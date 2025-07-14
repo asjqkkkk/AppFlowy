@@ -196,6 +196,16 @@ pub struct UserWorkspaceIdPB {
 }
 
 #[derive(ProtoBuf, Default, Clone, Validate)]
+pub struct DeleteWorkspaceIdPB {
+  #[pb(index = 1)]
+  #[validate(custom(function = "required_not_empty_str"))]
+  pub workspace_id: String,
+
+  #[pb(index = 2)]
+  pub workspace_type: WorkspaceTypePB,
+}
+
+#[derive(ProtoBuf, Default, Clone, Validate)]
 pub struct OpenUserWorkspacePB {
   #[pb(index = 1)]
   #[validate(custom(function = "required_not_empty_str"))]
@@ -305,6 +315,9 @@ pub struct RenameWorkspacePB {
   #[pb(index = 2)]
   #[validate(custom(function = "required_not_empty_str"))]
   pub new_name: String,
+
+  #[pb(index = 3)]
+  pub workspace_type: WorkspaceTypePB,
 }
 
 #[derive(ProtoBuf, Default, Clone, Validate)]
@@ -315,6 +328,9 @@ pub struct ChangeWorkspaceIconPB {
 
   #[pb(index = 2)]
   pub new_icon: String,
+
+  #[pb(index = 3)]
+  pub workspace_type: WorkspaceTypePB,
 }
 
 #[derive(Debug, ProtoBuf, Default, Clone)]

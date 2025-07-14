@@ -68,6 +68,7 @@ class SettingsWorkspaceView extends StatelessWidget {
             context.read<UserWorkspaceBloc>().add(
                   UserWorkspaceEvent.deleteWorkspace(
                     workspaceId: state.workspace!.workspaceId,
+                    workspaceType: state.workspace!.workspaceType,
                   ),
                 );
             Navigator.of(context).pop();
