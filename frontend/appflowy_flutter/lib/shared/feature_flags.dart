@@ -37,11 +37,6 @@ enum FeatureFlag {
   // used for the inline sub-page mention
   inlineSubPageMention,
 
-  // enable the create vault workspace feature
-  //
-  // this value should be false in the production environment
-  createVaultWorkspace,
-
   // used for the shared section
   sharedSection,
 
@@ -109,7 +104,6 @@ enum FeatureFlag {
       // release this feature in version 0.5.4
       FeatureFlag.syncDocument,
       FeatureFlag.inlineSubPageMention,
-      FeatureFlag.createVaultWorkspace,
       // release this feature in version 0.9.4
       FeatureFlag.sharedSection,
     ].contains(this)) {
@@ -129,7 +123,6 @@ enum FeatureFlag {
       case FeatureFlag.collaborativeWorkspace:
       case FeatureFlag.membersSettings:
         return true;
-      case FeatureFlag.createVaultWorkspace:
       case FeatureFlag.sharedSection:
       case FeatureFlag.unknown:
         return false;
@@ -152,8 +145,6 @@ enum FeatureFlag {
         return 'if it\'s on, the space design feature will be available';
       case FeatureFlag.inlineSubPageMention:
         return 'if it\'s on, the inline sub-page mention feature will be available';
-      case FeatureFlag.createVaultWorkspace:
-        return 'if it\'s on, the create vault workspace feature will be available';
       case FeatureFlag.sharedSection:
         return 'if it\'s on, the shared section will be available';
       case FeatureFlag.unknown:
