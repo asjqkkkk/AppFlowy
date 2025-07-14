@@ -90,7 +90,7 @@ impl PdfReader {
 
         // Extract text from current page if enabled
         if config.extract_text {
-          yield Ok(EmbedFileProgress::ReadingFileDetails{
+          yield Ok(EmbedFileProgress::Other{
             details: format!("Extracting text from page {}", page_num),
           });
           if let Err(e) = extract_text_single_page(&doc, page_num, &mut content) {

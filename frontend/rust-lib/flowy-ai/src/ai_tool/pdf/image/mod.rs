@@ -3,18 +3,20 @@ pub mod formats;
 use flowy_error::{FlowyError, FlowyResult};
 use futures::Stream;
 use futures::future::join_all;
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::stream::StreamExt;
 use lopdf::{Document, Object};
 use ollama_rs::Ollama;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
+use tokio::sync::mpsc;
 use tracing::debug;
 
 use self::formats::ImageFormatRegistry;
 use crate::ai_tool::pdf::llm::{ImageAnalysisConfig, extract_text_from_image};
 use crate::ai_tool::pdf::types::{PdfConfig, PdfContent};
 use crate::local_ai::chat::retriever::EmbedFileProgress;
+use crate::local_ai::util::is_model_support_vision;
 
 /// Extracts and processes images from a single page of a PDF document
 pub fn extract_images_single_page(
@@ -31,8 +33,14 @@ pub fn extract_images_single_page(
     let format_registry = Arc::new(ImageFormatRegistry::new());
     let analysis_config = Arc::new(ImageAnalysisConfig::new(config.image_model.clone()));
     let image_semaphore = Arc::new(Semaphore::new(config.max_concurrent_images));
+    let vision_enabled = match ollama.show_model_info(config.image_model.to_string()).await {
+      Ok(model_info) => is_model_support_vision(&model_info),
+      Err(_) => {
+        false
+      }
+    };
 
-    // Get the page ID for this page number
+       // Get the page ID for this page number
     let pages = doc.get_pages();
     let pid = match pages.get(&page) {
       Some(pid) => *pid,
@@ -43,11 +51,9 @@ pub fn extract_images_single_page(
     };
 
     // Emit start processing for this page
-    yield Ok(EmbedFileProgress::ReadingFileDetails {
+    yield Ok(EmbedFileProgress::Other {
       details: format!("Extracting images from page {}", page),
     });
-
-    debug!("Processing images from page {}", page);
 
     // Get page dictionary
     let page_dict = match doc.get_dictionary(pid) {
@@ -83,14 +89,21 @@ pub fn extract_images_single_page(
       },
     };
 
-    // Collect all image processing tasks
-    let mut image_futures = Vec::new();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let mut image_tasks = Vec::new();
     let mut image_count = 0;
 
     for (name, xobj) in xobjects.iter() {
       if let Object::Reference(oid) = xobj {
         if let Ok(Object::Stream(stream)) = doc.get_object(*oid) {
           if is_image_stream(stream) {
+            if !vision_enabled {
+              yield Ok(EmbedFileProgress::ModelNotSupported {
+                message: format!("{} doesn't support vision, skip process image", config.image_model),
+              });
+              return;
+            }
+
             image_count += 1;
             debug!(
               "Found image #{} on page {} (XObject: {:?})",
@@ -106,24 +119,40 @@ pub fn extract_images_single_page(
             let analysis_config_clone = analysis_config.clone();
             let semaphore_clone = image_semaphore.clone();
             let image_idx = image_count;
+            let tx_clone = tx.clone();
 
-            let future = async move {
+            let task = tokio::spawn(async move {
               // Acquire image processing permit
-              let _permit = semaphore_clone.acquire().await.unwrap();
+              let _permit = match semaphore_clone.acquire().await {
+                Ok(permit) => permit,
+                Err(e) => {
+                  debug!("Failed to acquire semaphore permit for image {}: {}", image_idx, e);
+                  let _ = tx_clone.send((image_idx, Err(FlowyError::internal().with_context(
+                    format!("Failed to acquire semaphore: {}", e)
+                  ))));
+                  return;
+                }
+              };
 
-              let result = process_single_image(
+              // Create the stream from process_single_image
+              let mut stream = process_single_image(
                 stream_clone,
                 page_num,
                 ollama_clone,
                 format_registry_clone,
                 analysis_config_clone,
-              )
-              .await;
+                vision_enabled,
+              );
 
-              (image_idx, result)
-            };
+              // Forward events immediately through the channel
+              while let Some(event) = stream.next().await {
+                if tx_clone.send((image_idx, event)).is_err() {
+                  break;
+                }
+              }
+            });
 
-            image_futures.push(future);
+            image_tasks.push(task);
           }
         }
       }
@@ -138,48 +167,50 @@ pub fn extract_images_single_page(
     }
 
     debug!("Page {}: Found {} images, processing them", page, image_count);
+    drop(tx);
 
-    // Process images concurrently but yield progress as they complete
+    // Process images concurrently and yield events immediately
     let mut all_content = Vec::new();
     let mut errors = Vec::new();
+    let mut processed_images = std::collections::HashSet::new();
 
-    // Convert futures to a stream that yields as each completes
-    let mut futures_unordered = FuturesUnordered::new();
+    // Receive and yield events as they arrive
+    while let Some((image_idx, event)) = rx.recv().await {
+      match &event {
+        Ok(EmbedFileProgress::Completed { content }) => {
+          all_content.push(format!("[Page {} Image {}]: {}", page, image_idx, content));
+          processed_images.insert(image_idx);
 
-    for future in image_futures {
-      futures_unordered.push(future);
-    }
+          // Yield completion event
+          yield event;
 
-    let mut processed_count = 0;
-    while let Some((image_idx, result)) = futures_unordered.next().await {
-      processed_count += 1;
-
-      match result {
-        Some((_page_num, text)) => {
-          // Yield progress for this specific image
-          yield Ok(EmbedFileProgress::ReadingFileDetails {
-            details: format!("Extracted image {} of {} from page {}", processed_count, image_count, page),
+          // Yield progress update
+          yield Ok(EmbedFileProgress::Other {
+            details: format!("Completed image {} of {} from page {}", processed_images.len(), image_count, page),
           });
 
-          all_content.push(format!("[Page {} Image {}]: {}", page, image_idx, text));
+          let progress = processed_images.len() as f32 / image_count as f32;
+          yield Ok(EmbedFileProgress::ReadingFile {
+            progress,
+            current_page: Some(page as usize),
+            total_pages: None,
+          });
         },
-        None => {
-          // Image processing failed internally, error already logged
-          let error_msg = format!("Failed to process image {} on page {}", image_idx, page);
-          errors.push(error_msg.clone());
-          yield Ok(EmbedFileProgress::Error {
-            message: error_msg,
-          });
+        Ok(EmbedFileProgress::Error { message }) => {
+          errors.push(message.clone());
+          processed_images.insert(image_idx);
+          yield event;
+        },
+        _ => {
+          // Forward other progress events immediately
+          yield event;
         },
       }
+    }
 
-      // Yield reading progress
-      let progress = processed_count as f32 / image_count as f32;
-      yield Ok(EmbedFileProgress::ReadingFile {
-        progress,
-        current_page: Some(page as usize),
-        total_pages: None,
-      });
+    // Wait for all tasks to complete
+    for task in image_tasks {
+      let _ = task.await;
     }
 
     debug!(
@@ -211,6 +242,12 @@ pub async fn extract_images(
 ) -> FlowyResult<()> {
   let format_registry = Arc::new(ImageFormatRegistry::new());
   let analysis_config = Arc::new(ImageAnalysisConfig::new(config.image_model.clone()));
+
+  // Check vision support once at the beginning
+  let vision_enabled = match ollama.show_model_info(config.image_model.to_string()).await {
+    Ok(model_info) => is_model_support_vision(&model_info),
+    Err(_) => false,
+  };
 
   // Create semaphore for image concurrency control
   let image_semaphore = Arc::new(Semaphore::new(config.max_concurrent_images));
@@ -262,6 +299,7 @@ pub async fn extract_images(
           &format_registry_clone,
           &analysis_config_clone,
           &image_semaphore_clone,
+          vision_enabled,
         )
         .await;
 
@@ -310,7 +348,7 @@ struct PageProcessResult {
   errors: Vec<String>,
 }
 
-/// Processes images from a single page
+#[allow(clippy::too_many_arguments)]
 async fn process_page_images(
   doc: &Document,
   page: u32,
@@ -319,6 +357,7 @@ async fn process_page_images(
   format_registry: &Arc<ImageFormatRegistry>,
   analysis_config: &Arc<ImageAnalysisConfig>,
   image_semaphore: &Arc<Semaphore>,
+  vision_enabled: bool,
 ) -> FlowyResult<PageProcessResult> {
   let mut result = PageProcessResult {
     text: Vec::new(),
@@ -369,17 +408,42 @@ async fn process_page_images(
           let semaphore_clone = image_semaphore.clone();
 
           let task = tokio::spawn(async move {
-            // Acquire image processing permit
-            let _permit = semaphore_clone.acquire().await.unwrap();
+            let _permit = match semaphore_clone.acquire().await {
+              Ok(permit) => permit,
+              Err(e) => {
+                debug!(
+                  "Failed to acquire semaphore permit for image processing: {}",
+                  e
+                );
+                return None;
+              },
+            };
 
-            process_single_image(
+            // Create the stream from process_single_image
+            let mut stream = process_single_image(
               stream_clone,
               page_num,
               ollama_clone,
               format_registry_clone,
               analysis_config_clone,
-            )
-            .await
+              vision_enabled,
+            );
+
+            // Collect all events from the stream to get the final content
+            let mut final_content = None;
+
+            while let Some(event) = stream.next().await {
+              match event {
+                Ok(EmbedFileProgress::Completed { content }) => {
+                  final_content = Some((page_num, content));
+                },
+                _ => {
+                  // Other events are not needed here
+                },
+              }
+            }
+
+            final_content
           });
 
           image_tasks.push(task);
@@ -435,48 +499,68 @@ fn is_image_stream(stream: &lopdf::Stream) -> bool {
 }
 
 /// Processes a single image stream
-async fn process_single_image(
+fn process_single_image(
   stream: lopdf::Stream,
   page: u32,
   ollama: Ollama,
   format_registry: Arc<ImageFormatRegistry>,
   analysis_config: Arc<ImageAnalysisConfig>,
-) -> Option<(u32, String)> {
-  debug!("Processing image on page {}", page);
+  vision_enabled: bool,
+) -> Pin<Box<dyn Stream<Item = FlowyResult<EmbedFileProgress>> + Send>> {
+  let stream_clone = stream.clone();
+  let stream = async_stream::stream! {
+  if vision_enabled {
+      // Yield progress for image extraction
+      yield Ok(EmbedFileProgress::Other {
+        details: format!("Extracting image data from page {}", page),
+      });
 
-  let result = tokio::task::spawn_blocking(move || format_registry.process_image(&stream)).await;
-  match result {
-    Ok(Ok(jpeg_bytes)) => {
-      debug!(
-        "Successfully extracted image on page {} (size: {} bytes)",
-        page,
-        jpeg_bytes.len()
-      );
-
-      // Analyze the image with AI
-      match extract_text_from_image(&ollama, jpeg_bytes, &analysis_config).await {
-        Ok(description) => {
+      let result =
+        tokio::task::spawn_blocking(move || format_registry.process_image(&stream_clone)).await;
+      match result {
+        Ok(Ok(jpeg_bytes)) => {
           debug!(
-            "Successfully analyzed image on page:{}, content:{}",
-            page, description
+            "Successfully extracted image on page {} (size: {} bytes)",
+            page,
+            jpeg_bytes.len()
           );
-          Some((page, description))
+
+          // Yield progress for AI analysis
+          yield Ok(EmbedFileProgress::Other {
+            details: format!("Analyzing image on page {} with AI model", page),
+          });
+
+          // Analyze the image with AI
+          match extract_text_from_image(&ollama, jpeg_bytes, &analysis_config).await {
+            Ok(description) => {
+              // Yield completed with the description
+              yield Ok(EmbedFileProgress::Completed {
+                content: description,
+              });
+            },
+            Err(e) => {
+              debug!("Failed to analyze image on page {}: {}", page, e);
+              yield Ok(EmbedFileProgress::Error {
+                message: format!("Failed to analyze image on page {}: {}", page, e),
+              });
+            },
+          }
+        },
+        Ok(Err(e)) => {
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Failed to extract image on page {}: {}", page, e),
+          });
         },
         Err(e) => {
-          debug!("Failed to analyze image on page {}: {}", page, e);
-          None
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Failed to process image on page {}: {}", page, e),
+          });
         },
       }
-    },
-    Ok(Err(e)) => {
-      debug!("Failed to extract image on page {}: {}", page, e);
-      None
-    },
-    Err(e) => {
-      debug!("Failed to process image on page {}: {}", page, e);
-      None
-    },
-  }
+    }
+  };
+
+  Box::pin(stream)
 }
 
 #[cfg(test)]

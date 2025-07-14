@@ -11,7 +11,7 @@ async fn local_ai_test_create_chat_with_selected_sources() {
   test.toggle_local_ai().await;
 
   let local_workspace = test
-    .create_workspace("my workspace", WorkspaceType::Local)
+    .create_workspace("my workspace", WorkspaceType::Vault)
     .await;
 
   // create a chat document

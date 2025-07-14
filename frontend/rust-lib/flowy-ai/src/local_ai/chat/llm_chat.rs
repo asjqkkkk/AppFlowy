@@ -140,8 +140,12 @@ impl LLMChat {
     }
   }
 
-  pub async fn get_related_question(&self, user_message: String) -> FlowyResult<Vec<String>> {
-    self.chain.get_related_questions(&user_message).await
+  pub async fn get_related_question(
+    &self,
+    question: &str,
+    answer: &str,
+  ) -> FlowyResult<Vec<String>> {
+    self.chain.get_related_questions(question, answer).await
   }
 
   pub fn set_chat_model(&mut self, model: &str) {

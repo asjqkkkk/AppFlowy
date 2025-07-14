@@ -409,7 +409,7 @@ class _WorkspaceType extends StatelessWidget {
 
                         return _WorkspaceTypeCard(
                           workspaceType: WorkspaceType.vault,
-                          isDisabled: false,
+                          isDisabled: isVaultDisabled,
                           isLoading: isVaultLoading,
                           isSelected: workspaceType == WorkspaceType.vault,
                           onTap: () {
@@ -465,12 +465,10 @@ class _WorkspaceTypeCard extends StatelessWidget {
       preferBelow: false,
       child: GestureDetector(
         onTap: () {
-          if (!isDisabled) {
-            onTap();
-          }
+          onTap();
         },
         child: MouseRegion(
-          cursor: isDisabled ? MouseCursor.defer : SystemMouseCursors.click,
+          cursor: SystemMouseCursors.click,
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: theme.spacing.xl,
@@ -533,7 +531,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
                               ? theme.textColorScheme.tertiary
                               : theme.textColorScheme.secondary,
                         ),
-                        maxLines: 2,
+                        maxLines: 5,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],

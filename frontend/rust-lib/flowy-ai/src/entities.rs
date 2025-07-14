@@ -233,6 +233,15 @@ pub struct AIModelPB {
   pub desc: String,
 }
 
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct LocalAIModelInfoPB {
+  #[pb(index = 1)]
+  pub name: String,
+
+  #[pb(index = 3)]
+  pub vision: bool,
+}
+
 impl From<AIModel> for AIModelPB {
   fn from(model: AIModel) -> Self {
     Self {
@@ -585,6 +594,9 @@ pub struct LocalAIStatePB {
 
   #[pb(index = 5)]
   pub is_ready: bool,
+
+  #[pb(index = 6)]
+  pub vision_enabled: bool,
 }
 
 #[derive(Default, ProtoBuf, Validate, Clone, Debug)]

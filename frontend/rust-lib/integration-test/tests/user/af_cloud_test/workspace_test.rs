@@ -31,7 +31,9 @@ async fn af_cloud_workspace_delete() {
   let workspaces = get_synced_workspaces(&test, user_profile_pb.id).await;
   assert_eq!(workspaces.len(), 2);
 
-  test.delete_workspace(&created_workspace.workspace_id).await;
+  test
+    .delete_workspace(&created_workspace.workspace_id, WorkspaceType::Cloud)
+    .await;
   let workspaces = get_synced_workspaces(&test, user_profile_pb.id).await;
   assert_eq!(workspaces.len(), 1);
 

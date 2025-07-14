@@ -1,8 +1,8 @@
 use crate::chat::Chat;
 use crate::entities::{
   AIModelPB, ChatInfoPB, ChatMessageListPB, ChatMessagePB, ChatSettingsPB,
-  CustomPromptDatabaseConfigurationPB, FilePB, ModelSelectionPB, PredefinedFormatPB,
-  RepeatedRelatedQuestionPB, StreamMessageParams,
+  CustomPromptDatabaseConfigurationPB, FilePB, LocalAIModelInfoPB, LocalAIStatePB,
+  ModelSelectionPB, PredefinedFormatPB, RepeatedRelatedQuestionPB, StreamMessageParams,
 };
 use crate::local_ai::controller::{LocalAIController, LocalAISetting};
 use crate::middleware::chat_service_mw::ChatServiceMiddleware;
@@ -119,7 +119,7 @@ impl AIManager {
           let local_ai_controller = self.local_ai_controller.clone();
           tokio::spawn(async move {
             if local_ai_controller.is_toggle_on_workspace(&workspace_id) {
-              let _ = local_ai_controller.refresh_local_ai_state(true).await;
+              let _ = local_ai_controller.refresh_local_ai_state(true, None).await;
             }
           });
         }
@@ -148,13 +148,15 @@ impl AIManager {
       workspace_id, is_enabled, is_ready
     );
 
+    let model = self.get_global_active_model().await.unwrap_or_default();
+
     // Shutdown AI if it's running but shouldn't be (not enabled and not in local mode)
     if is_ready && !is_enabled {
       info!("[AI Manager] Local AI is running but not enabled, shutting it down");
       let local_ai = self.local_ai_controller.clone();
       tokio::spawn(async move {
         if let Err(err) = local_ai
-          .toggle_plugin(is_toggle_on, is_enabled, &result)
+          .toggle_plugin(is_toggle_on, is_enabled, &result, &model)
           .await
         {
           error!("[AI Manager] failed to shutdown local AI: {:?}", err);
@@ -169,7 +171,7 @@ impl AIManager {
       let local_ai = self.local_ai_controller.clone();
       tokio::spawn(async move {
         if let Err(err) = local_ai
-          .toggle_plugin(is_toggle_on, is_enabled, &result)
+          .toggle_plugin(is_toggle_on, is_enabled, &result, &model)
           .await
         {
           error!("[AI Manager] failed to start local AI: {:?}", err);
@@ -279,6 +281,33 @@ impl AIManager {
     }
   }
 
+  pub async fn get_local_model_info(&self, model_name: &str) -> FlowyResult<LocalAIModelInfoPB> {
+    let info = self
+      .local_ai_controller
+      .get_local_model_info(model_name)
+      .await?;
+    dbg!(&info);
+
+    Ok(LocalAIModelInfoPB {
+      name: model_name.to_string(),
+      vision: false,
+    })
+  }
+
+  pub async fn restart(&self) -> FlowyResult<()> {
+    let model = self.get_global_active_model().await?;
+    self.local_ai_controller.restart(model).await
+  }
+
+  pub async fn get_local_ai_state(&self) -> FlowyResult<LocalAIStatePB> {
+    let model = self.get_global_active_model().await?;
+    let state = self
+      .local_ai_controller
+      .refresh_local_ai_state(false, Some(model))
+      .await?;
+    Ok(state)
+  }
+
   pub async fn create_chat(
     &self,
     uid: &i64,
@@ -363,8 +392,8 @@ impl AIManager {
     self
       .update_selected_model(GLOBAL_ACTIVE_MODEL_KEY.to_string(), model)
       .await?;
-
     if need_restart {
+      let model = self.get_global_active_model().await?;
       let result = self.user_service.validate_vault().await.unwrap_or_default();
       self
         .local_ai_controller
@@ -374,7 +403,7 @@ impl AIManager {
           result.is_vault_enabled,
         )
         .await;
-      self.local_ai_controller.restart_plugin().await;
+      self.local_ai_controller.restart(model).await?;
     }
 
     Ok(())
@@ -421,7 +450,9 @@ impl AIManager {
 
   #[instrument(skip_all, level = "debug", err)]
   pub async fn toggle_local_ai(&self) -> FlowyResult<()> {
-    let enabled = self.local_ai_controller.toggle_local_ai().await?;
+    let model = self.get_global_active_model().await?;
+    let enabled = self.local_ai_controller.toggle_local_ai(&model).await?;
+
     let workspace_id = self.user_service.workspace_id()?;
     if enabled {
       self.prepare_local_ai(&workspace_id).await;
@@ -482,6 +513,13 @@ impl AIManager {
       },
       Err(_) => AIModel::default(),
     }
+  }
+
+  pub async fn get_global_active_model(&self) -> FlowyResult<AIModel> {
+    let workspace_id = self.user_service.workspace_id()?;
+    let model_control = self.model_control.lock().await;
+    let model = model_control.get_global_active_model(&workspace_id).await;
+    Ok(model)
   }
 
   #[instrument(skip_all, level = "debug", err)]

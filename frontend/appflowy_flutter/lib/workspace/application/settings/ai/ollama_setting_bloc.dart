@@ -11,7 +11,6 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'ollama_setting_bloc.freezed.dart';
 
-const kDefaultChatModel = 'gemma3:4b';
 const kDefaultEmbeddingModel = 'nomic-embed-text:latest';
 
 /// Extension methods to map between PB and UI models

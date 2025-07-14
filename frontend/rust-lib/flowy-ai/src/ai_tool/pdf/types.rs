@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-/// The AI model used for image analysis and text extraction
-/// Consider using more capable models like "llava" or "bakllava" for better OCR results
 pub const IMAGE_LLM_MODEL: &str = "gemma3:4b";
 
 /// Represents the extracted content from a PDF document

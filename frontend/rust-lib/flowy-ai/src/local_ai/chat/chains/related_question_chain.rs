@@ -8,7 +8,7 @@ use serde::Deserialize;
 use tracing::debug;
 
 const SYSTEM_PROMPT: &str = r#"
-You are the AppFlowy AI assistant. Given the conversation history, generate exactly three medium-length, relevant, and informative questions.
+Given the conversation history, generate exactly three medium-length, relevant, and informative questions.
 Respond with a single JSON object matching the schema below—and nothing else. If you can’t generate questions, return {}.
 "#;
 
@@ -29,21 +29,23 @@ impl RelatedQuestionChain {
     }
   }
 
-  pub async fn generate_related_question(&self, question: &str) -> FlowyResult<Vec<String>> {
+  pub async fn generate_related_question(
+    &self,
+    question: &str,
+    answer: &str,
+  ) -> FlowyResult<Vec<String>> {
     let messages = vec![
       Message::new_system_message(SYSTEM_PROMPT),
       Message::new_human_message(question),
+      Message::new_ai_message(answer),
     ];
 
+    debug!("Generating related questions with messages: {:?}", messages);
     let result = self.llm.generate(&messages).await.map_err(|err| {
       FlowyError::internal().with_context(format!("Error generating related questions: {}", err))
     })?;
 
     let parsed_result = serde_json::from_str::<QuestionsResponse>(&result.generation)?;
-    debug!(
-      "Generated question:{} related questions: {:?}",
-      question, parsed_result.questions
-    );
     Ok(parsed_result.questions)
   }
 }

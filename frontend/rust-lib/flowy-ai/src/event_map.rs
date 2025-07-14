@@ -57,6 +57,7 @@ pub fn init(ai_manager: Weak<AIManager>) -> AFPlugin {
       AIEvent::GetAttachedChatFiles,
       get_chat_attached_files_handler,
     )
+    .event(AIEvent::GetLocalModelInfo, get_local_model_info_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -144,4 +145,7 @@ pub enum AIEvent {
 
   #[event(input = "ChatId", output = "AttachedChatFilesPB")]
   GetAttachedChatFiles = 37,
+
+  #[event(input = "AIModelPB", output = "LocalAIModelInfoPB")]
+  GetLocalModelInfo = 38,
 }
