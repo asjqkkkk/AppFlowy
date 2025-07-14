@@ -23,7 +23,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
   final String personId;
   final String workspaceId;
   final MentionRepository repository;
-  final PersonListCache personListCache;
+  final PersonListMemoryCache personListCache;
 
   Future<void> _onInitial(
     InitialEvent event,
@@ -42,7 +42,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
 
     result.fold((t) {
       emit(state.copyWith(person: t.person, access: t.access));
-      personListCache.updatePerson(workspaceId, t.person);
+      personListCache.updatePersonWithAccess(workspaceId, t);
     }, (e) {
       emit(state.copyWith(getPersonFailedMesssage: e.msg));
       Log.error('Error fetching person: $e');

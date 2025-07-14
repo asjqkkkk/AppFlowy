@@ -20,7 +20,7 @@ class RustMentionRepository extends MentionRepository {
   }
 
   @override
-  Future<FlowyResult<List<Person>, FlowyError>> getPersons({
+  Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
     required String workspaceId,
     required String query,
   }) async {
@@ -35,6 +35,32 @@ class RustMentionRepository extends MentionRepository {
                 (p) =>
                     p.name.toLowerCase().contains(formatedQuery) ||
                     p.email.toLowerCase().contains(formatedQuery),
+              )
+              .toList(),
+        );
+      },
+      (error) {
+        return FlowyResult.failure(error);
+      },
+    );
+  }
+
+  @override
+  Future<FlowyResult<List<PersonWithAccess>, FlowyError>> getPagePersons({
+    required String workspaceId,
+    required String documentId,
+  }) async {
+    final result =
+        await ViewBackendService.getPageMentionablePersons(documentId);
+    return result.fold(
+      (r) {
+        return FlowyResult.success(
+          r.persons
+              .map(
+                (e) => PersonWithAccess(
+                  person: Person.fromProto(e.person),
+                  access: e.canAccessPage,
+                ),
               )
               .toList(),
         );

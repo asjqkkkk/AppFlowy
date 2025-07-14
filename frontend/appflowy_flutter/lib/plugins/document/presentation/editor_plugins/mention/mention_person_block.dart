@@ -25,6 +25,7 @@ class MentionPersonBlock extends StatefulWidget {
     required this.editorState,
     required this.personId,
     required this.pageId,
+    required this.blockId,
     required this.node,
     required this.textStyle,
     required this.index,
@@ -33,6 +34,7 @@ class MentionPersonBlock extends StatefulWidget {
   final EditorState editorState;
   final String personId;
   final String pageId;
+  final String? blockId;
   final Node node;
   final TextStyle? textStyle;
 
@@ -70,7 +72,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         personId: widget.personId,
         workspaceId: workspaceId,
         repository: RustMentionRepository(),
-        personListCache: getIt<PersonListCache>(),
+        personListCache: getIt<PersonListMemoryCache>(),
       )..add(PersonEvent.initial()),
       child: BlocListener<PersonBloc, PersonState>(
         listenWhen: (previous, current) =>
@@ -202,7 +204,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
               ),
             ),
             TextSpan(
-              text: LocaleKeys.document_mentionMenu_anonym.tr(),
+              text: LocaleKeys.document_mentionMenu_deleted.tr(),
               style: style,
             ),
           ],

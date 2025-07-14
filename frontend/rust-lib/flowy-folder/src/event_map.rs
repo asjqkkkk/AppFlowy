@@ -64,7 +64,8 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::GetAccessLevel, get_access_level_handler)
     .event(FolderEvent::BatchPermissionCheck, batch_permission_check_handler)
     .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
-    .event(FolderEvent::GetMentionablePersons, get_mentionable_persons_handler)
+    .event(FolderEvent::GetWorkspaceMentionablePersons, get_workspace_mentionable_persons_handler)
+    .event(FolderEvent::GetPageMentionablePersons, get_page_mentionable_persons_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -269,5 +270,8 @@ pub enum FolderEvent {
   GetAllViewsWithPermission = 65,
 
   #[event(output = "GetMentionablePersonsResponsePB")]
-  GetMentionablePersons = 66,
+  GetWorkspaceMentionablePersons = 66,
+
+  #[event(input = "ViewIdPB", output = "GetMentionablePersonsWithAccessPB")]
+  GetPageMentionablePersons = 67,
 }

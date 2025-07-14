@@ -23,6 +23,7 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     on<Initial>(_onInitial);
     on<Query>(_onQuery);
     on<GetPersons>(_onGetPersons);
+    on<GetPersonsWithAccess>(_onGetPersonsWithAccess);
     on<UpdatePersonList>(_onUpdatePersonList);
     on<ShowMorePersons>(_onShowMorePersons);
     on<ShowMorePages>(_onShowMorePages);
@@ -35,7 +36,7 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
   final String workspaceId;
   final String query;
   final bool sendNotification;
-  final PersonListCache personListCache;
+  final PersonListMemoryCache personListCache;
 
   Future<void> _onInitial(
     Initial event,
@@ -71,7 +72,7 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     if (localList.isNotEmpty && state.query.isEmpty) {
       emit(state.copyWith(persons: localList));
     }
-    final persons = (await repository.getPersons(
+    final persons = (await repository.getWorkspacePersons(
       workspaceId: event.workspaceId,
       query: state.query,
     ))
@@ -80,6 +81,26 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     add(MentionEvent.updatePersonList(persons));
     if (persons.isNotEmpty && state.query.isEmpty) {
       personListCache.updatePersonList(workspaceId, persons);
+    }
+  }
+
+  Future<void> _onGetPersonsWithAccess(
+    GetPersonsWithAccess event,
+    Emitter<MentionState> emit,
+  ) async {
+    final localList = personListCache.getPersonsWithAccess(workspaceId) ?? [];
+    if (localList.isNotEmpty && state.query.isEmpty) {
+      emit(state.copyWith(personsWithAccess: localList));
+    }
+    final persons = (await repository.getPagePersons(
+      workspaceId: event.workspaceId,
+      documentId: event.documentId,
+    ))
+        .toNullable();
+    if (persons == null) return;
+    add(MentionEvent.updatePersonListWithAccess(persons));
+    if (persons.isNotEmpty && state.query.isEmpty) {
+      personListCache.updatePersonListWithAcess(workspaceId, persons);
     }
   }
 

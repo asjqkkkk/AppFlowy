@@ -50,7 +50,7 @@ class MentionMenu extends StatelessWidget {
           workspaceId: workspaceId,
           query: query,
           sendNotification: sendNotification,
-          personListCache: getIt<PersonListCache>(),
+          personListCache: getIt<PersonListMemoryCache>(),
         )..add(MentionEvent.init()),
         child: BlocBuilder<MentionBloc, MentionState>(
           builder: (context, state) {

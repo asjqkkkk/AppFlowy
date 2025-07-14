@@ -1,7 +1,9 @@
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
-use client_api::entity::{AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType};
+use client_api::entity::{
+  AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
+};
 use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
@@ -1007,11 +1009,24 @@ pub struct GetAccessLevelResponsePB {
   #[pb(index = 1)]
   pub access_level: AFAccessLevelPB,
 }
-// TODO: convert MentionablePerson and MentionablePersons to protobuf
 #[derive(Default, ProtoBuf, Clone, Debug)]
 pub struct GetMentionablePersonsResponsePB {
   #[pb(index = 1)]
   pub persons: Vec<MentionablePersonPB>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetMentionablePersonsWithAccessPB {
+  #[pb(index = 1)]
+  pub persons: Vec<MentionablePersonWithAccessPB>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonWithAccessPB {
+  #[pb(index = 1)]
+  pub person: MentionablePersonPB,
+  #[pb(index = 2)]
+  pub can_access_page: bool,
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
@@ -1045,6 +1060,15 @@ impl From<MentionablePerson> for MentionablePersonPB {
       cover_image_url: person.cover_image_url,
       description: person.description,
       invited: person.invited,
+    }
+  }
+}
+
+impl From<MentionablePersonWithAccess> for MentionablePersonWithAccessPB {
+  fn from(person: MentionablePersonWithAccess) -> Self {
+    MentionablePersonWithAccessPB {
+      person: person.person.into(),
+      can_access_page: person.can_access_page,
     }
   }
 }

@@ -16,14 +16,14 @@ void main() {
 
   setUp(() {
     setUpGetIt();
-    GetIt.I.registerSingleton<PersonListCache>(PersonListCache());
+    GetIt.I.registerSingleton<PersonListMemoryCache>(PersonListMemoryCache());
     repository = MockMentionRepository();
     bloc = MentionBloc(
       repository: repository,
       workspaceId: workspaceId,
       sendNotification: false,
       query: '',
-      personListCache: getIt<PersonListCache>(),
+      personListCache: getIt<PersonListMemoryCache>(),
     )..add(MentionEvent.init());
   });
 

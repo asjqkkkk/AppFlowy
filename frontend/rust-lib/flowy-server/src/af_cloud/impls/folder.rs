@@ -4,10 +4,10 @@ use client_api::entity::{
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
-use flowy_server_pub::MentionablePersons;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess};
 use serde_json::to_vec;
 use std::path::PathBuf;
 use std::sync::Weak;
@@ -328,7 +328,20 @@ where
   ) -> Result<MentionablePersons, FlowyError> {
     let try_get_client = self.inner.try_get_client();
     let resp = try_get_client?
-      .get_workspace_mentionable_persons(workspace_id)
+      .list_workspace_mentionable_persons(workspace_id)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(resp)
+  }
+
+  async fn get_page_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+  ) -> Result<MentionablePersonsWithAccess, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .list_page_mentionable_persons(workspace_id, view_id)
       .await
       .map_err(FlowyError::from)?;
     Ok(resp)

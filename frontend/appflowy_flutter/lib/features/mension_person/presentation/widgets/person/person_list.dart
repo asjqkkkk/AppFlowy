@@ -171,6 +171,8 @@ extension PersonListEditorStateExtension on EditorState {
         range.start,
         range.end,
         MentionBlockKeys.mentionChar,
+
+        /// TODO: add block id here
         attributes: MentionBlockKeys.buildMentionPersonAttributes(
           personId: person.id,
           pageId: pageId,

@@ -1,11 +1,11 @@
 use crate::entities::icon::UpdateViewIconParams;
 use crate::entities::{
   AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, FolderSnapshotPB,
-  GetMentionablePersonsResponsePB, MoveNestedViewParams, RepeatedSharedUserPB,
-  RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewIdPB, RepeatedViewPB, SharedUserPB,
-  SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB,
-  WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views,
-  view_pb_without_child_views, view_pb_without_child_views_from_arc,
+  GetMentionablePersonsResponsePB, GetMentionablePersonsWithAccessPB, MoveNestedViewParams,
+  RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewIdPB,
+  RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB,
+  ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views,
+  view_pb_with_child_views, view_pb_without_child_views, view_pb_without_child_views_from_arc,
 };
 use crate::manager_observer::{
   ChildViewChangeReason, notify_child_views_changed, notify_did_update_section_views,
@@ -2976,13 +2976,34 @@ impl FolderManager {
     Ok(combined_views)
   }
 
-  pub async fn get_mentionable_persons(&self) -> FlowyResult<GetMentionablePersonsResponsePB> {
+  pub async fn get_workspace_mentionable_persons(
+    &self,
+  ) -> FlowyResult<GetMentionablePersonsResponsePB> {
     let workspace_id = self.user.workspace_id()?;
     let result = self
       .cloud_service()?
       .get_workspace_mentionable_persons(&workspace_id)
       .await?;
     Ok(GetMentionablePersonsResponsePB {
+      persons: result
+        .persons
+        .into_iter()
+        .map(|person| person.into())
+        .collect(),
+    })
+  }
+
+  pub async fn get_page_mentionable_persons(
+    &self,
+    view_id: &str,
+  ) -> FlowyResult<GetMentionablePersonsWithAccessPB> {
+    let workspace_id = self.user.workspace_id()?;
+    let uuid_view_id = Uuid::from_str(view_id)?;
+    let result = self
+      .cloud_service()?
+      .get_page_mentionable_persons(&workspace_id, &uuid_view_id)
+      .await?;
+    Ok(GetMentionablePersonsWithAccessPB {
       persons: result
         .persons
         .into_iter()

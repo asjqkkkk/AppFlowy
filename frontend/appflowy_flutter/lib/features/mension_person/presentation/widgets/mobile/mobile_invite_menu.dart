@@ -35,10 +35,6 @@ void showMobileInviteMenu(BuildContext context) {
     showDivider: false,
     backgroundColor: theme.surfaceColorScheme.primary,
     isDragEnabled: false,
-    enableDraggableScrollable: true,
-    initialChildSize: 0.9,
-    minChildSize: 0.9,
-    maxChildSize: 0.9,
     builder: (_) => MultiBlocProvider(
       providers: [
         BlocProvider.value(value: mentionBloc),

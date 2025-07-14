@@ -663,10 +663,21 @@ pub(crate) async fn get_all_views_with_permission_handler(
 }
 
 #[tracing::instrument(level = "debug", skip(folder))]
-pub(crate) async fn get_mentionable_persons_handler(
+pub(crate) async fn get_workspace_mentionable_persons_handler(
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<GetMentionablePersonsResponsePB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let mentionable_persons = folder.get_mentionable_persons().await?;
+  let mentionable_persons = folder.get_workspace_mentionable_persons().await?;
+  data_result_ok(mentionable_persons)
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn get_page_mentionable_persons_handler(
+  data: AFPluginData<ViewIdPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<GetMentionablePersonsWithAccessPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let view_id = data.into_inner().value;
+  let mentionable_persons = folder.get_page_mentionable_persons(&view_id).await?;
   data_result_ok(mentionable_persons)
 }

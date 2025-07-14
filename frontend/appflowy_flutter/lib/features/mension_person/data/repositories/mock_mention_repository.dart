@@ -9,7 +9,7 @@ import 'mention_repository.dart';
 
 class MockMentionRepository extends MentionRepository {
   @override
-  Future<FlowyResult<List<Person>, FlowyError>> getPersons({
+  Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
     required String workspaceId,
     required String query,
   }) async {
@@ -26,6 +26,17 @@ class MockMentionRepository extends MentionRepository {
       return FlowySuccess(filteredPersons);
     }
     return FlowySuccess(persons);
+  }
+
+  @override
+  Future<FlowyResult<List<PersonWithAccess>, FlowyError>> getPagePersons({
+    required String workspaceId,
+    required String documentId,
+  }) async {
+    final persons = _MockState.getInstance()
+        .persons
+        .map((e) => PersonWithAccess(person: e, access: Random().nextBool()));
+    return FlowySuccess(persons.toList());
   }
 
   @override

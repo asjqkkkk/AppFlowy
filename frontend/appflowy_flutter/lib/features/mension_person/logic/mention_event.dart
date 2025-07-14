@@ -5,8 +5,15 @@ sealed class MentionEvent {
   const factory MentionEvent.init() = Initial;
   const factory MentionEvent.getPersons({required String workspaceId}) =
       GetPersons;
+  const factory MentionEvent.getPersonsWithAccess({
+    required String workspaceId,
+    required String documentId,
+  }) = GetPersonsWithAccess;
   const factory MentionEvent.updatePersonList(List<Person> persons) =
       UpdatePersonList;
+  const factory MentionEvent.updatePersonListWithAccess(
+    List<PersonWithAccess> persons,
+  ) = UpdatePersonListWithAccess;
   const factory MentionEvent.query(String text) = Query;
   const factory MentionEvent.showMorePersons(String lastId) = ShowMorePersons;
   const factory MentionEvent.showMorePages(String lastId) = ShowMorePages;
@@ -26,10 +33,26 @@ class GetPersons implements MentionEvent {
   final String workspaceId;
 }
 
+class GetPersonsWithAccess implements MentionEvent {
+  const GetPersonsWithAccess({
+    required this.workspaceId,
+    required this.documentId,
+  });
+
+  final String workspaceId;
+  final String documentId;
+}
+
 class UpdatePersonList implements MentionEvent {
   const UpdatePersonList(this.persons);
 
   final List<Person> persons;
+}
+
+class UpdatePersonListWithAccess implements MentionEvent {
+  const UpdatePersonListWithAccess(this.persons);
+
+  final List<PersonWithAccess> persons;
 }
 
 class Query implements MentionEvent {

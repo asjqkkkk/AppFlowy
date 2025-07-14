@@ -100,12 +100,14 @@ class MentionBlockKeys {
   static Map<String, dynamic> buildMentionPersonAttributes({
     required String personId,
     required String pageId,
+    String? blockId,
   }) {
     return {
       MentionBlockKeys.mention: {
         MentionBlockKeys.type: MentionType.person.name,
         MentionBlockKeys.personId: personId,
         MentionBlockKeys.pageId: pageId,
+        if (blockId != null) MentionBlockKeys.blockId: blockId,
       },
     };
   }
@@ -193,6 +195,7 @@ class MentionBlock extends StatelessWidget {
       case MentionType.person:
         final String? personId = mention[MentionBlockKeys.personId] as String?;
         final String? pageId = mention[MentionBlockKeys.pageId] as String?;
+        final String? blockId = mention[MentionBlockKeys.blockId] as String?;
 
         if (personId == null || pageId == null) return const SizedBox.shrink();
         return MentionPersonBlock(
@@ -200,6 +203,7 @@ class MentionBlock extends StatelessWidget {
           editorState: editorState,
           personId: personId,
           pageId: pageId,
+          blockId: blockId,
           node: node,
           textStyle: textStyle,
           index: index,

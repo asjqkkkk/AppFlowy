@@ -4,9 +4,15 @@ import 'package:appflowy_result/appflowy_result.dart';
 
 abstract class MentionRepository {
   /// Gets the list of persons
-  Future<FlowyResult<List<Person>, FlowyError>> getPersons({
+  Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
     required String workspaceId,
     required String query,
+  });
+
+  /// Gets the list of persons
+  Future<FlowyResult<List<PersonWithAccess>, FlowyError>> getPagePersons({
+    required String workspaceId,
+    required String documentId,
   });
 
   Future<FlowyResult<PersonWithAccess, FlowyError>> getPerson({
