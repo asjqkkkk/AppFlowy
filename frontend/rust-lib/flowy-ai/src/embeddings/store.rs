@@ -1,34 +1,39 @@
-use crate::embeddings::document_indexer::split_text_into_chunks;
+use crate::ai_tool::markdown::MdReader;
+use crate::ai_tool::pdf::{PdfConfig, PdfReader};
+use crate::ai_tool::text_split::{RAGSource, split_text_into_chunks};
 use crate::embeddings::embedder::{Embedder, OllamaEmbedder};
-use crate::embeddings::indexer::{EmbeddingModel, IndexerProvider};
-use crate::local_ai::chat::retriever::MultipleSourceRetrieverStore;
+use crate::embeddings::indexer::{IndexerProvider, LocalEmbeddingModel};
+use crate::local_ai::chat::retriever::{EmbedFileProgress, RetrieverStore};
 use async_trait::async_trait;
 use flowy_ai_pub::cloud::CollabType;
-use flowy_ai_pub::entities::{RAG_IDS, SOURCE_ID};
+use flowy_ai_pub::entities::{RAG_IDS, SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite_vec::db::VectorSqliteDB;
 use flowy_sqlite_vec::entities::{EmbeddedContent, SqliteEmbeddedDocument};
+use futures::Stream;
 use futures::stream::{self, StreamExt};
-use langchain_rust::llm::client::OllamaClient;
 use langchain_rust::schemas::Document;
 use langchain_rust::vectorstore::{VecStoreOptions, VectorStore};
+use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
-use serde_json::Value;
+use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::error::Error;
+use std::path::{Path, PathBuf};
+use std::pin::Pin;
 use std::sync::{Arc, Weak};
-use tracing::{error, trace, warn};
+use tracing::{debug, error, instrument, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SqliteVectorStore {
-  ollama: Weak<OllamaClient>,
+  ollama: Weak<Ollama>,
   vector_db: Weak<VectorSqliteDB>,
   indexer_provider: Arc<IndexerProvider>,
 }
 
 impl SqliteVectorStore {
-  pub fn new(ollama: Weak<OllamaClient>, vector_db: Weak<VectorSqliteDB>) -> Self {
+  pub fn new(ollama: Weak<Ollama>, vector_db: Weak<VectorSqliteDB>) -> Self {
     Self {
       ollama,
       vector_db,
@@ -83,22 +88,438 @@ impl SqliteVectorStore {
         FlowyError::internal().with_context(format!("Failed to select embedded content: {}", err))
       })
   }
+
+  #[instrument(level = "debug", skip_all, err)]
+  pub fn metadata_from_path(&self, file_path: PathBuf) -> FlowyResult<serde_json::Value> {
+    let file_id = file_path
+      .to_str()
+      .ok_or_else(|| FlowyError::internal().with_context("File path is not valid UTF-8"))?
+      .to_string();
+    let file_name = file_path
+      .file_name()
+      .and_then(|s| s.to_str())
+      .unwrap_or("document")
+      .to_string();
+
+    let source = RAGSource::LocalFile { file_name };
+    let metadata = json!({
+        SOURCE_ID: file_id,
+        SOURCE: source.as_str(),
+        SOURCE_NAME: source.file_name(),
+    });
+    Ok(metadata)
+  }
+
+  #[instrument(level = "debug", skip_all, err)]
+  pub async fn embed_file_from_path(
+    &self,
+    workspace_id: &Uuid,
+    chat_id: &Uuid,
+    file_path: &Path,
+    image_model_name: &str,
+  ) -> FlowyResult<String> {
+    let file_id = file_path
+      .to_str()
+      .ok_or_else(|| FlowyError::internal().with_context("File path is not valid UTF-8"))?
+      .to_string();
+    let file_name = file_path
+      .file_name()
+      .and_then(|s| s.to_str())
+      .unwrap_or("document")
+      .to_string();
+
+    // Read file content in a blocking thread
+    let embedder = self.create_embedder()?;
+    let vector_db = match self.vector_db.upgrade() {
+      Some(db) => db,
+      None => return Err(FlowyError::internal().with_context("Vector database not initialized")),
+    };
+    let indexer = self
+      .indexer_provider
+      .indexer_for(CollabType::Document)
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to get indexer for Document"))?;
+
+    let embedding_model = embedder.model();
+    let file_path = file_path.to_path_buf();
+
+    // Check file extension first
+    let extension = file_path
+      .extension()
+      .and_then(|ext| ext.to_str())
+      .map(|ext| ext.to_lowercase())
+      .ok_or_else(|| {
+        FlowyError::invalid_data().with_context("File has no extension".to_string())
+      })?;
+
+    // Read content based on file type
+    let content = match extension.as_str() {
+      "md" | "markdown" | "txt" => {
+        // Handle synchronous reads in a blocking thread
+        let file_path_clone = file_path.clone();
+        tokio::task::spawn_blocking(move || {
+          let reader = MdReader::new(file_path_clone);
+          reader.read_markdown()
+        })
+        .await
+        .map_err(|e| {
+          FlowyError::internal().with_context(format!("Failed to run blocking task: {}", e))
+        })??
+      },
+      "pdf" => {
+        // Handle async read directly
+        let reader = PdfReader::with_config(
+          file_path.clone(),
+          PdfConfig::new().with_image_model(image_model_name),
+        );
+        reader.read_all().await?.into_text()
+      },
+      _ => {
+        return Err(
+          FlowyError::invalid_data().with_context(format!("Unsupported file type: {}", extension)),
+        );
+      },
+    };
+
+    if content.is_empty() {
+      return Err(FlowyError::invalid_data().with_context("File content is empty or invalid"));
+    }
+
+    debug!(
+      "[VectorStore] Embedding file: {}, content length: {}, content: {}",
+      file_id,
+      content.len(),
+      content,
+    );
+
+    // Process chunks in a blocking thread
+    let file_name_clone = file_name.clone();
+    let file_id_clone = file_id.clone();
+    let cloned_content = content.clone();
+    let chunks = tokio::task::spawn_blocking(move || {
+      let chunks = split_text_into_chunks(
+        &file_id_clone,
+        vec![content],
+        embedding_model,
+        1000,
+        200,
+        RAGSource::LocalFile {
+          file_name: file_name_clone,
+        },
+      )?;
+
+      debug!(
+        "[VectorStore] Embedding file: {}, chunks: {:?}",
+        file_id_clone, chunks,
+      );
+      Ok::<_, FlowyError>(chunks)
+    })
+    .await
+    .map_err(|e| {
+      FlowyError::internal().with_context(format!("Failed to run blocking task: {}", e))
+    })??;
+
+    let embedded_chunks = indexer.embed(&embedder, chunks).await?;
+    if embedded_chunks.is_empty() {
+      return Err(FlowyError::internal().with_context("Cannot embed empty content"));
+    }
+
+    debug!(
+      "[VectorStore] save {} embedded chunks to disk",
+      embedded_chunks.len()
+    );
+    vector_db
+      .upsert_collabs_embeddings(
+        &workspace_id.to_string(),
+        &chat_id.to_string(),
+        embedded_chunks,
+      )
+      .await?;
+
+    Ok(cloned_content)
+  }
+
+  #[instrument(level = "debug", skip_all, err)]
+  pub async fn embed_file_from_path_stream(
+    &self,
+    workspace_id: &Uuid,
+    chat_id: &Uuid,
+    file_path: &Path,
+    image_model_name: &str,
+  ) -> FlowyResult<Pin<Box<dyn Stream<Item = FlowyResult<EmbedFileProgress>> + Send>>> {
+    let file_id = file_path
+      .to_str()
+      .ok_or_else(|| FlowyError::internal().with_context("File path is not valid UTF-8"))?
+      .to_string();
+    let file_name = file_path
+      .file_name()
+      .and_then(|s| s.to_str())
+      .unwrap_or("document")
+      .to_string();
+
+    // Clone necessary data for the stream
+    let embedder = self.create_embedder()?;
+    let vector_db = match self.vector_db.upgrade() {
+      Some(db) => db,
+      None => return Err(FlowyError::internal().with_context("Vector database not initialized")),
+    };
+    let indexer = self
+      .indexer_provider
+      .indexer_for(CollabType::Document)
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to get indexer for Document"))?;
+
+    let embedding_model = embedder.model();
+    let file_path = file_path.to_path_buf();
+    let workspace_id_owned = workspace_id.to_string();
+    let chat_id_owned = chat_id.to_string();
+    let image_model_name = image_model_name.to_string(); // Clone the string to avoid lifetime issues
+
+    let stream = async_stream::stream! {
+      // Check file extension first
+      let extension = file_path
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .map(|ext| ext.to_lowercase());
+
+      let extension = match extension {
+        Some(ext) => ext,
+        None => {
+          yield Ok(EmbedFileProgress::Error {
+            message: "File has no extension".to_string()
+          });
+          yield Err(FlowyError::invalid_data().with_context("File has no extension".to_string()));
+          return;
+        }
+      };
+
+      // Emit starting progress
+      yield Ok(EmbedFileProgress::StartProcessing {
+        file_name: file_name.clone()
+      });
+
+      // Read content based on file type
+      let content = match extension.as_str() {
+        "md" | "markdown" | "txt" => {
+          // For text files, just show reading progress without pages
+          yield Ok(EmbedFileProgress::ReadingFile {
+            progress: 0.5,
+            current_page: None,
+            total_pages: None,
+          });
+
+          // Handle synchronous reads in a blocking thread
+          let file_path_clone = file_path.clone();
+          match tokio::task::spawn_blocking(move || {
+            let reader = MdReader::new(file_path_clone);
+            reader.read_markdown()
+          })
+          .await
+          {
+            Ok(Ok(content)) => {
+              yield Ok(EmbedFileProgress::ReadingFile {
+                progress: 1.0,
+                current_page: None,
+                total_pages: None,
+              });
+              content
+            },
+            Ok(Err(e)) => {
+              yield Ok(EmbedFileProgress::Error {
+                message: format!("Failed to read file: {}", e)
+              });
+              yield Err(FlowyError::internal().with_context(e));
+              return;
+            }
+            Err(e) => {
+              let err = FlowyError::internal().with_context(format!("Failed to run blocking task: {}", e));
+              yield Ok(EmbedFileProgress::Error {
+                message: format!("Failed to run blocking task: {}", e)
+              });
+              yield Err(err);
+              return;
+            }
+          }
+        },
+        "pdf" => {
+          // Create the PDF reader with streaming support
+          let reader = PdfReader::with_config(
+            file_path.clone(),
+            PdfConfig::new().with_image_model(&image_model_name),
+          );
+
+          // Use the streaming method to get progress updates
+          let mut pdf_stream = reader.read_all_stream();
+          let mut final_content = String::new();
+
+          while let Some(progress_result) = pdf_stream.next().await {
+            match progress_result {
+              Ok(progress) => {
+                match progress {
+                  EmbedFileProgress::Completed { content } => {
+                    final_content = content;
+                    // Don't yield the completed progress here, we'll do it at the end
+                  },
+                  other => {
+                    yield Ok(other);
+                  }
+                }
+              },
+              Err(e) => {
+                yield Ok(EmbedFileProgress::Error {
+                  message: format!("Failed to read PDF: {}", e)
+                });
+                yield Err(e);
+                return;
+              }
+            }
+          }
+
+          final_content
+        },
+        _ => {
+          let err = FlowyError::invalid_data().with_context(format!("Unsupported file type: {}", extension));
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Unsupported file type: {}", extension)
+          });
+          yield Err(err);
+          return;
+        },
+      };
+
+      if content.is_empty() {
+        let err = FlowyError::invalid_data().with_context("File content is empty or invalid");
+        yield Ok(EmbedFileProgress::Error {
+          message: "File content is empty or invalid".to_string()
+        });
+        yield Err(err);
+        return;
+      }
+
+      debug!(
+        "[VectorStore] Embedding file: {}, content length: {}",
+        file_id,
+        content.len(),
+      );
+
+      // Process chunks in a blocking thread (but don't emit progress for this)
+      let file_name_clone = file_name.clone();
+      let file_id_clone = file_id.clone();
+      let cloned_content = content.clone();
+      let chunks = match tokio::task::spawn_blocking(move || {
+        let chunks = split_text_into_chunks(
+          &file_id_clone,
+          vec![content],
+          embedding_model,
+          1000,
+          200,
+          RAGSource::LocalFile {
+            file_name: file_name_clone,
+          },
+        )?;
+
+        debug!(
+          "[VectorStore] Embedding file: {}, chunks: {:?}",
+          file_id_clone, chunks,
+        );
+        Ok::<_, FlowyError>(chunks)
+      })
+      .await
+      {
+        Ok(Ok(chunks)) => chunks,
+        Ok(Err(e)) => {
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Failed to process file: {}", e)
+          });
+          yield Err(e);
+          return;
+        }
+        Err(e) => {
+          let err = FlowyError::internal().with_context(format!("Failed to run blocking task: {}", e));
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Failed to run blocking task: {}", e)
+          });
+          yield Err(err);
+          return;
+        }
+      };
+
+      if chunks.is_empty() {
+        yield Ok(EmbedFileProgress::Completed {
+          content: cloned_content.clone()
+        });
+        return;
+      }
+
+      // Embed chunks (but don't emit progress for this)
+      let embedded_chunks = match indexer.embed(&embedder, chunks).await {
+        Ok(embedded) => embedded,
+        Err(e) => {
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Failed to process file: {}", e)
+          });
+          yield Err(e);
+          return;
+        }
+      };
+
+      if embedded_chunks.is_empty() {
+        let err = FlowyError::internal().with_context("Cannot embed empty content");
+        yield Ok(EmbedFileProgress::Error {
+          message: "Cannot embed empty content".to_string()
+        });
+        yield Err(err);
+        return;
+      }
+
+      // Save to database (but don't emit progress for this)
+      debug!(
+        "[VectorStore] save {} embedded chunks to disk",
+        embedded_chunks.len()
+      );
+
+      match vector_db
+        .upsert_collabs_embeddings(
+          &workspace_id_owned,
+          &chat_id_owned,
+          embedded_chunks,
+        )
+        .await
+      {
+        Ok(_) => {
+          yield Ok(EmbedFileProgress::Completed {
+            content: cloned_content
+          });
+        }
+        Err(e) => {
+          yield Ok(EmbedFileProgress::Error {
+            message: format!("Failed to save embeddings: {}", e)
+          });
+          yield Err(FlowyError::internal().with_context(format!("Failed to save embeddings: {}", e)));
+        }
+      }
+    };
+
+    Ok(Box::pin(stream))
+  }
 }
 
 #[async_trait]
-impl MultipleSourceRetrieverStore for SqliteVectorStore {
+impl RetrieverStore for SqliteVectorStore {
   fn retriever_name(&self) -> &'static str {
     "Sqlite Multiple Source Retriever"
+  }
+
+  fn weights(&self) -> usize {
+    0
   }
 
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
+    _chat_id: &Uuid,
     query: &str,
     limit: usize,
     rag_ids: &[String],
     score_threshold: f32,
-    _full_search: bool,
   ) -> FlowyResult<Vec<Document>> {
     let vector_db = match self.vector_db.upgrade() {
       Some(db) => db,
@@ -131,13 +552,17 @@ impl MultipleSourceRetrieverStore for SqliteVectorStore {
       )
       .await?;
 
-    trace!(
-      "[VectorStore] Found {} results for query:{}, rag_ids: {:?}, score_threshold: {}",
+    debug!(
+      "[VectorStore:sqlitevec] found {} results for query:{}, rag_ids: {:?}, score_threshold: {}",
       results.len(),
       query,
       rag_ids,
       score_threshold
     );
+
+    for result in results.iter() {
+      debug!("[VectorStore:sqlitevec] {}", result);
+    }
 
     // Convert results to Documents
     let documents = results
@@ -211,9 +636,10 @@ impl VectorStore for SqliteVectorStore {
           let chunks_result = split_text_into_chunks(
             &object_id_str,
             vec![paragraph],
-            EmbeddingModel::NomicEmbedText,
-            2000,
+            LocalEmbeddingModel::NomicEmbedText,
+            1000,
             200,
+            RAGSource::AppFlowyDocument,
           );
 
           match chunks_result {
@@ -295,14 +721,23 @@ impl VectorStore for SqliteVectorStore {
       },
     };
 
+    // Extract chat_id from filters (or use a default if not provided)
+    let chat_id = opt
+      .filters
+      .as_ref()
+      .and_then(|filters| filters.get("chat_id"))
+      .and_then(|value| value.as_str())
+      .and_then(|s| Uuid::parse_str(s).ok())
+      .unwrap_or_else(Uuid::new_v4);
+
     self
       .read_documents(
         &workspace_id,
+        &chat_id,
         query,
         limit,
         &rag_ids,
         opt.score_threshold.unwrap_or(0.4),
-        true,
       )
       .await
       .map_err(|err| Box::new(err) as Box<dyn Error>)

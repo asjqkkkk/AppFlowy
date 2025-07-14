@@ -9,8 +9,8 @@ use flowy_ai_pub::cloud::search_dto::{
 };
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  CreateCollabParams, MessageCursor, ModelList, QueryCollab, RepeatedChatMessage, ResponseFormat,
-  StreamAnswer, StreamComplete, UpdateChatParams,
+  CreateCollabParams, CreatedChatMessage, MessageCursor, ModelList, QueryCollab,
+  RepeatedChatMessage, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, DatabaseSnapshot, EncodeCollabByOid, SummaryRowContent,
@@ -37,8 +37,6 @@ use flowy_user_pub::cloud::{
 };
 use flowy_user_pub::entities::{AuthProvider, UserTokenState, UserWorkspace, WorkspaceType};
 use lib_infra::async_trait::async_trait;
-use serde_json::Value;
-use std::collections::HashMap;
 use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
@@ -680,11 +678,19 @@ impl ChatCloudService for ServerProvider {
     message: &str,
     message_type: ChatMessageType,
     prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError> {
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError> {
     let message = message.to_string();
     self
       .get_chat_service()?
-      .create_question(workspace_id, chat_id, &message, message_type, prompt_id)
+      .create_question(
+        workspace_id,
+        chat_id,
+        &message,
+        message_type,
+        prompt_id,
+        file_paths,
+      )
       .await
   }
 
@@ -702,7 +708,7 @@ impl ChatCloudService for ServerProvider {
       .await
   }
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     workspace_id: &Uuid,
     chat_id: &Uuid,
@@ -712,7 +718,7 @@ impl ChatCloudService for ServerProvider {
   ) -> Result<StreamAnswer, FlowyError> {
     self
       .get_chat_service()?
-      .stream_answer(workspace_id, chat_id, question_id, format, ai_model)
+      .stream_question(workspace_id, chat_id, question_id, format, ai_model)
       .await
   }
 
@@ -783,11 +789,10 @@ impl ChatCloudService for ServerProvider {
     workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     self
       .get_chat_service()?
-      .embed_file(workspace_id, file_path, chat_id, metadata)
+      .embed_file(workspace_id, file_path, chat_id)
       .await
   }
 

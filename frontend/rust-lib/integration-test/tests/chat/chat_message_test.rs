@@ -33,6 +33,7 @@ async fn af_cloud_create_chat_message_test() {
         &format!("hello world {}", i),
         ChatMessageType::System,
         None,
+        vec![],
       )
       .await
       .unwrap();
@@ -94,6 +95,7 @@ async fn af_cloud_load_remote_system_message_test() {
         &format!("hello server {}", i),
         ChatMessageType::System,
         None,
+        vec![],
       )
       .await
       .unwrap();

@@ -6,8 +6,10 @@ import 'package:appflowy/workspace/presentation/home/toast.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:open_filex/open_filex.dart';
 import 'package:string_validator/string_validator.dart';
 import 'package:universal_platform/universal_platform.dart';
@@ -26,7 +28,17 @@ Future<bool> afLaunchUri(
   launcher.LaunchMode mode = launcher.LaunchMode.platformDefault,
   String? webOnlyWindowName,
   bool addingHttpSchemeWhenFailed = false,
+  // Only support on iOS platform
+  bool isOAuthUrl = false,
+  // Only available when isOAuthUrl is true
+  String? callbackUrlScheme,
+  // Only available when isOAuthUrl is true
+  ValueChanged<String>? onSuccess,
 }) async {
+  if (isOAuthUrl && !UniversalPlatform.isIOS) {
+    throw Exception('isOAuthUrl is only supported on iOS platform');
+  }
+
   final url = uri.toString();
   final decodedUrl = Uri.decodeComponent(url);
 
@@ -58,12 +70,50 @@ Future<bool> afLaunchUri(
 
   if (result) {
     try {
-      // try to launch the uri directly
-      result = await launcher.launchUrl(
-        uri,
-        mode: mode,
-        webOnlyWindowName: webOnlyWindowName,
-      );
+      if (UniversalPlatform.isIOS && isOAuthUrl) {
+        // Use flutter_web_auth_2 for OAuth URLs on iOS platforms
+        try {
+          if (callbackUrlScheme == null || callbackUrlScheme.isEmpty) {
+            // If no callback scheme provided, fall back to regular launcher
+            Log.error('OAuth URL requires callbackUrlScheme parameter');
+            result = await launcher.launchUrl(
+              uri,
+              mode: mode,
+              webOnlyWindowName: webOnlyWindowName,
+            );
+          } else {
+            final authResult = await FlutterWebAuth2.authenticate(
+              url: uri.toString(),
+              callbackUrlScheme: callbackUrlScheme,
+              options: FlutterWebAuth2Options(
+                preferEphemeral: false,
+              ),
+            );
+            if (authResult.isNotEmpty) {
+              onSuccess?.call(authResult);
+            }
+            result = true;
+          }
+        } catch (e) {
+          // skip the cancel login
+          if (e is PlatformException && e.code == 'CANCELED') {
+            return true;
+          }
+          Log.error('Web auth failed, falling back to regular launcher: $e');
+          result = await launcher.launchUrl(
+            uri,
+            mode: mode,
+            webOnlyWindowName: webOnlyWindowName,
+          );
+        }
+      } else {
+        // Use regular url_launcher for non-OAuth URLs or non-mobile platforms
+        result = await launcher.launchUrl(
+          uri,
+          mode: mode,
+          webOnlyWindowName: webOnlyWindowName,
+        );
+      }
     } on PlatformException catch (e) {
       Log.error('Failed to open uri: $e');
       return false;
@@ -77,11 +127,52 @@ Future<bool> afLaunchUri(
       !isURL(url, {'require_protocol': true})) {
     try {
       final uriWithScheme = Uri.parse('http://$url');
-      result = await launcher.launchUrl(
-        uriWithScheme,
-        mode: mode,
-        webOnlyWindowName: webOnlyWindowName,
-      );
+
+      // Use flutter_web_auth_2 for OAuth URLs on iOS platforms (fallback)
+      if (UniversalPlatform.isIOS && isOAuthUrl) {
+        try {
+          if (callbackUrlScheme == null || callbackUrlScheme.isEmpty) {
+            Log.error(
+              'OAuth URL requires callbackUrlScheme parameter (fallback)',
+            );
+            result = await launcher.launchUrl(
+              uriWithScheme,
+              mode: mode,
+              webOnlyWindowName: webOnlyWindowName,
+            );
+          } else {
+            final authResult = await FlutterWebAuth2.authenticate(
+              url: uri.toString(),
+              callbackUrlScheme: callbackUrlScheme,
+              options: FlutterWebAuth2Options(
+                preferEphemeral: false,
+              ),
+            );
+            if (authResult.isNotEmpty) {
+              onSuccess?.call(authResult);
+            }
+            result = true;
+          }
+        } catch (e) {
+          if (e is PlatformException && e.code == 'CANCELED') {
+            return true;
+          }
+          Log.error(
+            'Web auth failed in fallback, using regular launcher: $e',
+          );
+          result = await launcher.launchUrl(
+            uriWithScheme,
+            mode: mode,
+            webOnlyWindowName: webOnlyWindowName,
+          );
+        }
+      } else {
+        result = await launcher.launchUrl(
+          uriWithScheme,
+          mode: mode,
+          webOnlyWindowName: webOnlyWindowName,
+        );
+      }
     } on PlatformException catch (e) {
       Log.error('Failed to open uri: $e');
       if (context != null && context.mounted) {
@@ -101,6 +192,8 @@ Future<bool> afLaunchUrlString(
   bool addingHttpSchemeWhenFailed = false,
   BuildContext? context,
   OnFailureCallback? onFailure,
+  bool isOAuthUrl = false,
+  String? callbackUrlScheme,
 }) async {
   final Uri uri;
   try {
@@ -116,6 +209,8 @@ Future<bool> afLaunchUrlString(
     addingHttpSchemeWhenFailed: addingHttpSchemeWhenFailed,
     context: context,
     onFailure: onFailure,
+    isOAuthUrl: isOAuthUrl,
+    callbackUrlScheme: callbackUrlScheme,
   );
 }
 

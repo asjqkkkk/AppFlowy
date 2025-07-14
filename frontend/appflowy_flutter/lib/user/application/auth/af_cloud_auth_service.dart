@@ -10,6 +10,7 @@ import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
+import 'package:universal_platform/universal_platform.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import 'auth_error.dart';
@@ -61,10 +62,19 @@ class AppFlowyCloudAuthService implements AuthService {
       (data) async {
         // Open the webview with oauth url
         final uri = Uri.parse(data.oauthUrl);
+        final bool enableInAppSignIn = UniversalPlatform.isIOS;
+        String? authResult;
         final isSuccess = await afLaunchUri(
           uri,
           mode: LaunchMode.externalApplication,
           webOnlyWindowName: '_self',
+          // Apple ask us to support in-app safari sign in
+          // > To resolve this issue, please revise your app to enable users to sign in or register for an account in the app.
+          isOAuthUrl: enableInAppSignIn,
+          callbackUrlScheme: appflowyDeepLinkSchema, // 'appflowy-flutter'
+          onSuccess: (value) {
+            authResult = value;
+          },
         );
 
         final completer = Completer<FlowyResult<UserProfilePB, FlowyError>>();
@@ -73,6 +83,11 @@ class AppFlowyCloudAuthService implements AuthService {
           // [AppFlowyCloudAuthService].
           if (getIt.isRegistered<AppFlowyCloudDeepLink>()) {
             getIt<AppFlowyCloudDeepLink>().registerCompleter(completer);
+            if (authResult != null) {
+              await getIt<AppFlowyCloudDeepLink>().handleUri(
+                Uri.parse(authResult!),
+              );
+            }
           } else {
             throw Exception('AppFlowyCloudDeepLink is not registered');
           }

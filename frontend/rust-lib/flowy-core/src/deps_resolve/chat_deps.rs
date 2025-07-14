@@ -5,7 +5,7 @@ use collab::preclude::{Collab, StateVector};
 use collab::util::is_change_since_sv;
 use collab_entity::CollabType;
 use flowy_ai::ai_manager::{AIExternalService, AIManager};
-use flowy_ai::local_ai::chat::retriever::{LangchainDocument, MultipleSourceRetrieverStore};
+use flowy_ai::local_ai::chat::retriever::{LangchainDocument, RetrieverStore};
 use flowy_ai::local_ai::controller::LocalAIController;
 use flowy_ai_pub::cloud::ChatCloudService;
 use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
@@ -214,6 +214,10 @@ impl AIUserService for AIUserServiceImpl {
       self.upgrade_user()?.get_application_root_dir(),
     ))
   }
+
+  fn user_data_dir(&self) -> Result<PathBuf, FlowyError> {
+    self.upgrade_user()?.get_user_data_dir()
+  }
 }
 
 #[derive(Clone)]
@@ -228,25 +232,42 @@ impl MultiSourceVSTanvityImpl {
 }
 
 #[async_trait]
-impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
+impl RetrieverStore for MultiSourceVSTanvityImpl {
   fn retriever_name(&self) -> &'static str {
     "Tanvity Multiple Source Retriever"
+  }
+
+  fn weights(&self) -> usize {
+    1
   }
 
   async fn read_documents(
     &self,
     workspace_id: &Uuid,
+    chat_id: &Uuid,
     query: &str,
     limit: usize,
     rag_ids: &[String],
     score_threshold: f32,
-    _full_search: bool,
   ) -> FlowyResult<Vec<LangchainDocument>> {
+    if rag_ids.is_empty() {
+      debug!(
+        "[VectorStore:tanvity] No rag_ids provided for query: {}, returning empty result",
+        query
+      );
+      return Ok(vec![]);
+    }
+
+    // remove the chat_id from rag_ids if it exists
+    let chat_id = chat_id.to_string();
+    let mut rag_ids = rag_ids.to_vec();
+    rag_ids.retain(|rag_id| rag_id != &chat_id);
+
     let docs = tanvity_local_search(
       &self.state,
       workspace_id,
       query,
-      Some(rag_ids.to_vec()),
+      Some(rag_ids),
       limit,
       score_threshold,
     )
@@ -254,8 +275,8 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
 
     match docs {
       None => Ok(vec![]),
-      Some(docs) => Ok(
-        docs
+      Some(docs) => {
+        let docs = docs
           .into_iter()
           .map(|v| LangchainDocument {
             page_content: v.content,
@@ -271,8 +292,15 @@ impl MultipleSourceRetrieverStore for MultiSourceVSTanvityImpl {
             .collect(),
             score: v.score,
           })
-          .collect(),
-      ),
+          .collect::<Vec<_>>();
+
+        debug!(
+          "[VectorStore:tanvity] found {} result for  query: {}",
+          docs.len(),
+          query,
+        );
+        Ok(docs)
+      },
     }
   }
 }

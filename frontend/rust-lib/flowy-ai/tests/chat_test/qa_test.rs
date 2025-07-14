@@ -1,50 +1,75 @@
-use crate::{TestContext, collect_stream, load_asset_content, setup_log};
-use flowy_ai::local_ai::chat::chains::conversation_chain::{
-  ANSWER_WITH_SUGGESTED_QUESTION, CAN_NOT_ANSWER_WITH_CONTEXT,
-};
+use crate::test_utils::{assert_content_similar, assert_response_about_topic};
+use crate::{TestContext, collect_stream, setup_log};
 use flowy_ai::local_ai::chat::chains::related_question_chain::RelatedQuestionChain;
 use flowy_ai::local_ai::chat::llm::LLMOllama;
+use flowy_ai::local_ai::chat::llm_chat::StreamQuestionOptions;
 use flowy_ai_pub::cloud::{OutputLayout, ResponseFormat};
 use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
-use uuid::Uuid;
 
 #[tokio::test]
-async fn local_ai_test_simple_question() {
+async fn local_ai_test_chat_with_file_test() {
+  use std::time::Duration;
+  use tokio::time::timeout;
+
   let context = TestContext::new().unwrap();
   let mut chat = context.create_chat(vec![]).await;
-  let stream = chat
-    .stream_question("hello world", Default::default())
+  let path = "tests/asset/zao_onsen_ski.pdf".to_string();
+
+  let result = timeout(Duration::from_secs(30), async {
+    let stream = chat
+      .stream_question(
+        "Summary my zao onsen trip",
+        Default::default(),
+        StreamQuestionOptions::new().try_with_path(path).unwrap(),
+      )
+      .await
+      .unwrap();
+    collect_stream(stream).await
+  })
+  .await;
+
+  let result = result.expect("Test timed out after 30 seconds");
+  dbg!(&result);
+  assert!(!result.answer.is_empty());
+  assert_response_about_topic(&result.answer, "zao onsen trip")
     .await
     .unwrap();
-  let result = collect_stream(stream).await;
-  dbg!(result);
+  assert_eq!(result.sources.len(), 1);
+  assert_eq!(
+    result.sources[0].as_object().unwrap()["name"],
+    "zao_onsen_ski.pdf"
+  );
+  assert_eq!(result.progress.len(), 8);
 
-  let doc_id = Uuid::new_v4();
-  // set rag_id but not rag document content, should return CAN_NOT_ANSWER_WITH_CONTEXT
-  chat.set_rag_ids(vec![doc_id.to_string()]);
   let stream = chat
-    .stream_question("hello world", Default::default())
+    .stream_question(
+      "summary my flight from attached file",
+      Default::default(),
+      StreamQuestionOptions::new(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
   dbg!(&result);
-  assert!(result.answer.starts_with(CAN_NOT_ANSWER_WITH_CONTEXT));
-  assert!(result.gen_related_question);
+  assert_content_similar(&result.answer,"you took a 3-day trip from February 10th to 14th, flying into Sen da i before heading to Zao Onsen.", None, 0.9).await.unwrap();
+}
 
-  // Update the rag document content
-  let trip_docs = load_asset_content("japan_trip.md");
-  chat
-    .embed_paragraphs(&doc_id.to_string(), vec![trip_docs])
-    .await
-    .unwrap();
+#[tokio::test]
+async fn local_ai_test_chat_with_file_test2() {
+  let context = TestContext::new().unwrap();
+  let mut chat = context.create_chat(vec![]).await;
+  let path = "tests/asset/health_report_demo.pdf".to_string();
+
   let stream = chat
-    .stream_question("hello world", Default::default())
+    .stream_question(
+      "summary",
+      Default::default(),
+      StreamQuestionOptions::new().try_with_path(path).unwrap(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
   dbg!(&result);
-  assert!(result.answer.starts_with(ANSWER_WITH_SUGGESTED_QUESTION));
-  assert!(!result.gen_related_question);
 }
 
 #[tokio::test]
@@ -98,14 +123,22 @@ async fn local_ai_test_chat_with_multiple_docs_retrieve() {
   assert_eq!(docs.len(), 1);
 
   let stream = chat
-    .stream_question("Rust is a multiplayer survival game", Default::default())
+    .stream_question(
+      "Rust is a multiplayer survival game",
+      Default::default(),
+      StreamQuestionOptions::default(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
   dbg!(&result);
   dbg!(&result.sources);
 
+  // Check that the answer is about the Rust multiplayer survival game
   assert!(!result.answer.is_empty());
+  assert_response_about_topic(&result.answer, "Rust multiplayer survival game")
+    .await
+    .unwrap();
   assert!(!result.sources.is_empty());
   assert!(result.sources[0].get(SOURCE_ID).unwrap().as_str().is_some());
   assert!(result.sources[0].get(SOURCE).unwrap().as_str().is_some());
@@ -118,7 +151,11 @@ async fn local_ai_test_chat_with_multiple_docs_retrieve() {
   );
 
   let stream = chat
-    .stream_question("Japan ski resort", Default::default())
+    .stream_question(
+      "Japan ski resort",
+      Default::default(),
+      StreamQuestionOptions::default(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
@@ -133,12 +170,20 @@ async fn local_ai_test_chat_format() {
   format.output_layout = OutputLayout::SimpleTable;
 
   let stream = chat
-    .stream_question("Compare rust and js", format)
+    .stream_question(
+      "Compare rust and js",
+      format,
+      StreamQuestionOptions::default(),
+    )
     .await
     .unwrap();
   let result = collect_stream(stream).await;
   dbg!(&result);
+  // Check that the answer compares Rust and JavaScript
   assert!(!result.answer.is_empty());
+  assert_response_about_topic(&result.answer, "comparison between Rust and JavaScript")
+    .await
+    .unwrap();
   assert!(result.gen_related_question);
 }
 
@@ -146,7 +191,7 @@ async fn local_ai_test_chat_format() {
 async fn local_ai_test_chat_related_question() {
   setup_log();
 
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = LLMOllama::default();
   let chain = RelatedQuestionChain::new(ollama);
   let resp = chain
     .generate_related_question("Compare rust with JS")

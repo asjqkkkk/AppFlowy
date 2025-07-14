@@ -80,18 +80,28 @@ impl EmbedContext {
   }
 
   fn try_create_scheduler(&self) {
-    if let (Some(ollama), Some(vector_db)) = (self.ollama.load_full(), self.vector_db.load_full()) {
-      info!("[Embedding] Creating scheduler");
-      match EmbeddingScheduler::new(ollama, vector_db) {
-        Ok(s) => {
-          info!("[Embedding] create scheduler successfully");
-          self.scheduler.store(Some(s));
-        },
-        Err(err) => error!("[Embedding] Failed to create scheduler: {}", err),
-      }
-    } else {
-      info!("[Embedding] Ollama or vector db is not initialized, remove embedding scheduler");
-      self.scheduler.store(None);
+    let ollama = match self.ollama.load_full() {
+      Some(ollama) => ollama,
+      None => {
+        warn!("[Embedding] Ollama is not initialized, cannot create scheduler");
+        return;
+      },
+    };
+
+    let vector_db = match self.vector_db.load_full() {
+      Some(vector_db) => vector_db,
+      None => {
+        warn!("[Embedding] Vector db is not initialized, cannot create scheduler");
+        return;
+      },
+    };
+
+    match EmbeddingScheduler::new(ollama, vector_db) {
+      Ok(s) => {
+        info!("[Embedding] create scheduler successfully");
+        self.scheduler.store(Some(s));
+      },
+      Err(err) => error!("[Embedding] Failed to create scheduler: {}", err),
     }
   }
 }

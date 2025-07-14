@@ -94,50 +94,59 @@ class _SettingsPlanViewState extends State<SettingsPlanView> {
           ),
         );
       },
-      ready: (state) => SettingsBody(
-        autoSeparate: false,
-        title: LocaleKeys.settings_planPage_title.tr(),
-        children: [
-          PlanUsageSummary(
-            usage: state.workspaceUsage,
-            subscriptionInfo: state.subscriptionInfo,
-          ),
-          const VSpace(16),
-          CurrentPlanBox(subscriptionInfo: state.subscriptionInfo),
-          const VSpace(16),
-          FlowyText(
-            LocaleKeys.settings_planPage_planUsage_addons_title.tr(),
-            fontSize: 18,
-            color: AFThemeExtension.of(context).strongText,
-            fontWeight: FontWeight.w600,
-          ),
-          const VSpace(8),
-          IntrinsicHeight(
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+      ready: (state) {
+        return ListView(
+          padding: EdgeInsets.zero,
+          children: [
+            SettingsBody(
+              autoSeparate: false,
+              title: LocaleKeys.settings_planPage_title.tr(),
               children: [
-                Flexible(
-                  child: AIMaxAddOn(
-                    subscriptionInfo: state.subscriptionInfo,
-                  ),
+                PlanUsageSummary(
+                  usage: state.workspaceUsage,
+                  subscriptionInfo: state.subscriptionInfo,
                 ),
-                const HSpace(8),
-                Flexible(
-                  child: personalState.map(
-                    initial: (_) => const _LoadingAddOnBox(),
-                    loading: (_) => const _LoadingAddOnBox(),
-                    error: (_) => const SizedBox.shrink(),
-                    ready: (readyState) => VaultWorkspaceAddOn(
-                      subscriptions: readyState.subscriptionInfo,
+                const VSpace(16),
+                CurrentPlanBox(subscriptionInfo: state.subscriptionInfo),
+                const VSpace(16),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    FlowyText(
+                      LocaleKeys.settings_planPage_planUsage_addons_title.tr(),
+                      fontSize: 18,
+                      color: AFThemeExtension.of(context).strongText,
+                      fontWeight: FontWeight.w600,
                     ),
-                  ),
+                    const VSpace(8),
+                    AIMaxAddOn(
+                      subscriptionInfo: state.subscriptionInfo,
+                    ),
+                    const VSpace(8),
+                    FlowyText(
+                      LocaleKeys.settings_planPage_planUsage_accountAddons_title
+                          .tr(),
+                      fontSize: 18,
+                      color: AFThemeExtension.of(context).strongText,
+                      fontWeight: FontWeight.w600,
+                    ),
+                    const VSpace(8),
+                    personalState.map(
+                      initial: (_) => const _LoadingAddOnBox(),
+                      loading: (_) => const _LoadingAddOnBox(),
+                      error: (_) => const SizedBox.shrink(),
+                      ready: (readyState) => VaultWorkspaceAddOn(
+                        subscriptions: readyState.subscriptionInfo,
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-          ),
-        ],
-      ),
+          ],
+        );
+      },
     );
   }
 }

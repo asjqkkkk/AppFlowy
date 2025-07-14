@@ -84,12 +84,13 @@ class _ChatFooterState extends State<ChatFooter> {
       onStopStreaming: () {
         chatBloc.add(const ChatEvent.stopStream());
       },
-      onSubmitted: (text, format, metadata, promptId) {
+      onSubmitted: (text, format, files, mentions, promptId) {
         chatBloc.add(
           ChatEvent.sendMessage(
             message: text,
             format: format,
-            metadata: metadata,
+            files: files,
+            mentions: mentions,
             promptId: promptId,
           ),
         );
@@ -115,12 +116,13 @@ class _ChatFooterState extends State<ChatFooter> {
       onStopStreaming: () {
         chatBloc.add(const ChatEvent.stopStream());
       },
-      onSubmitted: (text, format, metadata) {
+      onSubmitted: (text, format, files, mentions) {
         chatBloc.add(
           ChatEvent.sendMessage(
             message: text,
             format: format,
-            metadata: metadata,
+            files: files,
+            mentions: mentions,
           ),
         );
       },

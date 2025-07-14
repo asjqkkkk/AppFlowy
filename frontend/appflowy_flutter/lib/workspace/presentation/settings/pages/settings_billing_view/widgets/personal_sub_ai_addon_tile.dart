@@ -41,9 +41,9 @@ class PersonalSubscriptionAIAddonTile extends StatelessWidget {
         return state.map(
           initial: (initial) => const SizedBox.shrink(),
           loading: (loading) => _buildLoadingView(),
-          error: (error) => const SizedBox.shrink(),
           ready: (ready) => SingleSettingAction(
             label: label,
+            labelMaxLines: 4,
             description: _getDescription(
               ready.subscriptionState,
               dateFormat,

@@ -91,8 +91,8 @@ pub struct EmbeddedChunk {
   pub content: Option<String>,
   pub metadata: Option<String>,
   pub fragment_index: i32,
-  pub embedder_type: i32,
   pub embeddings: Option<Vec<f32>>,
+  pub dimension: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -101,4 +101,14 @@ pub struct SearchResult {
   pub content: String,
   pub metadata: Option<serde_json::Value>,
   pub score: f32,
+}
+
+impl Display for SearchResult {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(
+      f,
+      "SearchResult(oid: {}, content: {}, score: {})",
+      self.oid, self.content, self.score
+    )
+  }
 }

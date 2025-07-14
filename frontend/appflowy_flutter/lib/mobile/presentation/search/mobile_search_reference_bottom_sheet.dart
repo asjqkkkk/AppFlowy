@@ -1,5 +1,6 @@
 import 'package:appflowy/mobile/presentation/base/mobile_view_page.dart';
-import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
+import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/tasks/app_widget.dart';
 import 'package:appflowy/workspace/application/command_palette/search_result_ext.dart';
@@ -31,27 +32,21 @@ class SearchSourceReferenceBottomSheet extends StatelessWidget {
           );
           return;
         }
-        await showMobileBottomSheet(
+        await showDraggableMobileBottomSheet(
           AppGlobals.rootNavKey.currentContext ?? context,
-          showDragHandle: true,
-          showDivider: false,
-          enableDraggableScrollable: true,
-          maxChildSize: 0.95,
-          minChildSize: 0.95,
-          initialChildSize: 0.95,
-          backgroundColor: theme.surfaceColorScheme.primary,
-          dragHandleBuilder: (_) => const _DragHandler(),
-          builder: (_) => SizedBox(
-            height: MediaQuery.of(context).size.height,
-            child: MobileViewPage(
+          headerBuilder: (context) => DragHandle(
+            margin: EdgeInsets.symmetric(vertical: theme.spacing.l),
+          ),
+          builder: (context) {
+            return MobileViewPage(
               id: id,
               viewLayout: view.layout,
               title: view.nameOrDefault,
               tabs: PickerTabType.values,
               bodyPaddingTop:
                   AppBarTheme.of(context).toolbarHeight ?? kToolbarHeight,
-            ),
-          ),
+            );
+          },
         );
       },
     );
@@ -151,22 +146,5 @@ class PageReferenceList extends StatelessWidget {
       return icon.getIcon(size: 20, iconColor: theme.iconColorScheme.primary) ??
           SizedBox.shrink();
     }
-  }
-}
-
-class _DragHandler extends StatelessWidget {
-  const _DragHandler();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 4,
-      width: 40,
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.grey.shade400,
-        borderRadius: BorderRadius.circular(2),
-      ),
-    );
   }
 }

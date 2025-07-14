@@ -50,7 +50,11 @@ class AIChatPage extends StatelessWidget {
         builder: (context) {
           return DropTarget(
             onDragDone: (DropDoneDetails detail) async {
-              if (context.read<AIPromptInputBloc>().state.supportChatWithFile) {
+              if (context
+                  .read<AIPromptInputBloc>()
+                  .state
+                  .modelState
+                  .supportChatWithFile) {
                 for (final file in detail.files) {
                   context
                       .read<AIPromptInputBloc>()

@@ -10,22 +10,30 @@ use std::sync::Arc;
 use uuid::Uuid;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum EmbeddingModel {
+pub enum LocalEmbeddingModel {
   NomicEmbedText,
+  Qwen34B,
 }
 
-impl EmbeddingModel {
+impl LocalEmbeddingModel {
   pub fn name(&self) -> &'static str {
     match self {
-      EmbeddingModel::NomicEmbedText => "nomic-embed-text",
+      LocalEmbeddingModel::NomicEmbedText => "nomic-embed-text",
+      LocalEmbeddingModel::Qwen34B => "Qwen3-Embedding-4B",
     }
   }
 
   #[allow(dead_code)]
   pub fn dimension(&self) -> usize {
     match self {
-      // https://ollama.com/library/nomic-embed-text/blobs/970aa74c0a90
-      EmbeddingModel::NomicEmbedText => 768,
+      LocalEmbeddingModel::NomicEmbedText => {
+        // https://ollama.com/library/nomic-embed-text/blobs/970aa74c0a90
+        768
+      },
+      LocalEmbeddingModel::Qwen34B => {
+        // https://huggingface.co/Qwen/Qwen3-Embedding-8B
+        2560
+      },
     }
   }
 }
@@ -36,7 +44,7 @@ pub trait Indexer: Send + Sync {
     &self,
     object_id: Uuid,
     paragraphs: Vec<String>,
-    model: EmbeddingModel,
+    model: LocalEmbeddingModel,
   ) -> Result<Vec<EmbeddedChunk>, FlowyError>;
 
   async fn embed(

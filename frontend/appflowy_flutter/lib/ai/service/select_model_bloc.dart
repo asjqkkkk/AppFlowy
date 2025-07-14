@@ -38,18 +38,22 @@ class SelectModelBloc extends Bloc<SelectModelEvent, SelectModelState> {
       },
     );
 
-    _aiModelStateNotifier.addListener(
-      onAvailableModelsChanged: _onAvailableModelsChanged,
-    );
+    _aiModelStateNotifier.addListener(_onModelStateChanged);
   }
 
   final AIModelStateNotifier _aiModelStateNotifier;
 
+  void _onModelStateChanged() {
+    final modelSelection = _aiModelStateNotifier.modelSelection;
+    _onAvailableModelsChanged(
+      modelSelection.availableModels,
+      modelSelection.selectedModel,
+    );
+  }
+
   @override
   Future<void> close() async {
-    _aiModelStateNotifier.removeListener(
-      onAvailableModelsChanged: _onAvailableModelsChanged,
-    );
+    _aiModelStateNotifier.removeListener(_onModelStateChanged);
     await super.close();
   }
 
@@ -83,10 +87,10 @@ class SelectModelState with _$SelectModelState {
   }) = _SelectModelState;
 
   factory SelectModelState.initial(AIModelStateNotifier notifier) {
-    final (models, selectedModel) = notifier.getModelSelection();
+    final modelSelection = notifier.modelSelection;
     return SelectModelState(
-      models: models,
-      selectedModel: selectedModel,
+      models: modelSelection.availableModels,
+      selectedModel: modelSelection.selectedModel,
     );
   }
 }

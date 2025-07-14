@@ -20,6 +20,8 @@ import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:flutter/material.dart';
+import 'package:universal_platform/universal_platform.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:url_protocol/url_protocol.dart';
 
 const appflowyDeepLinkSchema = 'appflowy-flutter';
@@ -37,7 +39,7 @@ class AppFlowyCloudDeepLink {
     _deepLinkSubscription = _AppLinkWrapper.instance.listen(
       (Uri? uri) async {
         Log.info('onDeepLink: ${uri.toString()}');
-        await _handleUri(uri);
+        await handleUri(uri);
       },
       onError: (Object err, StackTrace stackTrace) {
         Log.error('on DeepLink stream error: ${err.toString()}', stackTrace);
@@ -97,10 +99,10 @@ class AppFlowyCloudDeepLink {
     GotrueTokenResponsePB gotrueTokenResponse,
   ) async {
     final uri = _buildDeepLinkUri(gotrueTokenResponse);
-    await _handleUri(uri);
+    await handleUri(uri);
   }
 
-  Future<void> _handleUri(
+  Future<void> handleUri(
     Uri? uri,
   ) async {
     _stateNotifier?.value = DeepLinkResult(state: DeepLinkState.none);
@@ -123,6 +125,13 @@ class AppFlowyCloudDeepLink {
       onResult: (handler, result) async {
         if (handler is LoginDeepLinkHandler &&
             result is FlowyResult<UserProfilePB, FlowyError>) {
+          // Close the in-app webview after successful sign-in
+          result.onSuccess((_) {
+            if (UniversalPlatform.isIOS) {
+              closeInAppWebView();
+            }
+          });
+
           // If there is no completer, runAppFlowy() will be called.
           if (_completer == null) {
             await result.fold(

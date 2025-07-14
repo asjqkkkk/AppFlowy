@@ -1,18 +1,19 @@
 use crate::af_cloud::define::LoggedUser;
 use chrono::{TimeZone, Utc};
 use client_api::entity::ai_dto::RepeatedRelatedQuestion;
+use flowy_ai::local_ai::chat::llm_chat::StreamQuestionOptions;
 use flowy_ai::local_ai::controller::LocalAIController;
-use flowy_ai_pub::cloud::chat_dto::{ChatAuthor, ChatAuthorType};
+use flowy_ai_pub::cloud::chat_dto::ChatAuthor;
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  DEFAULT_AI_MODEL_NAME, MessageCursor, ModelList, RelatedQuestion, RepeatedChatMessage,
-  ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
+  CreatedChatMessage, DEFAULT_AI_MODEL_NAME, MessageCursor, ModelList, RelatedQuestion,
+  RepeatedChatMessage, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_ai_pub::persistence::{
-  ChatMessageTable, ChatTable, ChatTableChangeset, deserialize_chat_metadata, deserialize_rag_ids,
-  select_answer_where_match_reply_message_id, select_chat, select_chat_messages,
-  select_message_content, serialize_chat_metadata, serialize_rag_ids, update_chat, upsert_chat,
-  upsert_chat_messages,
+  ChatMessageTable, ChatTable, ChatTableChangeset, chat_auth_type_from_i64,
+  deserialize_chat_metadata, deserialize_rag_ids, select_answer_where_match_reply_message_id,
+  select_chat, select_chat_messages, select_message_content, serialize_chat_metadata,
+  serialize_rag_ids, update_chat, upsert_chat, upsert_chat_messages,
 };
 use flowy_error::{FlowyError, FlowyResult};
 use lazy_static::lazy_static;
@@ -20,10 +21,10 @@ use lib_infra::async_trait::async_trait;
 use lib_infra::util::timestamp;
 use serde_json::{Value, json};
 use std::collections::HashMap;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
-use tracing::trace;
+use tracing::{debug, trace};
 use uuid::Uuid;
 
 lazy_static! {
@@ -79,16 +80,53 @@ impl ChatCloudService for LocalChatServiceImpl {
     message: &str,
     message_type: ChatMessageType,
     _prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError> {
-    let uid = self.logged_user.user_id()?;
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError> {
     let message_id = ID_GEN.lock().await.next_id();
-    let message = match message_type {
+    let mut new_file_paths = vec![];
+    for file_path in file_paths {
+      if let Ok(new_file_path) = self
+        .local_ai
+        .copy_file(chat_id, message_id, PathBuf::from(file_path.as_str()))
+        .await
+      {
+        new_file_paths.push(new_file_path);
+      }
+    }
+
+    let mut metadatas = vec![];
+    let mut errors = HashMap::new();
+    for file in new_file_paths.iter() {
+      match self
+        .local_ai
+        .generate_embed_file_metadata(chat_id, PathBuf::from(&file))
+        .await
+      {
+        Ok(metadata) => {
+          metadatas.push(metadata);
+        },
+        Err(err) => {
+          errors.insert(file, err.msg);
+        },
+      }
+    }
+
+    let uid = self.logged_user.user_id()?;
+    let mut message = match message_type {
       ChatMessageType::System => ChatMessage::new_system(uid, message_id, message.to_string()),
       ChatMessageType::User => ChatMessage::new_human(uid, message_id, message.to_string(), None),
     };
 
+    message.metadata = json!(metadatas);
+    debug!(
+      "Creating question message: {:?}, chat_id: {}",
+      message, chat_id
+    );
     self.upsert_message(chat_id, message.clone()).await?;
-    Ok(message)
+    Ok(CreatedChatMessage {
+      message,
+      embed_files: new_file_paths,
+    })
   }
 
   async fn create_answer(
@@ -108,7 +146,7 @@ impl ChatCloudService for LocalChatServiceImpl {
     Ok(message)
   }
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     _workspace_id: &Uuid,
     chat_id: &Uuid,
@@ -120,7 +158,13 @@ impl ChatCloudService for LocalChatServiceImpl {
       let content = self.get_message_content(question_id)?;
       self
         .local_ai
-        .stream_question(chat_id, &content, format, &ai_model.name)
+        .stream_question(
+          chat_id,
+          &content,
+          format,
+          &ai_model.name,
+          StreamQuestionOptions::default(),
+        )
         .await
     } else {
       Err(FlowyError::local_ai_disabled())
@@ -232,12 +276,11 @@ impl ChatCloudService for LocalChatServiceImpl {
     _workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     if self.local_ai.is_ready().await {
       self
         .local_ai
-        .embed_file(chat_id, file_path.to_path_buf(), metadata)
+        .embed_file(chat_id, file_path.to_path_buf())
         .await
         .map_err(|err| FlowyError::local_ai().with_context(err))?;
       Ok(())
@@ -311,12 +354,7 @@ fn chat_message_from_row(row: ChatMessageTable) -> ChatMessage {
     .unwrap_or_else(Utc::now);
 
   let author_id = row.author_id.parse::<i64>().unwrap_or_default();
-  let author_type = match row.author_type {
-    1 => ChatAuthorType::Human,
-    2 => ChatAuthorType::System,
-    3 => ChatAuthorType::AI,
-    _ => ChatAuthorType::Unknown,
-  };
+  let author_type = chat_auth_type_from_i64(row.author_type);
 
   let metadata = row
     .metadata

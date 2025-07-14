@@ -14,7 +14,6 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-ai/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -321,7 +320,6 @@ class ChatAIMessagePopup extends StatelessWidget {
         showMobileBottomSheet(
           context,
           showDragHandle: true,
-          backgroundColor: AFThemeExtension.of(context).background,
           builder: (bottomSheetContext) {
             return Column(
               mainAxisSize: MainAxisSize.min,
@@ -408,7 +406,7 @@ class ChatAIMessagePopup extends StatelessWidget {
     return MobileQuickActionButton(
       onTap: () async {
         final bloc = context.read<AIPromptInputBloc>();
-        final (models, _) = bloc.aiModelStateNotifier.getModelSelection();
+        final models = bloc.aiModelStateNotifier.modelSelection.availableModels;
         final result = await showChangeModelBottomSheet(context, models);
         if (result != null) {
           onChangeModel?.call(result);

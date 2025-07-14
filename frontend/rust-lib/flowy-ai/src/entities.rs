@@ -73,6 +73,9 @@ pub struct StreamChatPayloadPB {
 
   #[pb(index = 7, one_of)]
   pub prompt_id: Option<String>,
+
+  #[pb(index = 8)]
+  pub files: Vec<ChatFilePB>,
 }
 
 #[derive(Default, Debug)]
@@ -84,6 +87,7 @@ pub struct StreamMessageParams {
   pub question_stream_port: i64,
   pub format: Option<PredefinedFormatPB>,
   pub prompt_id: Option<String>,
+  pub files: Vec<ChatFilePB>,
 }
 
 #[derive(Default, ProtoBuf, Validate, Clone, Debug)]
@@ -105,28 +109,10 @@ pub struct RegenerateResponsePB {
   pub model: Option<AIModelPB>,
 }
 
-#[derive(Default, ProtoBuf, Validate, Clone, Debug)]
-pub struct ChatMessageMetaPB {
-  #[pb(index = 1)]
-  pub id: String,
-
-  #[pb(index = 2)]
-  pub name: String,
-
-  #[pb(index = 3)]
-  pub data: String,
-
-  #[pb(index = 4)]
-  pub loader_type: ContextLoaderTypePB,
-
-  #[pb(index = 5)]
-  pub source: String,
-}
-
 #[derive(Debug, Default, Clone, ProtoBuf_Enum, PartialEq, Eq, Copy)]
-pub enum ContextLoaderTypePB {
+pub enum ChatFileTypePB {
   #[default]
-  UnknownLoaderType = 0,
+  UnknownFileType = 0,
   Txt = 1,
   Markdown = 2,
   PDF = 3,
@@ -516,6 +502,12 @@ pub struct ChatFilePB {
   #[pb(index = 2)]
   #[validate(custom(function = "required_not_empty_str"))]
   pub chat_id: String,
+
+  #[pb(index = 3)]
+  pub file_type: ChatFileTypePB,
+
+  #[pb(index = 4)]
+  pub file_name: String,
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
@@ -770,4 +762,19 @@ pub struct CustomPromptDatabaseConfigurationPB {
 
   #[pb(index = 5, one_of)]
   pub category_field_id: Option<String>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct AttachedChatFilesPB {
+  #[pb(index = 1)]
+  pub files: Vec<String>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct EmbedFileErrorPB {
+  #[pb(index = 1)]
+  pub file_path: String,
+
+  #[pb(index = 2)]
+  pub error: String,
 }

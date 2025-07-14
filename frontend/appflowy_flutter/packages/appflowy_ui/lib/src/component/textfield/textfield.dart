@@ -25,6 +25,7 @@ class AFTextField extends StatefulWidget {
     this.controller,
     this.onChanged,
     this.onSubmitted,
+    this.onTapOutside,
     this.autoFocus,
     this.obscureText = false,
     this.expands = false,
@@ -64,6 +65,9 @@ class AFTextField extends StatefulWidget {
 
   /// The callback to call when the text field is submitted.
   final void Function(String)? onSubmitted;
+
+  /// The callback to call when the user taps outside the text field.
+  final void Function(PointerDownEvent)? onTapOutside;
 
   /// Enable auto focus.
   final bool? autoFocus;
@@ -202,6 +206,7 @@ class _AFTextFieldState extends AFTextFieldState {
       obscureText: isObscured,
       onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
+      onTapOutside: widget.onTapOutside,
       autofocus: widget.autoFocus ?? false,
       maxLength: widget.maxLength,
       maxLengthEnforcement: MaxLengthEnforcement.truncateAfterCompositionEnds,

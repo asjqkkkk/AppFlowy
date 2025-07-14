@@ -10,6 +10,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:string_validator/string_validator.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class ContinueWithEmailAndPassword extends StatefulWidget {
   const ContinueWithEmailAndPassword({super.key});
@@ -59,11 +60,17 @@ class _ContinueWithEmailAndPasswordState
           AFTextField(
             key: emailKey,
             controller: controller,
+            focusNode: focusNode,
             hintText: LocaleKeys.signIn_pleaseInputYourEmail.tr(),
             onSubmitted: (value) => _signInWithEmail(
               context,
               value,
             ),
+            onTapOutside: (event) {
+              if (UniversalPlatform.isMobile) {
+                focusNode.unfocus();
+              }
+            },
           ),
           VSpace(theme.spacing.l),
           ContinueWithEmail(

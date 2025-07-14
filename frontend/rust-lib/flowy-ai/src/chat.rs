@@ -1,3 +1,4 @@
+use crate::chat_file::ChatLocalFileStorage;
 use crate::entities::{
   ChatMessageErrorPB, ChatMessageListPB, ChatMessagePB, PredefinedFormatPB,
   RepeatedRelatedQuestionPB, StreamMessageParams,
@@ -7,7 +8,8 @@ use crate::notification::{ChatNotification, chat_notification_builder};
 use crate::stream_message::{AIFollowUpData, StreamMessage};
 use allo_isolate::Isolate;
 use flowy_ai_pub::cloud::{
-  AIModel, ChatCloudService, ChatMessage, MessageCursor, QuestionStreamValue, ResponseFormat,
+  AIModel, ChatCloudService, ChatMessage, CreatedChatMessage, MessageCursor, QuestionStreamValue,
+  ResponseFormat,
 };
 use flowy_ai_pub::persistence::{
   ChatMessageTable, select_answer_where_match_reply_message_id, select_chat_messages,
@@ -40,6 +42,7 @@ pub struct Chat {
   latest_message_id: Arc<AtomicI64>,
   stop_stream: Arc<AtomicBool>,
   stream_buffer: Arc<Mutex<StringBuffer>>,
+  file_storage: Option<Arc<ChatLocalFileStorage>>,
 }
 
 impl Chat {
@@ -48,6 +51,7 @@ impl Chat {
     chat_id: Uuid,
     user_service: Arc<dyn AIUserService>,
     chat_service: Arc<ChatServiceMiddleware>,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
   ) -> Chat {
     Chat {
       uid,
@@ -58,6 +62,18 @@ impl Chat {
       latest_message_id: Default::default(),
       stop_stream: Arc::new(AtomicBool::new(false)),
       stream_buffer: Arc::new(Mutex::new(StringBuffer::default())),
+      file_storage,
+    }
+  }
+
+  pub async fn get_chat_attached_files(&self) -> FlowyResult<Vec<String>> {
+    match &self.file_storage {
+      None => Ok(vec![]),
+      Some(storage) => {
+        storage
+          .get_files_for_chat(&self.chat_id.to_string(), None)
+          .await
+      },
     }
   }
 
@@ -80,7 +96,6 @@ impl Chat {
       self.chat_id, params.message, params.message_type, params.format,
     );
 
-    // clear
     self
       .stop_stream
       .store(false, std::sync::atomic::Ordering::SeqCst);
@@ -91,7 +106,10 @@ impl Chat {
     let uid = self.user_service.user_id()?;
     let workspace_id = self.user_service.workspace_id()?;
 
-    let question = self
+    let CreatedChatMessage {
+      message: question,
+      embed_files,
+    } = self
       .chat_service
       .create_question(
         &workspace_id,
@@ -99,12 +117,21 @@ impl Chat {
         &params.message,
         params.message_type.clone(),
         params.prompt_id.clone(),
+        params.files.iter().map(|f| f.file_path.clone()).collect(),
       )
       .await
       .map_err(|err| {
         error!("Failed to send question: {}", err);
         FlowyError::server_error()
       })?;
+
+    if !embed_files.is_empty() {
+      chat_notification_builder(
+        self.chat_id.to_string(),
+        ChatNotification::DidAddNewChatFile,
+      )
+      .send();
+    }
 
     let _ = question_sink
       .send(StreamMessage::MessageId(question.message_id).to_string())
@@ -181,7 +208,7 @@ impl Chat {
     tokio::spawn(async move {
       let mut answer_sink = IsolateSink::new(Isolate::new(answer_stream_port));
       match cloud_service
-        .stream_answer(&workspace_id, &chat_id, question_id, format, ai_model)
+        .stream_question(&workspace_id, &chat_id, question_id, format, ai_model)
         .await
       {
         Ok(mut stream) => {
@@ -223,6 +250,11 @@ impl Chat {
                         })
                         .to_string(),
                       )
+                      .await;
+                  },
+                  QuestionStreamValue::Progress { value } => {
+                    let _ = answer_sink
+                      .send(StreamMessage::OnProcess(value).to_string())
                       .await;
                   },
                 }
@@ -586,7 +618,6 @@ impl Chat {
         &self.user_service.workspace_id()?,
         &file_path,
         &self.chat_id,
-        None,
       )
       .await?;
 

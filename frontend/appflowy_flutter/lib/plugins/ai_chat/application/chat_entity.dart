@@ -14,12 +14,12 @@ const errorMessageTextKey = "errorMessageText";
 const systemUserId = "system";
 const aiResponseUserId = "0";
 
-/// `messageRefSourceJsonStringKey` is the key used for metadata that contains the reference source of a message.
+/// `messageSourceKey` is the key used for metadata that contains the reference source of a message.
 /// Each message may include this information.
 /// - When used in a sent message, it indicates that the message includes an attachment.
 /// - When used in a received message, it indicates the AI reference sources used to answer a question.
-const messageRefSourceJsonStringKey = "ref_source_json_string";
-const messageChatFileListKey = "chat_files";
+const messageSourceKey = "source";
+const messageSendFileListKey = "sent_files";
 const messageQuestionIdKey = "question_id";
 
 @JsonSerializable()
@@ -79,19 +79,19 @@ class ChatFile extends Equatable {
     final fileName = path.basename(filePath);
     final extension = path.extension(filePath).toLowerCase();
 
-    ContextLoaderTypePB fileType;
+    ChatFileTypePB fileType;
     switch (extension) {
       case '.pdf':
-        fileType = ContextLoaderTypePB.PDF;
+        fileType = ChatFileTypePB.PDF;
         break;
       case '.txt':
-        fileType = ContextLoaderTypePB.Txt;
+        fileType = ChatFileTypePB.Txt;
         break;
       case '.md':
-        fileType = ContextLoaderTypePB.Markdown;
+        fileType = ChatFileTypePB.Markdown;
         break;
       default:
-        fileType = ContextLoaderTypePB.UnknownLoaderType;
+        fileType = ChatFileTypePB.UnknownFileType;
     }
 
     return ChatFile(
@@ -103,7 +103,7 @@ class ChatFile extends Equatable {
 
   final String filePath;
   final String fileName;
-  final ContextLoaderTypePB fileType;
+  final ChatFileTypePB fileType;
 
   @override
   List<Object?> get props => [filePath];

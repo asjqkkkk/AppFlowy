@@ -1,8 +1,8 @@
 use crate::event_builder::EventBuilder;
 use crate::EventIntegrationTest;
 use flowy_ai::entities::{
-  ChatId, ChatMessageListPB, ChatMessageTypePB, LoadNextChatMessagePB, LoadPrevChatMessagePB,
-  StreamChatPayloadPB, UpdateChatSettingsPB,
+  ChatFilePB, ChatId, ChatMessageListPB, ChatMessageTypePB, LoadNextChatMessagePB,
+  LoadPrevChatMessagePB, StreamChatPayloadPB, UpdateChatSettingsPB,
 };
 use flowy_ai::event_map::AIEvent;
 use flowy_folder::entities::{CreateViewPayloadPB, ViewLayoutPB, ViewPB};
@@ -50,6 +50,7 @@ impl EventIntegrationTest {
     chat_id: &str,
     message: impl ToString,
     message_type: ChatMessageTypePB,
+    files: Vec<ChatFilePB>,
   ) {
     let payload = StreamChatPayloadPB {
       chat_id: chat_id.to_string(),
@@ -59,6 +60,7 @@ impl EventIntegrationTest {
       question_stream_port: 0,
       format: None,
       prompt_id: None,
+      files,
     };
 
     EventBuilder::new(self.clone())

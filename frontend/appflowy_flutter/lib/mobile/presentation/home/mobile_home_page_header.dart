@@ -138,9 +138,7 @@ class _MobileWorkspace extends StatelessWidget {
                       ),
                     ),
               ),
-              currentWorkspace.icon.isNotEmpty
-                  ? const HSpace(2)
-                  : const HSpace(8),
+              HSpace(8),
               Flexible(
                 child: FlowyText.semibold(
                   currentWorkspace.name,

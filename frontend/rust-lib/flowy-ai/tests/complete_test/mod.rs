@@ -13,7 +13,7 @@ use tracing::error;
 
 #[tokio::test]
 async fn local_ai_test_simple_ask_ai() {
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = LLMOllama::default();
   let ai_completion = CompletionChain::new(ollama);
   let text = "Compare js with Rust";
   let ty = CompletionType::AskAI;
@@ -33,7 +33,7 @@ async fn local_ai_test_simple_ask_ai() {
 #[tokio::test]
 async fn local_ai_test_improve_writing() {
   setup_log();
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = LLMOllama::default();
   let ai_completion = CompletionChain::new(ollama);
   let text = "I like playing basketball with my friend";
   let ty = CompletionType::ImproveWriting;
@@ -52,7 +52,7 @@ async fn local_ai_test_improve_writing() {
 #[tokio::test]
 async fn local_ai_test_simple_fix_grammar() {
   setup_log();
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = LLMOllama::default();
   let ai_completion = CompletionChain::new(ollama);
   let text = "He starts work everyday at 8 a.m";
   let ty = CompletionType::SpellingAndGrammar;

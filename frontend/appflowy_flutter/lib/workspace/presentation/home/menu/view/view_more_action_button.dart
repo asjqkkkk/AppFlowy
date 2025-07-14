@@ -61,16 +61,19 @@ class ViewMoreActionPopover extends StatelessWidget {
     final actionTypes = _buildActionTypes(context);
     return actionTypes.map(
       (e) {
-        final actionWrapper =
-            ViewMoreActionTypeWrapper(e, view, (controller, data) {
-          onEditing(false);
-          onAction(e, data);
-          bool enableClose = true;
-          if (data is SelectedEmojiIconResult) {
-            if (data.keepOpen) enableClose = false;
-          }
-          if (enableClose) controller.close();
-        });
+        final actionWrapper = ViewMoreActionTypeWrapper(
+          e,
+          view,
+          (controller, data) {
+            onEditing(false);
+            onAction(e, data);
+            bool enableClose = true;
+            if (data is SelectedEmojiIconResult) {
+              if (data.keepOpen) enableClose = false;
+            }
+            if (enableClose) controller.close();
+          },
+        );
 
         return actionWrapper;
       },

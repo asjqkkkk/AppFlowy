@@ -5,6 +5,7 @@ use langchain_rust::schemas::Message;
 use ollama_rs::generation::parameters::{FormatType, JsonStructure};
 use schemars::JsonSchema;
 use serde::Deserialize;
+use tracing::debug;
 
 const SYSTEM_PROMPT: &str = r#"
 You are the AppFlowy AI assistant. Given the conversation history, generate exactly three medium-length, relevant, and informative questions.
@@ -39,6 +40,10 @@ impl RelatedQuestionChain {
     })?;
 
     let parsed_result = serde_json::from_str::<QuestionsResponse>(&result.generation)?;
+    debug!(
+      "Generated question:{} related questions: {:?}",
+      question, parsed_result.questions
+    );
     Ok(parsed_result.questions)
   }
 }

@@ -60,6 +60,7 @@ class WorkspaceSubscriptionAIAddonTile extends StatelessWidget {
   ) {
     return SingleSettingAction(
       label: label,
+      labelMaxLines: 4,
       description: _getDescription(isCanceled, dateFormat),
       buttonLabel: _getButtonLabel(isCanceled),
       fontWeight: FontWeight.w500,

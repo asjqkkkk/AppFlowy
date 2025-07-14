@@ -106,8 +106,15 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
         receiveMessage: (message) async => _handleReceiveMessage(message),
 
         // Sending messages
-        sendMessage: (message, format, metadata, promptId) async =>
-            _handleSendMessage(message, format, metadata, promptId, emit),
+        sendMessage: (message, format, files, mentions, promptId) async =>
+            _handleSendMessage(
+          message,
+          format,
+          files,
+          mentions,
+          promptId,
+          emit,
+        ),
         finishSending: () async => emit(
           state.copyWith(
             promptResponseState: PromptResponseState.streamingAnswer,
@@ -210,7 +217,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   void _handleSendMessage(
     String message,
     PredefinedFormat? format,
-    Map<String, dynamic>? metadata,
+    Map<String, ChatFile>? files,
+    Map<String, ViewPB>? mentions,
     String? promptId,
     Emitter<ChatState> emit,
   ) {
@@ -218,7 +226,7 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     emit(state.copyWith(clearErrorMessages: !state.clearErrorMessages));
 
     _messageHandler.clearRelatedQuestions();
-    _startStreamingMessage(message, format, metadata, promptId);
+    _startStreamingMessage(message, format, files, mentions, promptId);
     lastSentMessage = null;
 
     isFetchingRelatedQuestions = false;
@@ -452,7 +460,8 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
   Future<void> _startStreamingMessage(
     String message,
     PredefinedFormat? format,
-    Map<String, dynamic>? metadata,
+    Map<String, ChatFile>? files,
+    Map<String, ViewPB>? mentions, // Deprecated
     String? promptId,
   ) async {
     // Prepare streams
@@ -461,12 +470,28 @@ class ChatBloc extends Bloc<ChatEvent, ChatState> {
     // Create and add question message
     final questionStreamMessage = _messageHandler.createQuestionStreamMessage(
       _streamManager.questionStream!,
-      metadata,
+      files,
     );
     add(ChatEvent.receiveMessage(questionStreamMessage));
 
     // Send stream request
-    await _streamManager.sendStreamRequest(message, format, promptId).fold(
+    await _streamManager
+        .sendStreamRequest(
+      message,
+      format,
+      promptId,
+      files?.values
+          .map(
+            (e) => ChatFilePB(
+              filePath: e.filePath,
+              fileName: e.fileName,
+              fileType: e.fileType,
+              chatId: chatId,
+            ),
+          )
+          .toList(),
+    )
+        .fold(
       (question) {
         if (!isClosed) {
           // Create and add answer stream message
@@ -557,7 +582,8 @@ class ChatEvent with _$ChatEvent {
   const factory ChatEvent.sendMessage({
     required String message,
     PredefinedFormat? format,
-    Map<String, dynamic>? metadata,
+    Map<String, ChatFile>? files,
+    Map<String, ViewPB>? mentions,
     String? promptId,
   }) = _SendMessage;
   const factory ChatEvent.finishSending() = _FinishSendMessage;

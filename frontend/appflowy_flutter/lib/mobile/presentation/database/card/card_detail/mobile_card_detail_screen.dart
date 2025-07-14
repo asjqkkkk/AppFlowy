@@ -25,7 +25,6 @@ import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/file_entities.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/row_entities.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -139,7 +138,6 @@ class _MobileRowDetailPageState extends State<MobileRowDetailPage> {
   void _showCardActions(BuildContext context) {
     showMobileBottomSheet(
       context,
-      backgroundColor: AFThemeExtension.of(context).background,
       showDragHandle: true,
       builder: (_) => Column(
         mainAxisSize: MainAxisSize.min,
@@ -418,7 +416,6 @@ class MobileRowDetailPageContentState
               GestureDetector(
                 onTap: () => showMobileBottomSheet(
                   context,
-                  backgroundColor: AFThemeExtension.of(context).background,
                   showDragHandle: true,
                   builder: (_) => Column(
                     mainAxisSize: MainAxisSize.min,

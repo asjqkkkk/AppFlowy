@@ -32,98 +32,80 @@ class ChatAIMessageBloc extends Bloc<ChatAIMessageEvent, ChatAIMessageState> {
   final Int64? questionId;
 
   void _registerEventHandlers() {
+    // Handle text updates and ready state
     on<_UpdateText>((event, emit) {
       emit(
         state.copyWith(
           text: event.text,
-          messageState: const MessageState.ready(),
+          status: ChatMessageStatus.ready,
+          error: null,
         ),
       );
     });
 
-    on<_ReceiveError>((event, emit) {
-      emit(state.copyWith(messageState: MessageState.onError(event.error)));
+    // Handle all status changes
+    on<_UpdateStatus>((event, emit) {
+      emit(
+        state.copyWith(
+          status: event.status,
+          error: event.error,
+          sources: event.sources ?? state.sources,
+          followUpData: event.followUpData ?? state.followUpData,
+          recentProgressSteps: event.progress != null
+              ? _updateRecentProgress(
+                  state.recentProgressSteps,
+                  event.progress!,
+                )
+              : state.recentProgressSteps,
+        ),
+      );
     });
 
+    // Handle metadata updates
+    on<_UpdateMetadata>((event, emit) {
+      emit(
+        state.copyWith(
+          sources: event.metadata.sources,
+          recentProgressSteps: event.metadata.progress != null
+              ? _updateRecentProgress(
+                  state.recentProgressSteps,
+                  event.metadata.progress!,
+                )
+              : state.recentProgressSteps,
+        ),
+      );
+    });
+
+    // Handle retry
     on<_Retry>((event, emit) async {
       if (questionId == null) {
         Log.error("Question id is not valid: $questionId");
         return;
       }
-      emit(state.copyWith(messageState: const MessageState.loading()));
+
+      emit(
+        state.copyWith(
+          status: ChatMessageStatus.loading,
+        ),
+      );
+
       final payload = ChatMessageIdPB(
         chatId: chatId,
         messageId: questionId,
       );
+
       final result = await AIEventGetAnswerForQuestion(payload).send();
       if (!isClosed) {
         result.fold(
-          (answer) => add(ChatAIMessageEvent.retryResult(answer.content)),
-          (err) {
-            Log.error("Failed to get answer: $err");
-            add(ChatAIMessageEvent.receiveError(err.toString()));
-          },
+          (answer) => add(ChatAIMessageEvent.updateText(answer.content)),
+          (err) => add(
+            ChatAIMessageEvent.updateStatus(
+              ChatMessageStatus.error,
+              error: err.toString(),
+            ),
+          ),
         );
       }
-    });
-
-    on<_RetryResult>((event, emit) {
-      emit(
-        state.copyWith(
-          text: event.text,
-          messageState: const MessageState.ready(),
-        ),
-      );
-    });
-
-    on<_OnAIResponseLimit>((event, emit) {
-      emit(
-        state.copyWith(
-          messageState: const MessageState.onAIResponseLimit(),
-        ),
-      );
-    });
-
-    on<_OnAIImageResponseLimit>((event, emit) {
-      emit(
-        state.copyWith(
-          messageState: const MessageState.onAIImageResponseLimit(),
-        ),
-      );
-    });
-
-    on<_OnAIMaxRquired>((event, emit) {
-      emit(
-        state.copyWith(
-          messageState: MessageState.onAIMaxRequired(event.message),
-        ),
-      );
-    });
-
-    on<_OnLocalAIInitializing>((event, emit) {
-      emit(
-        state.copyWith(
-          messageState: const MessageState.onInitializingLocalAI(),
-        ),
-      );
-    });
-
-    on<_ReceiveMetadata>((event, emit) {
-      Log.debug("AI Steps: ${event.metadata.progress?.step}");
-      emit(
-        state.copyWith(
-          sources: event.metadata.sources,
-          progress: event.metadata.progress,
-        ),
-      );
-    });
-
-    on<_OnAIFollowUp>((event, emit) {
-      emit(
-        state.copyWith(
-          messageState: MessageState.aiFollowUp(event.followUpData),
-        ),
-      );
     });
   }
 
@@ -131,23 +113,48 @@ class ChatAIMessageBloc extends Bloc<ChatAIMessageEvent, ChatAIMessageState> {
     if (state.stream != null) {
       state.stream!.listen(
         onData: (text) => _safeAdd(ChatAIMessageEvent.updateText(text)),
-        onError: (error) =>
-            _safeAdd(ChatAIMessageEvent.receiveError(error.toString())),
-        onAIResponseLimit: () =>
-            _safeAdd(const ChatAIMessageEvent.onAIResponseLimit()),
-        onAIImageResponseLimit: () =>
-            _safeAdd(const ChatAIMessageEvent.onAIImageResponseLimit()),
-        onMetadata: (metadata) =>
-            _safeAdd(ChatAIMessageEvent.receiveMetadata(metadata)),
-        onAIMaxRequired: (message) {
-          Log.info(message);
-          _safeAdd(ChatAIMessageEvent.onAIMaxRequired(message));
-        },
-        onLocalAIInitializing: () =>
-            _safeAdd(const ChatAIMessageEvent.onLocalAIInitializing()),
-        onAIFollowUp: (data) {
-          _safeAdd(ChatAIMessageEvent.onAIFollowUp(data));
-        },
+        onError: (error) => _safeAdd(
+          ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.error,
+            error: error.toString(),
+          ),
+        ),
+        onAIResponseLimit: () => _safeAdd(
+          const ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.aiResponseLimit,
+          ),
+        ),
+        onAIImageResponseLimit: () => _safeAdd(
+          const ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.aiImageResponseLimit,
+          ),
+        ),
+        onMetadata: (metadata) => _safeAdd(
+          ChatAIMessageEvent.updateMetadata(metadata),
+        ),
+        onAIMaxRequired: (message) => _safeAdd(
+          ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.aiMaxRequired,
+            error: message,
+          ),
+        ),
+        onLocalAIInitializing: () => _safeAdd(
+          const ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.initializingLocalAI,
+          ),
+        ),
+        onAIFollowUp: (data) => _safeAdd(
+          ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.aiFollowUp,
+            followUpData: data,
+          ),
+        ),
+        onProgress: (step) => _safeAdd(
+          ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.processing,
+            progress: AIChatProgress(step: step),
+          ),
+        ),
       );
     }
   }
@@ -155,9 +162,18 @@ class ChatAIMessageBloc extends Bloc<ChatAIMessageEvent, ChatAIMessageState> {
   void _checkInitialStreamState() {
     if (state.stream != null) {
       if (state.stream!.aiLimitReached) {
-        add(const ChatAIMessageEvent.onAIResponseLimit());
+        add(
+          const ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.aiResponseLimit,
+          ),
+        );
       } else if (state.stream!.error != null) {
-        add(ChatAIMessageEvent.receiveError(state.stream!.error!));
+        add(
+          ChatAIMessageEvent.updateStatus(
+            ChatMessageStatus.error,
+            error: state.stream!.error!,
+          ),
+        );
       }
     }
   }
@@ -167,27 +183,34 @@ class ChatAIMessageBloc extends Bloc<ChatAIMessageEvent, ChatAIMessageState> {
       add(event);
     }
   }
+
+  /// Helper method to maintain a list of recent AIChatProgress values (max 5)
+  List<AIChatProgress> _updateRecentProgress(
+    List<AIChatProgress> currentProgresses,
+    AIChatProgress newProgress,
+  ) {
+    final updatedProgresses = [newProgress, ...currentProgresses];
+    if (updatedProgresses.length > 5) {
+      return updatedProgresses.take(5).toList();
+    }
+    return updatedProgresses;
+  }
 }
 
 @freezed
 class ChatAIMessageEvent with _$ChatAIMessageEvent {
   const factory ChatAIMessageEvent.updateText(String text) = _UpdateText;
-  const factory ChatAIMessageEvent.receiveError(String error) = _ReceiveError;
-  const factory ChatAIMessageEvent.retry() = _Retry;
-  const factory ChatAIMessageEvent.retryResult(String text) = _RetryResult;
-  const factory ChatAIMessageEvent.onAIResponseLimit() = _OnAIResponseLimit;
-  const factory ChatAIMessageEvent.onAIImageResponseLimit() =
-      _OnAIImageResponseLimit;
-  const factory ChatAIMessageEvent.onAIMaxRequired(String message) =
-      _OnAIMaxRquired;
-  const factory ChatAIMessageEvent.onLocalAIInitializing() =
-      _OnLocalAIInitializing;
-  const factory ChatAIMessageEvent.receiveMetadata(
+  const factory ChatAIMessageEvent.updateStatus(
+    ChatMessageStatus status, {
+    String? error,
+    List<ChatMessageRefSource>? sources,
+    AIChatProgress? progress,
+    AIFollowUpData? followUpData,
+  }) = _UpdateStatus;
+  const factory ChatAIMessageEvent.updateMetadata(
     MetadataCollection metadata,
-  ) = _ReceiveMetadata;
-  const factory ChatAIMessageEvent.onAIFollowUp(
-    AIFollowUpData followUpData,
-  ) = _OnAIFollowUp;
+  ) = _UpdateMetadata;
+  const factory ChatAIMessageEvent.retry() = _Retry;
 }
 
 @freezed
@@ -195,9 +218,11 @@ class ChatAIMessageState with _$ChatAIMessageState {
   const factory ChatAIMessageState({
     AnswerStream? stream,
     required String text,
-    required MessageState messageState,
+    required ChatMessageStatus status,
+    String? error,
     required List<ChatMessageRefSource> sources,
-    required AIChatProgress? progress,
+    AIFollowUpData? followUpData,
+    required List<AIChatProgress> recentProgressSteps,
   }) = _ChatAIMessageState;
 
   factory ChatAIMessageState.initial(
@@ -207,22 +232,35 @@ class ChatAIMessageState with _$ChatAIMessageState {
     return ChatAIMessageState(
       text: text is String ? text : "",
       stream: text is AnswerStream ? text : null,
-      messageState: const MessageState.ready(),
+      status: ChatMessageStatus.ready,
       sources: metadata.sources,
-      progress: metadata.progress,
+      recentProgressSteps:
+          metadata.progress != null ? [metadata.progress!] : [],
     );
   }
 }
 
-@freezed
-class MessageState with _$MessageState {
-  const factory MessageState.onError(String error) = _Error;
-  const factory MessageState.onAIResponseLimit() = _AIResponseLimit;
-  const factory MessageState.onAIImageResponseLimit() = _AIImageResponseLimit;
-  const factory MessageState.onAIMaxRequired(String message) = _AIMaxRequired;
-  const factory MessageState.onInitializingLocalAI() = _LocalAIInitializing;
-  const factory MessageState.ready() = _Ready;
-  const factory MessageState.loading() = _Loading;
-  const factory MessageState.aiFollowUp(AIFollowUpData followUpData) =
-      _AIFollowUp;
+// Simplified status enum that covers all cases
+enum ChatMessageStatus {
+  ready,
+  loading,
+  processing,
+  error,
+  aiResponseLimit,
+  aiImageResponseLimit,
+  aiMaxRequired,
+  initializingLocalAI,
+  aiFollowUp,
+}
+
+// Extension to help with status checks
+extension ChatMessageStatusX on ChatMessageStatus {
+  bool get isError => this == ChatMessageStatus.error;
+  bool get isLoading =>
+      this == ChatMessageStatus.loading || this == ChatMessageStatus.processing;
+  bool get isReady => this == ChatMessageStatus.ready;
+  bool get hasLimitReached =>
+      this == ChatMessageStatus.aiResponseLimit ||
+      this == ChatMessageStatus.aiImageResponseLimit ||
+      this == ChatMessageStatus.aiMaxRequired;
 }

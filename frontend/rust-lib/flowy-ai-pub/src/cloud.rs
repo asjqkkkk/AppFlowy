@@ -16,8 +16,6 @@ use flowy_error::FlowyError;
 use futures::stream::BoxStream;
 use lib_infra::async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::collections::HashMap;
 use std::path::Path;
 use uuid::Uuid;
 
@@ -31,6 +29,11 @@ pub struct AIModel {
   pub is_local: bool,
   #[serde(default)]
   pub desc: String,
+}
+
+pub struct CreatedChatMessage {
+  pub message: ChatMessage,
+  pub embed_files: Vec<String>,
 }
 
 impl AIModel {
@@ -107,7 +110,8 @@ pub trait ChatCloudService: Send + Sync + 'static {
     message: &str,
     message_type: ChatMessageType,
     prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError>;
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError>;
 
   async fn create_answer(
     &self,
@@ -118,7 +122,7 @@ pub trait ChatCloudService: Send + Sync + 'static {
     metadata: Option<serde_json::Value>,
   ) -> Result<ChatMessage, FlowyError>;
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     workspace_id: &Uuid,
     chat_id: &Uuid,
@@ -169,7 +173,6 @@ pub trait ChatCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError>;
 
   async fn get_chat_settings(

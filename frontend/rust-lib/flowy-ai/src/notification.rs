@@ -1,10 +1,12 @@
 use flowy_derive::ProtoBuf_Enum;
 use flowy_notification::NotificationBuilder;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use tracing::trace;
 
 const CHAT_OBSERVABLE_SOURCE: &str = "Chat";
 pub const APPFLOWY_AI_NOTIFICATION_KEY: &str = "appflowy_ai_plugin";
-#[derive(ProtoBuf_Enum, Debug, Default)]
+#[derive(ProtoBuf_Enum, Debug, Default, IntoPrimitive, TryFromPrimitive, Clone)]
+#[repr(i32)]
 pub enum ChatNotification {
   #[default]
   Unknown = 0,
@@ -17,27 +19,8 @@ pub enum ChatNotification {
   DidUpdateChatSettings = 7,
   LocalAIResourceUpdated = 8,
   DidUpdateSelectedModel = 9,
-}
-
-impl std::convert::From<ChatNotification> for i32 {
-  fn from(notification: ChatNotification) -> Self {
-    notification as i32
-  }
-}
-impl std::convert::From<i32> for ChatNotification {
-  fn from(notification: i32) -> Self {
-    match notification {
-      1 => ChatNotification::DidLoadLatestChatMessage,
-      2 => ChatNotification::DidLoadPrevChatMessage,
-      3 => ChatNotification::DidReceiveChatMessage,
-      4 => ChatNotification::StreamChatMessageError,
-      5 => ChatNotification::FinishStreaming,
-      6 => ChatNotification::UpdateLocalAIState,
-      7 => ChatNotification::DidUpdateChatSettings,
-      8 => ChatNotification::LocalAIResourceUpdated,
-      _ => ChatNotification::Unknown,
-    }
-  }
+  DidAddNewChatFile = 10,
+  FailedToEmbedFile = 11,
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

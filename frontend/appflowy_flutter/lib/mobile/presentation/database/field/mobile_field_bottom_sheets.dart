@@ -9,7 +9,6 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 import 'package:appflowy/util/field_type_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:go_router/go_router.dart';
 
 import 'mobile_create_field_screen.dart';
@@ -39,13 +38,11 @@ Future<FieldType?> showFieldTypeGridBottomSheet(
 }) {
   return showMobileBottomSheet<FieldType>(
     context,
-    showHeader: true,
     showDragHandle: true,
+    showDivider: false,
+    showHeader: true,
     showCloseButton: true,
-    elevation: 20,
     title: title,
-    backgroundColor: AFThemeExtension.of(context).background,
-    enableDraggableScrollable: true,
     builder: (context) {
       final typeOptionMenuItemValue = mobileSupportedFieldTypes
           .map(

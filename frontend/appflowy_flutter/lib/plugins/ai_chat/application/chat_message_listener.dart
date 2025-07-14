@@ -32,6 +32,8 @@ class ChatMessageListener {
   LatestMessageCallback? latestMessageCallback;
   PrevMessageCallback? prevMessageCallback;
   void Function()? finishStreamingCallback;
+  void Function()? didUploadChatFileCallback;
+  void Function(EmbedFileErrorPB)? failedToEmbedFile;
 
   void start({
     ChatMessageCallback? chatMessageCallback,
@@ -39,12 +41,16 @@ class ChatMessageListener {
     LatestMessageCallback? latestMessageCallback,
     PrevMessageCallback? prevMessageCallback,
     void Function()? finishStreamingCallback,
+    void Function()? didUploadChatFileCallback,
+    void Function(EmbedFileErrorPB)? failedToEmbedFile,
   }) {
     this.chatMessageCallback = chatMessageCallback;
     this.chatErrorMessageCallback = chatErrorMessageCallback;
     this.latestMessageCallback = latestMessageCallback;
     this.prevMessageCallback = prevMessageCallback;
     this.finishStreamingCallback = finishStreamingCallback;
+    this.didUploadChatFileCallback = didUploadChatFileCallback;
+    this.failedToEmbedFile = failedToEmbedFile;
   }
 
   void _callback(
@@ -67,6 +73,12 @@ class ChatMessageListener {
           break;
         case ChatNotification.FinishStreaming:
           finishStreamingCallback?.call();
+          break;
+        case ChatNotification.DidAddNewChatFile:
+          didUploadChatFileCallback?.call();
+          break;
+        case ChatNotification.FailedToEmbedFile:
+          failedToEmbedFile?.call(EmbedFileErrorPB.fromBuffer(r));
           break;
         default:
           break;

@@ -6,25 +6,21 @@ use crate::notification::{
 use anyhow::Error;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
-use futures::Sink;
 use lib_infra::async_trait::async_trait;
-use std::collections::HashMap;
 
+use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::{LLMChatController, LLMChatInfo};
-use crate::stream_message::StreamMessage;
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::AIModel;
 use flowy_ai_pub::persistence::{
   LocalAIModelTable, ModelType, select_local_ai_model, upsert_local_ai_model,
 };
 use flowy_ai_pub::user_service::{AIUserService, ValidateVaultResult};
-use futures_util::SinkExt;
 use lib_infra::util::get_operating_system;
 use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
-use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
@@ -40,7 +36,7 @@ impl Default for LocalAISetting {
   fn default() -> Self {
     Self {
       ollama_server_url: "http://localhost:11434".to_string(),
-      chat_model_name: "llama3.1:latest".to_string(),
+      chat_model_name: "gemma3:4b".to_string(),
       embedding_model_name: "nomic-embed-text:latest".to_string(),
     }
   }
@@ -51,7 +47,6 @@ const LOCAL_AI_SETTING_KEY: &str = "appflowy_local_ai_setting:v1";
 pub struct LocalAIController {
   llm_controller: LLMChatController,
   resource: Arc<LocalAIResourceController>,
-  current_chat_id: ArcSwapOption<Uuid>,
   store_preferences: Weak<KVStorePreferences>,
   user_service: Arc<dyn AIUserService>,
   pub(crate) ollama: ArcSwapOption<Ollama>,
@@ -89,7 +84,6 @@ impl LocalAIController {
     Self {
       llm_controller,
       resource: local_ai_resource,
-      current_chat_id: ArcSwapOption::default(),
       store_preferences,
       user_service,
       ollama,
@@ -229,10 +223,6 @@ impl LocalAIController {
     Some(self.resource.get_llm_setting().chat_model_name)
   }
 
-  pub async fn set_chat_rag_ids(&self, chat_id: &Uuid, rag_ids: &[String]) {
-    self.llm_controller.set_rag_ids(chat_id, rag_ids).await;
-  }
-
   pub async fn open_chat(
     &self,
     workspace_id: &Uuid,
@@ -240,16 +230,8 @@ impl LocalAIController {
     model: &str,
     rag_ids: Vec<String>,
     summary: String,
+    file_storage: Option<Arc<ChatLocalFileStorage>>,
   ) -> FlowyResult<()> {
-    // Only keep one chat open at a time. Since loading multiple models at the same time will cause
-    // memory issues.
-    if let Some(current_chat_id) = self.current_chat_id.load().as_ref() {
-      if current_chat_id.as_ref() != chat_id {
-        debug!("[Chat] close previous chat: {}", current_chat_id);
-        self.close_chat(current_chat_id);
-      }
-    }
-
     let info = LLMChatInfo {
       chat_id: *chat_id,
       workspace_id: *workspace_id,
@@ -257,8 +239,7 @@ impl LocalAIController {
       rag_ids,
       summary,
     };
-    self.current_chat_id.store(Some(Arc::new(*chat_id)));
-    self.llm_controller.open_chat(info).await?;
+    self.llm_controller.open_chat(info, file_storage).await?;
     Ok(())
   }
 
@@ -413,102 +394,6 @@ impl LocalAIController {
       .toggle_plugin(is_toggle_on, result.can_use_local_ai(), &result)
       .await?;
     Ok(is_toggle_on)
-  }
-
-  // #[instrument(level = "debug", skip_all)]
-  // pub async fn index_message_metadata(
-  //   &self,
-  //   chat_id: &Uuid,
-  //   metadata_list: &[ChatMessageMetadata],
-  //   index_process_sink: &mut (impl Sink<String> + Unpin),
-  // ) -> FlowyResult<()> {
-  //   if !self.is_enabled() {
-  //     info!("[Local AI] local ai is disabled, skip indexing");
-  //     return Ok(());
-  //   }
-  //
-  //   for metadata in metadata_list {
-  //     let mut file_metadata = HashMap::new();
-  //     file_metadata.insert("id".to_string(), json!(&metadata.id));
-  //     file_metadata.insert("name".to_string(), json!(&metadata.name));
-  //     file_metadata.insert("source".to_string(), json!(&metadata.source));
-  //
-  //     let file_path = Path::new(&metadata.data.content);
-  //     if !file_path.exists() {
-  //       return Err(
-  //         FlowyError::record_not_found().with_context(format!("File not found: {:?}", file_path)),
-  //       );
-  //     }
-  //     info!(
-  //       "[Local AI] embed file: {:?}, with metadata: {:?}",
-  //       file_path, file_metadata
-  //     );
-  //
-  //     match &metadata.data.content_type {
-  //       ContextLoader::Unknown => {
-  //         error!(
-  //           "[Local AI] unsupported content type: {:?}",
-  //           metadata.data.content_type
-  //         );
-  //       },
-  //       ContextLoader::Text | ContextLoader::Markdown | ContextLoader::PDF => {
-  //         self
-  //           .process_index_file(
-  //             chat_id,
-  //             file_path.to_path_buf(),
-  //             &file_metadata,
-  //             index_process_sink,
-  //           )
-  //           .await?;
-  //       },
-  //     }
-  //   }
-  //
-  //   Ok(())
-  // }
-
-  #[allow(dead_code)]
-  async fn process_index_file(
-    &self,
-    chat_id: &Uuid,
-    file_path: PathBuf,
-    index_metadata: &HashMap<String, serde_json::Value>,
-    index_process_sink: &mut (impl Sink<String> + Unpin),
-  ) -> Result<(), FlowyError> {
-    let file_name = file_path
-      .file_name()
-      .unwrap_or_default()
-      .to_string_lossy()
-      .to_string();
-
-    let _ = index_process_sink
-      .send(
-        StreamMessage::StartIndexFile {
-          file_name: file_name.clone(),
-        }
-        .to_string(),
-      )
-      .await;
-
-    let result = self
-      .llm_controller
-      .embed_file(chat_id, file_path, Some(index_metadata.clone()))
-      .await;
-    match result {
-      Ok(_) => {
-        let _ = index_process_sink
-          .send(StreamMessage::EndIndexFile { file_name }.to_string())
-          .await;
-      },
-      Err(err) => {
-        let _ = index_process_sink
-          .send(StreamMessage::IndexFileError { file_name }.to_string())
-          .await;
-        error!("[Local AI] failed to index file: {:?}", err);
-      },
-    }
-
-    Ok(())
   }
 
   #[instrument(level = "debug", skip_all)]

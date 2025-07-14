@@ -120,7 +120,7 @@
     "vaultWorkspace": "Vault",
     "vaultIndicator": "Vault",
     "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
-    "createVaultWorkspaceDisabled": "Create secure, offline Vaults with Pro.\nUpgrade to unlock!",
+    "clickToSubscribeVaultWorkspace": "Click to enable Vault workspace",
     "cannotGetVaultWorkspaceSubscription": "Cannot get Vault workspace subscription information",
     "createANewWorkspace": "Create a new workspace",
     "createWorkspaceDescription": "Separate your work into organized workspaces with full control over team access and data privacy",
@@ -324,7 +324,9 @@
     "stopTooltip": "Stop generating",
     "localAiUnavailable": "Local AI is not available",
     "localAiUnavailableDescription": "You need to enable Local AI in order to use this feature.",
-    "goToSettings": "Go to Settings"
+    "goToSettings": "Go to Settings",
+    "noFilesAttached": "No files attached",
+    "addMoreFiles": "Add more files"
   },
   "trash": {
     "text": "Trash",
@@ -1004,7 +1006,7 @@
           "vaultWorkspaceTitle": "Vault Workspace"
         },
         "addons": {
-          "title": "Add-ons",
+          "title": "Workspace Add-ons",
           "addLabel": "Add",
           "activeLabel": "Added",
           "aiMax": {
@@ -1026,6 +1028,11 @@
             "price": "{}",
             "priceInfo": "Per user per month billed annually"
           }
+        },
+        "accountAddons": {
+          "title": "Account Add-ons",
+          "addLabel": "Add",
+          "activeLabel": "Added"
         },
         "deal": {
           "bannerLabel": "New year deal!",
@@ -3595,5 +3602,19 @@
     "noPermissionToCreatePage": "You don't have permission to create a page in this workspace",
     "failedToCreatePage": "Failed to create page",
     "noPermissionToCreateAnAIChat": "No permission to create an AI Chat"
+  },
+  "localFile": {
+    "fileNotFound": "File not found: {}",
+    "errorLoadingPDF": "Error loading PDF: {}",
+    "errorLoadingFile": "Error loading file: {}",
+    "pageCount": "Page {} of {}",
+    "contentCopied": "Content copied to clipboard",
+    "copyContent": "Copy content",
+    "failedToLoadPDF": "Failed to load PDF",
+    "errorLoadingPDFWithMessage": "Error loading PDF: {}",
+    "previewNotAvailable": "Preview not available",
+    "fileTypeCannotBeDisplayed": "This file type cannot be displayed",
+    "openExternallyNotImplemented": "Opening file externally is not yet implemented",
+    "openExternally": "Open Externally"
   }
 }

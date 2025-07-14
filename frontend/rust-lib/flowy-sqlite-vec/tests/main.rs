@@ -377,7 +377,7 @@ fn create_test_fragment(oid: &str, index: i32, embeddings: Vec<f32>) -> Embedded
     content: Some(format!("Content for fragment {}", index)),
     metadata: Some(format!("Metadata for fragment {}", index)),
     fragment_index: index,
-    embedder_type: 1,
     embeddings: Some(embeddings),
+    dimension: 768,
   }
 }

@@ -8,9 +8,11 @@ class FlowyEmojiHeader extends StatelessWidget {
   const FlowyEmojiHeader({
     super.key,
     required this.category,
+    this.backgroundColor,
   });
 
   final Category category;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +36,7 @@ class FlowyEmojiHeader extends StatelessWidget {
             height: 40,
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            color: Theme.of(context).cardColor,
+            color: backgroundColor ?? Theme.of(context).cardColor,
             child: Padding(
               padding: const EdgeInsets.only(
                 top: 14.0,

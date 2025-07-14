@@ -60,34 +60,24 @@ class SingleSettingAction extends StatelessWidget {
       children: [
         Expanded(
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: FlowyText(
-                      label,
-                      fontSize: fontSize,
-                      fontWeight: fontWeight,
-                      maxLines: labelMaxLines,
-                      overflow: TextOverflow.ellipsis,
-                      color: AFThemeExtension.of(context).secondaryTextColor,
-                    ),
-                  ),
-                ],
+              FlowyText(
+                label,
+                fontSize: fontSize,
+                fontWeight: fontWeight,
+                maxLines: labelMaxLines,
+                overflow: TextOverflow.ellipsis,
+                color: AFThemeExtension.of(context).secondaryTextColor,
               ),
               if (description != null) ...[
                 const VSpace(4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: FlowyText.regular(
-                        description!,
-                        fontSize: 11,
-                        color: AFThemeExtension.of(context).secondaryTextColor,
-                        maxLines: 2,
-                      ),
-                    ),
-                  ],
+                FlowyText.regular(
+                  description!,
+                  fontSize: 11,
+                  color: AFThemeExtension.of(context).secondaryTextColor,
+                  maxLines: null, // Allow unlimited lines for description
                 ),
               ],
             ],

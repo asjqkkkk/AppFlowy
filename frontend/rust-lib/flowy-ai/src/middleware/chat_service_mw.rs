@@ -1,21 +1,20 @@
 use crate::local_ai::controller::LocalAIController;
 use flowy_ai_pub::persistence::select_message_content;
-use std::collections::HashMap;
 
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  MessageCursor, ModelList, RelatedQuestion, RepeatedChatMessage, RepeatedRelatedQuestion,
-  ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
+  CreatedChatMessage, MessageCursor, ModelList, RelatedQuestion, RepeatedChatMessage,
+  RepeatedRelatedQuestion, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_error::{FlowyError, FlowyResult};
 use lib_infra::async_trait::async_trait;
 
+use crate::local_ai::chat::llm_chat::{EmbedFile, StreamQuestionOptions};
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_storage_pub::storage::StorageService;
-use serde_json::Value;
 use std::path::Path;
 use std::sync::{Arc, Weak};
-use tracing::{info, trace};
+use tracing::{debug, info, warn};
 use uuid::Uuid;
 
 pub struct ChatServiceMiddleware {
@@ -49,6 +48,19 @@ impl ChatServiceMiddleware {
     })?;
     Ok(content)
   }
+
+  pub async fn get_message_files(&self, chat_id: &Uuid, message_id: i64) -> Vec<String> {
+    match self.local_ai_controller.get_chat(chat_id) {
+      None => {
+        warn!(
+          "[Chat] Chat with id {} not found, unable to get message files",
+          chat_id
+        );
+        vec![]
+      },
+      Some(chat) => chat.read().await.get_message_files(message_id).await,
+    }
+  }
 }
 
 #[async_trait]
@@ -75,10 +87,18 @@ impl ChatCloudService for ChatServiceMiddleware {
     message: &str,
     message_type: ChatMessageType,
     prompt_id: Option<String>,
-  ) -> Result<ChatMessage, FlowyError> {
+    file_paths: Vec<String>,
+  ) -> Result<CreatedChatMessage, FlowyError> {
     self
       .cloud_service
-      .create_question(workspace_id, chat_id, message, message_type, prompt_id)
+      .create_question(
+        workspace_id,
+        chat_id,
+        message,
+        message_type,
+        prompt_id,
+        file_paths,
+      )
       .await
   }
 
@@ -96,7 +116,7 @@ impl ChatCloudService for ChatServiceMiddleware {
       .await
   }
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     workspace_id: &Uuid,
     chat_id: &Uuid,
@@ -108,9 +128,16 @@ impl ChatCloudService for ChatServiceMiddleware {
     if ai_model.is_local {
       if self.local_ai_controller.is_ready().await {
         let content = self.get_message_content(question_id)?;
+        let files = self.get_message_files(chat_id, question_id).await;
+        debug!("Files for message {}/{}: {:?}", chat_id, question_id, files);
+        let files = files
+          .into_iter()
+          .flat_map(|v| EmbedFile::try_from_path(v).ok())
+          .collect();
+        let options = StreamQuestionOptions::new_with_files(files);
         self
           .local_ai_controller
-          .stream_question(chat_id, &content, format, &ai_model.name)
+          .stream_question(chat_id, &content, format, &ai_model.name, options)
           .await
       } else {
         Err(FlowyError::local_ai_not_ready())
@@ -118,7 +145,7 @@ impl ChatCloudService for ChatServiceMiddleware {
     } else {
       self
         .cloud_service
-        .stream_answer(workspace_id, chat_id, question_id, format, ai_model)
+        .stream_question(workspace_id, chat_id, question_id, format, ai_model)
         .await
     }
   }
@@ -187,7 +214,7 @@ impl ChatCloudService for ChatServiceMiddleware {
           .local_ai_controller
           .get_related_question(&ai_model.name, chat_id, message_id)
           .await?;
-        trace!("LocalAI related questions: {:?}", questions);
+        debug!("LocalAI related questions: {:?}", questions);
         let items = questions
           .into_iter()
           .map(|content| RelatedQuestion {
@@ -240,18 +267,17 @@ impl ChatCloudService for ChatServiceMiddleware {
     workspace_id: &Uuid,
     file_path: &Path,
     chat_id: &Uuid,
-    metadata: Option<HashMap<String, Value>>,
   ) -> Result<(), FlowyError> {
     if self.local_ai_controller.is_ready().await {
       self
         .local_ai_controller
-        .embed_file(chat_id, file_path.to_path_buf(), metadata)
+        .embed_file(chat_id, file_path.to_path_buf())
         .await?;
       Ok(())
     } else {
       self
         .cloud_service
-        .embed_file(workspace_id, file_path, chat_id, metadata)
+        .embed_file(workspace_id, file_path, chat_id)
         .await
     }
   }

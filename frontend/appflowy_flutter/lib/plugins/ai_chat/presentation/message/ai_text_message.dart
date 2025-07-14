@@ -76,12 +76,12 @@ class ChatAIMessageWidget extends StatelessWidget {
         questionId: questionId,
       ),
       child: BlocConsumer<ChatAIMessageBloc, ChatAIMessageState>(
-        listenWhen: (previous, current) =>
-            previous.messageState != current.messageState,
+        listenWhen: (previous, current) => previous.status != current.status,
         listener: (context, state) => _handleMessageState(state, context),
         builder: (context, blocState) {
-          final loadingText = blocState.progress?.step ??
-              LocaleKeys.chat_generatingResponse.tr();
+          final loadingTexts = blocState.recentProgressSteps.isNotEmpty
+              ? blocState.recentProgressSteps.map((e) => e.step).toList()
+              : [LocaleKeys.chat_generatingResponse.tr()];
 
           // Calculate minimum height only for the last AI answer message
           double minHeight = 0;
@@ -107,74 +107,7 @@ class ChatAIMessageWidget extends StatelessWidget {
                   height: height,
                 );
               },
-              child: blocState.messageState.when(
-                loading: () => ChatAIMessageBubble(
-                  message: message,
-                  showActions: false,
-                  child: Padding(
-                    padding: const EdgeInsets.only(top: 8.0),
-                    child: AILoadingIndicator(text: loadingText),
-                  ),
-                ),
-                ready: () {
-                  return blocState.text.isEmpty
-                      ? _LoadingMessage(
-                          message: message,
-                          loadingText: loadingText,
-                        )
-                      : _NonEmptyMessage(
-                          user: user,
-                          messageUserId: messageUserId,
-                          message: message,
-                          stream: stream,
-                          questionId: questionId,
-                          chatId: chatId,
-                          refSourceJsonString: refSourceJsonString,
-                          onStopStream: onStopStream,
-                          onSelectedMetadata: onSelectedMetadata,
-                          onRegenerate: onRegenerate,
-                          onChangeFormat: onChangeFormat,
-                          onChangeModel: onChangeModel,
-                          isLastMessage: isLastMessage,
-                          isStreaming: isStreaming,
-                          isSelectingMessages: isSelectingMessages,
-                          enableAnimation: enableAnimation,
-                        );
-                },
-                onError: (error) {
-                  return ChatErrorMessageWidget(
-                    errorMessage: LocaleKeys.chat_aiServerUnavailable.tr(),
-                  );
-                },
-                onAIResponseLimit: () {
-                  return ChatErrorMessageWidget(
-                    errorMessage:
-                        LocaleKeys.sideBar_askOwnerToUpgradeToAIMax.tr(),
-                  );
-                },
-                onAIImageResponseLimit: () {
-                  return ChatErrorMessageWidget(
-                    errorMessage: LocaleKeys.sideBar_purchaseAIMax.tr(),
-                  );
-                },
-                onAIMaxRequired: (message) {
-                  return ChatErrorMessageWidget(
-                    errorMessage: message,
-                  );
-                },
-                onInitializingLocalAI: () {
-                  onStopStream();
-
-                  return ChatErrorMessageWidget(
-                    errorMessage: LocaleKeys
-                        .settings_aiPage_keys_localAIInitializing
-                        .tr(),
-                  );
-                },
-                aiFollowUp: (followUpData) {
-                  return const SizedBox.shrink();
-                },
-              ),
+              child: _buildMessageContent(context, blocState, loadingTexts),
             ),
           );
         },
@@ -182,18 +115,99 @@ class ChatAIMessageWidget extends StatelessWidget {
     );
   }
 
+  Widget _buildMessageContent(
+    BuildContext context,
+    ChatAIMessageState state,
+    List<String> loadingTexts,
+  ) {
+    // Handle loading state
+    if (state.status == ChatMessageStatus.loading ||
+        state.status == ChatMessageStatus.processing) {
+      return ChatAIMessageBubble(
+        message: message,
+        showActions: false,
+        child: Padding(
+          padding: const EdgeInsets.only(top: 8.0),
+          child: AILoadingIndicator(texts: loadingTexts),
+        ),
+      );
+    }
+
+    // Handle error states
+    if (state.status.isError && state.error != null) {
+      return ChatErrorMessageWidget(
+        errorMessage: LocaleKeys.chat_aiServerUnavailable.tr(),
+      );
+    }
+
+    if (state.status == ChatMessageStatus.aiResponseLimit) {
+      return ChatErrorMessageWidget(
+        errorMessage: LocaleKeys.sideBar_askOwnerToUpgradeToAIMax.tr(),
+      );
+    }
+
+    if (state.status == ChatMessageStatus.aiImageResponseLimit) {
+      return ChatErrorMessageWidget(
+        errorMessage: LocaleKeys.sideBar_purchaseAIMax.tr(),
+      );
+    }
+
+    if (state.status == ChatMessageStatus.aiMaxRequired) {
+      return ChatErrorMessageWidget(
+        errorMessage: state.error ?? '',
+      );
+    }
+
+    if (state.status == ChatMessageStatus.initializingLocalAI) {
+      onStopStream();
+      return ChatErrorMessageWidget(
+        errorMessage: LocaleKeys.settings_aiPage_keys_localAIInitializing.tr(),
+      );
+    }
+
+    if (state.status == ChatMessageStatus.aiFollowUp) {
+      return const SizedBox.shrink();
+    }
+
+    // Handle ready state
+    if (state.status == ChatMessageStatus.ready) {
+      return state.text.isEmpty
+          ? _LoadingMessage(
+              message: message,
+              loadingTexts: loadingTexts,
+            )
+          : _NonEmptyMessage(
+              user: user,
+              messageUserId: messageUserId,
+              message: message,
+              stream: stream,
+              questionId: questionId,
+              chatId: chatId,
+              refSourceJsonString: refSourceJsonString,
+              onStopStream: onStopStream,
+              onSelectedMetadata: onSelectedMetadata,
+              onRegenerate: onRegenerate,
+              onChangeFormat: onChangeFormat,
+              onChangeModel: onChangeModel,
+              isLastMessage: isLastMessage,
+              isStreaming: isStreaming,
+              isSelectingMessages: isSelectingMessages,
+              enableAnimation: enableAnimation,
+            );
+    }
+
+    // Default case
+    return const SizedBox.shrink();
+  }
+
   void _handleMessageState(ChatAIMessageState state, BuildContext context) {
     if (state.stream?.error?.isEmpty != false) {
-      state.messageState.maybeMap(
-        aiFollowUp: (messageState) {
-          context
-              .read<ChatBloc>()
-              .add(ChatEvent.onAIFollowUp(messageState.followUpData));
-        },
-        orElse: () {
-          // do nothing
-        },
-      );
+      if (state.status == ChatMessageStatus.aiFollowUp &&
+          state.followUpData != null) {
+        context
+            .read<ChatBloc>()
+            .add(ChatEvent.onAIFollowUp(state.followUpData!));
+      }
 
       return;
     }
@@ -204,11 +218,11 @@ class ChatAIMessageWidget extends StatelessWidget {
 class _LoadingMessage extends StatelessWidget {
   const _LoadingMessage({
     required this.message,
-    required this.loadingText,
+    required this.loadingTexts,
   });
 
   final Message message;
-  final String loadingText;
+  final List<String> loadingTexts;
 
   @override
   Widget build(BuildContext context) {
@@ -217,7 +231,7 @@ class _LoadingMessage extends StatelessWidget {
       showActions: false,
       child: Padding(
         padding: EdgeInsetsDirectional.only(start: 4.0, top: 8.0),
-        child: AILoadingIndicator(text: loadingText),
+        child: AILoadingIndicator(texts: loadingTexts),
       ),
     );
   }

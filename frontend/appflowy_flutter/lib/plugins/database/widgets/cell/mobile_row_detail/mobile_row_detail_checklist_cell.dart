@@ -5,7 +5,6 @@ import 'package:appflowy/plugins/database/widgets/cell_editor/checklist_progress
 import 'package:appflowy/plugins/database/widgets/cell_editor/mobile_checklist_cell_editor.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -27,7 +26,6 @@ class MobileRowDetailChecklistCellSkin extends IEditableChecklistCellSkin {
           borderRadius: const BorderRadius.all(Radius.circular(14)),
           onTap: () => showMobileBottomSheet(
             context,
-            backgroundColor: AFThemeExtension.of(context).background,
             builder: (context) {
               return BlocProvider.value(
                 value: bloc,

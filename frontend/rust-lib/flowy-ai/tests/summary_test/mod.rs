@@ -7,7 +7,7 @@ use std::collections::HashMap;
 async fn local_ai_test_database_summary() {
   setup_log();
 
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = LLMOllama::default();
   let chain = DatabaseSummaryChain::new(ollama);
 
   let mut data = HashMap::new();

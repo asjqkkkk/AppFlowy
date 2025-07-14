@@ -12,7 +12,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 use std::fmt::Debug;
-use tracing::trace;
+use tracing::{debug, trace};
 use uuid::Uuid;
 
 const SYSTEM_PROMPT: &str = r#"
@@ -111,6 +111,10 @@ impl ContextRelatedQuestionChain {
       .questions
       .retain(|v| rag_ids.iter().any(|id| id.as_ref() == v.object_id));
 
+    debug!(
+      "Generated context:{}, related questions: {:?}",
+      context, parsed_result.questions
+    );
     Ok(parsed_result.questions)
   }
 
@@ -121,7 +125,7 @@ impl ContextRelatedQuestionChain {
   where
     T: AsRef<str> + Debug,
   {
-    trace!(
+    debug!(
       "[embedding] Generating context related questions for RAG IDs: {:?}",
       rag_ids
     );

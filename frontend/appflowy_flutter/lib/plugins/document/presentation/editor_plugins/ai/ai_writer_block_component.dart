@@ -500,8 +500,13 @@ class MainContentArea extends StatelessWidget {
               AiWriterCommand.makeShorter,
             ].contains(state.command),
             textController: textController,
-            onSubmitted: (message, format, _, promptId) {
-              cubit.runCommand(state.command, message, format, promptId);
+            onSubmitted: (message, format, files, mentions, promptId) {
+              cubit.runCommand(
+                state.command,
+                message,
+                format,
+                promptId,
+              );
             },
             onStopStreaming: () => cubit.stopStream(),
             selectedSourcesNotifier: cubit.selectedSourcesNotifier,
@@ -532,9 +537,11 @@ class MainContentArea extends StatelessWidget {
                 const HSpace(6.0),
                 Expanded(
                   child: AILoadingIndicator(
-                    text: state.command == AiWriterCommand.explain
-                        ? LocaleKeys.ai_analyzing.tr()
-                        : LocaleKeys.ai_editing.tr(),
+                    texts: [
+                      state.command == AiWriterCommand.explain
+                          ? LocaleKeys.ai_analyzing.tr()
+                          : LocaleKeys.ai_editing.tr(),
+                    ],
                   ),
                 ),
                 const HSpace(8.0),
