@@ -179,6 +179,7 @@ class _SectionTitle extends StatelessWidget {
         if (tooltip != null)
           FlowyTooltip(
             message: tooltip!,
+            maxWidth: 600,
             child: AFGhostButton.normal(
               onTap: () {},
               padding: EdgeInsets.zero,

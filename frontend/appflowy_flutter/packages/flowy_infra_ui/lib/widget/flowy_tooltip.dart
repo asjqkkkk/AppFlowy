@@ -11,7 +11,7 @@ class FlowyTooltip extends StatelessWidget {
     this.margin,
     this.verticalOffset,
     this.padding,
-    this.maxWidth = 600,
+    this.maxWidth,
     this.child,
   });
 
@@ -22,7 +22,7 @@ class FlowyTooltip extends StatelessWidget {
   final Widget? child;
   final double? verticalOffset;
   final EdgeInsets? padding;
-  final double maxWidth;
+  final double? maxWidth;
 
   @override
   Widget build(BuildContext context) {
@@ -30,17 +30,31 @@ class FlowyTooltip extends StatelessWidget {
       return child ?? const SizedBox.shrink();
     }
 
-    // If maxWidth is specified and we have a text message, use richMessage to apply constraints
-    InlineSpan? effectiveRichMessage = richMessage;
-    if (message != null && richMessage == null) {
-      effectiveRichMessage = WidgetSpan(
-        child: Container(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: Text(
-            message!,
-            style: context.tooltipTextStyle(),
-            softWrap: true,
-          ),
+    final TextStyle? textStyle;
+    final String? tooltipMessage;
+    final InlineSpan? tooltipRichMessage;
+
+    if (maxWidth == null) {
+      textStyle = message == null ? null : context.tooltipTextStyle();
+      tooltipMessage = message;
+      tooltipRichMessage = richMessage;
+    } else {
+      // TODO: replace implementation with https://github.com/flutter/flutter/pull/163314 to avoid regressions in other tooltips
+      textStyle = null;
+      tooltipMessage = null;
+      tooltipRichMessage = WidgetSpan(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth!),
+          child: richMessage == null
+              ? Text(
+                  message!,
+                  style: context.tooltipTextStyle(),
+                  softWrap: true,
+                )
+              : Text.rich(
+                  richMessage!,
+                  style: context.tooltipTextStyle(),
+                ),
         ),
       );
     }
@@ -58,8 +72,9 @@ class FlowyTooltip extends StatelessWidget {
         borderRadius: BorderRadius.circular(10.0),
       ),
       waitDuration: _tooltipWaitDuration,
-      message: richMessage == null ? null : message,
-      richMessage: effectiveRichMessage ?? richMessage,
+      message: tooltipMessage,
+      richMessage: tooltipRichMessage,
+      textStyle: textStyle,
       preferBelow: preferBelow,
       child: child,
     );
