@@ -2584,6 +2584,7 @@ dependencies = [
  "futures",
  "lib-dispatch",
  "lib-infra",
+ "moka",
  "num_enum",
  "protobuf",
  "regex",

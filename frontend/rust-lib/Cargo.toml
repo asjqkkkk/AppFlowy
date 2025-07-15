@@ -102,7 +102,7 @@ derive_builder = "0.20.2"
 tantivy = { version = "0.24.1" }
 num_enum = "0.7.3"
 flowy-sqlite-vec = { path = "flowy-sqlite-vec" }
-moka = { version = "0.12.10" }
+moka = { version = "0.12.10", features = ["sync"] }
 
 # Please using the following command to update the revision id
 # Current directory: frontend
