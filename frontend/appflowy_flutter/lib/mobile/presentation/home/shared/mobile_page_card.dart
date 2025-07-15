@@ -185,15 +185,17 @@ class MobileViewPage extends StatelessWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          width: 20,
-          child: RawEmojiIconWidget(
-            emoji: icon,
-            emojiSize: 18.0,
-            lineHeight: 1,
+        if (icon.isNotEmpty) ...[
+          SizedBox(
+            width: 20,
+            child: RawEmojiIconWidget(
+              emoji: icon,
+              emojiSize: 18.0,
+              lineHeight: 1,
+            ),
           ),
-        ),
-        const HSpace(8),
+          const HSpace(8),
+        ],
         Flexible(
           child: Text(
             name.orDefault(LocaleKeys.menuAppHeader_defaultNewPageName.tr()),
