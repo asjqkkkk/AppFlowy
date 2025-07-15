@@ -135,7 +135,12 @@ void _resolveUserDeps(GetIt getIt, IntegrationMode mode) {
   getIt.registerLazySingleton<NetworkListener>(() => NetworkListener());
   getIt.registerLazySingleton<CachedRecentService>(() => CachedRecentService());
   getIt.registerLazySingleton<ViewAncestorCache>(() => ViewAncestorCache());
-  getIt.registerLazySingleton<PersonListMemoryCache>(() => PersonListMemoryCache());
+  getIt.registerLazySingleton<PersonListMemoryCache>(
+    () => PersonListMemoryCache(),
+  );
+  getIt.registerLazySingleton<PersonListWithAccessMemoryCache>(
+    () => PersonListWithAccessMemoryCache(),
+  );
   getIt.registerLazySingleton<SubscriptionSuccessListenable>(
     () => SubscriptionSuccessListenable(),
   );

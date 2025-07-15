@@ -1,5 +1,4 @@
 import 'package:appflowy/features/mension_person/data/models/person.dart';
-import 'package:collection/collection.dart';
 import 'package:flutter/widgets.dart';
 
 class MentionState {
@@ -13,6 +12,7 @@ class MentionState {
     this.showMorePersons = false,
     this.showMorePage = false,
     this.visibleItems = const {},
+    this.dividerInfo = const MentionMenuDivider(),
   });
 
   final List<Person> persons;
@@ -24,6 +24,7 @@ class MentionState {
   final bool showMorePersons;
   final bool showMorePage;
   final Set<String> visibleItems;
+  final MentionMenuDivider dividerInfo;
 
   MentionState copyWith({
     List<Person>? persons,
@@ -35,6 +36,7 @@ class MentionState {
     bool? showMorePersons,
     bool? showMorePage,
     Set<String>? visibleItems,
+    MentionMenuDivider? dividerInfo,
   }) {
     return MentionState(
       persons: persons ?? this.persons,
@@ -46,36 +48,31 @@ class MentionState {
       showMorePersons: showMorePersons ?? this.showMorePersons,
       showMorePage: showMorePage ?? this.showMorePage,
       visibleItems: visibleItems ?? this.visibleItems,
+      dividerInfo: dividerInfo ?? this.dividerInfo,
     );
   }
+}
 
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-    final collectionEquals = const DeepCollectionEquality().equals;
+class MentionMenuDivider {
+  const MentionMenuDivider({
+    this.hasPersons = false,
+    this.hasPages = false,
+    this.hasDateOrReminders = true,
+  });
 
-    return other is MentionState &&
-        collectionEquals(other.persons, persons) &&
-        collectionEquals(other.personsWithAccess, personsWithAccess) &&
-        other.sendNotification == sendNotification &&
-        other.focusId == focusId &&
-        other.query == query &&
-        other.selectedId == selectedId &&
-        other.showMorePersons == showMorePersons &&
-        other.showMorePage == showMorePage &&
-        collectionEquals(other.visibleItems, visibleItems);
-  }
+  final bool hasPersons;
+  final bool hasPages;
+  final bool hasDateOrReminders;
 
-  @override
-  int get hashCode {
-    return persons.hashCode ^
-        personsWithAccess.hashCode ^
-        sendNotification.hashCode ^
-        focusId.hashCode ^
-        query.hashCode ^
-        selectedId.hashCode ^
-        showMorePersons.hashCode ^
-        showMorePage.hashCode ^
-        visibleItems.hashCode;
+  MentionMenuDivider copyWith({
+    bool? hasPersons,
+    bool? hasPages,
+    bool? hasDateOrReminders,
+  }) {
+    return MentionMenuDivider(
+      hasPersons: hasPersons ?? this.hasPersons,
+      hasPages: hasPages ?? this.hasPages,
+      hasDateOrReminders: hasDateOrReminders ?? this.hasDateOrReminders,
+    );
   }
 }

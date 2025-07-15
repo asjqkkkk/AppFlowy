@@ -83,7 +83,9 @@ class MentionMenu extends StatelessWidget {
   }
 
   Widget buildMenu(BuildContext context, ScrollController controller) {
-    final theme = AppFlowyTheme.of(context);
+    final theme = AppFlowyTheme.of(context),
+        state = context.read<MentionBloc>().state,
+        dividerInfo = state.dividerInfo;
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: Container(
@@ -105,7 +107,12 @@ class MentionMenu extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 PersonList(),
+                if (dividerInfo.hasPersons &&
+                    (dividerInfo.hasPages || dividerInfo.hasDateOrReminders))
+                  AFDivider(),
                 PageList(),
+                if (dividerInfo.hasDateOrReminders && dividerInfo.hasPages)
+                  AFDivider(),
                 DateReminderList(),
               ],
             ),

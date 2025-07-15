@@ -8,6 +8,7 @@ import 'package:appflowy/features/mension_person/presentation/widgets/profile_ca
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_invite_button.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -87,8 +88,11 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   Widget buildCard(BuildContext context) {
     final theme = AppFlowyTheme.of(context), xxl = theme.spacing.xxl;
     final personState = context.read<PersonBloc>().state,
-        person = personState.person;
-    if (person.isEmpty) return const SizedBox.shrink();
+        person = personState.personWithAccess.person;
+    if (!personState.isIdle) return const SizedBox.shrink();
+    if (person.deleted) {
+      return context.buildDeletedPerson();
+    }
 
     final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
     return Stack(
@@ -119,7 +123,8 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 
   Widget buildCover(BuildContext context) {
     final personState = context.read<PersonBloc>().state;
-    final person = personState.person, url = person.coverImageUrl ?? '';
+    final person = personState.personWithAccess.person,
+        url = person.coverImageUrl ?? '';
     if (url.isEmpty) return VSpace(100);
     final theme = AppFlowyTheme.of(context), spaceM = theme.spacing.m;
     return Container(
@@ -150,7 +155,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   }
 
   Widget buildEmail(BuildContext context) {
-    final person = context.read<PersonBloc>().state.person;
+    final person = context.read<PersonBloc>().state.personWithAccess.person;
     final theme = AppFlowyTheme.of(context);
     return Text(
       person.email,
@@ -395,6 +400,70 @@ extension PersonProfileCardWidgetExtension on BuildContext {
               child: Center(child: avatar),
             )
           : avatar,
+    );
+  }
+
+  Widget buildDeletedPerson() {
+    final theme = AppFlowyTheme.of(this),
+        spacing = theme.spacing,
+        m = spacing.m;
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(theme.spacing.l),
+      child: Stack(
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.fromLTRB(m, m, m, 0),
+                height: 80,
+                width: UniversalPlatform.isMobile ? double.infinity : 264,
+                color: theme.badgeColorScheme.color20Light1,
+              ),
+              SizedBox(
+                height: 108,
+                child: Padding(
+                  padding: EdgeInsets.only(top: 60, left: 20),
+                  child: Text(
+                    LocaleKeys.document_mentionMenu_deleted.tr().capitalize(),
+                    style: theme.textStyle.title
+                        .prominent(color: theme.textColorScheme.tertiary),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Positioned(
+            left: 20,
+            top: 38,
+            child: Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: theme.surfaceColorScheme.layer01,
+                borderRadius: BorderRadius.circular(43),
+              ),
+              child: Container(
+                width: 90,
+                height: 90,
+                padding: EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: theme.surfaceColorScheme.layer01,
+                  borderRadius: BorderRadius.circular(43),
+                  border: Border.all(color: theme.borderColorScheme.primary),
+                ),
+                child: Center(
+                  child: FlowySvg(
+                    FlowySvgs.user_deleted_icon_lg,
+                    color: theme.iconColorScheme.secondary,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

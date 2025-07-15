@@ -26,9 +26,8 @@ class ProfileCardMoreButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final personBloc = context.read<PersonBloc>(),
-        person = personBloc.state.person;
-    if (person.isEmpty || person.deleted) return const SizedBox.shrink();
+    final personBloc = context.read<PersonBloc>();
+    if (!personBloc.state.isIdle) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(context);
 
     return AppFlowyPopover(
@@ -93,7 +92,7 @@ class _Menu extends StatelessWidget {
   Widget build(BuildContext context) {
     final personBloc = context.read<PersonBloc>(),
         person = personBloc.state.person;
-    if (person.isEmpty) return const SizedBox.shrink();
+    if (!personBloc.state.isIdle) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(context);
     final role = person.role;
     List<Widget> children = [];

@@ -20,11 +20,11 @@ class DateReminderList extends StatelessWidget {
     final theme = AppFlowyTheme.of(context),
         spacing = theme.spacing,
         itemMap = context.read<MentionItemMap>(),
-        filterItems = buildItems(context);
+        items = buildItems(context);
 
-    if (filterItems.isEmpty) return const SizedBox.shrink();
-    final children = List.generate(filterItems.length, (index) {
-      final item = filterItems[index];
+    if (items.isEmpty) return const SizedBox.shrink();
+    final children = List.generate(items.length, (index) {
+      final item = items[index];
       itemMap.addToDateAndReminder(item);
       return MentionMenuItenVisibilityDetector(
         id: item.id,
@@ -37,19 +37,12 @@ class DateReminderList extends StatelessWidget {
       );
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        AFDivider(),
-        Padding(
-          padding: EdgeInsets.all(spacing.m),
-          child: AFMenuSection(
-            title: LocaleKeys.document_mentionMenu_dateAndReminder.tr(),
-            children: children,
-          ),
-        ),
-      ],
+    return Padding(
+      padding: EdgeInsets.all(spacing.m),
+      child: AFMenuSection(
+        title: LocaleKeys.document_mentionMenu_dateAndReminder.tr(),
+        children: children,
+      ),
     );
   }
 

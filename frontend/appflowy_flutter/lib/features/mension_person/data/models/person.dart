@@ -1,4 +1,5 @@
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:flutter/widgets.dart';
 
 class Person {
   Person({
@@ -57,6 +58,31 @@ class Person {
         return PersonRole.contact;
     }
     return PersonRole.member;
+  }
+
+  Person copyWith({
+    String? id,
+    String? name,
+    String? email,
+    PersonRole? role,
+    ValueGetter<String?>? avatarUrl,
+    ValueGetter<String?>? coverImageUrl,
+    ValueGetter<String?>? description,
+    bool? invited,
+    bool? deleted,
+  }) {
+    return Person(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      email: email ?? this.email,
+      role: role ?? this.role,
+      avatarUrl: avatarUrl != null ? avatarUrl() : this.avatarUrl,
+      coverImageUrl:
+          coverImageUrl != null ? coverImageUrl() : this.coverImageUrl,
+      description: description != null ? description() : this.description,
+      invited: invited ?? this.invited,
+      deleted: deleted ?? this.deleted,
+    );
   }
 }
 

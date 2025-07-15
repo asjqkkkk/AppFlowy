@@ -1,4 +1,3 @@
-import 'package:appflowy/features/mension_person/data/repositories/mock_mention_repository.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
@@ -33,117 +32,118 @@ class PageList extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return BlocProvider(
+      key: ValueKey(query),
       create: (context) =>
           RecentViewsBloc()..add(const RecentViewsEvent.initial()),
-      child: BlocBuilder<RecentViewsBloc, RecentViewsState>(
-        builder: (context, state) {
-          final recentViews = state.views.map((e) => e.item).toSet().toList();
-          List<ViewPB> filterViews = List.of(recentViews);
-          if (query.isNotEmpty) {
-            filterViews = filterViews
-                .where(
-                  (view) => view.nameOrDefault
-                      .toLowerCase()
-                      .contains(query.toLowerCase()),
-                )
-                .toList();
-          }
-          final hasMorePage = filterViews.length > 4;
-          List<ViewPB> displayedViews = List.of(filterViews);
-          final showMoreResult = hasMorePage && !showMorePage;
-
-          if (showMoreResult) {
-            displayedViews = displayedViews.sublist(0, 4);
-          }
-
-          for (final view in displayedViews) {
-            itemMap.addToPage(
-              MentionMenuItem(
-                id: view.id,
-                onExecute: () => onPageSelected(view, context),
-              ),
-            );
-          }
-
-          final createPageId =
-              LocaleKeys.inlineActions_createPage.tr(args: ['addPage']);
-
-          if (query.isNotEmpty) {
-            itemMap.addToPage(
-              MentionMenuItem(
-                id: createPageId,
-                onExecute: () => onPageCreate(context),
-              ),
-            );
-          }
-
-          final showMoreId = LocaleKeys.document_mentionMenu_moreResults
-              .tr(args: ['show more page']);
-          void onShowMore() {
-            if (!showMoreResult) return;
-            context.read<MentionBloc>().add(
-                  MentionEvent.showMorePages(
-                    UniversalPlatform.isMobile ? '' : filterViews[4].id,
-                  ),
-                );
-          }
-
-          if (showMoreResult) {
-            itemMap.addToPage(
-              MentionMenuItem(id: showMoreId, onExecute: onShowMore),
-            );
-          }
-
-          if (displayedViews.isEmpty && query.isEmpty) {
-            return const SizedBox.shrink();
-          }
-
-          final hidePersonList = mentionState.persons.isEmpty &&
-              mentionBloc.repository is! MockMentionRepository;
-
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (!hidePersonList) AFDivider(),
-              Padding(
-                padding: EdgeInsets.all(theme.spacing.m),
-                child: AFMenuSection(
-                  title: LocaleKeys.document_mentionMenu_pages.tr(),
-                  children: [
-                    ...List.generate(displayedViews.length, (index) {
-                      final view = displayedViews[index];
-                      return MentionMenuItenVisibilityDetector(
-                        id: view.id,
-                        child: AFTextMenuItem(
-                          selected: mentionState.selectedId == view.id,
-                          leading: SizedBox(
-                            width: 24,
-                            child: Center(child: view.buildIcon(context)),
-                          ),
-                          title: view.nameOrDefault,
-                          backgroundColor: context.mentionItemBGColor,
-                          onTap: () => onPageSelected(view, context),
-                        ),
-                      );
-                    }),
-                    createPageItem(
-                      context: context,
-                      id: createPageId,
-                      onTap: () => onPageCreate(context),
-                    ),
-                    if (showMoreResult)
-                      MoreResultsItem(
-                        num: recentViews.length - 4,
-                        onTap: onShowMore,
-                        id: showMoreId,
-                      ),
-                  ],
-                ),
-              ),
-            ],
+      child: BlocListener<RecentViewsBloc, RecentViewsState>(
+        listener: (context, recentViewsState) {
+          final nothingToShow = query.isEmpty && recentViewsState.views.isEmpty;
+          mentionBloc.add(
+            MentionEvent.updateDividerInfo(
+              mentionState.dividerInfo.copyWith(hasPages: !nothingToShow),
+            ),
           );
         },
+        child: BlocBuilder<RecentViewsBloc, RecentViewsState>(
+          builder: (context, state) {
+            final recentViews = state.views.map((e) => e.item).toSet().toList();
+            List<ViewPB> filterViews = List.of(recentViews);
+            if (query.isNotEmpty) {
+              filterViews = filterViews
+                  .where(
+                    (view) => view.nameOrDefault
+                        .toLowerCase()
+                        .contains(query.toLowerCase()),
+                  )
+                  .toList();
+            }
+            final hasMorePage = filterViews.length > 4;
+            List<ViewPB> displayedViews = List.of(filterViews);
+            final showMoreResult = hasMorePage && !showMorePage;
+
+            if (showMoreResult) {
+              displayedViews = displayedViews.sublist(0, 4);
+            }
+
+            for (final view in displayedViews) {
+              itemMap.addToPage(
+                MentionMenuItem(
+                  id: view.id,
+                  onExecute: () => onPageSelected(view, context),
+                ),
+              );
+            }
+
+            final createPageId =
+                LocaleKeys.inlineActions_createPage.tr(args: ['addPage']);
+
+            if (query.isNotEmpty) {
+              itemMap.addToPage(
+                MentionMenuItem(
+                  id: createPageId,
+                  onExecute: () => onPageCreate(context),
+                ),
+              );
+            }
+
+            final showMoreId = LocaleKeys.document_mentionMenu_moreResults
+                .tr(args: ['show more page']);
+            void onShowMore() {
+              if (!showMoreResult) return;
+              context.read<MentionBloc>().add(
+                    MentionEvent.showMorePages(
+                      UniversalPlatform.isMobile ? '' : filterViews[4].id,
+                    ),
+                  );
+            }
+
+            if (showMoreResult) {
+              itemMap.addToPage(
+                MentionMenuItem(id: showMoreId, onExecute: onShowMore),
+              );
+            }
+
+            if (displayedViews.isEmpty && query.isEmpty) {
+              return const SizedBox.shrink();
+            }
+
+            return Padding(
+              padding: EdgeInsets.all(theme.spacing.m),
+              child: AFMenuSection(
+                title: LocaleKeys.document_mentionMenu_pages.tr(),
+                children: [
+                  ...List.generate(displayedViews.length, (index) {
+                    final view = displayedViews[index];
+                    return MentionMenuItenVisibilityDetector(
+                      id: view.id,
+                      child: AFTextMenuItem(
+                        selected: mentionState.selectedId == view.id,
+                        leading: SizedBox(
+                          width: 24,
+                          child: Center(child: view.buildIcon(context)),
+                        ),
+                        title: view.nameOrDefault,
+                        backgroundColor: context.mentionItemBGColor,
+                        onTap: () => onPageSelected(view, context),
+                      ),
+                    );
+                  }),
+                  createPageItem(
+                    context: context,
+                    id: createPageId,
+                    onTap: () => onPageCreate(context),
+                  ),
+                  if (showMoreResult)
+                    MoreResultsItem(
+                      num: recentViews.length - 4,
+                      onTap: onShowMore,
+                      id: showMoreId,
+                    ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

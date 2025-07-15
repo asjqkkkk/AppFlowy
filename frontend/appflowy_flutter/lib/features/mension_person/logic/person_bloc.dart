@@ -1,6 +1,5 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
-import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
-import 'package:appflowy_backend/log.dart';
+import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'person_event.dart';
@@ -12,7 +11,6 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
   PersonBloc({
     required this.documentId,
     required this.personId,
-    required this.repository,
     required this.workspaceId,
     required this.personListCache,
   }) : super(PersonState.initial()) {
@@ -22,37 +20,52 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
   final String documentId;
   final String personId;
   final String workspaceId;
-  final MentionRepository repository;
-  final PersonListMemoryCache personListCache;
+  final PersonListWithAccessMemoryCache personListCache;
+
+  @override
+  Future<void> close() async {
+    personListCache.removePersonListWithAcessFetchedCallback(
+      documentId,
+      onPersonList,
+    );
+    await super.close();
+  }
 
   Future<void> _onInitial(
     InitialEvent event,
     Emitter<PersonState> emit,
   ) async {
-    final persons = personListCache.getPersons(workspaceId) ?? [];
-    final localPerson = persons.where((p) => p.id == personId).firstOrNull;
-    if (localPerson != null) {
-      add(PersonEvent.updatePerson(localPerson));
-    }
-    final result = await repository.getPerson(
-      documentId: documentId,
-      personId: personId,
-      workspaceId: workspaceId,
-    );
-
-    result.fold((t) {
-      emit(state.copyWith(person: t.person, access: t.access));
-      personListCache.updatePersonWithAccess(workspaceId, t);
-    }, (e) {
-      emit(state.copyWith(getPersonFailedMesssage: e.msg));
-      Log.error('Error fetching person: $e');
-    });
+    personListCache.onPersonListWithAcessFetched(documentId, onPersonList);
   }
 
   Future<void> _onUpdatePerson(
     UpdatePersonEvent event,
     Emitter<PersonState> emit,
   ) async {
-    emit(state.copyWith(person: event.person));
+    emit(
+      state.copyWith(personWithAccess: event.person, status: PersonStatus.idle),
+    );
+  }
+
+  Future<void> onPersonList(PersonListWithAccessAndResult result) async {
+    if (isClosed) return;
+    if (!result.succeed) {
+      add(PersonEvent.updateStatusEvent(status: PersonStatus.error));
+      return;
+    }
+    final localPerson =
+        result.persons.where((p) => p.person.id == personId).firstOrNull;
+    if (localPerson != null) {
+      add(PersonEvent.updatePerson(localPerson));
+    } else {
+      add(
+        PersonEvent.updatePerson(
+          PersonWithAccess(
+            person: Person.empty().copyWith(deleted: true),
+            access: false,
+          ),
+        ),
+      );
+    }
   }
 }

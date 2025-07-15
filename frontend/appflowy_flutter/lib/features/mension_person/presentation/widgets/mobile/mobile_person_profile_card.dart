@@ -33,18 +33,24 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
   }
 
   Widget buildCard(BuildContext context) {
+    final personState = context.read<PersonBloc>().state,
+        person = personState.person;
+    if (personState.isLoading) {
+      return Center(child: CircularProgressIndicator.adaptive());
+    }
+
+    if (person.deleted) {
+      return context.buildDeletedPerson();
+    }
+    return buildNormalPerson();
+  }
+
+  Widget buildNormalPerson() {
     final theme = AppFlowyTheme.of(context),
         spacing = theme.spacing,
         xl = spacing.xl;
-
     final personState = context.read<PersonBloc>().state,
         person = personState.person;
-    if (person.isEmpty) {
-      return Center(
-        child: CircularProgressIndicator.adaptive(),
-      );
-    }
-
     final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
     final sizeWidth = MediaQuery.of(context).size.width;
     return Stack(
@@ -106,10 +112,10 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
   }
 
   Widget buildEmail(BuildContext context) {
-    final person = context.read<PersonBloc>().state.person;
+    final person = context.read<PersonBloc>().state.personWithAccess;
     final theme = AppFlowyTheme.of(context);
     return Text(
-      person.email,
+      person.person.email,
       style:
           theme.textStyle.body.standard(color: theme.textColorScheme.secondary),
       maxLines: 1,
@@ -120,14 +126,11 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
   Widget buildActions(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     final state = context.read<PersonBloc>().state;
-    if (state.person.isEmpty) return const SizedBox.shrink();
+    if (!state.isIdle) return const SizedBox.shrink();
 
     return Row(
       children: [
-        PersonRoleBadge(
-          person: state.person,
-          access: state.access,
-        ),
+        PersonRoleBadge(person: state.person, access: state.access),
         Spacer(),
         context.buildNotificationButton(),
         HSpace(theme.spacing.m),

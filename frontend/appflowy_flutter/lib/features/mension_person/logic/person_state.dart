@@ -1,38 +1,41 @@
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 
 class PersonState {
-  factory PersonState.initial() => PersonState(person: Person.empty());
+  factory PersonState.initial() => PersonState(
+        personWithAccess:
+            PersonWithAccess(person: Person.empty(), access: false),
+      );
 
   const PersonState({
-    required this.person,
-    this.documentId,
-    this.access = false,
+    required this.personWithAccess,
+    this.documentId = '',
     this.getPersonFailedMesssage = '',
+    this.status = PersonStatus.loading,
   });
 
-  final Person person;
-  final String? documentId;
-  final bool access;
+  final PersonWithAccess personWithAccess;
+  final String documentId;
   final String getPersonFailedMesssage;
+  final PersonStatus status;
+
+  bool get isLoading => status == PersonStatus.loading;
+  bool get isIdle => status == PersonStatus.idle;
+  Person get person => personWithAccess.person;
+  bool get access => personWithAccess.access;
 
   PersonState copyWith({
-    Person? person,
+    PersonWithAccess? personWithAccess,
     String? documentId,
-    bool? access,
     String? getPersonFailedMesssage,
+    PersonStatus? status,
   }) {
     return PersonState(
-      person: person ?? this.person,
+      personWithAccess: personWithAccess ?? this.personWithAccess,
       documentId: documentId ?? this.documentId,
-      access: access ?? this.access,
       getPersonFailedMesssage:
           getPersonFailedMesssage ?? this.getPersonFailedMesssage,
+      status: status ?? this.status,
     );
-  }
-
-  @override
-  String toString() {
-    return 'PersonState(person: $person, documentId: $documentId, access: $access, getPersonFailedMesssage: $getPersonFailedMesssage)';
   }
 
   @override
@@ -40,17 +43,24 @@ class PersonState {
     if (identical(this, other)) return true;
 
     return other is PersonState &&
-        other.person == person &&
+        other.personWithAccess == personWithAccess &&
         other.documentId == documentId &&
-        other.access == access &&
-        other.getPersonFailedMesssage == getPersonFailedMesssage;
+        other.getPersonFailedMesssage == getPersonFailedMesssage &&
+        other.status == status;
   }
 
   @override
   int get hashCode {
-    return person.hashCode ^
+    return personWithAccess.hashCode ^
         documentId.hashCode ^
-        access.hashCode ^
-        getPersonFailedMesssage.hashCode;
+        getPersonFailedMesssage.hashCode ^
+        status.hashCode;
+  }
+
+  @override
+  String toString() {
+    return 'PersonState(personWithAccess: $personWithAccess, documentId: $documentId, getPersonFailedMesssage: $getPersonFailedMesssage, status: $status)';
   }
 }
+
+enum PersonStatus { loading, idle, error }

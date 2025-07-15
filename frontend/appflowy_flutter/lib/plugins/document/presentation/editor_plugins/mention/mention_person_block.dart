@@ -1,5 +1,4 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
-import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/hover_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/mobile/mobile_person_profile_card.dart';
@@ -71,8 +70,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         documentId: widget.pageId,
         personId: widget.personId,
         workspaceId: workspaceId,
-        repository: RustMentionRepository(),
-        personListCache: getIt<PersonListMemoryCache>(),
+        personListCache: getIt<PersonListWithAccessMemoryCache>(),
       )..add(PersonEvent.initial()),
       child: BlocListener<PersonBloc, PersonState>(
         listenWhen: (previous, current) =>
@@ -88,7 +86,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         child: BlocBuilder<PersonBloc, PersonState>(
           key: key,
           builder: (context, state) {
-            if (state.person.isEmpty) return const SizedBox.shrink();
+            if (state.isLoading) return const SizedBox.shrink();
             final bloc = context.read<PersonBloc>();
             return HoverMenu(
               key: ValueKey(
@@ -132,7 +130,6 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   Widget buildPerson(BuildContext context) {
     final bloc = context.read<PersonBloc>(), state = bloc.state;
     final person = state.person;
-    if (person.isEmpty) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(context);
     final color = state.access
         ? theme.textColorScheme.secondary
@@ -142,22 +139,21 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
           leadingDistribution: TextLeadingDistribution.even,
         ) ??
         theme.textStyle.body.standard(color: color);
-    final richText = Padding(
-      padding: EdgeInsets.only(right: theme.spacing.xs),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '@',
-              style: style.copyWith(
-                color: theme.textColorScheme.tertiary,
-              ),
-            ),
-            TextSpan(text: person.name, style: style),
-          ],
-        ),
-      ),
-    );
+    if (state.isLoading) {
+      return SizedBox(
+        height: style.fontSize ?? 22,
+        child: CircularProgressIndicator.adaptive(),
+      );
+    }
+
+    Widget richText;
+    if (person.deleted) {
+      richText = buildDeletedPerson(context);
+    } else if (person.isEmpty) {
+      richText = buildErrorPerson(context);
+    } else {
+      richText = buildNormalPerson(context, person.name);
+    }
     return UniversalPlatform.isMobile
         ? GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -184,7 +180,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         : richText;
   }
 
-  Widget buildUnknownPerson(BuildContext context) {
+  Widget buildDeletedPerson(BuildContext context) {
     final theme = AppFlowyTheme.of(context),
         color = theme.textColorScheme.tertiary,
         style = widget.textStyle?.copyWith(
@@ -207,6 +203,61 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
               text: LocaleKeys.document_mentionMenu_deleted.tr(),
               style: style,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildErrorPerson(BuildContext context) {
+    final theme = AppFlowyTheme.of(context),
+        color = theme.textColorScheme.error,
+        style = widget.textStyle?.copyWith(
+              color: color,
+              leadingDistribution: TextLeadingDistribution.even,
+            ) ??
+            theme.textStyle.body.standard(color: color);
+    return Padding(
+      padding: EdgeInsets.only(right: theme.spacing.xs),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '@',
+              style: style.copyWith(
+                color: theme.textColorScheme.tertiary,
+              ),
+            ),
+            TextSpan(
+              text: LocaleKeys.invitation_errorModal_title.tr(),
+              style: style,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget buildNormalPerson(BuildContext context, String name) {
+    final theme = AppFlowyTheme.of(context),
+        color = theme.textColorScheme.tertiary,
+        style = widget.textStyle?.copyWith(
+              color: color,
+              leadingDistribution: TextLeadingDistribution.even,
+            ) ??
+            theme.textStyle.body.standard(color: color);
+    return Padding(
+      padding: EdgeInsets.only(right: theme.spacing.xs),
+      child: RichText(
+        text: TextSpan(
+          children: [
+            TextSpan(
+              text: '@',
+              style: style.copyWith(
+                color: theme.textColorScheme.tertiary,
+              ),
+            ),
+            TextSpan(text: name, style: style),
           ],
         ),
       ),

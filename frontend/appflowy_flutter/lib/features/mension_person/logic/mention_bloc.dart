@@ -1,8 +1,11 @@
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
+import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'mention_event.dart';
@@ -23,7 +26,6 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     on<Initial>(_onInitial);
     on<Query>(_onQuery);
     on<GetPersons>(_onGetPersons);
-    on<GetPersonsWithAccess>(_onGetPersonsWithAccess);
     on<UpdatePersonList>(_onUpdatePersonList);
     on<ShowMorePersons>(_onShowMorePersons);
     on<ShowMorePages>(_onShowMorePages);
@@ -31,12 +33,21 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     on<AddVisibleItem>(_onAddVisibleItem);
     on<RemoveVisibleItem>(_onRemoveVisibleItem);
     on<SelectItem>(_onSelectItem);
+    on<UpdateDividerInfo>(_onUpdateDividerInfo);
   }
   final MentionRepository repository;
   final String workspaceId;
   final String query;
   final bool sendNotification;
   final PersonListMemoryCache personListCache;
+
+  final _dateReminderTitles = [
+    LocaleKeys.document_mentionMenu_dateToday.tr(),
+    LocaleKeys.document_mentionMenu_dateTomorrow.tr(),
+    LocaleKeys.document_mentionMenu_dateYesterday.tr(),
+    LocaleKeys.document_mentionMenu_reminderTomorrow9Am.tr(),
+    LocaleKeys.document_mentionMenu_reminder1Week.tr(),
+  ];
 
   Future<void> _onInitial(
     Initial event,
@@ -60,7 +71,23 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     Query event,
     Emitter<MentionState> emit,
   ) async {
-    emit(state.copyWith(query: event.text, selectedId: ''));
+    final query = event.text;
+    List<String> dateAndReminders = List.of(_dateReminderTitles);
+    if (query.isNotEmpty) {
+      dateAndReminders = dateAndReminders
+          .where((e) => e.toLowerCase().contains(query.toLowerCase()))
+          .toList();
+    }
+
+    emit(
+      state.copyWith(
+        query: query,
+        selectedId: '',
+        dividerInfo: state.dividerInfo.copyWith(
+          hasDateOrReminders: dateAndReminders.isNotEmpty,
+        ),
+      ),
+    );
     add(MentionEvent.getPersons(workspaceId: workspaceId));
   }
 
@@ -68,39 +95,40 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     GetPersons event,
     Emitter<MentionState> emit,
   ) async {
-    final localList = personListCache.getPersons(workspaceId) ?? [];
-    if (localList.isNotEmpty && state.query.isEmpty) {
-      emit(state.copyWith(persons: localList));
+    List<Person> localList = personListCache.getPersons(workspaceId) ?? [];
+    if (state.query.isNotEmpty) {
+      final formatedQuery = state.query.toLowerCase();
+      localList = localList
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(formatedQuery) ||
+                p.email.toLowerCase().contains(formatedQuery),
+          )
+          .toList();
+    }
+    if (localList.isNotEmpty) {
+      emit(
+        state.copyWith(
+          persons: localList,
+          dividerInfo: state.dividerInfo.copyWith(hasPersons: true),
+        ),
+      );
     }
     final persons = (await repository.getWorkspacePersons(
       workspaceId: event.workspaceId,
       query: state.query,
     ))
         .toNullable();
-    if (persons == null) return;
-    add(MentionEvent.updatePersonList(persons));
-    if (persons.isNotEmpty && state.query.isEmpty) {
-      personListCache.updatePersonList(workspaceId, persons);
+    if (persons == null || persons.isEmpty) {
+      add(
+        MentionEvent.updateDividerInfo(
+          state.dividerInfo.copyWith(hasPersons: false),
+        ),
+      );
     }
-  }
-
-  Future<void> _onGetPersonsWithAccess(
-    GetPersonsWithAccess event,
-    Emitter<MentionState> emit,
-  ) async {
-    final localList = personListCache.getPersonsWithAccess(workspaceId) ?? [];
-    if (localList.isNotEmpty && state.query.isEmpty) {
-      emit(state.copyWith(personsWithAccess: localList));
-    }
-    final persons = (await repository.getPagePersons(
-      workspaceId: event.workspaceId,
-      documentId: event.documentId,
-    ))
-        .toNullable();
-    if (persons == null) return;
-    add(MentionEvent.updatePersonListWithAccess(persons));
-    if (persons.isNotEmpty && state.query.isEmpty) {
-      personListCache.updatePersonListWithAcess(workspaceId, persons);
+    add(MentionEvent.updatePersonList(persons ?? []));
+    if ((persons?.isNotEmpty ?? true) && state.query.isEmpty) {
+      personListCache.updatePersonList(workspaceId, persons!);
     }
   }
 
@@ -108,7 +136,13 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     UpdatePersonList event,
     Emitter<MentionState> emit,
   ) async {
-    emit(state.copyWith(persons: event.persons));
+    emit(
+      state.copyWith(
+        persons: event.persons,
+        dividerInfo:
+            state.dividerInfo.copyWith(hasPersons: event.persons.isNotEmpty),
+      ),
+    );
   }
 
   Future<void> _onShowMorePersons(
@@ -160,5 +194,12 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     Emitter<MentionState> emit,
   ) async {
     emit(state.copyWith(selectedId: event.id));
+  }
+
+  Future<void> _onUpdateDividerInfo(
+    UpdateDividerInfo event,
+    Emitter<MentionState> emit,
+  ) async {
+    emit(state.copyWith(dividerInfo: event.info));
   }
 }

@@ -20,15 +20,19 @@ class PersonListMemoryCache {
 class PersonListWithAccessMemoryCache {
   /// the key is [documentId]
   final Map<String, List<PersonWithAccess>> _cache = {};
-  final Map<String, Set<ValueChanged<List<PersonWithAccess>>>> _callbacks = {};
+  final Map<String, Set<ValueChanged<PersonListWithAccessAndResult>>>
+      _callbacks = {};
 
   void onPersonListWithAcessFetched(
     String documentId,
-    ValueChanged<List<PersonWithAccess>> callback,
+    ValueChanged<PersonListWithAccessAndResult> callback,
   ) {
     final set = _callbacks[documentId] ?? {};
     if (set.isEmpty) {
       ViewBackendService.getPageMentionablePersons(documentId).then((r) {
+        final copySet = Set<ValueChanged<PersonListWithAccessAndResult>>.of(
+          _callbacks[documentId] ?? {},
+        );
         r.fold((s) {
           final persons = s.persons
               .map(
@@ -38,15 +42,17 @@ class PersonListWithAccessMemoryCache {
                 ),
               )
               .toList();
-          final copySet = Set<ValueChanged<List<PersonWithAccess>>>.of(
-            _callbacks[documentId] ?? {},
-          );
           _cache[documentId] = List.of(persons);
           for (final c in copySet) {
-            c.call(persons);
+            c.call(
+              PersonListWithAccessAndResult(persons: persons, succeed: true),
+            );
           }
         }, (e) {
           Log.error('onPersonListWithAcessFetched error: $e');
+          for (final c in copySet) {
+            c.call(PersonListWithAccessAndResult(persons: [], succeed: false));
+          }
         });
       });
     } else {
@@ -55,6 +61,14 @@ class PersonListWithAccessMemoryCache {
     }
   }
 
+  void removePersonListWithAcessFetchedCallback(
+    String documentId,
+    ValueChanged<PersonListWithAccessAndResult> callback,
+  ) {
+    final set = _callbacks[documentId] ?? {};
+    set.remove(callback);
+    _callbacks[documentId] = set;
+  }
 
   List<PersonWithAccess>? getPersonsWithAccess(String documentId) {
     final persons = _cache[documentId];
@@ -73,4 +87,11 @@ class PersonListWithAccessMemoryCache {
     persons[index] = person;
     _cache[documentId] = persons;
   }
+}
+
+class PersonListWithAccessAndResult {
+  PersonListWithAccessAndResult({required this.persons, required this.succeed});
+
+  final List<PersonWithAccess> persons;
+  final bool succeed;
 }
