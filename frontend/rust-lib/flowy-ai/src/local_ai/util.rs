@@ -1,4 +1,3 @@
-use crate::embeddings::indexer::supported_dimensions;
 use ollama_rs::Ollama;
 use ollama_rs::models::ModelInfo;
 use tracing::debug;
@@ -10,8 +9,11 @@ pub fn is_model_support_vision(model_info: &ModelInfo) -> bool {
     .any(|key| key.contains(".vision."))
 }
 
-pub fn is_support_embedding(model_name: &str, model_info: &ModelInfo) -> bool {
-  let supported_dimensions = supported_dimensions();
+pub fn is_support_embedding(
+  supported_dimensions: &[usize],
+  model_name: &str,
+  model_info: &ModelInfo,
+) -> bool {
   if let Some(dimension) = dimension_from_model_info(model_name, model_info) {
     return supported_dimensions.contains(&dimension);
   }

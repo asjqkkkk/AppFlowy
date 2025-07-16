@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:appflowy/user/application/user_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-ai/entities.pb.dart';
@@ -33,6 +34,8 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
     _Started event,
     Emitter<OllamaSettingState> emit,
   ) async {
+    unawaited(UserBackendService.refreshPersonalSubscription());
+
     try {
       final results = await Future.wait([
         AIEventGetLocalModelSelection().send().then((r) => r.getOrThrow()),

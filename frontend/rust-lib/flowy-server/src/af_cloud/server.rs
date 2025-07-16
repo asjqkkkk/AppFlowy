@@ -31,7 +31,8 @@ use lib_infra::async_trait::async_trait;
 use semver::Version;
 use tokio::sync::{RwLock, watch};
 use tokio_stream::wrappers::WatchStream;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
+use url::Url;
 use uuid::Uuid;
 
 pub(crate) type AFCloudClient = Client;
@@ -254,6 +255,8 @@ impl AppFlowyServer for AppFlowyCloudServer {
 pub trait AFServer: Send + Sync + 'static {
   fn get_client(&self) -> Option<Arc<AFCloudClient>>;
   fn try_get_client(&self) -> Result<Arc<AFCloudClient>, Error>;
+
+  fn is_appflowy_hosted(&self) -> bool;
 }
 
 #[derive(Clone)]
@@ -276,6 +279,38 @@ impl AFServer for AFServerImpl {
         .into(),
       ),
       Some(client) => Ok(client),
+    }
+  }
+
+  fn is_appflowy_hosted(&self) -> bool {
+    match self.client.as_ref() {
+      None => false,
+      Some(client) => {
+        let mut appflowy_hosted_urs =
+          vec!["appflowy.com", "beta.appflowy.cloud", "test.appflowy.cloud"];
+
+        if cfg!(debug_assertions) {
+          appflowy_hosted_urs.push("localhost");
+          appflowy_hosted_urs.push("127.0.0.1");
+        }
+
+        match Url::parse(&client.base_url) {
+          Ok(url) => {
+            if let Some(host) = url.host_str() {
+              let result = appflowy_hosted_urs.contains(&host);
+              debug!("is_appflowy_hosted: {}, base_url: {}", result, host);
+              result
+            } else {
+              error!("Could not get host from URL: {}", &client.base_url);
+              false
+            }
+          },
+          Err(e) => {
+            error!("Invalid base URL: {}, {:?}", &client.base_url, e);
+            false
+          },
+        }
+      },
     }
   }
 }

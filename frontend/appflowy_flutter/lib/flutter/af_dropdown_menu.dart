@@ -79,6 +79,7 @@ class AFDropdownMenu<T> extends StatefulWidget {
     this.selectedTrailingIcon,
     this.enableFilter = false,
     this.enableSearch = true,
+    this.editable = true,
     this.textStyle,
     this.inputDecorationTheme,
     this.menuStyle,
@@ -175,6 +176,11 @@ class AFDropdownMenu<T> extends StatefulWidget {
   ///
   /// Defaults to true as the search function could be commonly used.
   final bool enableSearch;
+
+  /// Determine if the menu is editable.
+  ///
+  /// Defaults to false.
+  final bool editable;
 
   /// The text style for the [TextField] of the [AFDropdownMenu];
   ///
@@ -706,6 +712,7 @@ class _AFDropdownMenuState<T> extends State<AFDropdownMenu<T>> {
 
         final Widget textField = TextField(
           key: _anchorKey,
+          readOnly: !widget.editable,
           mouseCursor: effectiveMouseCursor,
           canRequestFocus: canRequestFocus(),
           enableInteractiveSelection: canRequestFocus(),

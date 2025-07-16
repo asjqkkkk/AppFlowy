@@ -18,6 +18,7 @@ class SettingsDropdown<T> extends StatefulWidget {
     this.expandWidth = true,
     this.selectOptionCompare,
     this.textStyle,
+    this.editable = true,
   });
 
   final T selectedOption;
@@ -27,6 +28,7 @@ class SettingsDropdown<T> extends StatefulWidget {
   final List<Widget>? actions;
   final bool expandWidth;
   final TextStyle? textStyle;
+  final bool editable;
 
   @override
   State<SettingsDropdown<T>> createState() => _SettingsDropdownState<T>();
@@ -54,6 +56,7 @@ class _SettingsDropdownState<T> extends State<SettingsDropdown<T>> {
           child: AFDropdownMenu<T>(
             controller: controller,
             expandedInsets: widget.expandWidth ? EdgeInsets.zero : null,
+            editable: widget.editable,
             initialSelection: widget.selectedOption,
             dropdownMenuEntries: widget.options,
             selectOptionCompare: widget.selectOptionCompare,

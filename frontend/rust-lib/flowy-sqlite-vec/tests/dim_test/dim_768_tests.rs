@@ -95,7 +95,7 @@ async fn test_upsert_and_remove_fragments() -> Result<()> {
     .search(
       &workspace_id.to_string(),
       &[],
-      &generate_embedding_with_size(256, 0.1),
+      &generate_embedding_with_size(768, 0.1),
       1,
       EmbeddingDimension::Dim768,
     )
@@ -204,7 +204,7 @@ async fn test_search_no_hits() -> Result<()> {
   // Query with a very different vector should return empty
   let query = generate_embedding_with_size(768, -1.0);
   let results = db
-    .search(&workspace_id, &[], &query, 1, EmbeddingDimension::Dim2560)
+    .search(&workspace_id, &[], &query, 1, EmbeddingDimension::Dim768)
     .await?;
   assert!(
     results.is_empty(),
@@ -237,7 +237,7 @@ async fn test_multi_workspace_isolation() -> Result<()> {
       &[],
       &generate_embedding_with_size(768, 0.9),
       1,
-      EmbeddingDimension::Dim2560,
+      EmbeddingDimension::Dim768,
     )
     .await?;
   assert_eq!(res1.len(), 1);
@@ -250,7 +250,7 @@ async fn test_multi_workspace_isolation() -> Result<()> {
       &[],
       &generate_embedding_with_size(768, -0.9),
       1,
-      EmbeddingDimension::Dim2560,
+      EmbeddingDimension::Dim768,
     )
     .await?;
   assert_eq!(res2.len(), 1);
@@ -292,7 +292,7 @@ async fn test_select_multiple_oids() -> Result<()> {
   .await?;
 
   let map = db
-    .select_collabs_fragment_ids(&[oid1.clone(), oid2.clone()], EmbeddingDimension::Dim2560)
+    .select_collabs_fragment_ids(&[oid1.clone(), oid2.clone()], EmbeddingDimension::Dim768)
     .await?;
   assert_eq!(map.len(), 2);
   assert!(map.contains_key(&Uuid::parse_str(&oid1)?));
@@ -325,7 +325,7 @@ async fn test_skip_missing_content() -> Result<()> {
   .await?;
 
   let map = db
-    .select_collabs_fragment_ids(&[oid.clone()], EmbeddingDimension::Dim2560)
+    .select_collabs_fragment_ids(&[oid.clone()], EmbeddingDimension::Dim768)
     .await?;
   let frags = &map[&Uuid::parse_str(&oid)?];
   assert_eq!(frags.len(), 1);
@@ -389,7 +389,7 @@ async fn test_object_ids_handling() -> Result<()> {
     very_long_oid.clone(),
   ];
   let result = db
-    .select_collabs_fragment_ids(&all_oids, EmbeddingDimension::Dim2560)
+    .select_collabs_fragment_ids(&all_oids, EmbeddingDimension::Dim768)
     .await?;
 
   assert_eq!(
@@ -408,7 +408,7 @@ async fn test_object_ids_handling() -> Result<()> {
       &[],
       &generate_embedding_with_size(768, 0.2),
       10,
-      EmbeddingDimension::Dim2560,
+      EmbeddingDimension::Dim768,
     )
     .await?;
 

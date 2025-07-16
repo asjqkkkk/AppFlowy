@@ -55,7 +55,7 @@ class OllamaSettingPage extends StatelessWidget {
                     _SettingItemWidget(item: item),
                   const LocalAIEmbeddingModelSelection(),
                   const LocalAIModelSelection(),
-                  _SaveButton(isEdited: state.isEdited),
+                  _SaveButton(),
                 ],
               ),
             );
@@ -113,36 +113,28 @@ class _SettingItemWidget extends StatelessWidget {
 }
 
 class _SaveButton extends StatelessWidget {
-  const _SaveButton({required this.isEdited});
-
-  final bool isEdited;
+  const _SaveButton();
 
   @override
   Widget build(BuildContext context) {
     return Align(
       alignment: AlignmentDirectional.centerEnd,
-      child: FlowyTooltip(
-        message: isEdited ? null : 'No changes',
-        child: SizedBox(
-          child: FlowyButton(
-            text: FlowyText(
-              'Apply',
-              figmaLineHeight: 20,
-              color: Theme.of(context).colorScheme.onPrimary,
-            ),
-            disable: !isEdited,
-            expandText: false,
-            margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            hoverColor: Theme.of(context).colorScheme.primary.withAlpha(200),
-            onTap: () {
-              if (isEdited) {
-                context
-                    .read<OllamaSettingBloc>()
-                    .add(const OllamaSettingEvent.submit());
-              }
-            },
+      child: SizedBox(
+        child: FlowyButton(
+          text: FlowyText(
+            'Apply',
+            figmaLineHeight: 20,
+            color: Theme.of(context).colorScheme.onPrimary,
           ),
+          expandText: false,
+          margin: EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          hoverColor: Theme.of(context).colorScheme.primary.withAlpha(200),
+          onTap: () {
+            context
+                .read<OllamaSettingBloc>()
+                .add(const OllamaSettingEvent.submit());
+          },
         ),
       ),
     );
@@ -180,6 +172,7 @@ class LocalAIModelSelection extends StatelessWidget {
               height: 40,
               child: SettingsDropdown<AIModelPB>(
                 key: const Key('_AIModelSelection'),
+                editable: false,
                 textStyle: Theme.of(context).textTheme.bodySmall,
                 onChanged: (model) => context
                     .read<OllamaSettingBloc>()
@@ -236,6 +229,7 @@ class LocalAIEmbeddingModelSelection extends StatelessWidget {
             SizedBox(
               height: 40,
               child: SettingsDropdown<String>(
+                editable: false,
                 key: const Key('_EmbeddingModelSelection'),
                 textStyle: Theme.of(context).textTheme.bodySmall,
                 onChanged: (model) => context

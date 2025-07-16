@@ -18,6 +18,7 @@ use flowy_user_pub::session::Session;
 use flowy_user_pub::sql::{
   select_user_auth_provider, select_user_workspace, select_user_workspace_type,
 };
+use lib_infra::encryption::{decrypt_text, encrypt_text_with_deterministic_nonce};
 use std::path::PathBuf;
 use std::str::FromStr;
 use std::sync::atomic::{AtomicI64, Ordering};
@@ -25,7 +26,24 @@ use std::sync::{Arc, Weak};
 use tracing::{debug, error, info};
 use uuid::Uuid;
 
-const PERSONAL_SUBSCRIPTION_KEY: &str = "personal_subscription_v1";
+const KEY_SECRET: &str = "Xs8Kw3NpZmQ7vR5TbLnP2qYcF6jD9h$dWvN8K3pQ5ZmT7RbYnL2/Q==";
+
+fn personal_subscription_key(uid: i64) -> String {
+  format!("v1_personal_subscription_{}", uid)
+}
+
+/// Encrypts the personal subscription key using a hardcoded secret
+fn encrypt_key(key: &str) -> FlowyResult<String> {
+  encrypt_text_with_deterministic_nonce(key, KEY_SECRET)
+    .map_err(|e| FlowyError::internal().with_context(format!("Failed to encrypt key: {}", e)))
+}
+
+/// Decrypts the personal subscription key using a hardcoded secret
+#[allow(dead_code)]
+fn decrypt_key(encrypted_key: &str) -> FlowyResult<String> {
+  decrypt_text(encrypted_key, KEY_SECRET)
+    .map_err(|e| FlowyError::internal().with_context(format!("Failed to decrypt key: {}", e)))
+}
 
 pub struct AuthenticateUser {
   pub user_config: UserConfig,
@@ -79,13 +97,23 @@ impl AuthenticateUser {
     &self,
     subscription: &PersonalSubscriptionInfoPB,
   ) -> FlowyResult<()> {
+    let uid = self.user_id()?;
+    let key = personal_subscription_key(uid);
+    let encrypted_key = encrypt_key(&key)?;
     if subscription.subscriptions.is_empty() {
-      self.store_preferences.remove(PERSONAL_SUBSCRIPTION_KEY);
+      info!(
+        "Removing cached personal subscription info for user: {}",
+        uid
+      );
+      self.store_preferences.remove(&encrypted_key);
     } else {
-      debug!("Caching personal subscription info: {:?}", subscription);
+      debug!(
+        "Caching personal subscription info with key: {}",
+        encrypted_key
+      );
       if let Err(err) = self
         .store_preferences
-        .set_object(PERSONAL_SUBSCRIPTION_KEY, subscription)
+        .set_object(&encrypted_key, subscription)
       {
         error!("Failed to store personal subscription info: {}", err);
       }
@@ -94,12 +122,20 @@ impl AuthenticateUser {
   }
 
   pub(crate) fn remove_cached_personal_subscription(&self) {
-    debug!("Caching personal subscription info");
-    self.store_preferences.remove(PERSONAL_SUBSCRIPTION_KEY)
+    debug!("Removing cached personal subscription info");
+    if let Ok(uid) = self.user_id() {
+      let key = personal_subscription_key(uid);
+      if let Ok(encrypted_key) = encrypt_key(&key) {
+        self.store_preferences.remove(&encrypted_key);
+      }
+    }
   }
 
   pub(crate) fn get_cached_personal_subscription(&self) -> Option<PersonalSubscriptionInfoPB> {
-    self.store_preferences.get_object(PERSONAL_SUBSCRIPTION_KEY)
+    let uid = self.user_id().ok()?;
+    let key = personal_subscription_key(uid);
+    let encrypted_key = encrypt_key(&key).ok()?;
+    self.store_preferences.get_object(&encrypted_key)
   }
 
   pub async fn validate_vault(&self) -> FlowyResult<CheckVaultResult> {
@@ -282,5 +318,50 @@ impl AuthenticateUser {
     let mut conn = self.get_sqlite_connection(session.user_id)?;
     let workspace = select_user_workspace(&session.workspace_id, &mut conn)?;
     Ok(workspace.into())
+  }
+}
+
+#[cfg(test)]
+mod tests {
+  use super::*;
+
+  #[test]
+  fn test_personal_subscription_key_encryption() {
+    let uid = 12345;
+    let key = personal_subscription_key(uid);
+
+    // Test encryption
+    let encrypted_key = encrypt_key(&key).unwrap();
+    assert_ne!(key, encrypted_key);
+    assert!(!encrypted_key.contains(&uid.to_string())); // The uid should not be visible in encrypted form
+
+    // Test decryption
+    let decrypted_key = decrypt_key(&encrypted_key).unwrap();
+    assert_eq!(key, decrypted_key);
+  }
+
+  #[test]
+  fn test_encryption_consistency() {
+    let key = "test_key_123";
+
+    // Test that encryption is consistent
+    let encrypted1 = encrypt_key(key).unwrap();
+    let encrypted2 = encrypt_key(key).unwrap();
+
+    // The encrypted values should be different due to random nonce
+    assert_eq!(encrypted1, encrypted2);
+
+    // But both should decrypt to the same value
+    let decrypted1 = decrypt_key(&encrypted1).unwrap();
+    let decrypted2 = decrypt_key(&encrypted2).unwrap();
+    assert_eq!(decrypted1, key);
+    assert_eq!(decrypted2, key);
+  }
+
+  #[test]
+  fn test_invalid_decryption() {
+    // Test that invalid encrypted data fails gracefully
+    let result = decrypt_key("invalid_encrypted_data");
+    assert!(result.is_err());
   }
 }

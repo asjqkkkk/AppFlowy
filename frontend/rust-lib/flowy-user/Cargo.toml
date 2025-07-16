@@ -8,7 +8,13 @@ edition = "2018"
 [dependencies]
 flowy-derive.workspace = true
 flowy-sqlite = { workspace = true }
-flowy-error = { workspace = true, features = ["impl_from_dispatch_error", "impl_from_sqlite", "impl_from_collab_folder", "impl_from_collab_persistence", "impl_from_collab_document"] }
+flowy-error = { workspace = true, features = [
+  "impl_from_dispatch_error",
+  "impl_from_sqlite",
+  "impl_from_collab_folder",
+  "impl_from_collab_persistence",
+  "impl_from_collab_document",
+] }
 flowy-folder-pub = { workspace = true }
 lib-infra = { workspace = true, features = ["encryption"] }
 flowy-notification = { workspace = true }
@@ -42,7 +48,7 @@ uuid.workspace = true
 chrono = { workspace = true, default-features = false, features = ["clock"] }
 base64 = "^0.21"
 tokio-stream.workspace = true
-semver = "1.0.22"
+semver = { version = "1.0.22", features = ["serde"] }
 validator = { workspace = true, features = ["derive"] }
 rayon = "1.10.0"
 num_enum.workspace = true

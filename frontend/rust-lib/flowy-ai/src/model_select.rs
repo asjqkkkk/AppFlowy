@@ -1,8 +1,11 @@
+use crate::embeddings::indexer::supported_dimensions;
 use crate::local_ai::controller::LocalAIController;
+use crate::local_ai::util::is_support_embedding;
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
+use futures::future;
 use lib_infra::async_trait::async_trait;
 use lib_infra::util::timestamp;
 use std::collections::HashSet;
@@ -337,17 +340,40 @@ impl ModelSource for LocalAiSource {
   async fn list_embedding_models(&self) -> Vec<String> {
     match self.controller.llm_controller.load_full() {
       None => vec![],
-      Some(ollama) => ollama
-        .list_local_models()
-        .await
-        .map(|models| {
-          models
-            .into_iter()
-            .filter(|m| m.name.to_lowercase().contains("embed"))
-            .map(|m| m.name)
-            .collect()
-        })
-        .unwrap_or_default(),
+      Some(ollama) => {
+        let models = ollama
+          .list_local_models()
+          .await
+          .map(|models| {
+            models
+              .into_iter()
+              .filter(|m| m.name.to_lowercase().contains("embed"))
+              .map(|m| m.name)
+              .collect::<Vec<_>>()
+          })
+          .unwrap_or_default();
+
+        let supported_dim = supported_dimensions();
+        let futures = models.into_iter().map(|model| {
+          let ollama = ollama.clone();
+          let cloned_supported_dim = supported_dim.clone();
+          async move {
+            if let Ok(model_info) = ollama.show_model_info(model.clone()).await {
+              if is_support_embedding(&cloned_supported_dim, &model, &model_info) {
+                return Some(model);
+              } else {
+                info!("Model {} does not support embedding, skipping", model);
+              }
+            }
+            None
+          }
+        });
+        future::join_all(futures)
+          .await
+          .into_iter()
+          .flatten()
+          .collect()
+      },
     }
   }
 }
