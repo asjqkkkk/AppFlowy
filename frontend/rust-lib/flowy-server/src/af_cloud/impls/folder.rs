@@ -7,7 +7,7 @@ use collab_entity::CollabType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
-use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess};
+use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate};
 use serde_json::to_vec;
 use std::path::PathBuf;
 use std::sync::Weak;
@@ -345,5 +345,28 @@ where
       .await
       .map_err(FlowyError::from)?;
     Ok(resp)
+  }
+
+  async fn update_page_mention(
+    &self,
+    person_id: &Uuid,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    _require_notification: &bool,
+    block_id: &Option<String>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    try_get_client?
+      .update_page_mention(
+        workspace_id,
+        view_id,
+        &PageMentionUpdate {
+          person_id: *person_id,
+          block_id: block_id.clone(),
+        },
+      )
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(())
   }
 }

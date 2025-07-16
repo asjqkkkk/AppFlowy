@@ -333,7 +333,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
             !personState.access &&
             person.role != PersonRole.contact;
     final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
-
+    final isEmojiAvatar = url.isNotEmpty && !url.startsWith('http');
     final theme = AppFlowyTheme.of(this);
     const size = 90.0, radius = 41.0;
     Widget avatar = SizedBox.square(
@@ -342,7 +342,8 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         url: url,
         radius: radius,
         name: person.name,
-        backgroundColor: url.isNotEmpty ? Colors.transparent : null,
+        backgroundColor:
+            (url.isNotEmpty && !isEmojiAvatar) ? Colors.transparent : null,
       ),
     );
     if (noAccess) {

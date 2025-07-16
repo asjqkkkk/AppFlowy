@@ -9,15 +9,6 @@ import 'package:appflowy_result/appflowy_result.dart';
 import 'mention_repository.dart';
 
 class RustMentionRepository extends MentionRepository {
-  @override
-  Future<FlowyResult<PersonWithAccess, FlowyError>> getPerson({
-    required String workspaceId,
-    required String documentId,
-    required String personId,
-  }) {
-    // TODO: implement getPerson
-    throw UnimplementedError();
-  }
 
   @override
   Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
@@ -78,5 +69,20 @@ class RustMentionRepository extends MentionRepository {
   }) {
     // TODO: implement invitePerson
     throw UnimplementedError();
+  }
+
+  @override
+  Future<void> mentionPerson({
+    required String documentId,
+    required String personId,
+    required bool requireNotification,
+    String? blockId,
+  }) async {
+     await ViewBackendService.updatePageMention(
+      viewId: documentId,
+      personId: personId,
+      requireNotification: requireNotification,
+      blockId: blockId,
+    );
   }
 }

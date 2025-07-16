@@ -66,6 +66,7 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
     .event(FolderEvent::GetWorkspaceMentionablePersons, get_workspace_mentionable_persons_handler)
     .event(FolderEvent::GetPageMentionablePersons, get_page_mentionable_persons_handler)
+    .event(FolderEvent::UpdateuPageMention, update_page_mention_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -274,4 +275,7 @@ pub enum FolderEvent {
 
   #[event(input = "ViewIdPB", output = "GetMentionablePersonsWithAccessPB")]
   GetPageMentionablePersons = 67,
+
+  #[event(input = "PageMentionUpdateInfoPB")]
+  UpdateuPageMention = 68,
 }

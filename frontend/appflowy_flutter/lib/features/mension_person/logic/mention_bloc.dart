@@ -34,6 +34,7 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     on<RemoveVisibleItem>(_onRemoveVisibleItem);
     on<SelectItem>(_onSelectItem);
     on<UpdateDividerInfo>(_onUpdateDividerInfo);
+    on<MentionPerson>(_onMentionPerson);
   }
   final MentionRepository repository;
   final String workspaceId;
@@ -201,5 +202,17 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     Emitter<MentionState> emit,
   ) async {
     emit(state.copyWith(dividerInfo: event.info));
+  }
+
+  Future<void> _onMentionPerson(
+    MentionPerson event,
+    Emitter<MentionState> emit,
+  ) async {
+    await repository.mentionPerson(
+      documentId: event.documentId,
+      blockId: event.blockId,
+      personId: event.personId,
+      requireNotification: state.sendNotification,
+    );
   }
 }

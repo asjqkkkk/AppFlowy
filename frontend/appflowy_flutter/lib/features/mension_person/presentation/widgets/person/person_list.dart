@@ -137,7 +137,13 @@ class PersonList extends StatelessWidget {
     final node = editorState.getNodeAtPath(selection.end.path);
     final delta = node?.delta;
     if (node == null || delta == null) return;
-
+    mentionBloc.add(
+      MentionEvent.mentionPerson(
+        documentId: documentBloc.documentId,
+        personId: person.id,
+        blockId: node.id,
+      ),
+    );
     final range = mentionInfo.textRange(query);
     mentionInfo.onDismiss.call();
     await editorState.insertPerson(
@@ -171,11 +177,10 @@ extension PersonListEditorStateExtension on EditorState {
         range.start,
         range.end,
         MentionBlockKeys.mentionChar,
-
-        /// TODO: add block id here
         attributes: MentionBlockKeys.buildMentionPersonAttributes(
           personId: person.id,
           pageId: pageId,
+          blockId: node.id,
         ),
       );
 

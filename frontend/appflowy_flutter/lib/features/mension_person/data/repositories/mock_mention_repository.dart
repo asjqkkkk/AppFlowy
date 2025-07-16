@@ -55,22 +55,12 @@ class MockMentionRepository extends MentionRepository {
   }
 
   @override
-  Future<FlowyResult<PersonWithAccess, FlowyError>> getPerson({
-    required String workspaceId,
+  Future<void> mentionPerson({
     required String documentId,
     required String personId,
-  }) async {
-    final persons = _MockState.getInstance().persons;
-    final person = persons.where((p) => p.id == personId).firstOrNull;
-    if (person == null) {
-      return FlowyFailure(
-        FlowyError(code: ErrorCode.RecordNotFound, msg: 'Person not found'),
-      );
-    }
-    return FlowySuccess(
-      PersonWithAccess(person: person, access: Random().nextBool()),
-    );
-  }
+    required bool requireNotification,
+    String? blockId,
+  }) async {}
 }
 
 class _MockState {

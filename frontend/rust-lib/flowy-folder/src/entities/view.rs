@@ -1052,6 +1052,18 @@ pub struct MentionablePersonPB {
   pub last_mentioned_at: Option<i64>,
 }
 
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct PageMentionUpdateInfoPB {
+  #[pb(index = 1)]
+  pub view_id: String,
+  #[pb(index = 2)]
+  pub person_id: String,
+  #[pb(index = 3)]
+  pub require_notification: bool,
+  #[pb(index = 4, one_of)]
+  pub block_id: Option<String>,
+}
+
 impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
   fn from(person: MentionablePersonWithLastMentionedTime) -> Self {
     MentionablePersonPB {

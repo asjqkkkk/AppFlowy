@@ -530,6 +530,26 @@ impl FolderCloudService for ServerProvider {
       .get_page_mentionable_persons(workspace_id, view_id)
       .await
   }
+
+  async fn update_page_mention(
+    &self,
+    person_id: &Uuid,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    required_notification: &bool,
+    block_id: &Option<String>,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .update_page_mention(
+        person_id,
+        workspace_id,
+        view_id,
+        required_notification,
+        block_id,
+      )
+      .await
+  }
 }
 
 #[async_trait]

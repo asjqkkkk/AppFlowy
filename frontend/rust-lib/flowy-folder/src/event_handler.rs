@@ -677,3 +677,21 @@ pub(crate) async fn get_page_mentionable_persons_handler(
   let mentionable_persons = folder.get_page_mentionable_persons(&view_id).await?;
   data_result_ok(mentionable_persons)
 }
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn update_page_mention_handler(
+  data: AFPluginData<PageMentionUpdateInfoPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let info = &data.into_inner();
+  folder
+    .update_page_mention(
+      &info.person_id,
+      &info.view_id,
+      &info.require_notification,
+      &info.block_id,
+    )
+    .await?;
+  Ok(())
+}

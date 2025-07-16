@@ -132,6 +132,16 @@ pub trait FolderCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     view_id: &Uuid,
   ) -> Result<MentionablePersonsWithAccess, FlowyError>;
+
+  /// Update the mentionable persons in a page(with access)
+  async fn update_page_mention(
+    &self,
+    person_id: &Uuid,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    require_notification: &bool,
+    block_id: &Option<String>,
+  ) -> Result<(), FlowyError>;
 }
 
 #[derive(Debug)]

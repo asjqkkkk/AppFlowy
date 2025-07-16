@@ -3073,6 +3073,30 @@ impl FolderManager {
     })
   }
 
+  pub async fn update_page_mention(
+    &self,
+    person_id: &str,
+    view_id: &str,
+    require_notification: &bool,
+    block_id: &Option<String>,
+  ) -> FlowyResult<()> {
+    let workspace_id = self.user.workspace_id()?;
+    let uuid_view_id = Uuid::from_str(view_id)?;
+    let uuid_person_id = Uuid::from_str(person_id)?;
+    self
+      .cloud_service()?
+      .update_page_mention(
+        &uuid_person_id,
+        &workspace_id,
+        &uuid_view_id,
+        &require_notification,
+        &block_id,
+      )
+      .await?;
+
+    Ok(())
+  }
+
   pub async fn get_other_private_view_ids_cached(
     &self,
     with_cache: bool,

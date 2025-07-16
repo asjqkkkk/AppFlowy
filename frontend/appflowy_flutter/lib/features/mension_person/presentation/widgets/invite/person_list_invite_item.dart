@@ -100,6 +100,13 @@ extension PersonInviteEditorStateExtension on EditorState {
       info: inviteInfo,
     );
     await result.fold((person) async {
+      mentionBloc.add(
+        MentionEvent.mentionPerson(
+          documentId: documentBloc.documentId,
+          personId: person.id,
+          blockId: node.id,
+        ),
+      );
       serviceInfo.onDismiss.call();
       await insertPerson(
         person,

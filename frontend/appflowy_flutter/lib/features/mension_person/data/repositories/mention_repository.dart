@@ -14,16 +14,18 @@ abstract class MentionRepository {
     required String workspaceId,
     required String documentId,
   });
-
-  Future<FlowyResult<PersonWithAccess, FlowyError>> getPerson({
-    required String workspaceId,
-    required String documentId,
-    required String personId,
-  });
-
+  
   /// Invite a person
   Future<FlowyResult<Person, FlowyError>> invitePerson({
     required String workspaceId,
     required InviteInfo info,
+  });
+
+  /// mention a person
+  Future<void> mentionPerson({
+    required String documentId,
+    required String personId,
+    required bool requireNotification,
+    String? blockId,
   });
 }

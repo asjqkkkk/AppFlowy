@@ -18,6 +18,11 @@ sealed class MentionEvent {
   const factory MentionEvent.selectItem(String id) = SelectItem;
   const factory MentionEvent.updateDividerInfo(MentionMenuDivider info) =
       UpdateDividerInfo;
+  const factory MentionEvent.mentionPerson({
+    required String documentId,
+    required String personId,
+    String? blockId,
+  }) = MentionPerson;
 }
 
 class Initial implements MentionEvent {
@@ -90,4 +95,16 @@ class UpdateDividerInfo implements MentionEvent {
   const UpdateDividerInfo(this.info);
 
   final MentionMenuDivider info;
+}
+
+class MentionPerson implements MentionEvent {
+  const MentionPerson({
+    required this.documentId,
+    required this.personId,
+    this.blockId,
+  });
+
+  final String documentId;
+  final String personId;
+  final String? blockId;
 }

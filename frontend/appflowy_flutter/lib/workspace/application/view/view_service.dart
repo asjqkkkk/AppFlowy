@@ -283,6 +283,23 @@ class ViewBackendService {
     return FolderEventGetPageMentionablePersons(payload).send();
   }
 
+  static Future<FlowyResult<void, FlowyError>> updatePageMention({
+    required String viewId,
+    required String personId,
+    String? blockId,
+    required bool requireNotification,
+  }) async {
+    if (viewId.isEmpty || personId.isEmpty) {
+      Log.error('ViewId or PersonId is empty while updating page mention');
+    }
+    final payload = PageMentionUpdateInfoPB.create()
+      ..viewId = viewId
+      ..personId = personId
+      ..blockId = blockId ?? ''
+      ..requireNotification = requireNotification;
+    return FolderEventUpdateuPageMention(payload).send();
+  }
+
   static Future<FlowyResult<ViewPB, FlowyError>> getView(
     String viewId,
   ) async {
