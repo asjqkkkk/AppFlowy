@@ -350,10 +350,13 @@ class _WorkspaceType extends StatelessWidget {
         Row(
           children: [
             Flexible(
-              child: Text(
-                LocaleKeys.workspace_workspaceType.tr(),
-                style: theme.textStyle.caption.enhanced(
-                  color: theme.textColorScheme.secondary,
+              child: SizedBox(
+                height: 20.0,
+                child: Text(
+                  LocaleKeys.workspace_workspaceType.tr(),
+                  style: theme.textStyle.caption.enhanced(
+                    color: theme.textColorScheme.secondary,
+                  ),
                 ),
               ),
             ),

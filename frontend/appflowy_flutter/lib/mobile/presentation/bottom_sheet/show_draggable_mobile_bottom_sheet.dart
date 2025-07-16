@@ -1,4 +1,4 @@
-import 'package:appflowy/plugins/base/drag_handler.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:sheet/route.dart';

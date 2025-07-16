@@ -3,7 +3,6 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/home/tab/mobile_space_tab.dart';
 import 'package:appflowy/mobile/presentation/search/mobile_search_cell.dart';
-import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:appflowy/startup/tasks/app_widget.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';

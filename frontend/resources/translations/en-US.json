@@ -1164,7 +1164,7 @@
         "description": "Your payment has been successfully processed and your plan is upgraded to @:appName {}. You can view your plan details on the Plan page"
       },
       "downgradeDialog": {
-        "title": "Are you sure you want to downgrade your plan?",
+        "title": "Downgrade Plan",
         "description": "Downgrading your plan will revert you back to the Free plan. Members may lose access to this workspace and you may need to free up space to meet the storage limits of the Free plan.",
         "downgradeLabel": "Downgrade plan"
       }
@@ -2935,7 +2935,7 @@
     "title": "Spaces",
     "defaultSpaceName": "General",
     "upgradeSpaceTitle": "Enable Spaces",
-    "upgradeSpaceDescription": "Create multiple public and private Spaces to better organize your workspace.",
+    "upgradeSpaceDescription": "Create multiple spaces to better organize your workspace.",
     "upgrade": "Update",
     "upgradeYourSpace": "Create multiple Spaces",
     "quicklySwitch": "Quickly switch to the next space",

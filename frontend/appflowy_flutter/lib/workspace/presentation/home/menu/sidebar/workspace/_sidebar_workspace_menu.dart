@@ -74,7 +74,6 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
               WorkspaceMoreButton(
                 popoverMutex: popoverMutex,
               ),
-              const HSpace(8.0),
             ],
           ),
         ),
@@ -388,7 +387,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: FlowyButton(
         key: createWorkspaceButtonKey,
         onTap: () {
@@ -432,7 +431,7 @@ class _ImportNotionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: FlowyButton(
         key: importNotionButtonKey,
         onTap: () {
