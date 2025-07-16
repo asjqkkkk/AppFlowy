@@ -12,7 +12,8 @@ class MessageHeightConstants {
   //
   //  navigation bar height + last user message height
   //    + last AI message height + chat input box height = screen height
-  static const double defaultDesktopScreenOffset = 220.0;
+  static const double defaultDesktopScreenOffsetOnLinuxAndMacos = 220.0;
+  static const double defaultDesktopScreenOffsetOnWindows = 250.0;
   static const double defaultMobileScreenOffset = 304.0;
 
   static const double relatedQuestionOffset = 72.0;
@@ -32,7 +33,9 @@ class ChatMessageHeightManager {
     if (UniversalPlatform.isMobile) {
       return MessageHeightConstants.defaultMobileScreenOffset;
     }
-    return MessageHeightConstants.defaultDesktopScreenOffset;
+    return UniversalPlatform.isWindows
+        ? MessageHeightConstants.defaultDesktopScreenOffsetOnWindows
+        : MessageHeightConstants.defaultDesktopScreenOffsetOnLinuxAndMacos;
   }
 
   /// Cache a message height
