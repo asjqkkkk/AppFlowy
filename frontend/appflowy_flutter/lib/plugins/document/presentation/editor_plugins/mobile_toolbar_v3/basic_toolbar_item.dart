@@ -143,21 +143,12 @@ final colorToolbarItem = AppFlowyMobileToolbarItem(
       },
       onTap: () {
         service.closeKeyboard();
-        editorState.updateSelectionWithReason(
-          editorState.selection,
-          extraInfo: {
-            selectionExtraInfoDisableMobileToolbarKey: true,
-            selectionExtraInfoDisableFloatingToolbar: true,
-            selectionExtraInfoDoNotAttachTextService: true,
-          },
-        );
-        keepEditorFocusNotifier.increase();
         showTextAndBackgroundColorPicker(
           context,
           editorState: editorState,
           textColors: textColors,
           backgroundColors: backgroundColors,
-        ).then((_) => keepEditorFocusNotifier.decrease());
+        );
       },
     );
   },
