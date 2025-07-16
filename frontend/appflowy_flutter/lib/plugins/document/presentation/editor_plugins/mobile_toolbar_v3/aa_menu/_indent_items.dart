@@ -17,13 +17,21 @@ class IndentAndOutdentItems extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = ToolbarColorExtension.of(context);
+    final enableIndent = isIndentable(editorState);
+    final enableOutdent = isOutdentable(editorState);
+
     return IntrinsicHeight(
       child: Row(
         children: [
           MobileToolbarMenuItemWrapper(
             size: const Size(95, 52),
-            icon: FlowySvgs.m_aa_outdent_m,
-            enable: isOutdentable(editorState),
+            icon: FlowySvg(
+              FlowySvgs.m_aa_outdent_m,
+              color: enableOutdent
+                  ? theme.toolbarMenuIconColor
+                  : theme.toolbarMenuIconDisabledColor,
+            ),
+            enable: enableOutdent,
             isSelected: false,
             enableTopRightRadius: false,
             enableBottomRightRadius: false,
@@ -37,8 +45,13 @@ class IndentAndOutdentItems extends StatelessWidget {
           const ScaledVerticalDivider(),
           MobileToolbarMenuItemWrapper(
             size: const Size(95, 52),
-            icon: FlowySvgs.m_aa_indent_m,
-            enable: isIndentable(editorState),
+            icon: FlowySvg(
+              FlowySvgs.m_aa_indent_m,
+              color: enableIndent
+                  ? theme.toolbarMenuIconColor
+                  : theme.toolbarMenuIconDisabledColor,
+            ),
+            enable: enableIndent,
             isSelected: false,
             enableTopLeftRadius: false,
             enableBottomLeftRadius: false,

@@ -1,8 +1,10 @@
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/font_colors.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/_color_list.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/text_background_color_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/widgets.dart';
 
 import 'link_toolbar_item.dart';
@@ -86,56 +88,56 @@ final strikethroughToolbarItem = AppFlowyMobileToolbarItem(
 );
 
 final colorToolbarItem = AppFlowyMobileToolbarItem(
-  itemBuilder: (context, editorState, service, __, onAction) {
+  itemBuilder: (context, editorState, service, _, onAction) {
+    final theme = AppFlowyTheme.of(context);
+
+    final textColors = getColorsInSelection(
+      editorState,
+      ColorType.text,
+    );
+    final backgroundColors = getColorsInSelection(
+      editorState,
+      ColorType.background,
+    );
+
+    Color? getSingularColor(List<AFColor> colors) {
+      final color = colors.singleOrNull?.toColor(theme);
+
+      if (color == null || color.a == 0.0) {
+        return null;
+      }
+
+      return color;
+    }
+
     return AppFlowyMobileToolbarIconItem(
       editorState: editorState,
       shouldListenToToggledStyle: true,
       icon: FlowySvgs.m_aa_font_color_m,
       iconBuilder: (context) {
-        String? getColor(String key) {
-          final selection = editorState.selection;
-          if (selection == null) {
-            return null;
-          }
-          String? color = editorState.toggledStyle[key];
-          if (color == null) {
-            if (selection.isCollapsed && selection.startIndex != 0) {
-              color = editorState.getDeltaAttributeValueInSelection<String>(
-                key,
-                selection.copyWith(
-                  start: selection.start.copyWith(
-                    offset: selection.startIndex - 1,
-                  ),
-                ),
-              );
-            } else {
-              color = editorState.getDeltaAttributeValueInSelection<String>(
-                key,
-              );
-            }
-          }
-          return color;
-        }
-
-        final textColor = getColor(AppFlowyRichTextKeys.textColor);
-        final backgroundColor = getColor(AppFlowyRichTextKeys.backgroundColor);
-
+        final iconColor =
+            getSingularColor(textColors) ?? theme.iconColorScheme.primary;
         return Container(
           width: 40,
           padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(9),
-            color: EditorFontColors.fromBuiltInColors(
-              context,
-              backgroundColor?.tryToColor(),
-            ),
+            color: getSingularColor(backgroundColors),
           ),
-          child: FlowySvg(
-            FlowySvgs.m_aa_font_color_m,
-            color: EditorFontColors.fromBuiltInColors(
-              context,
-              textColor?.tryToColor(),
-            ),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              FlowySvg(
+                FlowySvgs.text_color_border_m,
+                size: Size.square(24),
+                color: iconColor,
+              ),
+              FlowySvg(
+                FlowySvgs.text_color_m,
+                size: Size.square(24),
+                color: iconColor,
+              ),
+            ],
           ),
         );
       },
@@ -150,11 +152,12 @@ final colorToolbarItem = AppFlowyMobileToolbarItem(
           },
         );
         keepEditorFocusNotifier.increase();
-        showTextColorAndBackgroundColorPicker(
+        showTextAndBackgroundColorPicker(
           context,
           editorState: editorState,
-          selection: editorState.selection!,
-        );
+          textColors: textColors,
+          backgroundColors: backgroundColors,
+        ).then((_) => keepEditorFocusNotifier.decrease());
       },
     );
   },

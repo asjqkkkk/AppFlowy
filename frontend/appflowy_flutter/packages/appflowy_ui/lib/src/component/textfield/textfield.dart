@@ -28,6 +28,8 @@ class AFTextField extends StatefulWidget {
     this.onTapOutside,
     this.autoFocus,
     this.obscureText = false,
+    this.prefixIconBuilder,
+    this.prefixIconConstraints,
     this.suffixIconBuilder,
     this.suffixIconConstraints,
     this.size = AFTextFieldSize.l,
@@ -71,6 +73,12 @@ class AFTextField extends StatefulWidget {
 
   /// Obscure the text.
   final bool obscureText;
+
+  /// The leading widget to display.
+  final Widget? Function(BuildContext context)? prefixIconBuilder;
+
+  /// The size of the prefix icon.
+  final BoxConstraints? prefixIconConstraints;
 
   /// The trailing widget to display.
   final Widget? Function(BuildContext context, bool isObscured)?
@@ -207,6 +215,8 @@ class _AFTextFieldState extends AFTextFieldState {
         errorBorder: errorBorder,
         focusedErrorBorder: focusedErrorBorder,
         hoverColor: theme.borderColorScheme.primaryHover,
+        prefixIcon: widget.prefixIconBuilder?.call(context),
+        prefixIconConstraints: widget.prefixIconConstraints,
         suffixIcon: widget.suffixIconBuilder?.call(context, isObscured),
         suffixIconConstraints: widget.suffixIconConstraints,
       ),

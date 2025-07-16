@@ -28,6 +28,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
+import '../shared_context/shared_context.dart';
 
 double kDocumentCoverHeight = 98.0;
 double kDocumentTitlePadding = 20.0;
@@ -53,18 +54,17 @@ class DocumentImmersiveCover extends StatefulWidget {
 class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
   final textEditingController = TextEditingController();
   final scrollController = ScrollController();
-  final focusNode = FocusNode();
 
   late PropertyValueNotifier<Selection?>? selectionNotifier =
       context.read<DocumentBloc>().state.editorState?.selectionNotifier;
+  late final editorContext = context.read<SharedEditorContext>();
+  late final titleFocusNode = editorContext.coverTitleFocusNode;
 
   @override
   void initState() {
     super.initState();
     selectionNotifier?.addListener(_unfocus);
-    if (widget.view.name.isEmpty) {
-      focusNode.requestFocus();
-    }
+    _requestInitialFocus();
   }
 
   @override
@@ -72,7 +72,6 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
     textEditingController.dispose();
     scrollController.dispose();
     selectionNotifier?.removeListener(_unfocus);
-    focusNode.dispose();
     super.dispose();
   }
 
@@ -167,7 +166,7 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
 
     return AutoSizeTextField(
       controller: textEditingController,
-      focusNode: focusNode,
+      focusNode: titleFocusNode,
       minFontSize: 18.0,
       decoration: InputDecoration(
         border: InputBorder.none,
@@ -322,7 +321,9 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
   void _unfocus() {
     final selection = selectionNotifier?.value;
     if (selection != null) {
-      focusNode.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
+      titleFocusNode.unfocus(
+        disposition: UnfocusDisposition.previouslyFocusedChild,
+      );
     }
   }
 
@@ -332,7 +333,7 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
   }
 
   Future<void> _createNewLine() async {
-    focusNode.unfocus();
+    titleFocusNode.unfocus();
 
     final selection = textEditingController.selection;
     final text = textEditingController.text;
@@ -360,5 +361,15 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
       // trigger the keyboard service.
       reason: SelectionUpdateReason.uiEvent,
     );
+  }
+
+  void _requestInitialFocus() {
+    if (editorContext.requestCoverTitleFocus) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        titleFocusNode.canRequestFocus = true;
+        titleFocusNode.requestFocus();
+        editorContext.requestCoverTitleFocus = false;
+      });
+    }
   }
 }
