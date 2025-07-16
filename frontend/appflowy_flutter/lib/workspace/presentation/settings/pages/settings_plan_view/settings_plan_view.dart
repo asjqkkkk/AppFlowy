@@ -7,6 +7,7 @@ import 'package:appflowy/workspace/application/settings/plan/settings_person_pla
 import 'package:appflowy/workspace/presentation/settings/pages/settings_plan_view/widgets/widgets.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_body.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
@@ -118,33 +119,36 @@ class _SettingsPlanViewState extends State<SettingsPlanView> {
               autoSeparate: false,
               title: LocaleKeys.settings_planPage_title.tr(),
               children: [
-                PlanUsageSummary(
-                  usage: state.workspaceUsage,
-                  subscriptionInfo: state.subscriptionInfo,
-                ),
-                const VSpace(16),
-                CurrentPlanBox(subscriptionInfo: state.subscriptionInfo),
-                const VSpace(16),
-                _SectionTitle(
-                  title:
-                      LocaleKeys.settings_planPage_planUsage_addons_title.tr(),
-                  tooltip: LocaleKeys.settings_planPage_planUsage_addons_tooltip
-                      .tr(),
-                ),
-                const VSpace(8),
-                AIMaxAddOn(
-                  subscriptionInfo: state.subscriptionInfo,
-                ),
-                const VSpace(16),
-                _SectionTitle(
-                  title: LocaleKeys
-                      .settings_planPage_planUsage_accountAddons_title
-                      .tr(),
-                  tooltip: LocaleKeys
-                      .settings_planPage_planUsage_accountAddons_tooltip
-                      .tr(),
-                ),
-                const VSpace(8),
+                if (widget.user.workspaceType == WorkspaceTypePB.ServerW) ...[
+                  PlanUsageSummary(
+                    usage: state.workspaceUsage,
+                    subscriptionInfo: state.subscriptionInfo,
+                  ),
+                  const VSpace(16),
+                  CurrentPlanBox(subscriptionInfo: state.subscriptionInfo),
+                  const VSpace(16),
+                  _SectionTitle(
+                    title: LocaleKeys.settings_planPage_planUsage_addons_title
+                        .tr(),
+                    tooltip: LocaleKeys
+                        .settings_planPage_planUsage_addons_tooltip
+                        .tr(),
+                  ),
+                  const VSpace(8),
+                  AIMaxAddOn(
+                    subscriptionInfo: state.subscriptionInfo,
+                  ),
+                  const VSpace(16),
+                  _SectionTitle(
+                    title: LocaleKeys
+                        .settings_planPage_planUsage_accountAddons_title
+                        .tr(),
+                    tooltip: LocaleKeys
+                        .settings_planPage_planUsage_accountAddons_tooltip
+                        .tr(),
+                  ),
+                  const VSpace(8),
+                ],
                 _buildPersonalStateWidget(personalState),
               ],
             ),

@@ -8,7 +8,7 @@ use crate::user_manager::UserManager;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::*;
-use flowy_user_pub::sql::UserWorkspaceChangeset;
+use flowy_user_pub::sql::{select_user_auth_provider, UserWorkspaceChangeset};
 use lib_dispatch::prelude::*;
 use lib_infra::box_any::BoxAny;
 use std::str::FromStr;
@@ -431,11 +431,11 @@ pub async fn get_all_workspace_handler(
 ) -> DataResult<RepeatedUserWorkspacePB, FlowyError> {
   let manager = upgrade_manager(manager)?;
   let session = manager.get_session()?;
-  let profile = manager
-    .get_user_profile_from_disk(session.user_id, &session.workspace_id)
-    .await?;
+
+  let mut conn = manager.db_connection(session.user_id)?;
+  let auth_provider = select_user_auth_provider(session.user_id, &mut conn)?;
   let user_workspaces = manager
-    .get_all_user_workspaces(profile.uid, profile.auth_type)
+    .get_all_user_workspaces(session.user_id, auth_provider)
     .await?;
 
   data_result_ok(RepeatedUserWorkspacePB::from(user_workspaces))
