@@ -178,7 +178,7 @@ impl UserManager {
       "previous workspace:{}, open workspace: {}, auth type:{:?}",
       current_workspace_id, workspace_id, workspace_type
     );
-    let workspace_id_str = workspace_id.to_string();
+    let opened_workspace_id = workspace_id.to_string();
     let uid = self.user_id()?;
     let mut db = self.db_connection(uid)?;
     let auth_provider = select_user_auth_provider(uid, &mut db)?;
@@ -188,19 +188,19 @@ impl UserManager {
     let controller =
       self.init_workspace_controller_if_need(workspace_id, &workspace_type, &cloud_service)?;
     let profile = self
-      .get_user_profile_from_disk(uid, &workspace_id_str)
+      .get_user_profile_from_disk(uid, &opened_workspace_id)
       .await?;
     if let Err(err) = cloud_service.set_token(Some(profile.token.clone())) {
       error!("Set token failed: {}", err);
     }
 
     let mut conn = self.db_connection(self.user_id()?)?;
-    let user_workspace = match select_user_workspace(&workspace_id_str, &mut conn) {
+    let user_workspace = match select_user_workspace(&opened_workspace_id, &mut conn) {
       Err(err) => {
         if err.is_record_not_found() {
           sync_workspace(
             workspace_id,
-            cloud_service.workspace_service()?,
+            cloud_service.current_workspace_service()?,
             uid,
             workspace_type,
             self.db_pool(uid)?,
@@ -213,7 +213,7 @@ impl UserManager {
       Ok(row) => {
         let user_workspace = UserWorkspace::from(row);
         let workspace_id = *workspace_id;
-        let user_service = cloud_service.workspace_service()?;
+        let user_service = cloud_service.workspace_service(workspace_type)?;
         let pool = self.db_pool(uid)?;
         tokio::spawn(async move {
           let _ = sync_workspace(&workspace_id, user_service, uid, workspace_type, pool).await;
@@ -291,10 +291,11 @@ impl UserManager {
     &self,
     workspace_id: &Uuid,
     changeset: UserWorkspaceChangeset,
+    workspace_type: WorkspaceType,
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .workspace_service()?
+      .workspace_service(workspace_type)?
       .patch_workspace(workspace_id, changeset.name.clone(), changeset.icon.clone())
       .await?;
 
@@ -317,7 +318,7 @@ impl UserManager {
     info!("leave workspace: {}", workspace_id);
     self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .leave_workspace(workspace_id)
       .await?;
 
@@ -336,15 +337,22 @@ impl UserManager {
   }
 
   #[instrument(level = "info", skip(self), err)]
-  pub async fn delete_workspace(&self, workspace_id: &Uuid) -> FlowyResult<()> {
-    info!("delete workspace: {}", workspace_id);
+  pub async fn delete_workspace(
+    &self,
+    workspace_id: &Uuid,
+    workspace_type: WorkspaceType,
+  ) -> FlowyResult<()> {
+    info!(
+      "delete workspace: {}, workspace_type: {}",
+      workspace_id, workspace_type
+    );
     let uid = self.user_id()?;
     let conn = self.db_connection(uid)?;
     delete_user_workspace(conn, workspace_id.to_string().as_str())?;
 
     self
       .cloud_service()?
-      .workspace_service()?
+      .workspace_service(workspace_type)?
       .delete_workspace(workspace_id)
       .await?;
 
@@ -365,7 +373,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .invite_workspace_member(invitee_email, workspace_id, role)
       .await?;
     Ok(())
@@ -375,7 +383,7 @@ impl UserManager {
     let status = Some(WorkspaceInvitationStatus::Pending);
     let invitations = self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .list_workspace_invitations(status)
       .await?;
     Ok(invitations)
@@ -384,7 +392,7 @@ impl UserManager {
   pub async fn accept_workspace_invitation(&self, invite_id: String) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .accept_workspace_invitations(invite_id)
       .await?;
     Ok(())
@@ -397,7 +405,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .remove_workspace_member(user_email, workspace_id)
       .await?;
     Ok(())
@@ -409,7 +417,7 @@ impl UserManager {
   ) -> FlowyResult<Vec<WorkspaceMember>> {
     let members = self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .get_workspace_members(workspace_id)
       .await?;
     Ok(members)
@@ -422,7 +430,7 @@ impl UserManager {
   ) -> FlowyResult<WorkspaceMember> {
     let member = self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .get_workspace_member(&workspace_id, uid)
       .await?;
     Ok(member)
@@ -436,7 +444,7 @@ impl UserManager {
   ) -> FlowyResult<()> {
     self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .update_workspace_member(user_email, workspace_id, role)
       .await?;
     Ok(())
@@ -462,7 +470,9 @@ impl UserManager {
 
     // 2) If both cloud service and pool are available, fire off a background sync
     if let (Ok(service), Ok(pool)) = (
-      self.cloud_service().and_then(|v| v.workspace_service()),
+      self
+        .cloud_service()
+        .and_then(|v| v.current_workspace_service()),
       self.db_pool(uid),
     ) {
       let auth_copy = auth_type;
@@ -717,7 +727,7 @@ impl UserManager {
     updated_settings: UpdateUserWorkspaceSettingPB,
   ) -> FlowyResult<()> {
     let workspace_id = Uuid::from_str(&updated_settings.workspace_id)?;
-    let cloud_service = self.cloud_service()?.workspace_service()?;
+    let cloud_service = self.cloud_service()?.current_workspace_service()?;
     let settings = cloud_service
       .update_workspace_setting(&workspace_id, updated_settings.clone().into())
       .await?;
@@ -768,7 +778,7 @@ impl UserManager {
       Err(err) => {
         if err.is_record_not_found() {
           trace!("No workspace settings found, fetch from remote");
-          let service = self.cloud_service()?.workspace_service()?;
+          let service = self.cloud_service()?.current_workspace_service()?;
           let settings = service.get_workspace_setting(workspace_id).await?;
           let pb = WorkspaceSettingsPB::from(&settings);
           let mut conn = self.db_connection(uid)?;
@@ -823,7 +833,7 @@ impl UserManager {
     debug!("get workspace member info from remote: {}", workspace_id);
     let member = self
       .cloud_service()?
-      .workspace_service()?
+      .current_workspace_service()?
       .get_workspace_member(workspace_id, uid)
       .await?;
 
@@ -883,7 +893,7 @@ async fn sync_workspace_settings(
   uid: i64,
   pool: Arc<ConnectionPool>,
 ) -> FlowyResult<()> {
-  let service = cloud_service.workspace_service()?;
+  let service = cloud_service.current_workspace_service()?;
   let settings = service.get_workspace_setting(&workspace_id).await?;
   let new_pb = WorkspaceSettingsPB::from(&settings);
   if new_pb != old_pb {

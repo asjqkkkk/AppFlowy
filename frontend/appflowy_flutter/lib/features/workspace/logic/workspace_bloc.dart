@@ -212,6 +212,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
 
     final result = await repository.deleteWorkspace(
       workspaceId: event.workspaceId,
+      workspaceType: event.workspaceType,
     );
     final workspacesResult = await _fetchWorkspaces();
     final workspaces = workspacesResult.workspaces;
@@ -326,6 +327,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     final result = await repository.renameWorkspace(
       workspaceId: event.workspaceId,
       name: event.name,
+      workspaceType: event.workspaceType,
     );
 
     final workspaces = result.fold(
@@ -380,6 +382,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     final result = await repository.updateWorkspaceIcon(
       workspaceId: event.workspaceId,
       icon: event.icon,
+      workspaceType: event.workspaceType,
     );
 
     final workspaces = result.fold(

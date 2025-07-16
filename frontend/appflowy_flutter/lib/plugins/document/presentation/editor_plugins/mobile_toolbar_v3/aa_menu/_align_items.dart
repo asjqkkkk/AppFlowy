@@ -74,7 +74,10 @@ class AlignItems extends StatelessWidget {
             },
           );
         },
-        icon: currentAlignItem.$2,
+        icon: FlowySvg(
+          currentAlignItem.$2,
+          color: theme.toolbarMenuIconColor,
+        ),
         isSelected: false,
         iconPadding: const EdgeInsets.symmetric(
           vertical: 14.0,

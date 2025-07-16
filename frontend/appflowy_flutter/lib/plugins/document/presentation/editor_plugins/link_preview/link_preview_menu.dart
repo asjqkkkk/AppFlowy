@@ -76,27 +76,27 @@ class _CustomLinkPreviewMenuState extends State<CustomLinkPreviewMenu> {
   Widget buildMenu() {
     final editorState = context.read<EditorState>(),
         editable = editorState.editable;
+    List<LinkPreviewMenuCommand> values = LinkPreviewMenuCommand.values;
+    if (!editable) {
+      values = [LinkPreviewMenuCommand.copyLink];
+    }
     return MouseRegion(
       child: Padding(
         padding: const EdgeInsets.all(8.0),
         child: SeparatedColumn(
           mainAxisSize: MainAxisSize.min,
           separatorBuilder: () => const VSpace(0.0),
-          children:
-              List.generate(LinkPreviewMenuCommand.values.length, (index) {
-            final command = LinkPreviewMenuCommand.values[index];
-            final isCopyCommand = command == LinkPreviewMenuCommand.copyLink;
-            final enableButton = editable || (!editable && isCopyCommand);
+          children: List.generate(values.length, (index) {
+            final command = values[index];
             return SizedBox(
               height: 36,
               child: FlowyButton(
-                hoverColor: enableButton ? null : Colors.transparent,
                 text: FlowyText(
                   command.title,
                   fontWeight: FontWeight.w400,
                   figmaLineHeight: 20,
                 ),
-                onTap: enableButton ? () => onTap(command) : null,
+                onTap: () => onTap(command),
               ),
             );
           }),

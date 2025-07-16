@@ -314,7 +314,7 @@ impl ModelSource for LocalAiSource {
         .map(|models| {
           models
             .into_iter()
-            .filter(|m| !m.name.contains("embed"))
+            .filter(|m| !m.name.to_lowercase().contains("embed"))
             .map(|m| AIModel::local(m.name, String::new()))
             .collect()
         })

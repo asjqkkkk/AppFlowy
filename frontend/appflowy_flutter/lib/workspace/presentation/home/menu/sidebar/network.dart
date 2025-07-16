@@ -71,7 +71,11 @@ class WebSocketIndicator extends StatelessWidget {
         ),
         child: Row(
           children: [
-            CircularProgressIndicator.adaptive(),
+            SizedBox(
+              height: 16,
+              width: 16,
+              child: CircularProgressIndicator.adaptive(),
+            ),
             HSpace(8),
             FlowyText.regular(
               LocaleKeys.network_connecting.tr(),

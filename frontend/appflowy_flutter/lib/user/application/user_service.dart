@@ -178,28 +178,35 @@ class UserBackendService implements IUserBackendService {
 
   Future<FlowyResult<void, FlowyError>> deleteWorkspaceById(
     String workspaceId,
+    WorkspaceTypePB workspaceType,
   ) {
-    final request = UserWorkspaceIdPB.create()..workspaceId = workspaceId;
+    final request = DeleteWorkspaceIdPB()
+      ..workspaceId = workspaceId
+      ..workspaceType = workspaceType;
     return UserEventDeleteWorkspace(request).send();
   }
 
   Future<FlowyResult<void, FlowyError>> renameWorkspace(
     String workspaceId,
     String name,
+    WorkspaceTypePB workspaceType,
   ) {
     final request = RenameWorkspacePB()
       ..workspaceId = workspaceId
-      ..newName = name;
+      ..newName = name
+      ..workspaceType = workspaceType;
     return UserEventRenameWorkspace(request).send();
   }
 
   Future<FlowyResult<void, FlowyError>> updateWorkspaceIcon(
     String workspaceId,
     String icon,
+    WorkspaceTypePB workspaceType,
   ) {
     final request = ChangeWorkspaceIconPB()
       ..workspaceId = workspaceId
-      ..newIcon = icon;
+      ..newIcon = icon
+      ..workspaceType = workspaceType;
     return UserEventChangeWorkspaceIcon(request).send();
   }
 

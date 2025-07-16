@@ -30,7 +30,7 @@ use lib_infra::async_trait::async_trait;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
-use tracing::error;
+use tracing::{error, instrument};
 use uuid::Uuid;
 
 pub struct ServerProvider {
@@ -91,6 +91,7 @@ impl ServerProvider {
     auth_user.get_workspace_type(workspace_id)
   }
 
+  #[instrument(level = "debug", skip(self), err)]
   pub fn get_current_workspace_type(&self) -> Result<WorkspaceType, FlowyError> {
     let auth_user = self
       .authenticate_user

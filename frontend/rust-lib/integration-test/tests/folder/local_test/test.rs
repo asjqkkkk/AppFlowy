@@ -493,6 +493,72 @@ async fn move_view_across_parent_test() {
   assert_eq!(workspace_views[workspace_views_len - 1].name, "My view 2");
 }
 
+#[tokio::test]
+async fn move_parent_to_child_should_fail_test() {
+  let test = EventIntegrationTest::new_anon().await;
+  let current_workspace = test.get_current_workspace().await;
+
+  let parent = test
+    .create_view(&current_workspace.id, "Parent view".to_string())
+    .await;
+
+  let child = test.create_view(&parent.id, "Child view".to_string()).await;
+
+  let grandchild = test
+    .create_view(&child.id, "Grandchild view".to_string())
+    .await;
+
+  let payload = MoveNestedViewPayloadPB {
+    view_id: parent.id.clone(),
+    new_parent_id: child.id.clone(),
+    prev_view_id: None,
+    from_section: None,
+    to_section: None,
+  };
+  let error = EventBuilder::new(test.clone())
+    .event(flowy_folder::event_map::FolderEvent::MoveNestedView)
+    .payload(payload)
+    .async_send()
+    .await
+    .error()
+    .unwrap();
+
+  assert_eq!(error.code, flowy_error::ErrorCode::InvalidParams);
+
+  let payload = MoveNestedViewPayloadPB {
+    view_id: parent.id.clone(),
+    new_parent_id: grandchild.id.clone(),
+    prev_view_id: None,
+    from_section: None,
+    to_section: None,
+  };
+  let error = EventBuilder::new(test.clone())
+    .event(flowy_folder::event_map::FolderEvent::MoveNestedView)
+    .payload(payload)
+    .async_send()
+    .await
+    .error()
+    .unwrap();
+
+  assert_eq!(error.code, flowy_error::ErrorCode::InvalidParams);
+
+  let payload = MoveNestedViewPayloadPB {
+    view_id: child.id.clone(),
+    new_parent_id: current_workspace.id.clone(),
+    prev_view_id: None,
+    from_section: None,
+    to_section: None,
+  };
+  let error = EventBuilder::new(test.clone())
+    .event(flowy_folder::event_map::FolderEvent::MoveNestedView)
+    .payload(payload)
+    .async_send()
+    .await
+    .error();
+
+  assert!(error.is_none());
+}
+
 async fn move_folder_nested_view(
   sdk: EventIntegrationTest,
   view_id: String,

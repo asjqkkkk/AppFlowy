@@ -131,12 +131,19 @@ class _SettingsBillingViewState extends State<SettingsBillingView> {
     return SettingsBody(
       title: LocaleKeys.settings_billingPage_title.tr(),
       children: [
-        BillingPlanSection(
-          subscriptionInfo: subscriptionInfo,
-          onChangePlan: () => _openPricingDialog(subscriptionInfo),
-          billingPortalEnabled: billingPortalEnabled,
-        ),
-        if (billingPortalEnabled) const PaymentDetailsSection(),
+        // Only cloud workspace can change plan
+        if (widget.user.workspaceType == WorkspaceTypePB.ServerW)
+          BillingPlanSection(
+            subscriptionInfo: subscriptionInfo,
+            onChangePlan: () => _openPricingDialog(subscriptionInfo),
+            billingPortalEnabled: billingPortalEnabled,
+          ),
+
+        // Only cloud workspace can change plan
+        if (billingPortalEnabled &&
+            widget.user.workspaceType == WorkspaceTypePB.ServerW)
+          const PaymentDetailsSection(),
+
         _buildAddonsSection(subscriptionInfo),
       ],
     );
@@ -153,19 +160,22 @@ class _SettingsBillingViewState extends State<SettingsBillingView> {
     return SettingsCategory(
       title: LocaleKeys.settings_billingPage_addons_title.tr(),
       children: [
-        WorkspaceSubscriptionAIAddonTile(
-          plan: SubscriptionPlanPB.AiMax,
-          label: LocaleKeys.settings_billingPage_addons_aiMax_label.tr(),
-          description: LocaleKeys.settings_billingPage_addons_aiMax_description,
-          activeDescription:
-              LocaleKeys.settings_billingPage_addons_aiMax_activeDescription,
-          canceledDescription:
-              LocaleKeys.settings_billingPage_addons_aiMax_canceledDescription,
-          subscriptionInfo: aiMaxAddon.type == WorkspaceAddOnPBType.AddOnAiMax
-              ? aiMaxAddon
-              : null,
-        ),
-        const VSpace(6),
+        if (widget.user.workspaceType == WorkspaceTypePB.ServerW) ...[
+          WorkspaceSubscriptionAIAddonTile(
+            plan: SubscriptionPlanPB.AiMax,
+            label: LocaleKeys.settings_billingPage_addons_aiMax_label.tr(),
+            description:
+                LocaleKeys.settings_billingPage_addons_aiMax_description,
+            activeDescription:
+                LocaleKeys.settings_billingPage_addons_aiMax_activeDescription,
+            canceledDescription: LocaleKeys
+                .settings_billingPage_addons_aiMax_canceledDescription,
+            subscriptionInfo: aiMaxAddon.type == WorkspaceAddOnPBType.AddOnAiMax
+                ? aiMaxAddon
+                : null,
+          ),
+          const VSpace(6),
+        ],
         PersonalSubscriptionAIAddonTile(
           plan: PersonalPlanPB.VaultWorkspace,
           label:

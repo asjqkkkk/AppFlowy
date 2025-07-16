@@ -20,13 +20,16 @@ pub enum EmbedFileProgress {
     current_page: Option<usize>,
     total_pages: Option<usize>,
   },
-  ReadingFileDetails {
+  Other {
     details: String,
   },
   Completed {
     content: String,
   },
   Error {
+    message: String,
+  },
+  ModelNotSupported {
     message: String,
   },
 }

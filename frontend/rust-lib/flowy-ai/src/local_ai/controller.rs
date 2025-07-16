@@ -10,6 +10,7 @@ use lib_infra::async_trait::async_trait;
 
 use crate::chat_file::ChatLocalFileStorage;
 use crate::local_ai::chat::{LLMChatController, LLMChatInfo};
+use crate::local_ai::util::is_model_support_vision;
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::AIModel;
 use flowy_ai_pub::persistence::{
@@ -19,10 +20,11 @@ use flowy_ai_pub::user_service::{AIUserService, ValidateVaultResult};
 use lib_infra::util::get_operating_system;
 use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
+use ollama_rs::models::ModelInfo;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
-use tracing::{debug, error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -223,6 +225,41 @@ impl LocalAIController {
     Some(self.resource.get_llm_setting().chat_model_name)
   }
 
+  pub async fn get_local_model_info(&self, model_name: &str) -> FlowyResult<ModelInfo> {
+    match self.ollama.load_full() {
+      None => Err(FlowyError::internal().with_context("ollama is not initialized")),
+      Some(ollama) => {
+        let info = ollama.show_model_info(model_name.to_string()).await?;
+        Ok(info)
+      },
+    }
+  }
+
+  pub async fn is_model_support_vision(&self, model: &AIModel) -> bool {
+    if model.is_local {
+      match self.get_local_model_info(&model.name).await {
+        Ok(model_info) => {
+          // Check if the model_info contains any vision-related keys
+          let has_vision = is_model_support_vision(&model_info);
+          debug!(
+            "[Local AI] model {} vision support: {}, model_info: {:?}",
+            model.name, has_vision, model_info.model_info
+          );
+          has_vision
+        },
+        Err(err) => {
+          warn!(
+            "[Local AI] failed to get model info for {}: {:?}",
+            model.name, err
+          );
+          false
+        },
+      }
+    } else {
+      true
+    }
+  }
+
   pub async fn open_chat(
     &self,
     workspace_id: &Uuid,
@@ -335,17 +372,26 @@ impl LocalAIController {
   }
 
   #[instrument(level = "debug", skip_all)]
-  pub async fn refresh_local_ai_state(&self, notify: bool) -> FlowyResult<LocalAIStatePB> {
+  pub async fn refresh_local_ai_state(
+    &self,
+    notify: bool,
+    model: Option<AIModel>,
+  ) -> FlowyResult<LocalAIStatePB> {
     let workspace_id = self.user_service.workspace_id()?;
     let result = self.user_service.validate_vault().await?;
     let toggle_on = self.is_toggle_on_workspace(&workspace_id);
     let lack_of_resource = self.resource.get_lack_of_resource().await;
+    let vision_enabled = match model {
+      None => false,
+      Some(model) => self.is_model_support_vision(&model).await,
+    };
     let state = LocalAIStatePB {
       toggle_on,
       is_vault: result.is_vault,
       enabled: result.can_use_local_ai(),
       lack_of_resource,
       is_ready: self.is_ready().await,
+      vision_enabled,
     };
     if notify {
       chat_notification_builder(
@@ -360,9 +406,10 @@ impl LocalAIController {
   }
 
   #[instrument(level = "debug", skip_all)]
-  pub async fn restart_plugin(&self) {
+  pub async fn restart(&self, model: AIModel) -> FlowyResult<()> {
     if let Some(lack_of_resource) = check_resources(&self.resource).await {
       let result = self.user_service.validate_vault().await.unwrap_or_default();
+      let vision_enabled = self.is_model_support_vision(&model).await;
       chat_notification_builder(
         APPFLOWY_AI_NOTIFICATION_KEY,
         ChatNotification::UpdateLocalAIState,
@@ -373,9 +420,11 @@ impl LocalAIController {
         enabled: result.can_use_local_ai(),
         lack_of_resource: Some(lack_of_resource),
         is_ready: self.is_ready().await,
+        vision_enabled,
       })
       .send();
     }
+    Ok(())
   }
 
   pub fn get_model_storage_directory(&self) -> FlowyResult<String> {
@@ -385,13 +434,13 @@ impl LocalAIController {
       .map(|path| path.to_string_lossy().to_string())
   }
 
-  pub async fn toggle_local_ai(&self) -> FlowyResult<bool> {
+  pub async fn toggle_local_ai(&self, model: &AIModel) -> FlowyResult<bool> {
     let workspace_id = self.user_service.workspace_id()?;
     let result = self.user_service.validate_vault().await.unwrap_or_default();
     let is_toggle_on = !self.is_toggle_on_workspace(&workspace_id);
     self.set_toggle_on_workspace(&workspace_id.to_string(), is_toggle_on);
     self
-      .toggle_plugin(is_toggle_on, result.can_use_local_ai(), &result)
+      .toggle_plugin(is_toggle_on, result.can_use_local_ai(), &result, model)
       .await?;
     Ok(is_toggle_on)
   }
@@ -402,6 +451,7 @@ impl LocalAIController {
     toggle_on: bool,
     enabled: bool,
     vault_result: &ValidateVaultResult,
+    model: &AIModel,
   ) -> FlowyResult<()> {
     let lack_of_resource = if enabled {
       check_resources(&self.resource).await
@@ -409,6 +459,7 @@ impl LocalAIController {
       None
     };
 
+    let vision_enabled = self.is_model_support_vision(model).await;
     chat_notification_builder(
       APPFLOWY_AI_NOTIFICATION_KEY,
       ChatNotification::UpdateLocalAIState,
@@ -419,6 +470,7 @@ impl LocalAIController {
       enabled: vault_result.can_use_local_ai(),
       lack_of_resource,
       is_ready: self.is_ready().await,
+      vision_enabled,
     })
     .send();
     Ok(())

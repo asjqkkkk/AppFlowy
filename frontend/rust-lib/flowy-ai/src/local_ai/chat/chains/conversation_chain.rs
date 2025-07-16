@@ -325,7 +325,7 @@ impl ConversationalRetrieverChain {
                 while let Some(progress_result) = progress_stream.next().await {
                   match progress_result {
                     Ok(progress) => {
-                      match &progress {
+                      match progress {
                         EmbedFileProgress::StartProcessing { file_name } => {
                           yield Ok::<_, ChainError>(StreamData::new(
                             json!(QuestionStreamValue::Progress {
@@ -337,7 +337,7 @@ impl ConversationalRetrieverChain {
                         }
                         EmbedFileProgress::ReadingFile { progress: _, current_page, total_pages } => {
                            if let (Some(current), Some(total)) = (current_page, total_pages) {
-                             let message = if current == &0 {
+                             let message = if current == 0 {
                                format!("Reading files with {} pages...", total)
                              } else if current == total {
                                format!("Completed reading {} pages", total)
@@ -353,10 +353,8 @@ impl ConversationalRetrieverChain {
                                 String::new(),
                              ));
                            };
-
-
                         }
-                        EmbedFileProgress::ReadingFileDetails { details } => {
+                        EmbedFileProgress::Other { details } => {
                           yield Ok(StreamData::new(
                             json!(QuestionStreamValue::Progress {
                               value: details.clone()
@@ -383,6 +381,15 @@ impl ConversationalRetrieverChain {
                             }),
                             None,
                             String::new(),
+                          ));
+                        }
+                        EmbedFileProgress::ModelNotSupported{ message } => {
+                         yield Ok(StreamData::new(
+                           json!(QuestionStreamValue::Progress {
+                             value: message
+                           }),
+                           None,
+                           String::new(),
                           ));
                         }
                       }
@@ -556,13 +563,17 @@ impl ConversationalRetrieverChain {
       .boxed()
   }
 
-  pub async fn get_related_questions(&self, question: &str) -> Result<Vec<String>, FlowyError> {
+  pub async fn get_related_questions(
+    &self,
+    question: &str,
+    answer: &str,
+  ) -> Result<Vec<String>, FlowyError> {
     let context = self.latest_context.load();
     let rag_ids = self.retriever.get_rag_ids().await;
 
     if context.is_empty() {
       let chain = RelatedQuestionChain::new(self.ollama.clone());
-      chain.generate_related_question(question).await
+      chain.generate_related_question(question, answer).await
     } else if let Some(c) = self.context_question_chain.as_ref() {
       c.generate_questions_from_context(&rag_ids, &context)
         .await

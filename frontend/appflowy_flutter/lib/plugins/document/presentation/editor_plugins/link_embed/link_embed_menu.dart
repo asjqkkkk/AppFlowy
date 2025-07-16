@@ -95,8 +95,8 @@ class _LinkEmbedMenuState extends State<LinkEmbedMenu> {
             preferBelow: false,
             onPressed: () => copyLink(context),
           ),
-          buildConvertButton(),
-          buildMoreOptionButton(),
+          if (editable) buildConvertButton(),
+          if (editable) buildMoreOptionButton(),
         ],
       ),
     );

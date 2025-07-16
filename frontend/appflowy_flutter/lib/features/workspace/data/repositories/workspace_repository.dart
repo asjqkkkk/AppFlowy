@@ -24,6 +24,7 @@ abstract class WorkspaceRepository {
   /// Deletes a workspace by ID.
   Future<FlowyResult<void, FlowyError>> deleteWorkspace({
     required String workspaceId,
+    required WorkspaceTypePB workspaceType,
   });
 
   /// Opens a workspace.
@@ -35,6 +36,7 @@ abstract class WorkspaceRepository {
   /// Renames a workspace.
   Future<FlowyResult<void, FlowyError>> renameWorkspace({
     required String workspaceId,
+    required WorkspaceTypePB workspaceType,
     required String name,
   });
 
@@ -42,6 +44,7 @@ abstract class WorkspaceRepository {
   Future<FlowyResult<void, FlowyError>> updateWorkspaceIcon({
     required String workspaceId,
     required String icon,
+    required WorkspaceTypePB workspaceType,
   });
 
   /// Leaves a workspace.

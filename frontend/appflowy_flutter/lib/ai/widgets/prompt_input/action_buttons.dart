@@ -1,6 +1,8 @@
 import 'package:appflowy/ai/service/ai_attach_file_bloc.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
+import 'package:appflowy/plugins/local_file/local_file.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -62,11 +64,28 @@ class _PromptInputAttachmentButtonState
       popupBuilder: (_) {
         return _AttachedFiles(
           bloc: bloc,
+          onOpenFile: (file) {
+            final fileData = LocalFileData(
+              filePath: file.filePath,
+              fileName: file.fileName,
+            );
+
+            final plugin = LocalFilePluginBuilder().build(fileData);
+            if (context.mounted) {
+              getIt<TabsBloc>().add(
+                TabsEvent.openSecondaryPlugin(
+                  plugin: plugin,
+                ),
+              );
+            }
+
+            popoverController.close();
+          },
           onAddMoreFiles: () async {
             final path = await getIt<FilePickerService>().pickFiles(
               dialogTitle: '',
               type: FileType.custom,
-              allowedExtensions: ["pdf", "txt", "md"],
+              allowedExtensions: ["pdf", "txt", "md", "markdown"],
             );
 
             await widget.onSelectFiles(path);
@@ -132,11 +151,13 @@ class PromptInputMentionButton extends StatelessWidget {
 class _AttachedFiles extends StatelessWidget {
   const _AttachedFiles({
     required this.onAddMoreFiles,
+    required this.onOpenFile,
     required this.bloc,
   });
 
   final VoidCallback onAddMoreFiles;
   final AIAattachFileBloc bloc;
+  final void Function(ChatFile) onOpenFile;
 
   @override
   Widget build(BuildContext context) {
@@ -159,9 +180,16 @@ class _AttachedFiles extends StatelessWidget {
                       ),
                       separatorBuilder: (context, index) => const HSpace(6),
                       itemCount: state.files.length,
-                      itemBuilder: (context, index) => AttachedFilePreview(
-                        key: ValueKey(state.files[index]),
-                        file: state.files[index],
+                      itemBuilder: (context, index) => Padding(
+                        padding: EdgeInsets.only(
+                          top: index == 0 ? 6 : 3,
+                          bottom: 3,
+                        ),
+                        child: AttachedFilePreview(
+                          key: ValueKey(state.files[index]),
+                          file: state.files[index],
+                          onOpenFile: onOpenFile,
+                        ),
                       ),
                     ),
                     if (state.files.isEmpty)
@@ -228,29 +256,28 @@ class _AttachedFiles extends StatelessWidget {
   }
 }
 
-class AttachedFilePreview extends StatefulWidget {
+class AttachedFilePreview extends StatelessWidget {
   const AttachedFilePreview({
     required this.file,
-    this.onDeleted,
+    required this.onOpenFile,
     super.key,
   });
 
   final ChatFile file;
-  final VoidCallback? onDeleted;
-
-  @override
-  State<AttachedFilePreview> createState() => _AttachedFilePreviewState();
-}
-
-class _AttachedFilePreviewState extends State<AttachedFilePreview> {
-  bool isHover = false;
+  final void Function(ChatFile) onOpenFile;
 
   @override
   Widget build(BuildContext context) {
-    return Stack(
-      children: [
-        Container(
-          margin: const EdgeInsetsDirectional.only(top: 6, end: 6),
+    return FlowyHover(
+      style: const HoverStyle(
+        borderRadius: BorderRadius.all(Radius.circular(8)),
+      ),
+      child: GestureDetector(
+        onTap: () {
+          onOpenFile(file);
+        },
+        behavior: HitTestBehavior.opaque,
+        child: Container(
           decoration: BoxDecoration(
             border: Border.all(
               color: Theme.of(context).dividerColor,
@@ -260,21 +287,7 @@ class _AttachedFilePreviewState extends State<AttachedFilePreview> {
           padding: const EdgeInsets.all(8.0),
           child: Row(
             children: [
-              Container(
-                decoration: BoxDecoration(
-                  color: AFThemeExtension.of(context).tint1,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                height: 32,
-                width: 32,
-                child: Center(
-                  child: FlowySvg(
-                    FlowySvgs.page_m,
-                    size: const Size.square(16),
-                    color: Theme.of(context).hintColor,
-                  ),
-                ),
-              ),
+              _fileIcon(context),
               const HSpace(8),
               Expanded(
                 child: Column(
@@ -282,11 +295,11 @@ class _AttachedFilePreviewState extends State<AttachedFilePreview> {
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     FlowyText(
-                      widget.file.fileName,
+                      file.fileName,
                       fontSize: 12.0,
                     ),
                     FlowyText(
-                      widget.file.fileType.name,
+                      file.fileType.name,
                       color: Theme.of(context).hintColor,
                       fontSize: 12.0,
                     ),
@@ -296,7 +309,25 @@ class _AttachedFilePreviewState extends State<AttachedFilePreview> {
             ],
           ),
         ),
-      ],
+      ),
+    );
+  }
+
+  Widget _fileIcon(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AFThemeExtension.of(context).tint1,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      height: 32,
+      width: 32,
+      child: Center(
+        child: FlowySvg(
+          FlowySvgs.page_m,
+          size: const Size.square(16),
+          color: Theme.of(context).hintColor,
+        ),
+      ),
     );
   }
 }

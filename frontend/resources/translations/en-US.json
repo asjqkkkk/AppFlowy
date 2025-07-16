@@ -38,7 +38,7 @@
     "continueAnonymousUser": "Continue with an anonymous session",
     "continueWithLocalModel": "Continue with local model",
     "switchToAppFlowyCloud": "AppFlowy Cloud",
-    "anonymousMode": "Anonymous mode",
+    "anonymousMode": "Anonymous",
     "buttonText": "Sign In",
     "signingInText": "Signing in...",
     "forgotPassword": "Forgot Password?",
@@ -120,7 +120,7 @@
     "vaultWorkspace": "Vault",
     "vaultIndicator": "Vault",
     "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
-    "clickToSubscribeVaultWorkspace": "Click to enable Vault workspace",
+    "clickToSubscribeVaultWorkspace": "Click to unlock unlimited Vaults",
     "cannotGetVaultWorkspaceSubscription": "Cannot get Vault workspace subscription information",
     "createANewWorkspace": "Create a new workspace",
     "createWorkspaceDescription": "Separate your work into organized workspaces with full control over team access and data privacy",
@@ -497,6 +497,7 @@
     "complete": "Complete",
     "change": "Change",
     "save": "Save",
+    "apply": "Apply",
     "generate": "Generate",
     "esc": "ESC",
     "keep": "Keep",
@@ -1007,6 +1008,7 @@
         },
         "addons": {
           "title": "Workspace Add-ons",
+          "tooltip": "Workspace add-ons are tied to the single workspace you purchased them from",
           "addLabel": "Add",
           "activeLabel": "Added",
           "aiMax": {
@@ -1031,6 +1033,7 @@
         },
         "accountAddons": {
           "title": "Account Add-ons",
+          "tooltip": "Account add-ons are linked to your AppFlowy account. No matter which workspace you purchase it from, you can create unlimited Vaults under the same cloud account",
           "addLabel": "Add",
           "activeLabel": "Added"
         },
@@ -1131,7 +1134,8 @@
         "tooltipSix": "Lifetime means the number of responses never reset",
         "intelligentSearch": "Intelligent search",
         "tooltipSeven": "Allows you to customize part of the URL for your workspace",
-        "customNamespaceTooltip": "Custom published site URL"
+        "customNamespaceTooltip": "Custom published site URL",
+        "expandedColors": "Expanded colors"
       },
       "freeLabels": {
         "itemOne": "Charged per workspace",
@@ -2316,6 +2320,7 @@
       "resetToDefaultFont": "Reset to default",
       "textSize": "Text size",
       "textColor": "Text color",
+      "backgroundColor": "Background color",
       "h1": "Heading 1",
       "h2": "Heading 2",
       "h3": "Heading 3",
@@ -2493,7 +2498,8 @@
     "deleteContentCaption": "if you delete this {pageType}, you can restore it from the trash."
   },
   "colors": {
-    "custom": "Custom",
+    "custom": "Custom color",
+    "recent": "Recent color",
     "default": "Default",
     "red": "Red",
     "orange": "Orange",
@@ -2503,7 +2509,27 @@
     "purple": "Purple",
     "pink": "Pink",
     "brown": "Brown",
-    "gray": "Gray"
+    "gray": "Gray",
+    "rose": "Rose",
+    "papaya": "Papaya",
+    "tangerine": "Tangerine",
+    "mango": "Mango",
+    "lemon": "Lemon",
+    "olive": "Olive",
+    "lime": "Lime",
+    "grass": "Grass",
+    "forest": "Forest",
+    "jade": "Jade",
+    "aqua": "Aqua",
+    "azure": "Azure",
+    "denim": "Denim",
+    "mauve": "Mauve",
+    "lavender": "Lavender",
+    "lilac": "Lilac",
+    "mallow": "Mallow",
+    "camellia": "Camellia",
+    "smoke": "Smoke",
+    "iron": "Iron"
   },
   "emoji": {
     "emojiTab": "Emoji",

@@ -303,11 +303,7 @@ pub(crate) async fn read_recent_views_handler(
     .skip(start as usize)
     .take(limit as usize)
     .collect::<Vec<_>>();
-  let mut views = Vec::new();
-  for id in ids {
-    let view = folder.get_view_pb(&id).await?;
-    views.push(view);
-  }
+  let views = folder.get_view_pbs_without_children(ids).await?;
   let items = views
     .into_iter()
     .zip(recent_items.into_iter().rev())

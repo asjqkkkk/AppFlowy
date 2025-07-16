@@ -60,8 +60,6 @@ class _WorkspaceMoreActionListState extends State<WorkspaceMoreActionList> {
               action,
               widget.workspace,
               () => PopoverContainer.of(context).closeAll(),
-              widget.currentWorkspace.workspaceType ==
-                  widget.workspace.workspaceType,
             ),
           )
           .toList(),
@@ -103,13 +101,11 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
     this.inner,
     this.workspace,
     this.closeWorkspaceMenu,
-    this.isSameWorkspaceType,
   );
 
   final WorkspaceMoreAction inner;
   final UserWorkspacePB workspace;
   final VoidCallback closeWorkspaceMenu;
-  final bool isSameWorkspaceType;
 
   @override
   Widget buildWithContext(
@@ -134,126 +130,111 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
       WorkspaceMoreAction.leave,
     ].contains(inner);
 
-    return FlowyTooltip(
-      message: [
-                WorkspaceMoreAction.delete,
-                WorkspaceMoreAction.rename,
-                WorkspaceMoreAction.leave,
-              ].contains(inner) &&
-              !isSameWorkspaceType
-          ? LocaleKeys.workspace_differentWorkspaceTypeTooltip.tr()
-          : '',
-      child: AFBaseButton(
-        padding: EdgeInsets.symmetric(
-          horizontal: theme.spacing.m,
-          vertical: theme.spacing.s,
-        ),
-        onTap: () async {
-          PopoverContainer.of(context).closeAll();
-          closeWorkspaceMenu();
+    return AFBaseButton(
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.spacing.m,
+        vertical: theme.spacing.s,
+      ),
+      onTap: () async {
+        PopoverContainer.of(context).closeAll();
+        closeWorkspaceMenu();
 
-          final workspaceBloc = context.read<UserWorkspaceBloc>();
-          switch (inner) {
-            case WorkspaceMoreAction.divider:
-              break;
-            case WorkspaceMoreAction.delete:
-              await showSimpleAFDialog(
-                context: context,
-                title: LocaleKeys.workspace_deleteWorkspace.tr(),
-                content: LocaleKeys.workspace_deleteWorkspaceHintText.tr(),
-                isDestructive: true,
-                primaryAction: (
-                  LocaleKeys.button_delete.tr(),
-                  (_) {
-                    workspaceBloc.add(
-                      UserWorkspaceEvent.deleteWorkspace(
-                        workspaceId: workspace.workspaceId,
-                      ),
-                    );
-                  },
-                ),
-                secondaryAction: (
-                  LocaleKeys.button_cancel.tr(),
-                  (_) {},
-                ),
-              );
-            case WorkspaceMoreAction.rename:
-              await showAFTextFieldDialog(
-                context: context,
-                title: LocaleKeys.workspace_renameWorkspace.tr(),
-                initialValue: workspace.name,
-                hintText: '',
-                onConfirm: (name) async {
+        final workspaceBloc = context.read<UserWorkspaceBloc>();
+        switch (inner) {
+          case WorkspaceMoreAction.divider:
+            break;
+          case WorkspaceMoreAction.delete:
+            await showSimpleAFDialog(
+              context: context,
+              title: LocaleKeys.workspace_deleteWorkspace.tr(),
+              content: LocaleKeys.workspace_deleteWorkspaceHintText.tr(),
+              isDestructive: true,
+              primaryAction: (
+                LocaleKeys.button_delete.tr(),
+                (_) {
                   workspaceBloc.add(
-                    UserWorkspaceEvent.renameWorkspace(
+                    UserWorkspaceEvent.deleteWorkspace(
                       workspaceId: workspace.workspaceId,
-                      name: name,
+                      workspaceType: workspace.workspaceType,
                     ),
                   );
                 },
-              );
-            case WorkspaceMoreAction.leave:
-              await showSimpleAFDialog(
-                context: context,
-                title: LocaleKeys.workspace_leaveCurrentWorkspace.tr(),
-                content: LocaleKeys.workspace_leaveCurrentWorkspacePrompt.tr(),
-                primaryAction: (
-                  LocaleKeys.button_yes.tr(),
-                  (_) {
-                    workspaceBloc.add(
-                      UserWorkspaceEvent.leaveWorkspace(
-                        workspaceId: workspace.workspaceId,
-                      ),
-                    );
-                  },
-                ),
-                secondaryAction: (
-                  LocaleKeys.button_cancel.tr(),
-                  (_) {},
-                ),
-              );
-          }
-        },
-        disabled: !isSameWorkspaceType,
-        borderRadius: theme.borderRadius.m,
-        borderColor: (context, isHovering, disabled, isFocused) {
-          return Colors.transparent;
-        },
-        backgroundColor: (context, isHovering, disabled) {
-          final theme = AppFlowyTheme.of(context);
-          if (disabled) {
-            return theme.fillColorScheme.content;
-          }
-          if (isHovering) {
-            return theme.fillColorScheme.contentHover;
-          }
-          return theme.fillColorScheme.content;
-        },
-        builder: (context, isHovering, disabled) {
-          return Row(
-            spacing: theme.spacing.m,
-            children: [
-              buildLeftIcon(
-                context,
-                !isSameWorkspaceType,
-                isDestructive && isHovering,
               ),
-              Expanded(
-                child: Text(
-                  name,
-                  style: theme.textStyle.body.standard(
-                    color: !isSameWorkspaceType
-                        ? theme.textColorScheme.tertiary
-                        : isDestructive && isHovering
-                            ? theme.textColorScheme.error
-                            : theme.textColorScheme.primary,
+              secondaryAction: (
+                LocaleKeys.button_cancel.tr(),
+                (_) {},
+              ),
+            );
+          case WorkspaceMoreAction.rename:
+            await showAFTextFieldDialog(
+              context: context,
+              title: LocaleKeys.workspace_renameWorkspace.tr(),
+              initialValue: workspace.name,
+              hintText: '',
+              onConfirm: (name) async {
+                workspaceBloc.add(
+                  UserWorkspaceEvent.renameWorkspace(
+                    workspaceId: workspace.workspaceId,
+                    name: name,
+                    workspaceType: workspace.workspaceType,
                   ),
+                );
+              },
+            );
+          case WorkspaceMoreAction.leave:
+            await showSimpleAFDialog(
+              context: context,
+              title: LocaleKeys.workspace_leaveCurrentWorkspace.tr(),
+              content: LocaleKeys.workspace_leaveCurrentWorkspacePrompt.tr(),
+              primaryAction: (
+                LocaleKeys.button_yes.tr(),
+                (_) {
+                  workspaceBloc.add(
+                    UserWorkspaceEvent.leaveWorkspace(
+                      workspaceId: workspace.workspaceId,
+                    ),
+                  );
+                },
+              ),
+              secondaryAction: (
+                LocaleKeys.button_cancel.tr(),
+                (_) {},
+              ),
+            );
+        }
+      },
+      borderRadius: theme.borderRadius.m,
+      borderColor: (context, isHovering, disabled, isFocused) {
+        return Colors.transparent;
+      },
+      backgroundColor: (context, isHovering, disabled) {
+        final theme = AppFlowyTheme.of(context);
+        if (isHovering) {
+          return theme.fillColorScheme.contentHover;
+        }
+        return theme.fillColorScheme.content;
+      },
+      builder: (context, isHovering, disabled) {
+        return Row(
+          spacing: theme.spacing.m,
+          children: [
+            buildLeftIcon(
+              context,
+              isDestructive && isHovering,
+            ),
+            Expanded(
+              child: Text(
+                name,
+                style: theme.textStyle.body.standard(
+                  color: isDestructive && isHovering
+                      ? theme.textColorScheme.error
+                      : theme.textColorScheme.primary,
                 ),
               ),
-            ],
-          );
-        },
-      ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -272,15 +253,12 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
 
   Widget buildLeftIcon(
     BuildContext context,
-    bool isDisabled,
     bool isDestructive,
   ) {
     final theme = AppFlowyTheme.of(context);
-    final color = isDisabled
-        ? theme.iconColorScheme.tertiary
-        : isDestructive
-            ? theme.iconColorScheme.errorThick
-            : theme.iconColorScheme.primary;
+    final color = isDestructive
+        ? theme.iconColorScheme.errorThick
+        : theme.iconColorScheme.primary;
     switch (inner) {
       case WorkspaceMoreAction.delete:
         return FlowySvg(

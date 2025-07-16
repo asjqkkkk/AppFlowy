@@ -401,6 +401,7 @@ class _ConfirmPopupState extends State<ConfirmPopup> {
                 theme.textStyle.heading4.prominent(
                   color: ConfirmPopupColor.titleColor(context),
                 ),
+            maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
         ),

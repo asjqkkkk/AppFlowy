@@ -61,6 +61,8 @@ class BlockItems extends StatelessWidget {
     String blockType,
   ) {
     final theme = ToolbarColorExtension.of(context);
+    final isSelected = editorState.isBlockTypeSelected(blockType);
+
     return MobileToolbarMenuItemWrapper(
       size: const Size(62, 54),
       enableTopLeftRadius: index == 0,
@@ -71,8 +73,13 @@ class BlockItems extends StatelessWidget {
         await _convert(blockType);
       },
       backgroundColor: theme.toolbarMenuItemBackgroundColor,
-      icon: icon,
-      isSelected: editorState.isBlockTypeSelected(blockType),
+      icon: FlowySvg(
+        icon,
+        color: isSelected
+            ? theme.toolbarMenuIconSelectedColor
+            : theme.toolbarMenuIconColor,
+      ),
+      isSelected: isSelected,
       iconPadding: const EdgeInsets.symmetric(
         vertical: 14.0,
       ),
@@ -119,7 +126,10 @@ class BlockItems extends StatelessWidget {
         showDownArrow: true,
         onTap: _onLinkItemTap,
         backgroundColor: theme.toolbarMenuItemBackgroundColor,
-        icon: FlowySvgs.m_toolbar_link_m,
+        icon: FlowySvg(
+          FlowySvgs.m_toolbar_link_m,
+          color: theme.toolbarMenuIconColor,
+        ),
         isSelected: false,
         iconPadding: const EdgeInsets.symmetric(
           vertical: 14.0,

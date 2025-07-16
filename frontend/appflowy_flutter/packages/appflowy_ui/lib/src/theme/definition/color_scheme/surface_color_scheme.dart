@@ -13,7 +13,6 @@ class AppFlowySurfaceColorScheme {
     required this.layer04,
     required this.layer04Hover,
     required this.inverse,
-    required this.secondary,
     required this.overlay,
   });
 
@@ -28,7 +27,6 @@ class AppFlowySurfaceColorScheme {
   final Color layer04;
   final Color layer04Hover;
   final Color inverse;
-  final Color secondary;
   final Color overlay;
 
   AppFlowySurfaceColorScheme lerp(
@@ -89,11 +87,6 @@ class AppFlowySurfaceColorScheme {
       inverse: Color.lerp(
         inverse,
         other.inverse,
-        t,
-      )!,
-      secondary: Color.lerp(
-        secondary,
-        other.secondary,
         t,
       )!,
       overlay: Color.lerp(

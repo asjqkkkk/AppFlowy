@@ -499,6 +499,7 @@ impl UserManager {
   }
 
   /// Fetches the user profile for the given user ID.
+  #[instrument(level = "debug", skip(self), err)]
   pub async fn get_user_profile_from_disk(
     &self,
     uid: i64,

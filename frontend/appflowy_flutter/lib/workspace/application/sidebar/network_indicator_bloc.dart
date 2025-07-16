@@ -39,6 +39,7 @@ class NetworkIndicatorBloc
         ),
         reconnect: () async {
           await UserEventStartWSConnect().send();
+          _checkConnectionState();
         },
       );
     });

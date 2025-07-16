@@ -124,7 +124,7 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
     final modelState = aiModelStateNotifier.state;
     add(AIPromptInputEvent.updateAIState(modelState));
 
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 2000), () {
       if (!isClosed &&
           aiModelStateNotifier.modelSelection.availableModels.isEmpty) {
         add(const AIPromptInputEvent.receivedEmptyModelList());

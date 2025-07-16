@@ -26,6 +26,7 @@ void main() {
         cloudType: AuthenticatorType.appflowyCloudSelfHost,
       );
       await tester.tapGoogleLoginInButton();
+      await tester.expectToSeeHomePageWithGetStartedPage();
 
       // Open the setting page and sign out
       await tester.openSettings();
@@ -68,6 +69,9 @@ void main() {
       );
 
       await tester.tapGoogleLoginInButton();
+      await tester.expectToSeeHomePageWithGetStartedPage();
+      await tester.pumpAndSettle();
+
       // Open the setting page and sign out
       await tester.openSettings();
       await tester.openSettingsPage(SettingsPage.cloud);

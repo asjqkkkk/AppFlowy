@@ -442,7 +442,10 @@ void main() {
           return bloc;
         },
         act: (bloc) => bloc.add(
-          UserWorkspaceEvent.deleteWorkspace(workspaceId: 'workspace-1'),
+          UserWorkspaceEvent.deleteWorkspace(
+            workspaceId: 'workspace-1',
+            workspaceType: WorkspaceTypePB.LocalW,
+          ),
         ),
         expect: () => [
           predicate<UserWorkspaceState>(
@@ -467,6 +470,7 @@ void main() {
           when(
             () => mockRepository.deleteWorkspace(
               workspaceId: any(named: 'workspaceId'),
+              workspaceType: WorkspaceTypePB.LocalW,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(null),
@@ -521,7 +525,10 @@ void main() {
           return bloc;
         },
         act: (bloc) => bloc.add(
-          UserWorkspaceEvent.deleteWorkspace(workspaceId: 'workspace-2'),
+          UserWorkspaceEvent.deleteWorkspace(
+            workspaceId: 'workspace-2',
+            workspaceType: WorkspaceTypePB.LocalW,
+          ),
         ),
         expect: () => [
           predicate<UserWorkspaceState>(
@@ -554,6 +561,7 @@ void main() {
             () => mockRepository.renameWorkspace(
               workspaceId: 'workspace-1',
               name: 'Renamed Workspace',
+              workspaceType: WorkspaceTypePB.LocalW,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(null),
@@ -582,6 +590,7 @@ void main() {
           UserWorkspaceEvent.renameWorkspace(
             workspaceId: 'workspace-1',
             name: 'Renamed Workspace',
+            workspaceType: WorkspaceTypePB.LocalW,
           ),
         ),
         expect: () => [
@@ -602,6 +611,7 @@ void main() {
             () => mockRepository.renameWorkspace(
               workspaceId: 'workspace-1',
               name: 'Renamed Workspace',
+              workspaceType: WorkspaceTypePB.LocalW,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.failure(
@@ -628,6 +638,7 @@ void main() {
           UserWorkspaceEvent.renameWorkspace(
             workspaceId: 'workspace-1',
             name: 'Renamed Workspace',
+            workspaceType: WorkspaceTypePB.LocalW,
           ),
         ),
         expect: () => [
@@ -650,6 +661,7 @@ void main() {
             () => mockRepository.updateWorkspaceIcon(
               workspaceId: 'workspace-1',
               icon: '🚀',
+              workspaceType: WorkspaceTypePB.LocalW,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(null),
@@ -678,6 +690,7 @@ void main() {
           UserWorkspaceEvent.updateWorkspaceIcon(
             workspaceId: 'workspace-1',
             icon: '🚀',
+            workspaceType: WorkspaceTypePB.LocalW,
           ),
         ),
         expect: () => [
@@ -717,6 +730,7 @@ void main() {
           UserWorkspaceEvent.updateWorkspaceIcon(
             workspaceId: 'workspace-1',
             icon: '🚀',
+            workspaceType: WorkspaceTypePB.LocalW,
           ),
         ),
         expect: () => [],

@@ -2,6 +2,7 @@ import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/workspace/logic/personal_subscription_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/appflowy_hosted.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/application/user/prelude.dart';
@@ -378,51 +379,62 @@ class _WorkspaceType extends StatelessWidget {
         VSpace(
           theme.spacing.xs,
         ),
-        Row(
-          children: [
-            Expanded(
-              child: _WorkspaceTypeCard(
-                workspaceType: WorkspaceType.cloud,
-                isLoading: false,
-                isDisabled: false,
-                isSelected: workspaceType == WorkspaceType.cloud,
-                onTap: () => onChanged(WorkspaceType.cloud),
-              ),
-            ),
-            HSpace(
-              theme.spacing.m,
-            ),
-            Expanded(
-              child: BlocBuilder<PersonalSubscriptionBloc,
-                  PersonalSubscriptionState>(
-                builder: (context, state) {
-                  final isVaultLoading =
-                      state is PersonalSubscriptionStateLoading;
-                  final isVaultDisabled =
-                      state is PersonalSubscriptionStateLoaded &&
-                          !state.hasVaultSubscription;
+        FutureBuilder<bool>(
+          future: isOfficialHosted(),
+          builder: (context, snapshot) {
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _WorkspaceTypeCard(
+                      workspaceType: WorkspaceType.cloud,
+                      isLoading: false,
+                      isDisabled: false,
+                      isSelected: workspaceType == WorkspaceType.cloud,
+                      onTap: () => onChanged(WorkspaceType.cloud),
+                    ),
+                  ),
+                  HSpace(
+                    theme.spacing.m,
+                  ),
+                  if (snapshot.data == true) ...[
+                    Expanded(
+                      child: BlocBuilder<PersonalSubscriptionBloc,
+                          PersonalSubscriptionState>(
+                        builder: (context, state) {
+                          final isVaultLoading =
+                              state is PersonalSubscriptionStateLoading;
+                          final isVaultDisabled =
+                              state is PersonalSubscriptionStateLoaded &&
+                                  !state.hasVaultSubscription;
 
-                  return _WorkspaceTypeCard(
-                    workspaceType: WorkspaceType.vault,
-                    isDisabled: false,
-                    isLoading: isVaultLoading,
-                    isSelected: workspaceType == WorkspaceType.vault,
-                    onTap: () {
-                      if (isVaultDisabled) {
-                        onTapWhenDisabled();
-                      } else {
-                        onChanged(WorkspaceType.vault);
-                      }
-                    },
-                    tooltipMessage: !isVaultLoading && isVaultDisabled
-                        ? LocaleKeys.workspace_clickToSubscribeVaultWorkspace
-                            .tr()
-                        : null,
-                  );
-                },
+                          return _WorkspaceTypeCard(
+                            workspaceType: WorkspaceType.vault,
+                            isDisabled: isVaultDisabled,
+                            isLoading: isVaultLoading,
+                            isSelected: workspaceType == WorkspaceType.vault,
+                            onTap: () {
+                              if (isVaultDisabled) {
+                                onTapWhenDisabled();
+                              } else {
+                                onChanged(WorkspaceType.vault);
+                              }
+                            },
+                            tooltipMessage: !isVaultLoading && isVaultDisabled
+                                ? LocaleKeys
+                                    .workspace_clickToSubscribeVaultWorkspace
+                                    .tr()
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ),
-          ],
+            );
+          },
         ),
       ],
     );
@@ -456,12 +468,10 @@ class _WorkspaceTypeCard extends StatelessWidget {
       preferBelow: false,
       child: GestureDetector(
         onTap: () {
-          if (!isDisabled) {
-            onTap();
-          }
+          onTap();
         },
         child: MouseRegion(
-          cursor: isDisabled ? MouseCursor.defer : SystemMouseCursors.click,
+          cursor: SystemMouseCursors.click,
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: theme.spacing.xl,
@@ -524,7 +534,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
                               ? theme.textColorScheme.tertiary
                               : theme.textColorScheme.secondary,
                         ),
-                        maxLines: 2,
+                        maxLines: 5,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],

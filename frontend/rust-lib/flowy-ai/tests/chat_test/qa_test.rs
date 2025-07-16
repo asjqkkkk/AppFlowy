@@ -194,7 +194,10 @@ async fn local_ai_test_chat_related_question() {
   let ollama = LLMOllama::default();
   let chain = RelatedQuestionChain::new(ollama);
   let resp = chain
-    .generate_related_question("Compare rust with JS")
+    .generate_related_question(
+      "Compare rust with JS",
+      "Rust is a system programming language, JavaScript is a web programming language.",
+    )
     .await
     .unwrap();
 

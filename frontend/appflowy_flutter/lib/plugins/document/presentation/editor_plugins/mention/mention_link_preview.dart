@@ -190,6 +190,10 @@ class _MentionLinkPreviewState extends State<MentionLinkPreview> {
   }
 
   Widget buildConvertMenu() {
+    List<MentionLinktMenuCommand> values = MentionLinktMenuCommand.values;
+    if (!editable) {
+      values = [MentionLinktMenuCommand.copyLink];
+    }
     return MouseRegion(
       onEnter: widget.onEnter,
       onExit: widget.onExit,
@@ -198,21 +202,17 @@ class _MentionLinkPreviewState extends State<MentionLinkPreview> {
         child: SeparatedColumn(
           mainAxisSize: MainAxisSize.min,
           separatorBuilder: () => const VSpace(0.0),
-          children:
-              List.generate(MentionLinktMenuCommand.values.length, (index) {
-            final command = MentionLinktMenuCommand.values[index];
-            final isCopyCommand = command == MentionLinktMenuCommand.copyLink;
-            final enableButton = editable || (!editable && isCopyCommand);
+          children: List.generate(values.length, (index) {
+            final command = values[index];
             return SizedBox(
               height: 36,
               child: FlowyButton(
-                hoverColor: enableButton ? null : Colors.transparent,
                 text: FlowyText(
                   command.title,
                   fontWeight: FontWeight.w400,
                   figmaLineHeight: 20,
                 ),
-                onTap: enableButton ? () => onTap(command) : null,
+                onTap: () => onTap(command),
               ),
             );
           }),

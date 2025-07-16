@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
@@ -15,6 +16,7 @@ import 'package:appflowy/workspace/application/settings/appearance/appearance_cu
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor_plugins/appflowy_editor_plugins.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
@@ -27,6 +29,7 @@ import 'package:universal_platform/universal_platform.dart';
 
 import 'editor_plugins/desktop_toolbar/link/link_hover_menu.dart';
 import 'editor_plugins/toolbar_item/more_option_toolbar_item.dart';
+import 'editor_plugins/toolbar_item/toolbar_id_enum.dart';
 
 class EditorStyleCustomizer {
   EditorStyleCustomizer({
@@ -356,10 +359,15 @@ class EditorStyleCustomizer {
       return before;
     }
 
-    final suggestion = attributes[AiWriterBlockKeys.suggestion] as String?;
-    final newStyle = suggestion == null
-        ? after.style
-        : _styleSuggestion(after.style, suggestion);
+    TextStyle newStyle = after.style ?? TextStyle();
+
+    final theme = AppFlowyTheme.of(context);
+    final textColorToken =
+        attributes[AppFlowyRichTextTokenKeys.textColor] as String?;
+    if (textColorToken != null) {
+      final color = AFColor.fromValue(textColorToken).toColor(theme);
+      newStyle = newStyle.merge(TextStyle(color: color));
+    }
 
     if (attributes.backgroundColor != null) {
       final color = EditorFontColors.fromBuiltInColors(
@@ -367,13 +375,30 @@ class EditorStyleCustomizer {
         attributes.backgroundColor!,
       );
       if (color != null) {
-        return TextSpan(
-          text: before.text,
-          style: newStyle?.merge(
-            TextStyle(backgroundColor: color),
-          ),
+        newStyle = newStyle.merge(
+          TextStyle(backgroundColor: color),
         );
       }
+    }
+
+    final backgroundColorToken =
+        attributes[AppFlowyRichTextTokenKeys.backgroundColor] as String?;
+    if (backgroundColorToken != null) {
+      Color? color = AFColor.fromValue(backgroundColorToken).toColor(theme);
+
+      final isLightMode = Theme.of(context).isLightMode;
+
+      if (isLightMode) {
+        color = color?.withAlpha(153); // 60%
+      } else {
+        color = color?.withAlpha(102); // 40%
+      }
+      newStyle = newStyle.merge(TextStyle(backgroundColor: color));
+    }
+
+    final suggestion = attributes[AiWriterBlockKeys.suggestion] as String?;
+    if (suggestion != null) {
+      newStyle = _styleSuggestion(newStyle, suggestion);
     }
 
     // try to refresh font here.
@@ -382,11 +407,8 @@ class EditorStyleCustomizer {
         if (before.text?.contains('_regular') == true) {
           getGoogleFontSafely(attributes.fontFamily!.parseFontFamilyName());
         } else {
-          return TextSpan(
-            text: before.text,
-            style: newStyle?.merge(
-              getGoogleFontSafely(attributes.fontFamily!),
-            ),
+          newStyle = newStyle.merge(
+            getGoogleFontSafely(attributes.fontFamily!),
           );
         }
       } catch (_) {
@@ -433,28 +455,21 @@ class EditorStyleCustomizer {
       );
     }
 
-    // customize the link on mobile
+    // customize the link
     final href = attributes[AppFlowyRichTextKeys.href] as String?;
-    if (UniversalPlatform.isMobile && href != null) {
-      return TextSpan(style: before.style, text: text.text);
-    }
-
-    if (suggestion != null) {
-      return TextSpan(
-        text: before.text,
-        style: newStyle,
-      );
-    }
-
     if (href != null) {
       return TextSpan(
         style: before.style,
         text: text.text,
-        mouseCursor: SystemMouseCursors.click,
+        mouseCursor:
+            UniversalPlatform.isMobile ? null : SystemMouseCursors.click,
       );
-    } else {
-      return before;
     }
+
+    return TextSpan(
+      text: before.text,
+      style: newStyle,
+    );
   }
 
   Widget buildToolbarItemTooltip(
@@ -473,6 +488,8 @@ class EditorStyleCustomizer {
 
     // the align/font toolbar item doesn't need the hover effect
     final toolbarItemsWithoutHover = {
+      ToolbarId.textColor.id,
+      ToolbarId.highlightColor.id,
       kFontToolbarItemId,
       kAlignToolbarItemId,
     };
@@ -540,10 +557,7 @@ class EditorStyleCustomizer {
     return textSpan;
   }
 
-  TextStyle? _styleSuggestion(TextStyle? style, String suggestion) {
-    if (style == null) {
-      return null;
-    }
+  TextStyle _styleSuggestion(TextStyle style, String suggestion) {
     final isLight = Theme.of(context).isLightMode;
     final textColor = isLight ? Color(0xFF007296) : Color(0xFF49CFF4);
     final underlineColor = isLight ? Color(0x33005A7A) : Color(0x3349CFF4);

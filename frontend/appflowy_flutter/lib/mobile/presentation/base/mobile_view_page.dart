@@ -100,12 +100,10 @@ class _MobileViewPageState extends State<MobileViewPage> {
         builder: (context, state) {
           final view = state.result?.fold((s) => s, (f) => null);
 
-          if (view == null) {
-            // if (state.result?.isFailure ?? false) {
-            //   return _buildApp(context, view, body);
-            // }
-            // todo: handle no access error
-            return SizedBox.shrink();
+          if (view == null || state.isLoading) {
+            return Scaffold(
+              body: _buildBody(context, state),
+            );
           }
 
           return MultiBlocProvider(
@@ -211,7 +209,7 @@ class _MobileViewPageState extends State<MobileViewPage> {
   Widget _buildBody(BuildContext context, MobileViewPageState state) {
     if (state.isLoading) {
       return const Center(
-        child: CircularProgressIndicator(),
+        child: CircularProgressIndicator.adaptive(),
       );
     }
 

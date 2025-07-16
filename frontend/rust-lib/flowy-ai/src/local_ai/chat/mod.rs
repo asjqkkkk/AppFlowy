@@ -15,11 +15,10 @@ use crate::local_ai::database::summary::DatabaseSummaryChain;
 use crate::local_ai::database::translate::DatabaseTranslateChain;
 use dashmap::{DashMap, Entry};
 use flowy_ai_pub::cloud::ai_dto::{TranslateRowData, TranslateRowResponse};
-use flowy_ai_pub::cloud::chat_dto::ChatAuthorType;
 use flowy_ai_pub::cloud::{
   CompleteTextParams, CompletionType, ResponseFormat, StreamAnswer, StreamComplete,
 };
-use flowy_ai_pub::persistence::select_latest_user_message;
+use flowy_ai_pub::persistence::select_message_pair;
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_database_pub::cloud::{SummaryRowContent, TranslateRowContent};
 use flowy_error::{FlowyError, FlowyResult};
@@ -276,7 +275,7 @@ impl LLMChatController {
     &self,
     _model_name: &str,
     chat_id: &Uuid,
-    _message_id: i64,
+    message_id: i64,
   ) -> FlowyResult<Vec<String>> {
     match self.get_chat(chat_id) {
       None => {
@@ -289,14 +288,17 @@ impl LLMChatController {
       Some(chat) => {
         let user_service = self.user_service.upgrade().ok_or(FlowyError::local_ai())?;
         let uid = user_service.user_id()?;
-        let conn = user_service.sqlite_connection(uid)?;
-        let message =
-          select_latest_user_message(conn, &chat_id.to_string(), ChatAuthorType::Human)?;
-        chat
-          .read()
-          .await
-          .get_related_question(message.content)
-          .await
+        let mut conn = user_service.sqlite_connection(uid)?;
+        match select_message_pair(&mut conn, &chat_id.to_string(), message_id)? {
+          None => Ok(vec![]),
+          Some((q, a)) => {
+            chat
+              .read()
+              .await
+              .get_related_question(&q.content, &a.content)
+              .await
+          },
+        }
       },
     }
   }

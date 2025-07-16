@@ -51,6 +51,9 @@ class BIUSItems extends StatelessWidget {
     String richTextKey,
   ) {
     final theme = ToolbarColorExtension.of(context);
+    final isSelected = editorState.isTextDecorationSelected(richTextKey) &&
+        editorState.toggledStyle[richTextKey] != false;
+
     return StatefulBuilder(
       builder: (_, setState) => MobileToolbarMenuItemWrapper(
         size: const Size(62, 52),
@@ -70,9 +73,13 @@ class BIUSItems extends StatelessWidget {
           // refresh the status
           setState(() {});
         },
-        icon: icon,
-        isSelected: editorState.isTextDecorationSelected(richTextKey) &&
-            editorState.toggledStyle[richTextKey] != false,
+        icon: FlowySvg(
+          icon,
+          color: isSelected
+              ? theme.toolbarMenuIconSelectedColor
+              : theme.toolbarMenuIconColor,
+        ),
+        isSelected: isSelected,
         iconPadding: const EdgeInsets.symmetric(
           vertical: 14.0,
         ),

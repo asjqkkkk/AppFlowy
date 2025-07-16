@@ -4,8 +4,8 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/ai_chat/presentation/message/ai_markdown_text.dart';
 import 'package:appflowy/plugins/local_file/local_file.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:pdfx/pdfx.dart';
 
@@ -194,23 +194,11 @@ class _LocalFilePageState extends State<LocalFilePage> {
                 ),
                 Row(
                   children: [
-                    Expanded(
-                      child: Text(
-                        widget.fileData.filePath,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).hintColor,
-                            ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
                     if (_fileType == FileType.pdf && _totalPages > 0) ...[
-                      const SizedBox(width: 8),
-                      Text(
+                      FlowyText(
                         LocaleKeys.localFile_pageCount
                             .tr(args: ['$_currentPage', '$_totalPages']),
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: Theme.of(context).hintColor,
-                            ),
+                        color: Theme.of(context).hintColor,
                       ),
                     ],
                   ],
@@ -218,20 +206,6 @@ class _LocalFilePageState extends State<LocalFilePage> {
               ],
             ),
           ),
-          if (_fileContent != null && _fileType != FileType.pdf)
-            IconButton(
-              icon: const Icon(Icons.copy),
-              onPressed: () {
-                Clipboard.setData(ClipboardData(text: _fileContent!));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(LocaleKeys.localFile_contentCopied.tr()),
-                    duration: const Duration(seconds: 2),
-                  ),
-                );
-              },
-              tooltip: LocaleKeys.localFile_copyContent.tr(),
-            ),
         ],
       ),
     );

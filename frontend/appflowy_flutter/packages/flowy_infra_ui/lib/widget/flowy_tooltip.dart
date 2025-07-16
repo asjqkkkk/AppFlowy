@@ -11,6 +11,7 @@ class FlowyTooltip extends StatelessWidget {
     this.margin,
     this.verticalOffset,
     this.padding,
+    this.maxWidth,
     this.child,
   });
 
@@ -21,11 +22,41 @@ class FlowyTooltip extends StatelessWidget {
   final Widget? child;
   final double? verticalOffset;
   final EdgeInsets? padding;
+  final double? maxWidth;
 
   @override
   Widget build(BuildContext context) {
     if (message == null && richMessage == null) {
       return child ?? const SizedBox.shrink();
+    }
+
+    final TextStyle? textStyle;
+    final String? tooltipMessage;
+    final InlineSpan? tooltipRichMessage;
+
+    if (maxWidth == null) {
+      textStyle = message == null ? null : context.tooltipTextStyle();
+      tooltipMessage = message;
+      tooltipRichMessage = richMessage;
+    } else {
+      // TODO: replace implementation with https://github.com/flutter/flutter/pull/163314 to avoid regressions in other tooltips
+      textStyle = null;
+      tooltipMessage = null;
+      tooltipRichMessage = WidgetSpan(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth!),
+          child: richMessage == null
+              ? Text(
+                  message!,
+                  style: context.tooltipTextStyle(),
+                  softWrap: true,
+                )
+              : Text.rich(
+                  richMessage!,
+                  style: context.tooltipTextStyle(),
+                ),
+        ),
+      );
     }
 
     return Tooltip(
@@ -41,9 +72,9 @@ class FlowyTooltip extends StatelessWidget {
         borderRadius: BorderRadius.circular(10.0),
       ),
       waitDuration: _tooltipWaitDuration,
-      message: message,
-      textStyle: message != null ? context.tooltipTextStyle() : null,
-      richMessage: richMessage,
+      message: tooltipMessage,
+      richMessage: tooltipRichMessage,
+      textStyle: textStyle,
       preferBelow: preferBelow,
       child: child,
     );

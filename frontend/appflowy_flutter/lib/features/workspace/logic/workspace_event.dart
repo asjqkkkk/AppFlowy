@@ -24,8 +24,12 @@ sealed class UserWorkspaceEvent {
 
   factory UserWorkspaceEvent.deleteWorkspace({
     required String workspaceId,
+    required WorkspaceTypePB workspaceType,
   }) =>
-      WorkspaceEventDeleteWorkspace(workspaceId: workspaceId);
+      WorkspaceEventDeleteWorkspace(
+        workspaceId: workspaceId,
+        workspaceType: workspaceType,
+      );
 
   factory UserWorkspaceEvent.openWorkspace({
     required String workspaceId,
@@ -39,16 +43,23 @@ sealed class UserWorkspaceEvent {
   factory UserWorkspaceEvent.renameWorkspace({
     required String workspaceId,
     required String name,
+    required WorkspaceTypePB workspaceType,
   }) =>
-      WorkspaceEventRenameWorkspace(workspaceId: workspaceId, name: name);
+      WorkspaceEventRenameWorkspace(
+        workspaceId: workspaceId,
+        name: name,
+        workspaceType: workspaceType,
+      );
 
   factory UserWorkspaceEvent.updateWorkspaceIcon({
     required String workspaceId,
     required String icon,
+    required WorkspaceTypePB workspaceType,
   }) =>
       WorkspaceEventUpdateWorkspaceIcon(
         workspaceId: workspaceId,
         icon: icon,
+        workspaceType: workspaceType,
       );
 
   factory UserWorkspaceEvent.leaveWorkspace({
@@ -122,9 +133,11 @@ class WorkspaceEventCreateWorkspace extends UserWorkspaceEvent {
 class WorkspaceEventDeleteWorkspace extends UserWorkspaceEvent {
   WorkspaceEventDeleteWorkspace({
     required this.workspaceId,
+    required this.workspaceType,
   });
 
   final String workspaceId;
+  final WorkspaceTypePB workspaceType;
 }
 
 /// Opens a workspace.
@@ -143,9 +156,11 @@ class WorkspaceEventRenameWorkspace extends UserWorkspaceEvent {
   WorkspaceEventRenameWorkspace({
     required this.workspaceId,
     required this.name,
+    required this.workspaceType,
   });
 
   final String workspaceId;
+  final WorkspaceTypePB workspaceType;
   final String name;
 }
 
@@ -154,10 +169,12 @@ class WorkspaceEventUpdateWorkspaceIcon extends UserWorkspaceEvent {
   WorkspaceEventUpdateWorkspaceIcon({
     required this.workspaceId,
     required this.icon,
+    required this.workspaceType,
   });
 
   final String workspaceId;
   final String icon;
+  final WorkspaceTypePB workspaceType;
 }
 
 /// Leaves a workspace.

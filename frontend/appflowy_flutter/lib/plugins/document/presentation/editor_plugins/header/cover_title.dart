@@ -12,7 +12,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:universal_platform/universal_platform.dart';
 
 class CoverTitle extends StatelessWidget {
   const CoverTitle({
@@ -131,17 +130,11 @@ class _InnerCoverTitleState extends State<_InnerCoverTitle> {
         editorContext.requestCoverTitleFocus = false;
       }
 
-      // on macOS, if we gain focus immediately, the focus won't work.
-      // It's a workaround to delay the focus request.
-      if (UniversalPlatform.isMacOS) {
-        Future.delayed(Durations.short4, () {
+      Future.delayed(Durations.short4, () {
+        if (mounted) {
           requestFocus();
-        });
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          requestFocus();
-        });
-      }
+        }
+      });
     }
   }
 

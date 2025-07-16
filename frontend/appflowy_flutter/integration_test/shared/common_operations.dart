@@ -7,6 +7,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/type_option_menu_item.dart';
 import 'package:appflowy/mobile/presentation/presentation.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/emoji_picker_button.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/add_block_toolbar_item.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/_simple_table_bottom_sheet_actions.dart';
@@ -640,12 +641,13 @@ extension CommonOperations on WidgetTester {
   }) async {
     final iconButton = find.descendant(
       of: findPageName(
-        name,
-        layout: layout,
-        parentName: parentName,
-      ),
-      matching:
-          find.byTooltip(LocaleKeys.document_plugins_cover_changeIcon.tr()),
+      name,
+      layout: layout,
+      parentName: parentName,
+    ),
+      matching: find.byWidgetPredicate((w) {
+        return (w is RawEmojiIconWidget) || (w is FlowySvg);
+      }),
     );
     await tapButton(iconButton);
     if (icon.type == FlowyIconType.emoji) {

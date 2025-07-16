@@ -71,7 +71,11 @@ pub trait UserServerProvider: Send + Sync {
   fn set_auth_provider(&self, auth_type: &AuthProvider) -> Result<(), FlowyError>;
   fn set_network_reachable(&self, reachable: bool);
   fn set_encrypt_secret(&self, secret: String);
-  fn workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError>;
+  fn current_workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError>;
+  fn workspace_service(
+    &self,
+    workspace_type: WorkspaceType,
+  ) -> Result<Arc<dyn UserWorkspaceService>, FlowyError>;
   fn auth_service(&self) -> Result<Arc<dyn UserAuthService>, FlowyError>;
   fn user_profile_service(&self) -> Result<Arc<dyn UserProfileService>, FlowyError>;
   fn billing_service(&self) -> Result<Arc<dyn UserBillingService>, FlowyError>;

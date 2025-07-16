@@ -146,13 +146,6 @@ extension PersonalPlanHelper on PersonalPlanPB {
 }
 
 extension PersonalPlanStatusExt on PersonalSubscriptionInfoPB {
-  bool get isVaultWorkspaceCanceled =>
-      subscriptions
-          .where((sub) => sub.plan == PersonalPlanPB.VaultWorkspace)
-          .firstOrNull
-          ?.status ==
-      SubscriptionStatusPB.Canceled;
-
   bool get hasActiveVaultWorkspaceSubscription => subscriptions.any(
         (sub) =>
             sub.status == SubscriptionStatusPB.Active &&

@@ -780,18 +780,14 @@ impl DatabaseManager {
       .await?;
 
     // Format the response items into a single string
+    // Each item is a HashMap with "title" and "content" keys
+    // We only want the "content" values, not the titles
     let content = response
       .items
       .into_iter()
-      .map(|value| {
-        value
-          .into_values()
-          .map(|v| v.to_string())
-          .collect::<Vec<String>>()
-          .join(", ")
-      })
+      .filter_map(|value| value.get("content").cloned())
       .collect::<Vec<String>>()
-      .join(",");
+      .join(", ");
 
     debug!("[AI]:translate row response: {}", content);
     // Update the cell with the response from the cloud service.
