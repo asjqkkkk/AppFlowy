@@ -1,4 +1,5 @@
 import 'package:appflowy/workspace/application/settings/ai/ollama_setting_bloc.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:flowy_infra_ui/style_widget/button.dart';
 import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flowy_infra_ui/style_widget/text_field.dart';
@@ -23,29 +24,43 @@ class OllamaSettingPage extends StatelessWidget {
     return BlocProvider(
       create: (context) =>
           OllamaSettingBloc()..add(const OllamaSettingEvent.started()),
-      child: BlocBuilder<OllamaSettingBloc, OllamaSettingState>(
-        buildWhen: (previous, current) =>
-            previous.inputItems != current.inputItems ||
-            previous.isEdited != current.isEdited,
-        builder: (context, state) {
-          return Container(
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.surfaceContainerHighest,
-              borderRadius: const BorderRadius.all(Radius.circular(8.0)),
+      child: BlocListener<OllamaSettingBloc, OllamaSettingState>(
+        listener: (context, state) {
+          state.successOrFail?.fold(
+            (_) => showToastNotification(
+              message: LocaleKeys.settings_aiPage_keys_settingsSaved.tr(),
             ),
-            padding: EdgeInsets.all(12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 10,
-              children: [
-                for (final item in state.inputItems)
-                  _SettingItemWidget(item: item),
-                const LocalAIModelSelection(),
-                _SaveButton(isEdited: state.isEdited),
-              ],
+            (e) => showToastNotification(
+              message: e.msg,
+              type: ToastificationType.error,
             ),
           );
         },
+        child: BlocBuilder<OllamaSettingBloc, OllamaSettingState>(
+          buildWhen: (previous, current) =>
+              previous.inputItems != current.inputItems ||
+              previous.isEdited != current.isEdited,
+          builder: (context, state) {
+            return Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: const BorderRadius.all(Radius.circular(8.0)),
+              ),
+              padding: EdgeInsets.all(12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 10,
+                children: [
+                  for (final item in state.inputItems)
+                    _SettingItemWidget(item: item),
+                  const LocalAIEmbeddingModelSelection(),
+                  const LocalAIModelSelection(),
+                  _SaveButton(isEdited: state.isEdited),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }
@@ -178,6 +193,62 @@ class LocalAIModelSelection extends StatelessWidget {
                         value: model,
                         label: model.i18n,
                         subLabel: model.desc,
+                        maximumHeight: height,
+                      ),
+                    )
+                    .toList(),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class LocalAIEmbeddingModelSelection extends StatelessWidget {
+  const LocalAIEmbeddingModelSelection({super.key});
+  static const double height = 49;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<OllamaSettingBloc, OllamaSettingState>(
+      buildWhen: (previous, current) =>
+          previous.embeddingModels != current.embeddingModels,
+      builder: (context, state) {
+        final models = state.embeddingModels;
+        if (models == null) {
+          return const SizedBox(
+            // Using same height as SettingsDropdown to avoid layout shift
+            height: height,
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            FlowyText.medium(
+              LocaleKeys.settings_aiPage_keys_globalLLMModel.tr(),
+              fontSize: 12,
+              figmaLineHeight: 16,
+            ),
+            const VSpace(4),
+            SizedBox(
+              height: 40,
+              child: SettingsDropdown<String>(
+                key: const Key('_EmbeddingModelSelection'),
+                textStyle: Theme.of(context).textTheme.bodySmall,
+                onChanged: (model) => context
+                    .read<OllamaSettingBloc>()
+                    .add(OllamaSettingEvent.setSelectedEmbeddingModel(model)),
+                selectedOption: models.selectedModel,
+                selectOptionCompare: (left, right) => left == right,
+                options: models.models
+                    .map(
+                      (model) => buildDropdownMenuEntry<String>(
+                        context,
+                        value: model,
+                        label: model,
                         maximumHeight: height,
                       ),
                     )

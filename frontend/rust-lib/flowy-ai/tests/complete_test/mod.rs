@@ -1,5 +1,5 @@
 use crate::setup_log;
-use flowy_ai::local_ai::chat::llm::LLMOllama;
+use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::completion::chain::CompletionChain;
 use flowy_ai::local_ai::completion::stream_interpreter::stream_interpreter_for_completion;
 use flowy_ai_pub::cloud::{CompletionStreamValue, CompletionType, OutputLayout, ResponseFormat};
@@ -13,7 +13,7 @@ use tracing::error;
 
 #[tokio::test]
 async fn local_ai_test_simple_ask_ai() {
-  let ollama = LLMOllama::default();
+  let ollama = AFLLM::default();
   let ai_completion = CompletionChain::new(ollama);
   let text = "Compare js with Rust";
   let ty = CompletionType::AskAI;
@@ -33,7 +33,7 @@ async fn local_ai_test_simple_ask_ai() {
 #[tokio::test]
 async fn local_ai_test_improve_writing() {
   setup_log();
-  let ollama = LLMOllama::default();
+  let ollama = AFLLM::default();
   let ai_completion = CompletionChain::new(ollama);
   let text = "I like playing basketball with my friend";
   let ty = CompletionType::ImproveWriting;
@@ -52,7 +52,7 @@ async fn local_ai_test_improve_writing() {
 #[tokio::test]
 async fn local_ai_test_simple_fix_grammar() {
   setup_log();
-  let ollama = LLMOllama::default();
+  let ollama = AFLLM::default();
   let ai_completion = CompletionChain::new(ollama);
   let text = "He starts work everyday at 8 a.m";
   let ty = CompletionType::SpellingAndGrammar;

@@ -963,7 +963,8 @@
         "instructions": "instructions",
         "installOllamaLai": "to set up Ollama and AppFlowy Local AI.",
         "modelsMissing": "Cannot find the required models: ",
-        "downloadModel": "to download them."
+        "downloadModel": "to download them.",
+        "settingsSaved": "Settings saved"
       }
     },
     "planPage": {

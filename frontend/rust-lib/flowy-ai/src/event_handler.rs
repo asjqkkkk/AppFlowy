@@ -417,3 +417,11 @@ pub(crate) async fn get_local_model_info_handler(
   let info = ai_manager.get_local_model_info(&params.name).await?;
   data_result_ok(info)
 }
+
+pub(crate) async fn get_local_embedding_models_handler(
+  ai_manager: AFPluginState<Weak<AIManager>>,
+) -> DataResult<EmbeddingModelSelectionPB, FlowyError> {
+  let ai_manager = upgrade_ai_manager(ai_manager)?;
+  let info = ai_manager.get_local_available_embedding_model().await?;
+  data_result_ok(info)
+}

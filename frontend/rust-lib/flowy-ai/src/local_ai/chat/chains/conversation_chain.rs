@@ -1,10 +1,11 @@
 use crate::SqliteVectorStore;
 use crate::ai_tool::text_split::RAGSource;
+use crate::embeddings::indexer::LocalEmbeddingModel;
 use crate::local_ai::chat::chains::context_question_chain::{
   ContextRelatedQuestionChain, embedded_documents_to_context_str,
 };
 use crate::local_ai::chat::chains::related_question_chain::RelatedQuestionChain;
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::{AFLLM, LocalLLMController};
 use crate::local_ai::chat::llm_chat::EmbedFile;
 use crate::local_ai::chat::retriever::{AFEmbedder, AFRetriever, EmbedFileProgress};
 use arc_swap::ArcSwap;
@@ -57,7 +58,7 @@ const CONVERSATIONAL_RETRIEVAL_QA_DEFAULT_INPUT_KEY: &str = "question";
 type EmbedFileStream = Pin<Box<dyn Stream<Item = Result<StreamData, ChainError>> + Send>>;
 type ResponseStream = Pin<Box<dyn Stream<Item = Result<StreamData, ChainError>> + Send>>;
 pub struct ConversationalRetrieverChain {
-  pub(crate) ollama: LLMOllama,
+  pub(crate) llm_controller: LocalLLMController,
   pub(crate) retriever: Box<dyn AFRetriever>,
   pub(crate) embedder: Arc<dyn AFEmbedder>,
   pub memory: Arc<Mutex<dyn BaseMemory>>,
@@ -69,6 +70,7 @@ pub struct ConversationalRetrieverChain {
   pub(crate) input_key: String,
   pub(crate) output_key: String,
   latest_context: ArcSwap<String>,
+  model_name: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -83,6 +85,10 @@ enum StreamValue {
 }
 
 impl ConversationalRetrieverChain {
+  pub fn set_model_name(&mut self, model_name: String) {
+    self.model_name = model_name;
+  }
+
   async fn handle_attachments(
     &self,
     history: Vec<Message>,
@@ -100,7 +106,7 @@ impl ConversationalRetrieverChain {
     let rephrase_question = self.rephrase_question;
     let combine_documents_chain = self.combine_documents_chain.clone();
     let condense_question_chain = self.condense_question_chain.clone();
-    let ollama = self.ollama.clone();
+    let llm = self.llm_controller.build_with_model(&self.model_name);
     let memory = self.memory.clone();
 
     // Create a stream that handles both embedding and processing
@@ -124,7 +130,7 @@ impl ConversationalRetrieverChain {
 
       let (documents, content) = process_embed_results_to_content(&embed_results, &input);
       let new_question = if rephrase_question {
-        get_attachments_rephrase_question(&ollama, history, &content, &condense_question_chain)
+        get_attachments_rephrase_question(&llm, history, &content, &condense_question_chain)
           .await
           .map(|v| v.0)
           .unwrap_or(content.clone())
@@ -219,13 +225,14 @@ impl ConversationalRetrieverChain {
     history: &[Message],
     input_variables: PromptArgs,
   ) -> Result<ResponseStream, ChainError> {
+    let llm = self.llm_controller.build_with_model(&self.model_name);
     let input_variable = &input_variables
       .get(&self.input_key)
       .ok_or(ChainError::MissingInputVariable(self.input_key.clone()))?;
     let human_message = Message::new_human_message(input_variable);
     let rephase_question = if self.rephrase_question {
       get_rephase_question(
-        &self.ollama,
+        &llm,
         history,
         &human_message.content,
         &self.condense_question_chain,
@@ -237,7 +244,10 @@ impl ConversationalRetrieverChain {
     };
 
     // Handle document retrieval
-    let documents = match self.get_documents_or_suggestions(&rephase_question).await? {
+    let documents = match self
+      .get_documents_or_suggestions(&rephase_question, self.llm_controller.embed_model())
+      .await?
+    {
       Either::Left(docs) => docs,
       Either::Right(_) => {
         vec![]
@@ -570,9 +580,11 @@ impl ConversationalRetrieverChain {
   ) -> Result<Vec<String>, FlowyError> {
     let context = self.latest_context.load();
     let rag_ids = self.retriever.get_rag_ids().await;
-
     if context.is_empty() {
-      let chain = RelatedQuestionChain::new(self.ollama.clone());
+      let llm = self
+        .llm_controller
+        .build_llm(RelatedQuestionChain::format().into(), None);
+      let chain = RelatedQuestionChain::new(llm);
       chain.generate_related_question(question, answer).await
     } else if let Some(c) = self.context_question_chain.as_ref() {
       c.generate_questions_from_context(&rag_ids, &context)
@@ -584,11 +596,12 @@ impl ConversationalRetrieverChain {
   }
 
   pub async fn get_chat_history(&self, revert_token: usize) -> Result<Vec<String>, FlowyError> {
+    let llm = self.llm_controller.build_with_model(&self.model_name);
     let history = {
       let memory = self.memory.lock().await;
       memory.messages().await
     };
-    let trim_history = trim_history_message(&self.ollama, history, revert_token).await;
+    let trim_history = trim_history_message(&llm, history, revert_token).await;
     Ok(
       trim_history
         .into_iter()
@@ -600,6 +613,7 @@ impl ConversationalRetrieverChain {
   async fn get_documents_or_suggestions(
     &self,
     question: &str,
+    embed_model: LocalEmbeddingModel,
   ) -> Result<Either<Vec<Document>, StreamValue>, ChainError> {
     let rag_ids = self.retriever.get_rag_ids().await;
     trace!(
@@ -625,7 +639,7 @@ impl ConversationalRetrieverChain {
         let mut suggested_questions = vec![];
         if let Some(c) = self.context_question_chain.as_ref() {
           let rag_ids = rag_ids.iter().map(|v| v.to_string()).collect::<Vec<_>>();
-          match c.generate_questions(&rag_ids).await {
+          match c.generate_questions(&rag_ids, embed_model).await {
             Ok((context, questions)) => {
               self.latest_context.store(Arc::new(context));
               trace!("[embedding]: context related questions: {:?}", questions);
@@ -737,7 +751,7 @@ impl Chain for ConversationalRetrieverChain {
 
 pub struct ConversationalRetrieverChainBuilder {
   workspace_id: Uuid,
-  llm: LLMOllama,
+  llm_controller: LocalLLMController,
   retriever: Box<dyn AFRetriever>,
   embedder: Arc<dyn AFEmbedder>,
   memory: Option<Arc<Mutex<dyn BaseMemory>>>,
@@ -751,14 +765,14 @@ pub struct ConversationalRetrieverChainBuilder {
 impl ConversationalRetrieverChainBuilder {
   pub fn new(
     workspace_id: Uuid,
-    llm: LLMOllama,
+    llm_controller: LocalLLMController,
     retriever: Box<dyn AFRetriever>,
     embedder: Arc<dyn AFEmbedder>,
     store: Option<SqliteVectorStore>,
   ) -> Self {
     ConversationalRetrieverChainBuilder {
       workspace_id,
-      llm,
+      llm_controller,
       retriever,
       embedder,
       memory: None,
@@ -794,8 +808,9 @@ impl ConversationalRetrieverChainBuilder {
   }
 
   pub fn build(self) -> FlowyResult<ConversationalRetrieverChain> {
+    let llm = self.llm_controller.build_llm(None, None);
     let combine_documents_chain = {
-      let mut builder = StuffDocumentBuilder::new().llm(self.llm.clone());
+      let mut builder = StuffDocumentBuilder::new().llm(llm.clone());
       if let Some(prompt) = self.prompt {
         builder = builder.prompt(prompt);
       }
@@ -804,17 +819,18 @@ impl ConversationalRetrieverChainBuilder {
         .map_err(|err| FlowyError::local_ai().with_context(err))?
     };
 
-    let condense_question_chain = CondenseQuestionGeneratorChain::new(self.llm.clone());
+    let condense_question_chain = CondenseQuestionGeneratorChain::new(llm);
     let memory = self
       .memory
       .unwrap_or_else(|| Arc::new(Mutex::new(SimpleMemory::new())));
 
-    let context_question_chain = self
-      .store
-      .map(|store| ContextRelatedQuestionChain::new(self.workspace_id, self.llm.clone(), store));
+    let context_question_chain = self.store.map(|store| {
+      ContextRelatedQuestionChain::new(self.workspace_id, self.llm_controller.clone(), store)
+    });
 
+    let model_name = self.llm_controller.global_model();
     Ok(ConversationalRetrieverChain {
-      ollama: self.llm,
+      llm_controller: self.llm_controller,
       retriever: self.retriever,
       embedder: self.embedder,
       memory,
@@ -826,6 +842,7 @@ impl ConversationalRetrieverChainBuilder {
       input_key: self.input_key,
       output_key: self.output_key,
       latest_context: Default::default(),
+      model_name,
     })
   }
 }
@@ -933,7 +950,7 @@ fn deduplicate_metadata(documents: &[Document]) -> Vec<QuestionStreamValue> {
 }
 
 async fn get_attachments_rephrase_question(
-  ollama: &LLMOllama,
+  ollama: &AFLLM,
   history: Vec<Message>,
   content: &str,
   condense_question_chain: &Arc<dyn Chain>,
@@ -957,7 +974,7 @@ async fn get_attachments_rephrase_question(
 }
 
 async fn get_rephase_question(
-  ollama: &LLMOllama,
+  ollama: &AFLLM,
   history: &[Message],
   input: &str,
   condense_question_chain: &Arc<dyn Chain>,
@@ -987,7 +1004,7 @@ async fn get_rephase_question(
 }
 
 async fn trim_history_message(
-  ollama: &LLMOllama,
+  ollama: &AFLLM,
   mut history: Vec<Message>,
   extract_revert: usize,
 ) -> Vec<Message> {

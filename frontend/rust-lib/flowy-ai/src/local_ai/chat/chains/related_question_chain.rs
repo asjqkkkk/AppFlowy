@@ -1,4 +1,4 @@
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use flowy_error::{FlowyError, FlowyResult};
 use langchain_rust::language_models::llm::LLM;
 use langchain_rust::schemas::Message;
@@ -18,15 +18,16 @@ struct QuestionsResponse {
 }
 
 pub struct RelatedQuestionChain {
-  llm: LLMOllama,
+  llm: AFLLM,
 }
 
 impl RelatedQuestionChain {
-  pub fn new(ollama: LLMOllama) -> Self {
-    let format = FormatType::StructuredJson(JsonStructure::new::<QuestionsResponse>());
-    Self {
-      llm: ollama.with_format(format),
-    }
+  pub fn new(llm: AFLLM) -> Self {
+    Self { llm }
+  }
+
+  pub fn format() -> FormatType {
+    FormatType::StructuredJson(JsonStructure::new::<QuestionsResponse>())
   }
 
   pub async fn generate_related_question(

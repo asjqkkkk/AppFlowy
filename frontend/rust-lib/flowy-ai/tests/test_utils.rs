@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use flowy_ai::local_ai::chat::llm::LLMOllama;
+use flowy_ai::local_ai::chat::llm::AFLLM;
 use langchain_rust::language_models::llm::LLM;
 use langchain_rust::schemas::Message;
 use ollama_rs::generation::parameters::{FormatType, JsonStructure};
@@ -23,7 +23,8 @@ pub async fn assert_content_similar(
   threshold: f32,
 ) -> anyhow::Result<()> {
   let format = FormatType::StructuredJson(JsonStructure::new::<SimilarityResponse>());
-  let llm = LLMOllama::default().with_format(format);
+  let mut llm = AFLLM::default();
+  llm.set_format(format);
 
   let context_str = context.unwrap_or("");
   let prompt = format!(
@@ -91,7 +92,8 @@ pub async fn assert_response_about_topic(
   expected_topic: &str,
 ) -> anyhow::Result<()> {
   let format = FormatType::StructuredJson(JsonStructure::new::<TopicCheckResponse>());
-  let llm = LLMOllama::default().with_format(format);
+  let mut llm = AFLLM::default();
+  llm.set_format(format);
   let prompt = format!(
     r#"Is this response primarily about the topic: "{}"?
 

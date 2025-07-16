@@ -1,5 +1,5 @@
 use crate::setup_log;
-use flowy_ai::local_ai::chat::llm::LLMOllama;
+use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::database::translate::DatabaseTranslateChain;
 use flowy_ai_pub::cloud::ai_dto::TranslateRowData;
 use flowy_database_pub::cloud::TranslateItem;
@@ -8,7 +8,7 @@ use flowy_database_pub::cloud::TranslateItem;
 async fn local_ai_test_database_translate() {
   setup_log();
 
-  let ollama = LLMOllama::default();
+  let ollama = AFLLM::default();
   let chain = DatabaseTranslateChain::new(ollama);
 
   let data = TranslateRowData {

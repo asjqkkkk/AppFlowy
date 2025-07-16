@@ -7,7 +7,7 @@ mod summary_memory;
 
 use crate::SqliteVectorStore;
 use crate::chat_file::ChatLocalFileStorage;
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::LocalLLMController;
 use crate::local_ai::chat::llm_chat::{LLMChat, StreamQuestionOptions};
 use crate::local_ai::chat::retriever::RetrieverStore;
 use crate::local_ai::completion::chain::CompletionChain;
@@ -23,14 +23,13 @@ use flowy_ai_pub::user_service::AIUserService;
 use flowy_database_pub::cloud::{SummaryRowContent, TranslateRowContent};
 use flowy_error::{FlowyError, FlowyResult};
 use futures_util::StreamExt;
-use ollama_rs::Ollama;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use tokio::sync::RwLock;
 use tracing::{debug, info, instrument, warn};
 use uuid::Uuid;
 
-type OllamaClientRef = Arc<RwLock<Option<Weak<Ollama>>>>;
+type WeakLocalLLMController = Arc<RwLock<Option<Weak<LocalLLMController>>>>;
 
 pub struct LLMChatInfo {
   pub chat_id: Uuid,
@@ -45,7 +44,7 @@ pub type RetrieversSources = RwLock<Vec<Arc<dyn RetrieverStore>>>;
 pub struct LLMChatController {
   chat_by_id: DashMap<Uuid, Arc<RwLock<LLMChat>>>,
   store: RwLock<Option<SqliteVectorStore>>,
-  client: OllamaClientRef,
+  weak_local_llm_controller: WeakLocalLLMController,
   user_service: Weak<dyn AIUserService>,
   retriever_sources: RetrieversSources,
 }
@@ -54,7 +53,7 @@ impl LLMChatController {
     Self {
       store: RwLock::new(None),
       chat_by_id: DashMap::new(),
-      client: Default::default(),
+      weak_local_llm_controller: Default::default(),
       user_service,
       retriever_sources: Default::default(),
     }
@@ -65,18 +64,23 @@ impl LLMChatController {
   }
 
   pub async fn is_ready(&self) -> bool {
-    self.client.read().await.is_some()
+    self.weak_local_llm_controller.read().await.is_some()
   }
 
   #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
   pub async fn initialize(
     &self,
-    ollama: Weak<Ollama>,
+    local_llm_controller: Weak<LocalLLMController>,
     vector_db: Weak<flowy_sqlite_vec::db::VectorSqliteDB>,
   ) {
-    let store = SqliteVectorStore::new(ollama.clone(), vector_db);
-    *self.client.write().await = Some(ollama);
-    *self.store.write().await = Some(store);
+    *self.weak_local_llm_controller.write().await = Some(local_llm_controller.clone());
+    let mut store_guard = self.store.write().await;
+    if let Some(store) = store_guard.as_ref() {
+      store.set_llm_controller(local_llm_controller).await;
+    } else {
+      let store = SqliteVectorStore::new(local_llm_controller.clone(), vector_db);
+      *store_guard = Some(store);
+    }
   }
 
   pub async fn set_rag_ids(&self, chat_id: &Uuid, rag_ids: &[String]) {
@@ -96,14 +100,16 @@ impl LLMChatController {
   ) -> FlowyResult<()> {
     let store = self.store.read().await.clone();
     let client = self
-      .client
+      .weak_local_llm_controller
       .read()
       .await
       .as_ref()
       .ok_or_else(|| FlowyError::local_ai().with_context("Ollama client not initialized"))?
       .upgrade()
       .ok_or_else(|| FlowyError::local_ai().with_context("Ollama client has been dropped"))?
+      .as_ref()
       .clone();
+
     let entry = self.chat_by_id.entry(info.chat_id);
     let retriever_sources = self
       .retriever_sources
@@ -151,7 +157,7 @@ impl LLMChatController {
     data: SummaryRowContent,
   ) -> FlowyResult<String> {
     let client = self
-      .client
+      .weak_local_llm_controller
       .read()
       .await
       .clone()
@@ -159,7 +165,8 @@ impl LLMChatController {
       .upgrade()
       .ok_or(FlowyError::local_ai())?;
 
-    let chain = DatabaseSummaryChain::new(LLMOllama::new(model_name, client, None, None));
+    let llm = client.build_with_model(model_name);
+    let chain = DatabaseSummaryChain::new(llm);
     let response = chain.summarize(data).await?;
     Ok(response)
   }
@@ -171,15 +178,15 @@ impl LLMChatController {
     language: &str,
   ) -> FlowyResult<TranslateRowResponse> {
     let client = self
-      .client
+      .weak_local_llm_controller
       .read()
       .await
       .clone()
       .ok_or(FlowyError::local_ai())?
       .upgrade()
       .ok_or(FlowyError::local_ai())?;
-
-    let chain = DatabaseTranslateChain::new(LLMOllama::new(model_name, client, None, None));
+    let llm = client.build_with_model(model_name);
+    let chain = DatabaseTranslateChain::new(llm);
     let data = TranslateRowData {
       cells,
       language: language.to_string(),
@@ -195,7 +202,7 @@ impl LLMChatController {
     params: CompleteTextParams,
   ) -> Result<StreamComplete, FlowyError> {
     let client = self
-      .client
+      .weak_local_llm_controller
       .read()
       .await
       .clone()
@@ -203,7 +210,8 @@ impl LLMChatController {
       .upgrade()
       .ok_or(FlowyError::local_ai())?;
 
-    let chain = CompletionChain::new(LLMOllama::new(model_name, client, None, None));
+    let llm = client.build_with_model(model_name);
+    let chain = CompletionChain::new(llm);
     let ty = params.completion_type.unwrap_or(CompletionType::AskAI);
     let stream = chain
       .complete(&params.text, ty, params.format, params.metadata)

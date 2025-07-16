@@ -216,6 +216,15 @@ pub struct ModelSelectionPB {
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct EmbeddingModelSelectionPB {
+  #[pb(index = 1)]
+  pub models: Vec<String>,
+
+  #[pb(index = 2)]
+  pub selected_model: String,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
 pub struct RepeatedAIModelPB {
   #[pb(index = 1)]
   pub items: Vec<AIModelPB>,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::collections::HashMap;
 
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use flowy_ai_pub::cloud::ai_dto::{TranslateRowData, TranslateRowResponse};
 use flowy_database_pub::cloud::TranslateItem;
 use flowy_error::{FlowyError, FlowyResult};
@@ -42,11 +42,11 @@ Translate following {input} into {language}.
 
 /// The main chain for translating database content
 pub struct DatabaseTranslateChain {
-  llm: LLMOllama,
+  llm: AFLLM,
 }
 
 impl DatabaseTranslateChain {
-  pub fn new(ollama: LLMOllama) -> Self {
+  pub fn new(ollama: AFLLM) -> Self {
     Self { llm: ollama }
   }
 

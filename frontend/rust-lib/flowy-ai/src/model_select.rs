@@ -80,6 +80,16 @@ impl ModelSelectionControl {
     }
   }
 
+  #[instrument(level = "debug", skip(self))]
+  pub async fn get_embedding_models(&self) -> Vec<String> {
+    let mut models = Vec::new();
+    for source in &self.sources {
+      let mut list = source.list_embedding_models().await;
+      models.append(&mut list);
+    }
+    models
+  }
+
   /// Fetches all server‐side models and, if specified, a single local model by name.
   ///
   /// First collects models from any source named `"server"`. Then it fetches all local models
@@ -287,6 +297,8 @@ pub trait ModelSource: Send + Sync {
 
   /// Asynchronously returns a list of available models from this source
   async fn list_chat_models(&self, workspace_id: &Uuid) -> Vec<Model>;
+
+  async fn list_embedding_models(&self) -> Vec<String>;
 }
 
 pub struct LocalAiSource {
@@ -306,7 +318,7 @@ impl ModelSource for LocalAiSource {
   }
 
   async fn list_chat_models(&self, _workspace_id: &Uuid) -> Vec<Model> {
-    match self.controller.ollama.load_full() {
+    match self.controller.llm_controller.load_full() {
       None => vec![],
       Some(ollama) => ollama
         .list_local_models()
@@ -316,6 +328,23 @@ impl ModelSource for LocalAiSource {
             .into_iter()
             .filter(|m| !m.name.to_lowercase().contains("embed"))
             .map(|m| AIModel::local(m.name, String::new()))
+            .collect()
+        })
+        .unwrap_or_default(),
+    }
+  }
+
+  async fn list_embedding_models(&self) -> Vec<String> {
+    match self.controller.llm_controller.load_full() {
+      None => vec![],
+      Some(ollama) => ollama
+        .list_local_models()
+        .await
+        .map(|models| {
+          models
+            .into_iter()
+            .filter(|m| m.name.to_lowercase().contains("embed"))
+            .map(|m| m.name)
             .collect()
         })
         .unwrap_or_default(),
@@ -394,6 +423,10 @@ impl ModelSource for ServerAiSource {
         Vec::new()
       },
     }
+  }
+
+  async fn list_embedding_models(&self) -> Vec<String> {
+    vec![]
   }
 }
 

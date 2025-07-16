@@ -1,8 +1,9 @@
 use crate::chat::Chat;
 use crate::entities::{
   AIModelPB, ChatInfoPB, ChatMessageListPB, ChatMessagePB, ChatSettingsPB,
-  CustomPromptDatabaseConfigurationPB, FilePB, LocalAIModelInfoPB, LocalAIStatePB,
-  ModelSelectionPB, PredefinedFormatPB, RepeatedRelatedQuestionPB, StreamMessageParams,
+  CustomPromptDatabaseConfigurationPB, EmbeddingModelSelectionPB, FilePB, LocalAIModelInfoPB,
+  LocalAIStatePB, ModelSelectionPB, PredefinedFormatPB, RepeatedRelatedQuestionPB,
+  StreamMessageParams,
 };
 use crate::local_ai::controller::{LocalAIController, LocalAISetting};
 use crate::middleware::chat_service_mw::ChatServiceMiddleware;
@@ -18,6 +19,7 @@ use flowy_sqlite::kv::KVStorePreferences;
 
 use crate::chat_file::ChatLocalFileStorage;
 use crate::completion::AICompletion;
+use crate::embeddings::indexer::LocalEmbeddingModel;
 use crate::model_select::{
   GLOBAL_ACTIVE_MODEL_KEY, LocalAiSource, LocalModelStorageImpl, ModelSelectionControl,
   ServerAiSource, ServerModelStorageImpl, SourceKey,
@@ -188,12 +190,14 @@ impl AIManager {
 
   async fn prepare_local_ai(&self, workspace_id: &Uuid) {
     let result = self.user_service.validate_vault().await.unwrap_or_default();
+    let old_settings = self.local_ai_controller.get_local_ai_setting();
     let is_enabled = self
       .local_ai_controller
       .reload_ollama_client(
         &workspace_id.to_string(),
         result.is_vault,
         result.is_vault_enabled,
+        old_settings,
       )
       .await;
 
@@ -374,35 +378,30 @@ impl AIManager {
   pub async fn update_local_ai_setting(&self, setting: LocalAISetting) -> FlowyResult<()> {
     let workspace_id = self.user_service.workspace_id()?;
     let old_settings = self.local_ai_controller.get_local_ai_setting();
-    // Only restart if the server URL has changed and local AI is not running
-    let need_restart = old_settings.ollama_server_url != setting.ollama_server_url;
-
-    // Update settings first
     self
       .local_ai_controller
       .update_local_ai_setting(setting.clone())
       .await?;
 
-    // Handle model change if needed
-    info!(
-      "[AI Plugin] update global active model, previous: {}, current: {}",
-      old_settings.chat_model_name, setting.chat_model_name
-    );
-    let model = AIModel::local(setting.chat_model_name, "".to_string());
-    self
-      .update_selected_model(GLOBAL_ACTIVE_MODEL_KEY.to_string(), model)
-      .await?;
-    if need_restart {
-      let model = self.get_global_active_model().await?;
-      let result = self.user_service.validate_vault().await.unwrap_or_default();
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
+    let is_setting_changed = self
+      .local_ai_controller
+      .reload_ollama_client(
+        &workspace_id.to_string(),
+        result.is_vault,
+        result.is_vault_enabled,
+        old_settings,
+      )
+      .await;
+
+    debug!("Local AI setting changed: {}", is_setting_changed);
+    if is_setting_changed {
+      let model = AIModel::local(setting.chat_model_name, "".to_string());
       self
-        .local_ai_controller
-        .reload_ollama_client(
-          &workspace_id.to_string(),
-          result.is_vault,
-          result.is_vault_enabled,
-        )
-        .await;
+        .update_selected_model(GLOBAL_ACTIVE_MODEL_KEY.to_string(), model)
+        .await?;
+
+      let model = self.get_global_active_model().await?;
       self.local_ai_controller.restart(model).await?;
     }
 
@@ -520,6 +519,23 @@ impl AIManager {
     let model_control = self.model_control.lock().await;
     let model = model_control.get_global_active_model(&workspace_id).await;
     Ok(model)
+  }
+
+  pub async fn get_local_available_embedding_model(
+    &self,
+  ) -> FlowyResult<EmbeddingModelSelectionPB> {
+    let setting = self.local_ai_controller.get_local_ai_setting();
+    let models = self.model_control.lock().await.get_embedding_models().await;
+    let selected_model = models
+      .iter()
+      .find(|model| **model == setting.embedding_model_name)
+      .cloned()
+      .unwrap_or_else(|| LocalEmbeddingModel::default().name().to_string());
+
+    Ok(EmbeddingModelSelectionPB {
+      models,
+      selected_model,
+    })
   }
 
   #[instrument(skip_all, level = "debug", err)]

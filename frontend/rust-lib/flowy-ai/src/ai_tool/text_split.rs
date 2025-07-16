@@ -41,11 +41,6 @@ pub fn split_text_into_chunks(
   overlap: usize,
   source: RAGSource,
 ) -> Result<Vec<EmbeddedChunk>, FlowyError> {
-  debug_assert!(matches!(
-    embedding_model,
-    LocalEmbeddingModel::NomicEmbedText
-  ));
-
   if paragraphs.is_empty() {
     return Ok(vec![]);
   }
@@ -73,7 +68,7 @@ pub fn split_text_into_chunks(
         embeddings: None,
         metadata: Some(metadata_string),
         fragment_index: index as i32,
-        dimension: embedding_model.dimension(),
+        dimension: embedding_model.dimension().size(),
       });
     } else {
       debug!(

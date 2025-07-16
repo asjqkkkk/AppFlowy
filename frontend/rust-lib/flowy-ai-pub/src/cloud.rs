@@ -27,7 +27,6 @@ pub type StreamComplete = BoxStream<'static, Result<CompletionStreamValue, Flowy
 pub struct AIModel {
   pub name: String,
   pub is_local: bool,
-  #[serde(default)]
   pub desc: String,
 }
 

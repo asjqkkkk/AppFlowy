@@ -6,11 +6,13 @@ mod test_utils;
 mod translate_test;
 
 use flowy_ai::SqliteVectorStore;
+use flowy_ai::embeddings::indexer::LocalEmbeddingModel;
 use flowy_ai::local_ai::chat::LLMChatInfo;
+use flowy_ai::local_ai::chat::llm::LocalLLMController;
 use flowy_ai::local_ai::chat::llm_chat::LLMChat;
 use flowy_ai_pub::cloud::{ContextSuggestedQuestion, QuestionStreamValue, StreamAnswer};
+use flowy_ai_pub::entities::EmbeddingDimension;
 use flowy_sqlite_vec::db::VectorSqliteDB;
-use langchain_rust::url::Url;
 use ollama_rs::Ollama;
 use serde_json::Value;
 use std::sync::{Arc, Once};
@@ -40,7 +42,7 @@ pub fn setup_log() {
 }
 
 pub struct TestContext {
-  ollama: Arc<Ollama>,
+  llm: Arc<LocalLLMController>,
   store: SqliteVectorStore,
   #[allow(dead_code)]
   db: Arc<VectorSqliteDB>,
@@ -55,20 +57,24 @@ impl TestContext {
     // Initialize sqlite-vec extension before creating vector DB
     flowy_sqlite_vec::init_sqlite_vector_extension();
 
-    let ollama_url = "http://localhost:11434";
-    let url = Url::parse(ollama_url)?;
-    let ollama = Arc::new(Ollama::from_url(url.clone()));
-
     let temp_dir = tempdir()?;
     let db = Arc::new(VectorSqliteDB::new(temp_dir.into_path())?);
-    let vector_store = SqliteVectorStore::new(Arc::downgrade(&ollama), Arc::downgrade(&db));
-
+    let llm = Arc::new(LocalLLMController::new(
+      Arc::new(Ollama::default()),
+      "gemma3:4b".to_string(),
+      LocalEmbeddingModel::default(),
+    ));
+    let vector_store = SqliteVectorStore::new(Arc::downgrade(&llm), Arc::downgrade(&db));
     Ok(Self {
-      ollama,
+      llm,
       store: vector_store.clone(),
       db,
       vector_store,
     })
+  }
+
+  pub fn embed_dimension(&self) -> EmbeddingDimension {
+    self.llm.embed_dimension()
   }
 
   pub async fn create_chat(&self, rag_ids: Vec<String>) -> LLMChat {
@@ -85,7 +91,7 @@ impl TestContext {
 
     LLMChat::new(
       info,
-      self.ollama.clone(),
+      self.llm.as_ref().clone(),
       Some(self.store.clone()),
       None,
       vec![],

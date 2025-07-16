@@ -1,12 +1,13 @@
 use crate::ai_tool::markdown::MdReader;
 use crate::ai_tool::pdf::{PdfConfig, PdfReader};
 use crate::ai_tool::text_split::{RAGSource, split_text_into_chunks};
-use crate::embeddings::embedder::{Embedder, OllamaEmbedder};
-use crate::embeddings::indexer::{IndexerProvider, LocalEmbeddingModel};
+use crate::embeddings::embedder::Embedder;
+use crate::embeddings::indexer::IndexerProvider;
+use crate::local_ai::chat::llm::LocalLLMController;
 use crate::local_ai::chat::retriever::{EmbedFileProgress, RetrieverStore};
 use async_trait::async_trait;
 use flowy_ai_pub::cloud::CollabType;
-use flowy_ai_pub::entities::{RAG_IDS, SOURCE, SOURCE_ID, SOURCE_NAME};
+use flowy_ai_pub::entities::{EmbeddingDimension, RAG_IDS, SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite_vec::db::VectorSqliteDB;
 use flowy_sqlite_vec::entities::{EmbeddedContent, SqliteEmbeddedDocument};
@@ -14,7 +15,6 @@ use futures::Stream;
 use futures::stream::{self, StreamExt};
 use langchain_rust::schemas::Document;
 use langchain_rust::vectorstore::{VecStoreOptions, VectorStore};
-use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -22,32 +22,42 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::pin::Pin;
 use std::sync::{Arc, Weak};
+use tokio::sync::RwLock;
 use tracing::{debug, error, instrument, warn};
 use uuid::Uuid;
 
 #[derive(Clone)]
 pub struct SqliteVectorStore {
-  ollama: Weak<Ollama>,
+  local_llm_controller: Arc<RwLock<Weak<LocalLLMController>>>,
   vector_db: Weak<VectorSqliteDB>,
   indexer_provider: Arc<IndexerProvider>,
 }
 
 impl SqliteVectorStore {
-  pub fn new(ollama: Weak<Ollama>, vector_db: Weak<VectorSqliteDB>) -> Self {
+  pub fn new(
+    local_llm_controller: Weak<LocalLLMController>,
+    vector_db: Weak<VectorSqliteDB>,
+  ) -> Self {
     Self {
-      ollama,
+      local_llm_controller: Arc::new(RwLock::new(local_llm_controller)),
       vector_db,
       indexer_provider: IndexerProvider::new(),
     }
   }
 
-  pub(crate) fn create_embedder(&self) -> Result<Embedder, FlowyError> {
-    let ollama = self
-      .ollama
-      .upgrade()
-      .ok_or_else(|| FlowyError::internal().with_context("Ollama reference was dropped"))?;
+  pub async fn set_llm_controller(&self, local_llm_controller: Weak<LocalLLMController>) {
+    *self.local_llm_controller.write().await = local_llm_controller;
+  }
 
-    let embedder = Embedder::Ollama(OllamaEmbedder { ollama });
+  pub(crate) async fn create_embedder(&self) -> Result<Embedder, FlowyError> {
+    let ollama = self
+      .local_llm_controller
+      .read()
+      .await
+      .upgrade()
+      .ok_or_else(|| FlowyError::internal().with_context("LLM controller reference was dropped"))?;
+
+    let embedder = Embedder::Ollama(ollama);
     Ok(embedder)
   }
 
@@ -55,6 +65,7 @@ impl SqliteVectorStore {
     &self,
     workspace_id: &str,
     rag_ids: &[String],
+    dim: EmbeddingDimension,
   ) -> FlowyResult<Vec<SqliteEmbeddedDocument>> {
     // Get the vector database
     let vector_db = match self.vector_db.upgrade() {
@@ -63,7 +74,7 @@ impl SqliteVectorStore {
     };
 
     vector_db
-      .select_all_embedded_documents(workspace_id, rag_ids)
+      .select_all_embedded_documents(workspace_id, rag_ids, dim)
       .await
       .map_err(|err| {
         FlowyError::internal().with_context(format!("Failed to select embedded documents: {}", err))
@@ -75,6 +86,7 @@ impl SqliteVectorStore {
     workspace_id: &str,
     rag_ids: &[String],
     limit: usize,
+    dim: EmbeddingDimension,
   ) -> FlowyResult<Vec<EmbeddedContent>> {
     let vector_db = match self.vector_db.upgrade() {
       Some(db) => db,
@@ -82,7 +94,7 @@ impl SqliteVectorStore {
     };
 
     vector_db
-      .select_all_embedded_content(workspace_id, rag_ids, limit)
+      .select_all_embedded_content(workspace_id, rag_ids, limit, dim)
       .await
       .map_err(|err| {
         FlowyError::internal().with_context(format!("Failed to select embedded content: {}", err))
@@ -129,7 +141,7 @@ impl SqliteVectorStore {
       .to_string();
 
     // Read file content in a blocking thread
-    let embedder = self.create_embedder()?;
+    let embedder = self.create_embedder().await?;
     let vector_db = match self.vector_db.upgrade() {
       Some(db) => db,
       None => return Err(FlowyError::internal().with_context("Vector database not initialized")),
@@ -232,6 +244,7 @@ impl SqliteVectorStore {
         &workspace_id.to_string(),
         &chat_id.to_string(),
         embedded_chunks,
+        embedder.dimension(),
       )
       .await?;
 
@@ -257,7 +270,7 @@ impl SqliteVectorStore {
       .to_string();
 
     // Clone necessary data for the stream
-    let embedder = self.create_embedder()?;
+    let embedder = self.create_embedder().await?;
     let vector_db = match self.vector_db.upgrade() {
       Some(db) => db,
       None => return Err(FlowyError::internal().with_context("Vector database not initialized")),
@@ -481,6 +494,7 @@ impl SqliteVectorStore {
           &workspace_id_owned,
           &chat_id_owned,
           embedded_chunks,
+          embedder.model().dimension(),
         )
         .await
       {
@@ -527,7 +541,7 @@ impl RetrieverStore for SqliteVectorStore {
     };
 
     // Create embedder and generate embedding for query
-    let embedder = self.create_embedder()?;
+    let embedder = self.create_embedder().await?;
     let request = GenerateEmbeddingsRequest::new(
       embedder.model().name().to_string(),
       EmbeddingsInput::Single(query.to_string()),
@@ -549,15 +563,17 @@ impl RetrieverStore for SqliteVectorStore {
         query_embedding,
         limit as i32,
         score_threshold,
+        embedder.dimension(),
       )
       .await?;
 
     debug!(
-      "[VectorStore:sqlitevec] found {} results for query:{}, rag_ids: {:?}, score_threshold: {}",
+      "[VectorStore:sqlitevec] found {} results for query:{}, rag_ids: {:?}, score_threshold: {}, embedding dimension:{}",
       results.len(),
       query,
       rag_ids,
-      score_threshold
+      score_threshold,
+      embedder.dimension(),
     );
 
     for result in results.iter() {
@@ -597,8 +613,7 @@ impl VectorStore for SqliteVectorStore {
       None => return Err("Vector database not initialized".into()),
     };
 
-    let embedder = self.create_embedder()?;
-
+    let embedder = self.create_embedder().await?;
     let indexer = self
       .indexer_provider
       .indexer_for(CollabType::Document)
@@ -636,7 +651,7 @@ impl VectorStore for SqliteVectorStore {
           let chunks_result = split_text_into_chunks(
             &object_id_str,
             vec![paragraph],
-            LocalEmbeddingModel::NomicEmbedText,
+            embedder_clone.model(),
             1000,
             200,
             RAGSource::AppFlowyDocument,
@@ -646,7 +661,12 @@ impl VectorStore for SqliteVectorStore {
             Ok(chunks) => match indexer_clone.embed(&embedder_clone, chunks).await {
               Ok(chunks) => {
                 if let Err(e) = vector_db_clone
-                  .upsert_collabs_embeddings(&workspace_id_str, &object_id_str, chunks)
+                  .upsert_collabs_embeddings(
+                    &workspace_id_str,
+                    &object_id_str,
+                    chunks,
+                    embedder_clone.dimension(),
+                  )
                   .await
                 {
                   error!(

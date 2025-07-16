@@ -1,7 +1,7 @@
 use crate::test_utils::{assert_content_similar, assert_response_about_topic};
 use crate::{TestContext, collect_stream, setup_log};
 use flowy_ai::local_ai::chat::chains::related_question_chain::RelatedQuestionChain;
-use flowy_ai::local_ai::chat::llm::LLMOllama;
+use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::chat::llm_chat::StreamQuestionOptions;
 use flowy_ai_pub::cloud::{OutputLayout, ResponseFormat};
 use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
@@ -100,7 +100,10 @@ async fn local_ai_test_chat_with_multiple_docs_retrieve() {
   }
   chat.set_rag_ids(ids.clone());
 
-  let all_docs = chat.get_all_embedded_documents().await.unwrap();
+  let all_docs = chat
+    .get_all_embedded_documents(context.embed_dimension())
+    .await
+    .unwrap();
   assert_eq!(all_docs.len(), 3);
   assert_eq!(all_docs[0].fragments.len(), 1);
   assert_eq!(all_docs[1].fragments.len(), 1);
@@ -191,7 +194,7 @@ async fn local_ai_test_chat_format() {
 async fn local_ai_test_chat_related_question() {
   setup_log();
 
-  let ollama = LLMOllama::default();
+  let ollama = AFLLM::default();
   let chain = RelatedQuestionChain::new(ollama);
   let resp = chain
     .generate_related_question(

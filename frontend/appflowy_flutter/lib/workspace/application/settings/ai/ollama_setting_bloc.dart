@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-ai/entities.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:bloc/bloc.dart';
 import 'package:collection/collection.dart';
@@ -23,6 +24,9 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
     on<_OnEdit>(_onEdit);
     on<_OnSubmit>(_onSubmit);
     on<_SetDefaultModel>(_onSetDefaultModel);
+    on<_SetSelectedEmbeddingModel>(_onSetSelectedEmbeddingModel);
+    on<_DidLoadEmbeddingModels>(_didLoadEmbeddingModels);
+    on<_NotifyResult>(_onNotifyResult);
   }
 
   Future<void> _handleStarted(
@@ -33,14 +37,19 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
       final results = await Future.wait([
         AIEventGetLocalModelSelection().send().then((r) => r.getOrThrow()),
         AIEventGetLocalAISetting().send().then((r) => r.getOrThrow()),
+        AIEventGetLocalEmbeddingModelSelection()
+            .send()
+            .then((r) => r.getOrThrow()),
       ]);
 
       final models = results[0] as ModelSelectionPB;
       final setting = results[1] as LocalAISettingPB;
+      final embeddingModels = results[2] as EmbeddingModelSelectionPB;
 
       if (!isClosed) {
         add(OllamaSettingEvent.didLoadLocalModels(models));
         add(OllamaSettingEvent.didLoadSetting(setting));
+        add(OllamaSettingEvent.didLoadEmbeddingModels(embeddingModels));
       }
     } catch (e, st) {
       Log.error('Failed to load initial AI data: $e\n$st');
@@ -62,6 +71,7 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
     final submitted = setting.toSubmittedItems();
     emit(
       state.copyWith(
+        successOrFail: null,
         setting: setting,
         inputItems: setting.toInputItems(),
         submittedItems: submitted,
@@ -89,7 +99,13 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
     final isEdited = !const MapEquality<SettingType, String>()
         .equals(state.originalMap, currentMap);
 
-    emit(state.copyWith(submittedItems: updated, isEdited: isEdited));
+    emit(
+      state.copyWith(
+        submittedItems: updated,
+        isEdited: isEdited,
+        successOrFail: null,
+      ),
+    );
   }
 
   void _onSubmit(
@@ -106,22 +122,55 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
           pb.globalChatModel = state.selectedModel?.name ?? item.content;
           break;
         case SettingType.embeddingModel:
-          pb.embeddingModelName = item.content;
+          pb.embeddingModelName = state.selectedEmbeddingModel ?? item.content;
           break;
       }
     }
     add(OllamaSettingEvent.updateSetting(pb));
-    AIEventUpdateLocalAISetting(pb).send().fold(
-          (_) => Log.info('AI setting updated successfully'),
-          (err) => Log.error('Update AI setting failed: $err'),
-        );
+    AIEventUpdateLocalAISetting(pb).send().then((result) {
+      if (isClosed) return;
+      add(OllamaSettingEvent.notifyResult(result));
+    });
   }
 
   void _onSetDefaultModel(
     _SetDefaultModel event,
     Emitter<OllamaSettingState> emit,
   ) {
-    emit(state.copyWith(selectedModel: event.model, isEdited: true));
+    emit(
+      state.copyWith(
+        selectedModel: event.model,
+        isEdited: true,
+        successOrFail: null,
+      ),
+    );
+  }
+
+  void _didLoadEmbeddingModels(
+    _DidLoadEmbeddingModels event,
+    Emitter<OllamaSettingState> emit,
+  ) {
+    emit(state.copyWith(embeddingModels: event.models));
+  }
+
+  void _onSetSelectedEmbeddingModel(
+    _SetSelectedEmbeddingModel event,
+    Emitter<OllamaSettingState> emit,
+  ) {
+    emit(
+      state.copyWith(
+        selectedEmbeddingModel: event.embeddingModel,
+        isEdited: true,
+        successOrFail: null,
+      ),
+    );
+  }
+
+  void _onNotifyResult(
+    _NotifyResult event,
+    Emitter<OllamaSettingState> emit,
+  ) {
+    emit(state.copyWith(successOrFail: event.successOrFail));
   }
 }
 
@@ -206,6 +255,17 @@ class OllamaSettingEvent with _$OllamaSettingEvent {
     SettingType settingType,
   ) = _OnEdit;
   const factory OllamaSettingEvent.submit() = _OnSubmit;
+
+  const factory OllamaSettingEvent.didLoadEmbeddingModels(
+    EmbeddingModelSelectionPB models,
+  ) = _DidLoadEmbeddingModels;
+  const factory OllamaSettingEvent.setSelectedEmbeddingModel(
+    String embeddingModel,
+  ) = _SetSelectedEmbeddingModel;
+
+  const factory OllamaSettingEvent.notifyResult(
+    FlowyResult<void, FlowyError>? successOrFail,
+  ) = _NotifyResult;
 }
 
 @freezed
@@ -214,11 +274,14 @@ class OllamaSettingState with _$OllamaSettingState {
     LocalAISettingPB? setting,
     @Default([]) List<SettingItem> inputItems,
     AIModelPB? selectedModel,
+    String? selectedEmbeddingModel,
     ModelSelectionPB? localModels,
+    EmbeddingModelSelectionPB? embeddingModels,
     AIModelPB? defaultModel,
     @Default([]) List<SubmittedItem> submittedItems,
     @Default(false) bool isEdited,
     @Default({}) Map<SettingType, String> originalMap,
+    FlowyResult<void, FlowyError>? successOrFail,
   }) = _OllamaSettingState;
 }
 
@@ -228,12 +291,6 @@ extension on LocalAISettingPB {
           content: serverUrl,
           hintText: 'http://localhost:11434',
           settingType: SettingType.serverUrl,
-        ),
-        SettingItem(
-          content: embeddingModelName,
-          hintText: kDefaultEmbeddingModel,
-          settingType: SettingType.embeddingModel,
-          editable: false, // embedding model is not editable
         ),
       ];
 

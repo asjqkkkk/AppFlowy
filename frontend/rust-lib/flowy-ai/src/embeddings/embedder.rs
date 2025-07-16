@@ -1,13 +1,14 @@
 use crate::embeddings::indexer::LocalEmbeddingModel;
+use crate::local_ai::chat::llm::LocalLLMController;
+use flowy_ai_pub::entities::EmbeddingDimension;
 use flowy_error::FlowyResult;
-use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::GenerateEmbeddingsResponse;
 use ollama_rs::generation::embeddings::request::GenerateEmbeddingsRequest;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum Embedder {
-  Ollama(OllamaEmbedder),
+  Ollama(Arc<LocalLLMController>),
 }
 
 impl Embedder {
@@ -21,21 +22,14 @@ impl Embedder {
   }
 
   pub fn model(&self) -> LocalEmbeddingModel {
-    LocalEmbeddingModel::NomicEmbedText
+    match self {
+      Embedder::Ollama(ollama) => ollama.embed_model(),
+    }
   }
-}
 
-#[derive(Debug, Clone)]
-pub struct OllamaEmbedder {
-  pub ollama: Arc<Ollama>,
-}
-
-impl OllamaEmbedder {
-  pub async fn embed(
-    &self,
-    request: GenerateEmbeddingsRequest,
-  ) -> FlowyResult<GenerateEmbeddingsResponse> {
-    let resp = self.ollama.generate_embeddings(request).await?;
-    Ok(resp)
+  pub fn dimension(&self) -> EmbeddingDimension {
+    match self {
+      Embedder::Ollama(ollama) => ollama.embed_dimension(),
+    }
   }
 }
