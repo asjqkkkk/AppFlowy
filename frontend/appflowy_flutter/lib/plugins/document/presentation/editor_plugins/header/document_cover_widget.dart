@@ -309,16 +309,10 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
     }
 
     final transaction = widget.editorState.transaction;
-    final coverType = widget.node.attributes[DocumentHeaderBlockKeys.coverType];
-    final coverDetails =
-        widget.node.attributes[DocumentHeaderBlockKeys.coverDetails];
     final Map<String, dynamic> attributes = {
-      DocumentHeaderBlockKeys.coverType: coverType,
-      DocumentHeaderBlockKeys.coverDetails: coverDetails,
-      DocumentHeaderBlockKeys.icon:
-          widget.node.attributes[DocumentHeaderBlockKeys.icon],
       CustomImageBlockKeys.imageType: '1',
     };
+
     if (cover != null) {
       attributes[DocumentHeaderBlockKeys.coverType] = cover.$1.toString();
       attributes[DocumentHeaderBlockKeys.coverDetails] = cover.$2;
@@ -328,16 +322,33 @@ class _DocumentCoverWidgetState extends State<DocumentCoverWidget> {
       widget.onIconChanged(icon);
     }
 
+    // only keep existing cover attributes when we're only changing the icon
+    if (cover == null && icon != null) {
+      final existingCoverType =
+          widget.node.attributes[DocumentHeaderBlockKeys.coverType];
+      final existingCoverDetails =
+          widget.node.attributes[DocumentHeaderBlockKeys.coverDetails];
+      if (existingCoverType != null) {
+        attributes[DocumentHeaderBlockKeys.coverType] = existingCoverType;
+      }
+      if (existingCoverDetails != null) {
+        attributes[DocumentHeaderBlockKeys.coverDetails] = existingCoverDetails;
+      }
+    }
+
     // compatible with version <= 0.5.5.
     transaction.updateNode(widget.node, attributes);
     await widget.editorState.apply(transaction);
 
     // compatible with version > 0.5.5.
-    EditorMigration.migrateCoverIfNeeded(
-      widget.view,
-      attributes,
-      overwrite: true,
-    );
+    // only migrate cover data when we're actually changing the cover
+    if (cover != null) {
+      EditorMigration.migrateCoverIfNeeded(
+        widget.view,
+        attributes,
+        overwrite: true,
+      );
+    }
   }
 
   bool _isTapInBounds(Offset offset) {

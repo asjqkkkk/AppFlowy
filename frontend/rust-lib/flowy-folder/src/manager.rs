@@ -933,6 +933,20 @@ impl FolderManager {
       return Err(FlowyError::view_is_locked());
     }
 
+    // check if the new parent is a descendant of the view being moved
+    let new_parent_ancestors = self
+      .get_view_ancestors_pb(&new_parent_id.to_string())
+      .await?;
+    if new_parent_ancestors
+      .iter()
+      .any(|ancestor| ancestor.id == view_id.to_string())
+    {
+      return Err(FlowyError::new(
+        flowy_error::ErrorCode::InvalidParams,
+        "Can't move a view to its own descendant",
+      ));
+    }
+
     let old_parent_id = Uuid::from_str(&view.parent_view_id)?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;

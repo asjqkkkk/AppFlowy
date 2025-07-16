@@ -382,54 +382,57 @@ class _WorkspaceType extends StatelessWidget {
         FutureBuilder<bool>(
           future: isOfficialHosted(),
           builder: (context, snapshot) {
-            return Row(
-              children: [
-                Expanded(
-                  child: _WorkspaceTypeCard(
-                    workspaceType: WorkspaceType.cloud,
-                    isLoading: false,
-                    isDisabled: false,
-                    isSelected: workspaceType == WorkspaceType.cloud,
-                    onTap: () => onChanged(WorkspaceType.cloud),
-                  ),
-                ),
-                HSpace(
-                  theme.spacing.m,
-                ),
-                if (snapshot.data == true) ...[
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
                   Expanded(
-                    child: BlocBuilder<PersonalSubscriptionBloc,
-                        PersonalSubscriptionState>(
-                      builder: (context, state) {
-                        final isVaultLoading =
-                            state is PersonalSubscriptionStateLoading;
-                        final isVaultDisabled =
-                            state is PersonalSubscriptionStateLoaded &&
-                                !state.hasVaultSubscription;
-
-                        return _WorkspaceTypeCard(
-                          workspaceType: WorkspaceType.vault,
-                          isDisabled: isVaultDisabled,
-                          isLoading: isVaultLoading,
-                          isSelected: workspaceType == WorkspaceType.vault,
-                          onTap: () {
-                            if (isVaultDisabled) {
-                              onTapWhenDisabled();
-                            } else {
-                              onChanged(WorkspaceType.vault);
-                            }
-                          },
-                          tooltipMessage: !isVaultLoading && isVaultDisabled
-                              ? LocaleKeys
-                                  .workspace_clickToSubscribeVaultWorkspace
-                                  .tr()
-                              : null,
-                        );
-                      },
+                    child: _WorkspaceTypeCard(
+                      workspaceType: WorkspaceType.cloud,
+                      isLoading: false,
+                      isDisabled: false,
+                      isSelected: workspaceType == WorkspaceType.cloud,
+                      onTap: () => onChanged(WorkspaceType.cloud),
                     ),
                   ),
+                  HSpace(
+                    theme.spacing.m,
+                  ),
+                  if (snapshot.data == true) ...[
+                    Expanded(
+                      child: BlocBuilder<PersonalSubscriptionBloc,
+                          PersonalSubscriptionState>(
+                        builder: (context, state) {
+                          final isVaultLoading =
+                              state is PersonalSubscriptionStateLoading;
+                          final isVaultDisabled =
+                              state is PersonalSubscriptionStateLoaded &&
+                                  !state.hasVaultSubscription;
+
+                          return _WorkspaceTypeCard(
+                            workspaceType: WorkspaceType.vault,
+                            isDisabled: isVaultDisabled,
+                            isLoading: isVaultLoading,
+                            isSelected: workspaceType == WorkspaceType.vault,
+                            onTap: () {
+                              if (isVaultDisabled) {
+                                onTapWhenDisabled();
+                              } else {
+                                onChanged(WorkspaceType.vault);
+                              }
+                            },
+                            tooltipMessage: !isVaultLoading && isVaultDisabled
+                                ? LocaleKeys
+                                    .workspace_clickToSubscribeVaultWorkspace
+                                    .tr()
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             );
           },
         ),
