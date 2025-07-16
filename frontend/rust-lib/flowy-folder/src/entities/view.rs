@@ -3,6 +3,7 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::{
   AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
+  MentionablePersonWithLastMentionedTime,
 };
 use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
@@ -1047,6 +1048,26 @@ pub struct MentionablePersonPB {
   pub description: Option<String>,
   #[pb(index = 8)]
   pub invited: bool,
+  #[pb(index = 9, one_of)]
+  pub last_mentioned_at: Option<i64>,
+}
+
+impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
+  fn from(person: MentionablePersonWithLastMentionedTime) -> Self {
+    MentionablePersonPB {
+      uuid: person.uuid.to_string(),
+      email: person.email,
+      name: person.name,
+      role: person.role.into(),
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      description: person.description,
+      invited: person.invited,
+      last_mentioned_at: person
+        .last_mentioned_at
+        .map(|datetime| datetime.timestamp()),
+    }
+  }
 }
 
 impl From<MentionablePerson> for MentionablePersonPB {
@@ -1060,6 +1081,7 @@ impl From<MentionablePerson> for MentionablePersonPB {
       cover_image_url: person.cover_image_url,
       description: person.description,
       invited: person.invited,
+      last_mentioned_at: None,
     }
   }
 }

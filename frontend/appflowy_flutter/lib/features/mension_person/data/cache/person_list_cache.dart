@@ -29,6 +29,8 @@ class PersonListWithAccessMemoryCache {
   ) {
     final set = _callbacks[documentId] ?? {};
     if (set.isEmpty) {
+      set.add(callback);
+      _callbacks[documentId] = set;
       ViewBackendService.getPageMentionablePersons(documentId).then((r) {
         final copySet = Set<ValueChanged<PersonListWithAccessAndResult>>.of(
           _callbacks[documentId] ?? {},

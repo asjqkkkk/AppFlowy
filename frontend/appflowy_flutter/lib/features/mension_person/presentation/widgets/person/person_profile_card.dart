@@ -166,27 +166,13 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
     );
   }
 
-  Widget buildActions(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
-    final state = context.read<PersonBloc>().state,
-        access = state.access,
-        person = state.person;
-    if (person.isEmpty) return const SizedBox.shrink();
-
-    return Row(
-      children: [
-        PersonRoleBadge(person: person, access: access),
-        Spacer(),
-        context.buildNotificationButton(),
-        HSpace(theme.spacing.m),
-        ProfileCardMoreButton(
+  Widget buildActions(BuildContext context) => context.buildActions(
+        moreButton: ProfileCardMoreButton(
           onEnter: widget.onEnter,
           onExit: widget.onExit,
           popoverController: popoverController,
         ),
-      ],
-    );
-  }
+      );
 
   Decoration buildCardDecoration(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
@@ -346,7 +332,6 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         noAccess = !person.deleted &&
             !personState.access &&
             person.role != PersonRole.contact;
-    if (url.isEmpty) return const SizedBox.shrink();
     final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
 
     final theme = AppFlowyTheme.of(this);
@@ -357,7 +342,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         url: url,
         radius: radius,
         name: person.name,
-        backgroundColor: Colors.transparent,
+        backgroundColor: url.isNotEmpty ? Colors.transparent : null,
       ),
     );
     if (noAccess) {
@@ -464,6 +449,23 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           ),
         ],
       ),
+    );
+  }
+
+  Widget buildActions({required ProfileCardMoreButton moreButton}) {
+    final state = read<PersonBloc>().state;
+    if (!state.isIdle) return const SizedBox.shrink();
+
+    return Row(
+      children: [
+        PersonRoleBadge(person: state.person, access: state.access),
+
+        /// make these available in the next versions
+        // Spacer(),
+        // buildNotificationButton(),
+        // HSpace(theme.spacing.m),
+        // moreButton,
+      ],
     );
   }
 }

@@ -2,7 +2,6 @@ import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
-import 'package:appflowy/features/mension_person/presentation/widgets/person/person_role_badge.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -106,7 +105,10 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
         context.buildPersonEmail(),
         context.buildPersonDescription(),
         VSpace(theme.spacing.xxl),
-        buildActions(context),
+        context.buildActions(
+          moreButton:
+              ProfileCardMoreButton(popoverController: popoverController),
+        ),
       ],
     );
   }
@@ -120,22 +122,6 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
           theme.textStyle.body.standard(color: theme.textColorScheme.secondary),
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
-    );
-  }
-
-  Widget buildActions(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
-    final state = context.read<PersonBloc>().state;
-    if (!state.isIdle) return const SizedBox.shrink();
-
-    return Row(
-      children: [
-        PersonRoleBadge(person: state.person, access: state.access),
-        Spacer(),
-        context.buildNotificationButton(),
-        HSpace(theme.spacing.m),
-        ProfileCardMoreButton(popoverController: popoverController),
-      ],
     );
   }
 
