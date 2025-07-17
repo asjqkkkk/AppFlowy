@@ -54,7 +54,7 @@ class ProfileCardMoreButton extends StatelessWidget {
         preferBelow: false,
         message: LocaleKeys.document_mentionMenu_threeDotButtonTooltip.tr(),
         child: AFOutlinedButton.normal(
-          backgroundColor: (context, isHovering, disabled) {
+          backgroundColor: (context, isHovering, disabled, _) {
             final theme = AppFlowyTheme.of(context);
             if (isHovering) {
               return theme.fillColorScheme.contentHover;

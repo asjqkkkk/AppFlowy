@@ -212,7 +212,7 @@ class _InviteMenuState extends State<InviteMenu> {
           ],
         );
       },
-      backgroundColor: (context, isHovering, _) {
+      backgroundColor: (context, isHovering, _, __) {
         if (isHovering || isSelected) {
           return theme.fillColorScheme.contentHover;
         }
@@ -225,7 +225,7 @@ class _InviteMenuState extends State<InviteMenu> {
   Widget buildBackButton() {
     return AFOutlinedTextButton.normal(
       text: LocaleKeys.document_mentionMenu_back.tr(),
-      backgroundFocusColor: (context, isHovering, isFocused, disabled) {
+      backgroundColor: (context, isHovering, disabled, isFocused) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;

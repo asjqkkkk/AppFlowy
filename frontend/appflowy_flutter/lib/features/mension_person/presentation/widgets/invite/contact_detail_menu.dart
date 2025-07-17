@@ -60,50 +60,47 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
     return FocusScope(
       node: menuState.menuFocusNode,
-      child: GestureDetector(
-        onTap: () {},
-        child: SizedBox(
-          width: 400,
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: theme.surfaceColorScheme.layer02,
-              borderRadius: BorderRadius.circular(spacing.xl),
-              boxShadow: theme.shadow.medium,
+      child: SizedBox(
+        width: 400,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.surfaceColorScheme.layer02,
+            borderRadius: BorderRadius.circular(spacing.xl),
+            boxShadow: theme.shadow.medium,
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              vertical: spacing.xl,
+              horizontal: spacing.xxl,
             ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                vertical: spacing.xl,
-                horizontal: spacing.xxl,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  buildTitle(),
-                  VSpace(spacing.l),
-                  buildSubtitle(LocaleKeys.document_mentionMenu_email.tr()),
-                  VSpace(spacing.xs),
-                  buildEmailField(),
-                  buildSubtitle(LocaleKeys.document_mentionMenu_name.tr()),
-                  VSpace(spacing.xs),
-                  buildNameField(),
-                  VSpace(spacing.xxl),
-                  buildSubtitle(
-                    LocaleKeys.document_mentionMenu_aboutContact.tr(),
-                  ),
-                  VSpace(spacing.xs),
-                  buildDescriptionField(),
-                  VSpace(spacing.xxl),
-                  Row(
-                    children: [
-                      Spacer(),
-                      buildBackButton(),
-                      HSpace(spacing.l),
-                      buildApplyButton(),
-                    ],
-                  ),
-                ],
-              ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                buildTitle(),
+                VSpace(spacing.l),
+                buildSubtitle(LocaleKeys.document_mentionMenu_email.tr()),
+                VSpace(spacing.xs),
+                buildEmailField(),
+                buildSubtitle(LocaleKeys.document_mentionMenu_name.tr()),
+                VSpace(spacing.xs),
+                buildNameField(),
+                VSpace(spacing.xxl),
+                buildSubtitle(
+                  LocaleKeys.document_mentionMenu_aboutContact.tr(),
+                ),
+                VSpace(spacing.xs),
+                buildDescriptionField(),
+                VSpace(spacing.xxl),
+                Row(
+                  children: [
+                    Spacer(),
+                    buildBackButton(),
+                    HSpace(spacing.l),
+                    buildApplyButton(),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
@@ -143,8 +140,9 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
       width: 360,
       child: menuState.buildNameField(
         onChanged: (text) {
-          final detail = menuState.detail.copyWith(name: text);
-          updateInfo(info.copyWith(contactDetail: () => detail));
+          updateInfo(
+            info.copyWith(contactDetail: menuState.detail.copyWith(name: text)),
+          );
         },
       ),
     );
@@ -157,7 +155,7 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
       child: menuState.buildDescriptionField(
         onChanged: (text) {
           final detail = menuState.detail.copyWith(description: text.trim());
-          updateInfo(info.copyWith(contactDetail: () => detail));
+          updateInfo(info.copyWith(contactDetail: detail));
         },
       ),
     );
@@ -166,7 +164,7 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
   Widget buildBackButton() {
     return AFOutlinedTextButton.normal(
       text: LocaleKeys.document_mentionMenu_back.tr(),
-      backgroundFocusColor: (context, isHovering, isFocused, disabled) {
+      backgroundColor: (context, isHovering, disabled, isFocused) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;

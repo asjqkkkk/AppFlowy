@@ -13,7 +13,6 @@ class AFBaseTextButton extends StatelessWidget {
     this.borderRadius,
     this.textColor,
     this.backgroundColor,
-    this.backgroundFocusColor,
     this.alignment,
     this.textStyle,
   });
@@ -43,11 +42,7 @@ class AFBaseTextButton extends StatelessWidget {
   final AFBaseButtonColorBuilder? textColor;
 
   /// The background color of the button.
-  final AFBaseButtonColorBuilder? backgroundColor;
-
-  /// The background color of the button.
-  /// The [backgroundFocusColor] and [backgroundColor] cannot exist at the same time.
-  final AFBaseButtonFocusColorBuilder? backgroundFocusColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   /// The alignment of the button.
   ///

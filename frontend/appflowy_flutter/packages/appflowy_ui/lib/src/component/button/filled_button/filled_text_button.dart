@@ -8,7 +8,7 @@ class AFFilledTextButton extends AFBaseTextButton {
     required super.text,
     required super.onTap,
     super.showFocusRing,
-    super.backgroundFocusColor,
+    super.backgroundColor,
     required super.textColor,
     super.size = AFButtonSize.m,
     super.padding,
@@ -48,7 +48,7 @@ class AFFilledTextButton extends AFBaseTextButton {
         }
         return AppFlowyTheme.of(context).textColorScheme.onFill;
       },
-      backgroundFocusColor: (context, isHovering, isFocused, disabled) {
+      backgroundColor: (context, isHovering, isFocused, disabled) {
         if (disabled) {
           return AppFlowyTheme.of(context).fillColorScheme.contentHover;
         }
@@ -90,7 +90,7 @@ class AFFilledTextButton extends AFBaseTextButton {
         }
         return AppFlowyTheme.of(context).textColorScheme.onFill;
       },
-      backgroundFocusColor: (context, isHovering, _, disabled) {
+      backgroundColor: (context, isHovering, _, disabled) {
         if (disabled) {
           return AppFlowyTheme.of(context).fillColorScheme.contentHover;
         }
@@ -124,7 +124,7 @@ class AFFilledTextButton extends AFBaseTextButton {
       textStyle: textStyle,
       textColor: (context, isHovering, disabled) =>
           AppFlowyTheme.of(context).textColorScheme.tertiary,
-      backgroundFocusColor: (context, isHovering, _, disabled) =>
+      backgroundColor: (context, isHovering, _, disabled) =>
           AppFlowyTheme.of(context).fillColorScheme.contentHover,
     );
   }
@@ -138,7 +138,7 @@ class AFFilledTextButton extends AFBaseTextButton {
       child: AFBaseButton(
         disabled: disabled,
         showFocusRing: showFocusRing,
-        backgroundFocusColor: backgroundFocusColor,
+        backgroundColor: backgroundColor,
         borderColor: (_, __, ___, ____) => Colors.transparent,
         padding: padding ?? size.buildPadding(context),
         borderRadius: borderRadius ?? size.buildBorderRadius(context),

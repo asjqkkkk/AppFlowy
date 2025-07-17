@@ -1,10 +1,7 @@
-import 'package:appflowy/core/config/kv.dart';
-import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/startup/startup.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -54,18 +51,12 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     Initial event,
     Emitter<MentionState> emit,
   ) async {
-    if (!isClosed) {
-      emit(
-        state.copyWith(
-          showMorePersons: false,
-          showMorePage: false,
-        ),
-      );
-    }
+    emit(state.copyWith(showMorePersons: false, showMorePage: false));
     if (query.isNotEmpty) {
       add(MentionEvent.query(query));
+    } else {
+      add(MentionEvent.getPersons(workspaceId: workspaceId));
     }
-    add(MentionEvent.getPersons(workspaceId: workspaceId));
   }
 
   Future<void> _onQuery(
@@ -96,10 +87,10 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     GetPersons event,
     Emitter<MentionState> emit,
   ) async {
-    List<Person> localList = personListCache.getPersons(workspaceId) ?? [];
+    List<Person> cachedPersons = personListCache.getPersons(workspaceId) ?? [];
     if (state.query.isNotEmpty) {
       final formatedQuery = state.query.toLowerCase();
-      localList = localList
+      cachedPersons = cachedPersons
           .where(
             (p) =>
                 p.name.toLowerCase().contains(formatedQuery) ||
@@ -107,10 +98,10 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
           )
           .toList();
     }
-    if (localList.isNotEmpty) {
+    if (cachedPersons.isNotEmpty) {
       emit(
         state.copyWith(
-          persons: localList,
+          persons: cachedPersons,
           dividerInfo: state.dividerInfo.copyWith(hasPersons: true),
         ),
       );
@@ -168,8 +159,6 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
   ) async {
     final value = !state.sendNotification;
     emit(state.copyWith(sendNotification: value));
-    await getIt<KeyValueStorage>()
-        .setBool(KVKeys.atMenuSendNotification, value);
   }
 
   Future<void> _onAddVisibleItem(

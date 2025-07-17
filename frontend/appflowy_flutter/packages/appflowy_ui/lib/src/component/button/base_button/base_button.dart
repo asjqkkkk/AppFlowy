@@ -7,13 +7,6 @@ typedef AFBaseButtonColorBuilder = Color Function(
   bool disabled,
 );
 
-typedef AFBaseButtonFocusColorBuilder = Color Function(
-  BuildContext context,
-  bool isHovering,
-  bool isFocused,
-  bool disabled,
-);
-
 typedef AFBaseButtonBorderColorBuilder = Color Function(
   BuildContext context,
   bool isHovering,
@@ -30,20 +23,18 @@ class AFBaseButton extends StatefulWidget {
     required this.borderRadius,
     this.borderColor,
     this.backgroundColor,
-    this.backgroundFocusColor,
     this.ringColor,
     this.disabled = false,
     this.autofocus = false,
     this.showFocusRing = true,
     this.cursor,
-  }): assert(backgroundColor == null || backgroundFocusColor == null);
+  });
 
   final VoidCallback? onTap;
 
   final AFBaseButtonBorderColorBuilder? borderColor;
   final AFBaseButtonBorderColorBuilder? ringColor;
-  final AFBaseButtonColorBuilder? backgroundColor;
-  final AFBaseButtonFocusColorBuilder? backgroundFocusColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   final EdgeInsetsGeometry padding;
   final double borderRadius;
@@ -152,9 +143,8 @@ class _AFBaseButtonState extends State<AFBaseButton> {
 
   Color _buildBackgroundColor(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    return widget.backgroundColor?.call(context, isHovering, widget.disabled) ??
-        widget.backgroundFocusColor
-            ?.call(context, isHovering, isFocused, widget.disabled) ??
+    return widget.backgroundColor
+            ?.call(context, isHovering, widget.disabled, isFocused) ??
         theme.fillColorScheme.content;
   }
 

@@ -362,7 +362,7 @@ class _DropdownPopoverContents<T extends AFDropDownMenuMixin>
           ],
         );
       },
-      backgroundColor: (context, isHovering, _) {
+      backgroundColor: (context, isHovering, _, __) {
         if (selectedItems.contains(item) && !isMultiselect) {
           return theme.fillColorScheme.themeSelect;
         }

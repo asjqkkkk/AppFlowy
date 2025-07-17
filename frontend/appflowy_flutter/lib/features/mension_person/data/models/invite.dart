@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 import 'person.dart';
 
 class InviteInfo {
@@ -16,13 +14,12 @@ class InviteInfo {
   InviteInfo copyWith({
     String? email,
     PersonRole? role,
-    ValueGetter<ContactDetail?>? contactDetail,
+    ContactDetail? contactDetail,
   }) {
     return InviteInfo(
       email: email ?? this.email,
       role: role ?? this.role,
-      contactDetail:
-          contactDetail != null ? contactDetail() : this.contactDetail,
+      contactDetail: contactDetail ?? this.contactDetail,
     );
   }
 }

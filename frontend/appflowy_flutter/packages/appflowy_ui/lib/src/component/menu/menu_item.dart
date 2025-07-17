@@ -86,7 +86,7 @@ class AFMenuItem extends StatelessWidget {
       borderColor: (context, isHovering, disabled, isFocused) {
         return Colors.transparent;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final color =
             backgroundColor?.call(context, isHovering, selected, disabled);
         if (color != null) return color;

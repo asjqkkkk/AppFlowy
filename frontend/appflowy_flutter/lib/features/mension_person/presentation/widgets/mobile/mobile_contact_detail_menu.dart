@@ -145,8 +145,9 @@ class _MobileContactDetailMenuState extends State<MobileContactDetailMenu> {
       width: MediaQuery.of(context).size.width,
       child: menuState.buildNameField(
         onChanged: (text) {
-          final detail = menuState.detail.copyWith(name: text);
-          updateInfo(info.copyWith(contactDetail: () => detail));
+          updateInfo(
+            info.copyWith(contactDetail: menuState.detail.copyWith(name: text)),
+          );
         },
         size: AFTextFieldSize.l,
       ),
@@ -160,7 +161,7 @@ class _MobileContactDetailMenuState extends State<MobileContactDetailMenu> {
       child: menuState.buildDescriptionField(
         onChanged: (text) {
           final detail = menuState.detail.copyWith(description: text.trim());
-          updateInfo(info.copyWith(contactDetail: () => detail));
+          updateInfo(info.copyWith(contactDetail: detail));
         },
       ),
     );

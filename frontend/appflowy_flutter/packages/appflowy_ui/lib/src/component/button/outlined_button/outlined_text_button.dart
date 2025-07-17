@@ -11,7 +11,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
     super.showFocusRing,
     super.textStyle,
     super.textColor,
-    super.backgroundFocusColor,
+    super.backgroundColor,
     super.size = AFButtonSize.m,
     super.padding,
     super.borderRadius,
@@ -31,7 +31,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
     bool showFocusRing = false,
     Alignment? alignment,
     TextStyle? textStyle,
-    AFBaseButtonFocusColorBuilder? backgroundFocusColor,
+    AFBaseButtonBorderColorBuilder? backgroundColor,
   }) {
     return AFOutlinedTextButton._(
       key: key,
@@ -54,8 +54,8 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         }
         return theme.borderColorScheme.primary;
       },
-      backgroundFocusColor: backgroundFocusColor ??
-          (context, isHovering, isFocused, disabled) {
+      backgroundColor: backgroundColor ??
+          (context, isHovering, disabled, isFocused) {
             final theme = AppFlowyTheme.of(context);
             if (disabled) {
               return theme.fillColorScheme.content;
@@ -112,7 +112,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         }
         return theme.fillColorScheme.errorThick;
       },
-      backgroundFocusColor: (context, isHovering, _, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.errorThick;
@@ -167,7 +167,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         }
         return theme.borderColorScheme.primary;
       },
-      backgroundFocusColor: (context, isHovering, isFocused, disabled) {
+      backgroundColor: (context, isHovering, disabled, isFocused) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
@@ -192,7 +192,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
       ),
       child: AFBaseButton(
         disabled: disabled,
-        backgroundFocusColor: backgroundFocusColor,
+        backgroundColor: backgroundColor,
         borderColor: borderColor,
         padding: padding ?? size.buildPadding(context),
         borderRadius: borderRadius ?? size.buildBorderRadius(context),

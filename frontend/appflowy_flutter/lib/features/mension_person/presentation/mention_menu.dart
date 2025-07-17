@@ -1,3 +1,5 @@
+import 'package:appflowy/core/config/kv.dart';
+import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/models/mention_menu_item.dart';
 import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
@@ -59,13 +61,30 @@ class MentionMenu extends StatelessWidget {
               value: itemMap,
               child: MentionMenuScroller(
                 builder: (_, controller) {
-                  return BlocListener<MentionBloc, MentionState>(
-                    listener: (context, state) {
-                      if (!controller.hasClients || !context.mounted) return;
-                      controller.jumpTo(0);
-                    },
-                    listenWhen: (previous, current) =>
-                        previous.query != current.query,
+                  return MultiBlocListener(
+                    listeners: [
+                      BlocListener<MentionBloc, MentionState>(
+                        listener: (context, state) {
+                          if (!controller.hasClients || !context.mounted) {
+                            return;
+                          }
+                          controller.jumpTo(0);
+                        },
+                        listenWhen: (previous, current) =>
+                            previous.query != current.query,
+                      ),
+                      BlocListener<MentionBloc, MentionState>(
+                        listener: (context, state) {
+                          getIt<KeyValueStorage>().setBool(
+                            KVKeys.atMenuSendNotification,
+                            state.sendNotification,
+                          );
+                        },
+                        listenWhen: (previous, current) =>
+                            previous.sendNotification !=
+                            current.sendNotification,
+                      ),
+                    ],
                     child: MentionMenuShortcuts(
                       scrollController: controller,
                       itemMap: itemMap,

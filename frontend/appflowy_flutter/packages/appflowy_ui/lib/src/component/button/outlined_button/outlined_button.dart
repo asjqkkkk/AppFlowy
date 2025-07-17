@@ -29,7 +29,7 @@ class AFOutlinedButton extends StatelessWidget {
     required VoidCallback onTap,
     AFButtonSize size = AFButtonSize.m,
     EdgeInsetsGeometry? padding,
-    AFBaseButtonColorBuilder? backgroundColor,
+    AFBaseButtonBorderColorBuilder? backgroundColor,
     double? borderRadius,
     bool disabled = false,
     MouseCursor? cursor,
@@ -55,7 +55,7 @@ class AFOutlinedButton extends StatelessWidget {
             return theme.borderColorScheme.primary;
           },
       backgroundColor: backgroundColor ??
-          (context, isHovering, disabled) {
+          (context, isHovering, disabled, _) {
             final theme = AppFlowyTheme.of(context);
             if (disabled) {
               return theme.fillColorScheme.content;
@@ -100,7 +100,7 @@ class AFOutlinedButton extends StatelessWidget {
             }
             return theme.fillColorScheme.errorThick;
           },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.errorThick;
@@ -143,7 +143,7 @@ class AFOutlinedButton extends StatelessWidget {
             }
             return theme.borderColorScheme.primary;
           },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
@@ -164,7 +164,7 @@ class AFOutlinedButton extends StatelessWidget {
   final double? borderRadius;
 
   final AFBaseButtonBorderColorBuilder? borderColor;
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   final AFOutlinedButtonWidgetBuilder builder;
 

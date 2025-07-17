@@ -56,7 +56,7 @@ class AFOutlinedIconTextButton extends StatelessWidget {
         }
         return theme.borderColorScheme.primary;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
@@ -111,7 +111,7 @@ class AFOutlinedIconTextButton extends StatelessWidget {
         }
         return theme.fillColorScheme.errorThick;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.errorThick;
@@ -166,7 +166,7 @@ class AFOutlinedIconTextButton extends StatelessWidget {
         }
         return theme.borderColorScheme.primary;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
@@ -191,7 +191,7 @@ class AFOutlinedIconTextButton extends StatelessWidget {
 
   final AFBaseButtonColorBuilder? textColor;
   final AFBaseButtonBorderColorBuilder? borderColor;
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   @override
   Widget build(BuildContext context) {

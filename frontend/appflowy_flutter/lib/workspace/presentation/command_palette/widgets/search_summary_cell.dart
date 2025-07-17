@@ -383,7 +383,7 @@ class ReferenceSources extends StatelessWidget {
                     vertical: spaceL,
                     horizontal: spaceM,
                   ),
-                  backgroundColor: (context, isHovering, disable) {
+                  backgroundColor: (context, isHovering, disable, _) {
                     if (isHovering) {
                       return theme.fillColorScheme.contentHover;
                     }

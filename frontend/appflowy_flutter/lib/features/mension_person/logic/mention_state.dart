@@ -4,7 +4,6 @@ import 'package:flutter/widgets.dart';
 class MentionState {
   MentionState({
     this.persons = const [],
-    this.personsWithAccess = const [],
     this.sendNotification = false,
     this.focusId,
     this.query = '',
@@ -16,7 +15,6 @@ class MentionState {
   });
 
   final List<Person> persons;
-  final List<PersonWithAccess> personsWithAccess;
   final bool sendNotification;
   final String? focusId;
   final String query;
@@ -28,7 +26,6 @@ class MentionState {
 
   MentionState copyWith({
     List<Person>? persons,
-    List<PersonWithAccess>? personsWithAccess,
     bool? sendNotification,
     ValueGetter<String?>? focusId,
     String? query,
@@ -40,7 +37,6 @@ class MentionState {
   }) {
     return MentionState(
       persons: persons ?? this.persons,
-      personsWithAccess: personsWithAccess ?? this.personsWithAccess,
       sendNotification: sendNotification ?? this.sendNotification,
       focusId: focusId != null ? focusId() : this.focusId,
       query: query ?? this.query,

@@ -106,7 +106,7 @@ class _TextColorPickerWidgetState extends State<TextColorPickerWidget> {
       borderRadius: theme.spacing.m,
       borderColor: (context, isHovering, disabled, isFocused) =>
           Colors.transparent,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         if (isHovering || popoverController.isOpen) {
           return theme.fillColorScheme.contentHover;
         }

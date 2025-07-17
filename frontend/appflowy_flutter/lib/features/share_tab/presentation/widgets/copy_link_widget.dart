@@ -52,7 +52,7 @@ class CopyLinkWidget extends StatelessWidget {
               horizontal: theme.spacing.l,
               vertical: theme.spacing.s,
             ),
-            backgroundFocusColor: (context, isHovering, isFocused, disabled) {
+            backgroundColor: (context, isHovering, disabled, isFocused) {
               final theme = AppFlowyTheme.of(context);
               if (disabled) {
                 return theme.fillColorScheme.content;

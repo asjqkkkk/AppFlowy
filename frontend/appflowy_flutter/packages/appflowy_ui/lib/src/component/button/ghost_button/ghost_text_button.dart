@@ -39,7 +39,7 @@ class AFGhostTextButton extends AFBaseTextButton {
       disabled: disabled,
       alignment: alignment,
       textStyle: textStyle,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (isHovering) {
           return theme.fillColorScheme.contentHover;
@@ -81,7 +81,7 @@ class AFGhostTextButton extends AFBaseTextButton {
       textStyle: textStyle,
       textColor: (context, isHovering, disabled) =>
           AppFlowyTheme.of(context).textColorScheme.tertiary,
-      backgroundColor: (context, isHovering, disabled) =>
+      backgroundColor: (context, isHovering, disabled, _) =>
           AppFlowyTheme.of(context).fillColorScheme.content,
     );
   }
