@@ -157,7 +157,7 @@ class AFAvatar extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(radius ?? size / 2),
       ),
       alignment: Alignment.center,
       child: Text(

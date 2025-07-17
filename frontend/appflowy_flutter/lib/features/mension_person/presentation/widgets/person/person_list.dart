@@ -95,8 +95,11 @@ class PersonList extends StatelessWidget {
                     isMyself: isCurrentUser,
                     person: person,
                     child: AFTextMenuItem(
-                      leading:
-                          AFAvatar(url: person.avatarUrl, size: AFAvatarSize.s),
+                      leading: AFAvatar(
+                        url: person.avatarUrl,
+                        size: AFAvatarSize.s,
+                        name: person.name,
+                      ),
                       selected: state.selectedId == person.id,
                       title: person.name,
                       subtitle: person.email,

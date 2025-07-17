@@ -86,7 +86,6 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         child: BlocBuilder<PersonBloc, PersonState>(
           key: key,
           builder: (context, state) {
-            if (state.isLoading) return const SizedBox.shrink();
             final bloc = context.read<PersonBloc>();
             return HoverMenu(
               key: ValueKey(

@@ -60,6 +60,9 @@ class PersonListWithAccessMemoryCache {
     } else {
       set.add(callback);
       _callbacks[documentId] = set;
+      final persons = _cache[documentId] ?? [];
+      callback
+          .call(PersonListWithAccessAndResult(persons: persons, succeed: true));
     }
   }
 

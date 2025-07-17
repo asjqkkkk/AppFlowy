@@ -393,6 +393,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     final theme = AppFlowyTheme.of(this),
         spacing = theme.spacing,
         m = spacing.m;
+    const size = 100.0, radius = 43.0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(theme.spacing.l),
       child: Stack(
@@ -401,11 +402,16 @@ extension PersonProfileCardWidgetExtension on BuildContext {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
+              Padding(
                 padding: EdgeInsets.fromLTRB(m, m, m, 0),
-                height: 80,
-                width: UniversalPlatform.isMobile ? double.infinity : 264,
-                color: theme.badgeColorScheme.color20Light1,
+                child: Container(
+                  width: UniversalPlatform.isMobile ? double.infinity : 264,
+                  height: 80,
+                  decoration: BoxDecoration(
+                    color: theme.badgeColorScheme.color20Light1,
+                    borderRadius: BorderRadius.circular(theme.spacing.m),
+                  ),
+                ),
               ),
               SizedBox(
                 height: 108,
@@ -424,25 +430,28 @@ extension PersonProfileCardWidgetExtension on BuildContext {
             left: 20,
             top: 38,
             child: Container(
-              width: 100,
-              height: 100,
+              width: size,
+              height: size,
               decoration: BoxDecoration(
                 color: theme.surfaceColorScheme.layer01,
-                borderRadius: BorderRadius.circular(43),
+                borderRadius: BorderRadius.circular(radius),
               ),
-              child: Container(
-                width: 90,
-                height: 90,
-                padding: EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.surfaceColorScheme.layer01,
-                  borderRadius: BorderRadius.circular(43),
-                  border: Border.all(color: theme.borderColorScheme.primary),
-                ),
-                child: Center(
-                  child: FlowySvg(
-                    FlowySvgs.user_deleted_icon_lg,
-                    color: theme.iconColorScheme.secondary,
+              child: Center(
+                child: Container(
+                  width: size - 10,
+                  height: size - 10,
+                  decoration: BoxDecoration(
+                    color: theme.surfaceColorScheme.layer01,
+                    borderRadius: BorderRadius.circular(
+                      radius * 2 / (size - 10) * (radius - 2),
+                    ),
+                    border: Border.all(color: theme.borderColorScheme.primary),
+                  ),
+                  child: Center(
+                    child: FlowySvg(
+                      FlowySvgs.user_deleted_icon_lg,
+                      color: theme.iconColorScheme.secondary,
+                    ),
                   ),
                 ),
               ),
