@@ -10,7 +10,6 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:provider/provider.dart';
 import 'widgets/date_reminder_list.dart';
 import 'widgets/mention_menu_scroller.dart';
 import 'widgets/mention_menu_shortcuts.dart';
@@ -56,43 +55,37 @@ class MentionMenu extends StatelessWidget {
         )..add(MentionEvent.init()),
         child: BlocBuilder<MentionBloc, MentionState>(
           builder: (context, state) {
-            final itemMap = MentionItemMap();
-            final child = Provider<MentionItemMap>.value(
-              value: itemMap,
-              child: MentionMenuScroller(
-                builder: (_, controller) {
-                  return MultiBlocListener(
-                    listeners: [
-                      BlocListener<MentionBloc, MentionState>(
-                        listener: (context, state) {
-                          if (!controller.hasClients || !context.mounted) {
-                            return;
-                          }
-                          controller.jumpTo(0);
-                        },
-                        listenWhen: (previous, current) =>
-                            previous.query != current.query,
-                      ),
-                      BlocListener<MentionBloc, MentionState>(
-                        listener: (context, state) {
-                          getIt<KeyValueStorage>().setBool(
-                            KVKeys.atMenuSendNotification,
-                            state.sendNotification,
-                          );
-                        },
-                        listenWhen: (previous, current) =>
-                            previous.sendNotification !=
-                            current.sendNotification,
-                      ),
-                    ],
-                    child: MentionMenuShortcuts(
-                      scrollController: controller,
-                      itemMap: itemMap,
-                      child: buildMenu(context, controller),
+            final child = MentionMenuScroller(
+              builder: (_, controller) {
+                return MultiBlocListener(
+                  listeners: [
+                    BlocListener<MentionBloc, MentionState>(
+                      listener: (context, state) {
+                        if (!controller.hasClients || !context.mounted) {
+                          return;
+                        }
+                        controller.jumpTo(0);
+                      },
+                      listenWhen: (previous, current) =>
+                          previous.query != current.query,
                     ),
-                  );
-                },
-              ),
+                    BlocListener<MentionBloc, MentionState>(
+                      listener: (context, state) {
+                        getIt<KeyValueStorage>().setBool(
+                          KVKeys.atMenuSendNotification,
+                          state.sendNotification,
+                        );
+                      },
+                      listenWhen: (previous, current) =>
+                          previous.sendNotification != current.sendNotification,
+                    ),
+                  ],
+                  child: MentionMenuShortcuts(
+                    scrollController: controller,
+                    child: buildMenu(context, controller),
+                  ),
+                );
+              },
             );
             return builder?.call(context, child) ?? child;
           },
@@ -104,41 +97,60 @@ class MentionMenu extends StatelessWidget {
   Widget buildMenu(BuildContext context, ScrollController controller) {
     final theme = AppFlowyTheme.of(context),
         state = context.read<MentionBloc>().state,
-        dividerInfo = state.dividerInfo;
-    return ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: maxHeight),
-      child: Container(
-        decoration: BoxDecoration(
-          color: theme.surfaceColorScheme.primary,
-          borderRadius: BorderRadius.circular(theme.borderRadius.l),
-          border: Border.all(
-            color: theme.borderColorScheme.primary,
+        itemMap = state.itemMap,
+        hasPersons = itemMap.getItems(MentionMenuType.person).isNotEmpty,
+        hasPages = itemMap.getItems(MentionMenuType.page).isNotEmpty,
+        hasDateOrReminders =
+            itemMap.getItems(MentionMenuType.dateAndReminder).isNotEmpty;
+
+    return BlocListener<MentionBloc, MentionState>(
+      listener: (context, state) => onItemExecuted(context, state),
+      listenWhen: (previous, current) =>
+          previous.executedItem?.id != current.executedItem?.id,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: maxHeight),
+        child: Container(
+          decoration: BoxDecoration(
+            color: theme.surfaceColorScheme.primary,
+            borderRadius: BorderRadius.circular(theme.borderRadius.l),
+            border: Border.all(
+              color: theme.borderColorScheme.primary,
+            ),
+            boxShadow: theme.shadow.medium,
           ),
-          boxShadow: theme.shadow.medium,
-        ),
-        width: width,
-        padding: EdgeInsets.zero,
-        child: FlowyScrollbar(
-          controller: controller,
-          child: SingleChildScrollView(
+          width: width,
+          padding: EdgeInsets.zero,
+          child: FlowyScrollbar(
             controller: controller,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                PersonList(),
-                if (dividerInfo.hasPersons &&
-                    (dividerInfo.hasPages || dividerInfo.hasDateOrReminders))
-                  AFDivider(),
-                PageList(),
-                if (dividerInfo.hasDateOrReminders && dividerInfo.hasPages)
-                  AFDivider(),
-                DateReminderList(),
-              ],
+            child: SingleChildScrollView(
+              controller: controller,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PersonList(),
+                  if (hasPersons && (hasPages || hasDateOrReminders))
+                    AFDivider(),
+                  PageList(),
+                  if (hasDateOrReminders && hasPages) AFDivider(),
+                  DateReminderList(),
+                ],
+              ),
             ),
           ),
         ),
       ),
     );
+  }
+
+  void onItemExecuted(
+    BuildContext context,
+    MentionState state,
+  ) {
+    final item = state.executedItem;
+    if (item == null) return;
+    item.onPersonItemExecuted(context);
+    item.onPageItemExecuted(context);
+    item.onDateOrReminderItemExecuted(context);
   }
 }
 

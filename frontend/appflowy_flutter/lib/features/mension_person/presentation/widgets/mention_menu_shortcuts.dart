@@ -13,12 +13,10 @@ class MentionMenuShortcuts extends StatefulWidget {
     super.key,
     required this.child,
     required this.scrollController,
-    required this.itemMap,
   });
 
   final Widget child;
   final ScrollController scrollController;
-  final MentionItemMap itemMap;
   @override
   State<MentionMenuShortcuts> createState() => _MentionMenuShortcutsState();
 }
@@ -28,8 +26,6 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
   int startOffset = 0;
 
   ScrollController get scrollController => widget.scrollController;
-
-  MentionItemMap get itemMap => widget.itemMap;
 
   @override
   void initState() {
@@ -79,10 +75,11 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
     ];
 
     if (event.logicalKey == LogicalKeyboardKey.enter) {
-      final item =
-          itemMap.items.where((e) => e.id == menuState.selectedId).firstOrNull;
+      final item = menuState.itemMap.items
+          .where((e) => e.id == menuState.selectedId)
+          .firstOrNull;
       if (item != null) {
-        item.onExecute.call();
+        menuBloc.add(ExecuteItem(item));
       } else {
         onDismiss();
       }
@@ -158,14 +155,14 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
 
   void _moveSelection(LogicalKeyboardKey key, BuildContext context) {
     final menuBloc = context.read<MentionBloc>(), menuState = menuBloc.state;
-    final items = itemMap.items;
+    final items = menuState.itemMap.items;
     final index = items.indexWhere((e) => e.id == menuState.selectedId);
     final direction = _getDirection(key);
     if (direction == null) return;
-    final newIndex = _caculateIndex(index, direction);
+    final newIndex = _caculateIndex(index, direction, items);
     final item = items[newIndex];
     menuBloc.add(MentionEvent.selectItem(item.id));
-    _scrollToItem(index, newIndex, context);
+    _scrollToItem(index, newIndex, items, context);
   }
 
   VerticalDirection? _getDirection(LogicalKeyboardKey key) {
@@ -179,8 +176,11 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
     return null;
   }
 
-  int _caculateIndex(int index, VerticalDirection direction) {
-    final items = itemMap.items;
+  int _caculateIndex(
+    int index,
+    VerticalDirection direction,
+    List<MentionMenuItem> items,
+  ) {
     int newIndex = index;
     if (index < 0) {
       newIndex = direction == VerticalDirection.up ? items.length - 1 : 0;
@@ -197,10 +197,10 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
   void _scrollToItem(
     int from,
     int to,
+    List<MentionMenuItem> items,
     BuildContext context,
   ) {
     if (!context.mounted) return;
-    final items = itemMap.items;
 
     /// scroll to the end
     if (to == items.length - 1) {

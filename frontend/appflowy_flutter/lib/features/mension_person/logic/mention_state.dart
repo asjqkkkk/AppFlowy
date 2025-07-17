@@ -1,9 +1,12 @@
-import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy/features/mension_person/data/models/models.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:flutter/widgets.dart';
 
 class MentionState {
   MentionState({
     this.persons = const [],
+    this.views = const [],
+    this.filterViews = const [],
     this.sendNotification = false,
     this.focusId,
     this.query = '',
@@ -11,10 +14,13 @@ class MentionState {
     this.showMorePersons = false,
     this.showMorePage = false,
     this.visibleItems = const {},
-    this.dividerInfo = const MentionMenuDivider(),
+    required this.itemMap,
+    this.executedItem,
   });
 
   final List<Person> persons;
+  final List<ViewPB> views;
+  final List<ViewPB> filterViews;
   final bool sendNotification;
   final String? focusId;
   final String query;
@@ -22,10 +28,13 @@ class MentionState {
   final bool showMorePersons;
   final bool showMorePage;
   final Set<String> visibleItems;
-  final MentionMenuDivider dividerInfo;
+  final MentionItemMap itemMap;
+  final MentionMenuItem? executedItem;
 
   MentionState copyWith({
     List<Person>? persons,
+    List<ViewPB>? views,
+    List<ViewPB>? filterViews,
     bool? sendNotification,
     ValueGetter<String?>? focusId,
     String? query,
@@ -33,10 +42,13 @@ class MentionState {
     bool? showMorePersons,
     bool? showMorePage,
     Set<String>? visibleItems,
-    MentionMenuDivider? dividerInfo,
+    MentionItemMap? itemMap,
+    MentionMenuItem? executedItem,
   }) {
     return MentionState(
       persons: persons ?? this.persons,
+      views: views ?? this.views,
+      filterViews: filterViews ?? this.filterViews,
       sendNotification: sendNotification ?? this.sendNotification,
       focusId: focusId != null ? focusId() : this.focusId,
       query: query ?? this.query,
@@ -44,31 +56,8 @@ class MentionState {
       showMorePersons: showMorePersons ?? this.showMorePersons,
       showMorePage: showMorePage ?? this.showMorePage,
       visibleItems: visibleItems ?? this.visibleItems,
-      dividerInfo: dividerInfo ?? this.dividerInfo,
-    );
-  }
-}
-
-class MentionMenuDivider {
-  const MentionMenuDivider({
-    this.hasPersons = false,
-    this.hasPages = false,
-    this.hasDateOrReminders = true,
-  });
-
-  final bool hasPersons;
-  final bool hasPages;
-  final bool hasDateOrReminders;
-
-  MentionMenuDivider copyWith({
-    bool? hasPersons,
-    bool? hasPages,
-    bool? hasDateOrReminders,
-  }) {
-    return MentionMenuDivider(
-      hasPersons: hasPersons ?? this.hasPersons,
-      hasPages: hasPages ?? this.hasPages,
-      hasDateOrReminders: hasDateOrReminders ?? this.hasDateOrReminders,
+      itemMap: itemMap ?? this.itemMap,
+      executedItem: executedItem ?? this.executedItem,
     );
   }
 }

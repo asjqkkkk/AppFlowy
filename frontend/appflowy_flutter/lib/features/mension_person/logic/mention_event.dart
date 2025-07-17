@@ -1,6 +1,5 @@
-import 'package:appflowy/features/mension_person/data/models/person.dart';
-
-import 'mention_state.dart';
+import 'package:appflowy/features/mension_person/data/models/models.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 
 sealed class MentionEvent {
   const MentionEvent();
@@ -16,8 +15,10 @@ sealed class MentionEvent {
   const factory MentionEvent.addVisibleItem(String id) = AddVisibleItem;
   const factory MentionEvent.removeVisibleItem(String id) = RemoveVisibleItem;
   const factory MentionEvent.selectItem(String id) = SelectItem;
-  const factory MentionEvent.updateDividerInfo(MentionMenuDivider info) =
-      UpdateDividerInfo;
+  const factory MentionEvent.updateItemMap(MentionItemMap itemMap) =
+      UpdateItemMap;
+  const factory MentionEvent.updateViews(List<ViewPB> views) = UpdateViews;
+  const factory MentionEvent.executeItem(MentionMenuItem item) = ExecuteItem;
   const factory MentionEvent.mentionPerson({
     required String documentId,
     required String personId,
@@ -49,6 +50,12 @@ class UpdatePersonList implements MentionEvent {
   const UpdatePersonList(this.persons);
 
   final List<Person> persons;
+}
+
+class UpdateViews implements MentionEvent {
+  const UpdateViews(this.views);
+
+  final List<ViewPB> views;
 }
 
 class Query implements MentionEvent {
@@ -91,10 +98,16 @@ class SelectItem implements MentionEvent {
   final String id;
 }
 
-class UpdateDividerInfo implements MentionEvent {
-  const UpdateDividerInfo(this.info);
+class UpdateItemMap implements MentionEvent {
+  const UpdateItemMap(this.map);
 
-  final MentionMenuDivider info;
+  final MentionItemMap map;
+}
+
+class ExecuteItem implements MentionEvent {
+  const ExecuteItem(this.item);
+
+  final MentionMenuItem item;
 }
 
 class MentionPerson implements MentionEvent {

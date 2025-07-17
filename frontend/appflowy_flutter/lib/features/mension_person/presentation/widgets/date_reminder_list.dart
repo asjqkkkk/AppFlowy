@@ -19,85 +19,67 @@ class DateReminderList extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context),
         spacing = theme.spacing,
-        itemMap = context.read<MentionItemMap>(),
-        items = buildItems(context);
+        mentionBloc = context.read<MentionBloc>(),
+        mentionState = mentionBloc.state,
+        itemMap = mentionState.itemMap,
+        items = itemMap.getItems(MentionMenuType.dateAndReminder);
 
     if (items.isEmpty) return const SizedBox.shrink();
-    final children = List.generate(items.length, (index) {
-      final item = items[index];
-      itemMap.addToDateAndReminder(item);
-      return MentionMenuItenVisibilityDetector(
-        id: item.id,
-        child: AFTextMenuItem(
-          title: item.id,
-          selected: context.read<MentionBloc>().state.selectedId == item.id,
-          onTap: item.onExecute,
-          backgroundColor: context.mentionItemBGColor,
-        ),
-      );
-    });
 
     return Padding(
       padding: EdgeInsets.all(spacing.m),
       child: AFMenuSection(
         title: LocaleKeys.document_mentionMenu_dateAndReminder.tr(),
-        children: children,
+        children: List.generate(items.length, (index) {
+          final item = items[index];
+          return MentionMenuItenVisibilityDetector(
+            id: item.id,
+            child: AFTextMenuItem(
+              title: item.id,
+              selected: context.read<MentionBloc>().state.selectedId == item.id,
+              onTap: () => mentionBloc.add(MentionEvent.executeItem(item)),
+              backgroundColor: context.mentionItemBGColor,
+            ),
+          );
+        }),
       ),
     );
   }
+}
 
-  List<MentionMenuItem> buildItems(BuildContext context) {
-    final mentionState = context.read<MentionBloc>().state,
-        query = mentionState.query;
-    final items = [
-      MentionMenuItem(
-        id: LocaleKeys.document_mentionMenu_dateToday.tr(),
-        onExecute: () => onDateInsert(context, DateTime.now()),
-      ),
-      MentionMenuItem(
-        id: LocaleKeys.document_mentionMenu_dateTomorrow.tr(),
-        onExecute: () => onDateInsert(
-          context,
-          DateTime.now().add(const Duration(days: 1)),
-        ),
-      ),
-      MentionMenuItem(
-        id: LocaleKeys.document_mentionMenu_dateYesterday.tr(),
-        onExecute: () => onDateInsert(
-          context,
-          DateTime.now().subtract(const Duration(days: 1)),
-        ),
-      ),
-      MentionMenuItem(
-        id: LocaleKeys.document_mentionMenu_reminderTomorrow9Am.tr(),
-        onExecute: () {
-          final now = DateTime.now();
-          onReminderInsert(
-            context,
-            DateTime(now.year, now.month, now.day + 1, 9),
-            true,
-          );
-        },
-      ),
-      MentionMenuItem(
-        id: LocaleKeys.document_mentionMenu_reminder1Week.tr(),
-        onExecute: () => onReminderInsert(
-          context,
-          DateTime.now().add(const Duration(days: 7)),
-          false,
-        ),
-      ),
-    ];
-    List<MentionMenuItem> filterItems = List.of(items);
-    if (query.isNotEmpty) {
-      filterItems = filterItems
-          .where((item) => item.id.toLowerCase().contains(query.toLowerCase()))
-          .toList();
+extension DateReminderItemExtension on MentionMenuItem {
+  Future<void> onDateOrReminderItemExecuted(BuildContext context) async {
+    final item = this;
+    if (item is! DateReminderMentionMenuItem) return;
+    if (item.id == LocaleKeys.document_mentionMenu_dateToday.tr()) {
+      await _onDateInsert(context, DateTime.now());
+    } else if (item.id == LocaleKeys.document_mentionMenu_dateTomorrow.tr()) {
+      await _onDateInsert(
+        context,
+        DateTime.now().add(const Duration(days: 1)),
+      );
+    } else if (item.id == LocaleKeys.document_mentionMenu_dateYesterday.tr()) {
+      await _onDateInsert(
+        context,
+        DateTime.now().subtract(const Duration(days: 1)),
+      );
+    } else if (item.id ==
+        LocaleKeys.document_mentionMenu_reminderTomorrow9Am.tr()) {
+      await _onReminderInsert(
+        context,
+        DateTime.now().add(const Duration(days: 1, hours: 9)),
+        true,
+      );
+    } else if (item.id == LocaleKeys.document_mentionMenu_reminder1Week.tr()) {
+      await _onReminderInsert(
+        context,
+        DateTime.now().add(const Duration(days: 7)),
+        false,
+      );
     }
-    return filterItems;
   }
 
-  Future<void> onDateInsert(
+  Future<void> _onDateInsert(
     BuildContext context,
     DateTime date,
   ) async {
@@ -112,11 +94,11 @@ class DateReminderList extends StatelessWidget {
     if (node == null || delta == null) return;
     final range = mentionInfo.textRange(query);
 
-    onDismiss(mentionInfo);
+    _onDismiss(mentionInfo);
     await editorState.insertDateReference(date, range.start, range.end);
   }
 
-  Future<void> onReminderInsert(
+  Future<void> _onReminderInsert(
     BuildContext context,
     DateTime date,
     bool includeTime,
@@ -132,7 +114,7 @@ class DateReminderList extends StatelessWidget {
     if (node == null || delta == null) return;
 
     final range = mentionInfo.textRange(query);
-    onDismiss(mentionInfo);
+    _onDismiss(mentionInfo);
     await editorState.insertReminderReference(
       context,
       date,
@@ -142,7 +124,7 @@ class DateReminderList extends StatelessWidget {
     );
   }
 
-  void onDismiss(MentionMenuServiceInfo info) {
+  void _onDismiss(MentionMenuServiceInfo info) {
     info.onDismiss.call();
   }
 }

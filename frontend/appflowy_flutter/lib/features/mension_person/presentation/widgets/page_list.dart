@@ -25,160 +25,109 @@ class PageList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final mentionBloc = context.read<MentionBloc>(),
-        mentionState = mentionBloc.state,
-        itemMap = context.read<MentionItemMap>();
-    final showMorePage = mentionState.showMorePage, query = mentionState.query;
-    final theme = AppFlowyTheme.of(context);
+    final mentionBloc = context.read<MentionBloc>();
 
     return BlocProvider(
-      key: ValueKey(query),
       create: (context) =>
           RecentViewsBloc()..add(const RecentViewsEvent.initial()),
-      child: BlocListener<RecentViewsBloc, RecentViewsState>(
-        listener: (context, recentViewsState) {
-          final nothingToShow = query.isEmpty && recentViewsState.views.isEmpty;
-          mentionBloc.add(
-            MentionEvent.updateDividerInfo(
-              mentionState.dividerInfo.copyWith(hasPages: !nothingToShow),
+      child: BlocBuilder<RecentViewsBloc, RecentViewsState>(
+        builder: (context, recentViewState) {
+          return BlocListener<RecentViewsBloc, RecentViewsState>(
+            listener: (context, state) => mentionBloc.add(
+              MentionEvent.updateViews(
+                state.views.map((e) => e.item).toList(),
+              ),
+            ),
+            child: BlocBuilder<MentionBloc, MentionState>(
+              builder: (context, state) {
+                final theme = AppFlowyTheme.of(context);
+                final pages = state.itemMap.getItems(MentionMenuType.page);
+                if (pages.isEmpty) return const SizedBox.shrink();
+                return Padding(
+                  padding: EdgeInsets.all(theme.spacing.m),
+                  child: AFMenuSection(
+                    title: LocaleKeys.document_mentionMenu_pages.tr(),
+                    children: List.generate(
+                      pages.length,
+                      (index) => pages[index].buildPageItem(context),
+                    ),
+                  ),
+                );
+              },
             ),
           );
         },
-        child: BlocBuilder<RecentViewsBloc, RecentViewsState>(
-          builder: (context, state) {
-            final recentViews = state.views.map((e) => e.item).toSet().toList();
-            List<ViewPB> filterViews = List.of(recentViews);
-            if (query.isNotEmpty) {
-              filterViews = filterViews
-                  .where(
-                    (view) => view.nameOrDefault
-                        .toLowerCase()
-                        .contains(query.toLowerCase()),
-                  )
-                  .toList();
-            }
-            final hasMorePage = filterViews.length > 4;
-            List<ViewPB> displayedViews = List.of(filterViews);
-            final showMoreResult = hasMorePage && !showMorePage;
-
-            if (showMoreResult) {
-              displayedViews = displayedViews.sublist(0, 4);
-            }
-
-            for (final view in displayedViews) {
-              itemMap.addToPage(
-                MentionMenuItem(
-                  id: view.id,
-                  onExecute: () => onPageSelected(view, context),
-                ),
-              );
-            }
-
-            final createPageId =
-                LocaleKeys.inlineActions_createPage.tr(args: ['addPage']);
-
-            if (query.isNotEmpty) {
-              itemMap.addToPage(
-                MentionMenuItem(
-                  id: createPageId,
-                  onExecute: () => onPageCreate(context),
-                ),
-              );
-            }
-
-            final showMoreId = LocaleKeys.document_mentionMenu_moreResults
-                .tr(args: ['show more page']);
-            void onShowMore() {
-              if (!showMoreResult) return;
-              context.read<MentionBloc>().add(
-                    MentionEvent.showMorePages(
-                      UniversalPlatform.isMobile ? '' : filterViews[4].id,
-                    ),
-                  );
-            }
-
-            if (showMoreResult) {
-              itemMap.addToPage(
-                MentionMenuItem(id: showMoreId, onExecute: onShowMore),
-              );
-            }
-
-            if (displayedViews.isEmpty && query.isEmpty) {
-              return const SizedBox.shrink();
-            }
-
-            return Padding(
-              padding: EdgeInsets.all(theme.spacing.m),
-              child: AFMenuSection(
-                title: LocaleKeys.document_mentionMenu_pages.tr(),
-                children: [
-                  ...List.generate(displayedViews.length, (index) {
-                    final view = displayedViews[index];
-                    return MentionMenuItenVisibilityDetector(
-                      id: view.id,
-                      child: AFTextMenuItem(
-                        selected: mentionState.selectedId == view.id,
-                        leading: SizedBox(
-                          width: 24,
-                          child: Center(child: view.buildIcon(context)),
-                        ),
-                        title: view.nameOrDefault,
-                        backgroundColor: context.mentionItemBGColor,
-                        onTap: () => onPageSelected(view, context),
-                      ),
-                    );
-                  }),
-                  createPageItem(
-                    context: context,
-                    id: createPageId,
-                    onTap: () => onPageCreate(context),
-                  ),
-                  if (showMoreResult)
-                    MoreResultsItem(
-                      num: recentViews.length - 4,
-                      onTap: onShowMore,
-                      id: showMoreId,
-                    ),
-                ],
-              ),
-            );
-          },
-        ),
       ),
     );
   }
+}
 
-  Widget createPageItem({
-    required BuildContext context,
-    required String id,
-    required VoidCallback onTap,
-  }) {
-    final theme = AppFlowyTheme.of(context);
-    final state = context.read<MentionBloc>().state, query = state.query;
-    if (query.isEmpty) return const SizedBox.shrink();
-
-    return MentionMenuItenVisibilityDetector(
-      id: id,
-      child: AFTextMenuItem(
-        selected: state.selectedId == id,
-        title: LocaleKeys.inlineActions_createPage.tr(args: [query]),
-        leading: SizedBox.square(
-          dimension: 24,
-          child: Center(
-            child: FlowySvg(
-              FlowySvgs.mention_create_page_m,
-              color: theme.iconColorScheme.primary,
-              size: const Size.square(20.0),
+extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
+  Widget buildPageItem(BuildContext context) {
+    final theme = AppFlowyTheme.of(context),
+        mentionBloc = context.read<MentionBloc>(),
+        mentionState = mentionBloc.state,
+        item = this;
+    if (item is PageMentionMenuItem) {
+      final view = item.view;
+      return MentionMenuItenVisibilityDetector(
+        id: view.id,
+        child: AFTextMenuItem(
+          selected: mentionState.selectedId == view.id,
+          leading: SizedBox(
+            width: 24,
+            child: Center(child: view.buildIcon(context)),
+          ),
+          title: view.nameOrDefault,
+          backgroundColor: context.mentionItemBGColor,
+          onTap: () => mentionBloc.add(MentionEvent.executeItem(this)),
+        ),
+      );
+    } else if (item is MoreResultMentionMenuItem) {
+      final pages = mentionState.itemMap.getItems(MentionMenuType.page);
+      return MoreResultsItem(
+        num: mentionState.filterViews.length - 4,
+        onTap: () => mentionBloc.add(MentionEvent.executeItem(this)),
+        id: pages[4].id,
+      );
+    } else if (item is AddViewMenuItem) {
+      return MentionMenuItenVisibilityDetector(
+        id: id,
+        child: AFTextMenuItem(
+          selected: mentionState.selectedId == id,
+          title: LocaleKeys.inlineActions_createPage
+              .tr(args: [mentionState.query]),
+          leading: SizedBox.square(
+            dimension: 24,
+            child: Center(
+              child: FlowySvg(
+                FlowySvgs.mention_create_page_m,
+                color: theme.iconColorScheme.primary,
+                size: const Size.square(20.0),
+              ),
             ),
           ),
+          backgroundColor: context.mentionItemBGColor,
+          onTap: () => mentionBloc.add(MentionEvent.executeItem(this)),
         ),
-        backgroundColor: context.mentionItemBGColor,
-        onTap: onTap,
-      ),
-    );
+      );
+    }
+    return const SizedBox.shrink();
   }
 
-  Future<void> onPageSelected(ViewPB view, BuildContext context) async {
+  Future<void> onPageItemExecuted(BuildContext context) async {
+    final item = this;
+    if (item.type != MentionMenuType.page) return;
+    if (item is PageMentionMenuItem) {
+      await _onPageSelected(item.view, context);
+    } else if (item is MoreResultMentionMenuItem) {
+      _showMore(context);
+    } else if (item is AddViewMenuItem) {
+      await _onPageCreate(context);
+    }
+  }
+
+  Future<void> _onPageSelected(ViewPB view, BuildContext context) async {
     final mentionInfo = context.read<MentionMenuServiceInfo>(),
         editorState = mentionInfo.editorState,
         query = context.read<MentionBloc>().state.query;
@@ -194,7 +143,7 @@ class PageList extends StatelessWidget {
     await editorState.insertPageLinkRef(view, (range.start, range.end));
   }
 
-  Future<void> onPageCreate(BuildContext context) async {
+  Future<void> _onPageCreate(BuildContext context) async {
     final mentionInfo = context.read<MentionMenuServiceInfo>(),
         editorState = mentionInfo.editorState,
         query = context.read<MentionBloc>().state.query,
@@ -214,6 +163,18 @@ class PageList extends StatelessWidget {
       documentBloc.documentId,
       (range.start, range.end),
       query,
+    );
+  }
+
+  void _showMore(BuildContext context) {
+    final mentionBloc = context.read<MentionBloc>();
+    final pages = mentionBloc.state.itemMap.getItems(MentionMenuType.page);
+    final lastViewIndex = pages.indexWhere((e) => e.id == id);
+    if (lastViewIndex < 0) return;
+    mentionBloc.add(
+      MentionEvent.showMorePages(
+        UniversalPlatform.isMobile ? '' : pages[lastViewIndex - 1].id,
+      ),
     );
   }
 }

@@ -12,6 +12,7 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 import 'package:universal_platform/universal_platform.dart';
 
@@ -23,27 +24,31 @@ class PersonListInviteItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final state = context.read<MentionBloc>().state,
-        query = state.query,
-        itemMap = context.read<MentionItemMap>();
-    final id = LocaleKeys.document_mentionMenu_add.tr(args: ['add person']);
+    final state = context.read<MentionBloc>().state, query = state.query;
+    final id = AddPersonMentionMenuItem.addPersonId;
     final displayQuery = query.isEmpty ? '' : ' "$query"';
-    itemMap.addToPerson(
-      MentionMenuItem(id: id, onExecute: () => invitePerson(context)),
-    );
-    return MentionMenuItenVisibilityDetector(
-      id: id,
-      child: AFTextMenuItem(
-        selected: state.selectedId == id,
-        leading: FlowySvg(
-          FlowySvgs.mention_menu_invite_icon_m,
-          size: const Size(24, 20),
+    return BlocListener<MentionBloc, MentionState>(
+      listener: (context, state) {
+        final item = state.executedItem;
+        if (item is! AddPersonMentionMenuItem) return;
+        invitePerson(context);
+      },
+      listenWhen: (previous, current) =>
+          previous.executedItem?.id != current.executedItem?.id,
+      child: MentionMenuItenVisibilityDetector(
+        id: id,
+        child: AFTextMenuItem(
+          selected: state.selectedId == id,
+          leading: FlowySvg(
+            FlowySvgs.mention_menu_invite_icon_m,
+            size: const Size(24, 20),
+          ),
+          title: LocaleKeys.document_mentionMenu_add.tr(args: [displayQuery]),
+          backgroundColor: context.mentionItemBGColor,
+          onTap: () => UniversalPlatform.isMobile
+              ? showMobileInviteMenu(context)
+              : invitePerson(context),
         ),
-        title: LocaleKeys.document_mentionMenu_add.tr(args: [displayQuery]),
-        backgroundColor: context.mentionItemBGColor,
-        onTap: () => UniversalPlatform.isMobile
-            ? showMobileInviteMenu(context)
-            : invitePerson(context),
       ),
     );
   }
