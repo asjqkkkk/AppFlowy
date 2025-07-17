@@ -318,7 +318,7 @@ class _WorkspaceInfo extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (workspace.workspaceType == WorkspaceTypePB.LocalW) ...[
+                    if (workspace.workspaceType == WorkspaceTypePB.Vault) ...[
                       const HSpace(6.0),
                       FlowySvg(
                         FlowySvgs.vault_indicator_m,
@@ -342,7 +342,7 @@ class _WorkspaceInfo extends StatelessWidget {
                     figmaLineHeight: 12.0,
                     color: Theme.of(context).hintColor,
                   ),
-                if (workspace.workspaceType == WorkspaceTypePB.LocalW)
+                if (workspace.workspaceType == WorkspaceTypePB.Vault)
                   FlowyText.regular(
                     LocaleKeys.workspace_vaultWorkspace.tr(),
                     fontSize: 10.0,

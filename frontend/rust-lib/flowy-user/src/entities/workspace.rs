@@ -238,14 +238,14 @@ pub struct CreateWorkspacePB {
 #[repr(u8)]
 pub enum WorkspaceTypePB {
   #[default]
-  LocalW = 0,
+  Vault = 0,
   ServerW = 1,
 }
 
 impl From<i32> for WorkspaceTypePB {
   fn from(value: i32) -> Self {
     match value {
-      0 => WorkspaceTypePB::LocalW,
+      0 => WorkspaceTypePB::Vault,
       1 => WorkspaceTypePB::ServerW,
       _ => WorkspaceTypePB::ServerW,
     }
@@ -255,7 +255,7 @@ impl From<i32> for WorkspaceTypePB {
 impl From<WorkspaceType> for WorkspaceTypePB {
   fn from(value: WorkspaceType) -> Self {
     match value {
-      WorkspaceType::Vault => WorkspaceTypePB::LocalW,
+      WorkspaceType::Vault => WorkspaceTypePB::Vault,
       WorkspaceType::Cloud => WorkspaceTypePB::ServerW,
     }
   }
@@ -264,7 +264,7 @@ impl From<WorkspaceType> for WorkspaceTypePB {
 impl From<WorkspaceTypePB> for WorkspaceType {
   fn from(value: WorkspaceTypePB) -> Self {
     match value {
-      WorkspaceTypePB::LocalW => WorkspaceType::Vault,
+      WorkspaceTypePB::Vault => WorkspaceType::Vault,
       WorkspaceTypePB::ServerW => WorkspaceType::Cloud,
     }
   }

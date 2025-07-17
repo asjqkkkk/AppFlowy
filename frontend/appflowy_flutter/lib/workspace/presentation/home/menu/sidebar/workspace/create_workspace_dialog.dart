@@ -51,7 +51,7 @@ Future<void> showCreateWorkspaceDialog(BuildContext context) {
               icon: workspaceIcon,
               workspaceType: workspaceType == WorkspaceType.cloud
                   ? WorkspaceTypePB.ServerW
-                  : WorkspaceTypePB.LocalW,
+                  : WorkspaceTypePB.Vault,
             ),
           );
         },

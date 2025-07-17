@@ -115,7 +115,7 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
             final workspace =
                 context.read<UserWorkspaceBloc>().state.currentWorkspace;
             final isLocalWorkspace =
-                workspace?.workspaceType == WorkspaceTypePB.LocalW;
+                workspace?.workspaceType == WorkspaceTypePB.Vault;
             final isGuest = workspace?.role == AFRolePB.Guest;
 
             List<MobileSpaceTabType> tabs = isGuest
@@ -213,7 +213,7 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
           final workspace =
               context.read<UserWorkspaceBloc>().state.currentWorkspace;
           if (workspace == null ||
-              workspace.workspaceType == WorkspaceTypePB.LocalW) {
+              workspace.workspaceType == WorkspaceTypePB.Vault) {
             return const SizedBox.shrink();
           }
           return MSharedSection(

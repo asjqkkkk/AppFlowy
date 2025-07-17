@@ -28,7 +28,7 @@ class AISearchToggle extends StatelessWidget {
                         .state
                         .currentWorkspace
                         ?.workspaceType ==
-                    WorkspaceTypePB.LocalW;
+                    WorkspaceTypePB.Vault;
                 final isDisabled = isLocalWorkspace && !state.isLocalAIEnabled;
 
                 if (state.aiSettings == null) {

@@ -36,7 +36,7 @@ class ChatUserCubit extends Cubit<ChatUserState> {
   bool isValueWorkspace() {
     if (state is ChatUserSuccessState) {
       final userProfile = (state as ChatUserSuccessState).userProfile;
-      return userProfile.workspaceType == WorkspaceTypePB.LocalW &&
+      return userProfile.workspaceType == WorkspaceTypePB.Vault &&
           userProfile.userAuthType != AuthTypePB.Local;
     }
     return false;

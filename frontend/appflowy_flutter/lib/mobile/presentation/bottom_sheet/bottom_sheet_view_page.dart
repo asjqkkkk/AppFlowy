@@ -120,8 +120,8 @@ class MobileViewBottomSheetBody extends StatelessWidget {
         context.watch<PageAccessLevelBloc>().state.accessLevel ==
             ShareAccessLevel.fullAccess;
     final userProfile = context.read<MobileViewPageBloc>().state.userProfilePB;
-    final isLocalWorkspace =
-        userProfile?.workspaceType == WorkspaceTypePB.LocalW;
+    final isVaultWorkspace =
+        userProfile?.workspaceType == WorkspaceTypePB.Vault;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -185,7 +185,7 @@ class MobileViewBottomSheetBody extends StatelessWidget {
           ),
         ],
         // copy link
-        if (!isLocalWorkspace) ...[
+        if (!isVaultWorkspace) ...[
           _divider(),
           MobileQuickActionButton(
             text: LocaleKeys.shareAction_copyLink.tr(),

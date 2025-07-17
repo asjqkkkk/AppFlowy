@@ -34,7 +34,7 @@ class SidebarFooter extends StatelessWidget {
         BlocBuilder<UserWorkspaceBloc, UserWorkspaceState>(
           builder: (context, state) {
             if (state.currentWorkspace?.workspaceType ==
-                WorkspaceTypePB.LocalW) {
+                WorkspaceTypePB.Vault) {
               return SidebarTrashButton(
                 isSingle: true,
               );

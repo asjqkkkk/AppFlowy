@@ -184,8 +184,8 @@ Future<void> insertLocalFile(
   final fileType = file.fileType.toMediaFileTypePB();
 
   // Check upload type
-  final isLocalMode = (userProfile?.workspaceType ?? WorkspaceTypePB.LocalW) ==
-      WorkspaceTypePB.LocalW;
+  final isLocalMode = (userProfile?.workspaceType ?? WorkspaceTypePB.Vault) ==
+      WorkspaceTypePB.Vault;
 
   String? path;
   String? errorMsg;
@@ -229,8 +229,8 @@ Future<void> insertLocalFiles(
   if (files.every((f) => f.path.isEmpty)) return;
 
   // Check upload type
-  final isLocalMode = (userProfile?.workspaceType ?? WorkspaceTypePB.LocalW) ==
-      WorkspaceTypePB.LocalW;
+  final isLocalMode = (userProfile?.workspaceType ?? WorkspaceTypePB.Vault) ==
+      WorkspaceTypePB.Vault;
 
   for (final file in files) {
     final fileType = file.fileType.toMediaFileTypePB();
