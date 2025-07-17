@@ -404,12 +404,12 @@ impl ConversationalRetrieverChain {
                         }
                       }
                     }
-                    Err(e) => {
+                    Err(err) => {
                       has_error = true;
-                      error!("[Chat] Embedding error: {}", e);
+                      error!("[Chat] Embedding error: {}", err);
                       yield Ok(StreamData::new(
                         json!(QuestionStreamValue::Progress {
-                          value: format!("Error: {}", e)
+                          value: format!("Error: {}", err)
                         }),
                         None,
                         String::new(),

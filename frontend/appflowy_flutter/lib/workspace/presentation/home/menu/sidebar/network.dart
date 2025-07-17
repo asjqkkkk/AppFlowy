@@ -2,6 +2,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/sidebar/network_indicator_bloc.dart';
+import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -13,7 +14,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
-class WebSocketIndicator extends StatelessWidget {
+class WebSocketIndicator extends StatefulWidget {
   const WebSocketIndicator({super.key, required this.workspaceId});
 
   final String workspaceId;
@@ -21,9 +22,35 @@ class WebSocketIndicator extends StatelessWidget {
   static const double _indicatorHeight = 42.0;
 
   @override
+  State<WebSocketIndicator> createState() => _WebSocketIndicatorState();
+}
+
+class _WebSocketIndicatorState extends State<WebSocketIndicator>
+    with WidgetsBindingObserver {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      UserEventStartWSConnectIfNeed().send();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (context) => NetworkIndicatorBloc(workspaceId: workspaceId),
+      create: (context) =>
+          NetworkIndicatorBloc(workspaceId: widget.workspaceId),
       child: BlocBuilder<NetworkIndicatorBloc, NetworkIndicatorState>(
         buildWhen: (previous, current) =>
             previous.connectState != current.connectState,
@@ -63,7 +90,7 @@ class WebSocketIndicator extends StatelessWidget {
         : theme.surfaceColorScheme.layer01;
     return Container(
       color: backgroundColor,
-      height: _indicatorHeight,
+      height: WebSocketIndicator._indicatorHeight,
       child: Padding(
         padding: EdgeInsets.symmetric(
           horizontal: theme.spacing.xxl,

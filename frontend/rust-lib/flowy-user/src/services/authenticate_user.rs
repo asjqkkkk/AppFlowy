@@ -348,7 +348,6 @@ mod tests {
     let encrypted1 = encrypt_key(key).unwrap();
     let encrypted2 = encrypt_key(key).unwrap();
 
-    // The encrypted values should be different due to random nonce
     assert_eq!(encrypted1, encrypted2);
 
     // But both should decrypt to the same value
