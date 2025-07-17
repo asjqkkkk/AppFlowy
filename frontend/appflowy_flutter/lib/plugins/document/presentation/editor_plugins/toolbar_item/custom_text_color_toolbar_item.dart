@@ -73,22 +73,19 @@ class _TextColorPickerWidgetState extends State<TextColorPickerWidget> {
       anchor: AFAnchorAuto(
         followerAnchor: Alignment.bottomRight,
         targetAnchor: Alignment.centerLeft,
+        offset: Offset(0, 2.0 + theme.spacing.xs + 16.0),
       ),
-      decoration: const BoxDecoration(),
+      decoration: BoxDecoration(
+        color: theme.surfaceColorScheme.layer01,
+        borderRadius: BorderRadius.circular(theme.borderRadius.l),
+        boxShadow: theme.shadow.small,
+      ),
       popover: (context) {
-        return Container(
-          margin: EdgeInsets.symmetric(vertical: 2.0 + theme.spacing.xs + 16.0),
-          decoration: BoxDecoration(
-            color: theme.surfaceColorScheme.layer01,
-            borderRadius: BorderRadius.circular(theme.borderRadius.l),
-            boxShadow: theme.shadow.small,
-          ),
-          child: buildPopoverContent(
-            colors,
-            isPro,
-            workspaceId,
-            userId,
-          ),
+        return buildPopoverContent(
+          colors,
+          isPro,
+          workspaceId,
+          userId,
         );
       },
       child: buildChild(colors),

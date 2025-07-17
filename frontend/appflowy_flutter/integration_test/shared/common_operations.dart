@@ -641,10 +641,10 @@ extension CommonOperations on WidgetTester {
   }) async {
     final iconButton = find.descendant(
       of: findPageName(
-      name,
-      layout: layout,
-      parentName: parentName,
-    ),
+        name,
+        layout: layout,
+        parentName: parentName,
+      ),
       matching: find.byWidgetPredicate((w) {
         return (w is RawEmojiIconWidget) || (w is FlowySvg);
       }),
