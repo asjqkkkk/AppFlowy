@@ -14,6 +14,7 @@ class SettingsDropdown<T> extends StatefulWidget {
     required this.selectedOption,
     required this.options,
     this.onChanged,
+    this.onOpen,
     this.actions,
     this.expandWidth = true,
     this.selectOptionCompare,
@@ -25,6 +26,7 @@ class SettingsDropdown<T> extends StatefulWidget {
   final CompareFunction<T>? selectOptionCompare;
   final List<DropdownMenuEntry<T>> options;
   final void Function(T)? onChanged;
+  final void Function()? onOpen;
   final List<Widget>? actions;
   final bool expandWidth;
   final TextStyle? textStyle;
@@ -112,6 +114,7 @@ class _SettingsDropdownState<T> extends State<SettingsDropdown<T>> {
             onSelected: (v) async {
               v != null ? widget.onChanged?.call(v) : null;
             },
+            onOpen: widget.onOpen,
           ),
         ),
         if (widget.actions?.isNotEmpty == true) ...[

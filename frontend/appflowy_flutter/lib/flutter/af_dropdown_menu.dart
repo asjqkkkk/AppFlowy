@@ -86,6 +86,7 @@ class AFDropdownMenu<T> extends StatefulWidget {
     this.controller,
     this.initialSelection,
     this.onSelected,
+    this.onOpen,
     this.requestFocusOnTap,
     this.expandedInsets,
     this.searchCallback,
@@ -212,6 +213,11 @@ class AFDropdownMenu<T> extends StatefulWidget {
   ///
   /// Defaults to null. If null, only the text field is updated.
   final ValueChanged<T?>? onSelected;
+
+  /// The callback is called when the menu is opened.
+  ///
+  /// Defaults to null.
+  final VoidCallback? onOpen;
 
   /// Determine if the dropdown button requests focus and the on-screen virtual
   /// keyboard is shown in response to a touch event.
@@ -679,6 +685,10 @@ class _AFDropdownMenuState<T> extends State<AFDropdownMenu<T>> {
 
     final MouseCursor effectiveMouseCursor =
         canRequestFocus() ? SystemMouseCursors.text : SystemMouseCursors.click;
+
+    if (widget.onOpen != null) {
+      widget.onOpen!();
+    }
 
     Widget menuAnchor = MenuAnchor(
       style: effectiveMenuStyle,

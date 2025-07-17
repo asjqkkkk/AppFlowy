@@ -942,6 +942,8 @@
         "localAINotReadyTextFieldPrompt": "You can not edit while Local AI is loading",
         "localAIDisabledTextFieldPrompt": "You can not edit while Local AI is disabled",
         "localAIWithoutSubscription": "You cannot use local AI with Vault Workspace unless you have an active Vault Workspace subscription",
+        "localAIApplySettings": "Apply",
+        "localAIRefreshModels": "Click to refresh",
         "failToLoadLocalAI": "Failed to start local AI.",
         "restartLocalAI": "Restart",
         "disableLocalAITitle": "Disable local AI",

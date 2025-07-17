@@ -122,7 +122,7 @@ class _SaveButton extends StatelessWidget {
       child: SizedBox(
         child: FlowyButton(
           text: FlowyText(
-            'Apply',
+            LocaleKeys.settings_aiPage_keys_localAIApplySettings.tr(),
             figmaLineHeight: 20,
             color: Theme.of(context).colorScheme.onPrimary,
           ),
@@ -174,6 +174,9 @@ class LocalAIModelSelection extends StatelessWidget {
                 key: const Key('_AIModelSelection'),
                 editable: false,
                 textStyle: Theme.of(context).textTheme.bodySmall,
+                onOpen: () => context
+                    .read<OllamaSettingBloc>()
+                    .add(const OllamaSettingEvent.refreshChatModels()),
                 onChanged: (model) => context
                     .read<OllamaSettingBloc>()
                     .add(OllamaSettingEvent.setDefaultModel(model)),
@@ -232,6 +235,9 @@ class LocalAIEmbeddingModelSelection extends StatelessWidget {
                 editable: false,
                 key: const Key('_EmbeddingModelSelection'),
                 textStyle: Theme.of(context).textTheme.bodySmall,
+                onOpen: () => context
+                    .read<OllamaSettingBloc>()
+                    .add(const OllamaSettingEvent.refreshEmbeddingModels()),
                 onChanged: (model) => context
                     .read<OllamaSettingBloc>()
                     .add(OllamaSettingEvent.setSelectedEmbeddingModel(model)),

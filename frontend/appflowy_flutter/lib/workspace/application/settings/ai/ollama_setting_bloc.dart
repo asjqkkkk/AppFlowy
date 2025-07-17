@@ -28,6 +28,8 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
     on<_SetSelectedEmbeddingModel>(_onSetSelectedEmbeddingModel);
     on<_DidLoadEmbeddingModels>(_didLoadEmbeddingModels);
     on<_NotifyResult>(_onNotifyResult);
+    on<_RefreshChatModels>(_onRefreshChatModels);
+    on<_RefreshEmbeddingModels>(_onRefreshEmbeddingModels);
   }
 
   Future<void> _handleStarted(
@@ -175,6 +177,33 @@ class OllamaSettingBloc extends Bloc<OllamaSettingEvent, OllamaSettingState> {
   ) {
     emit(state.copyWith(successOrFail: event.successOrFail));
   }
+
+  void _onRefreshChatModels(
+    _RefreshChatModels event,
+    Emitter<OllamaSettingState> emit,
+  ) {
+    AIEventGetLocalModelSelection().send().then((r) {
+      if (isClosed) return;
+
+      r.fold(
+        (success) => add(OllamaSettingEvent.didLoadLocalModels(success)),
+        (failure) => Log.error('Failed to refresh chat models: $failure'),
+      );
+    });
+  }
+
+  void _onRefreshEmbeddingModels(
+    _RefreshEmbeddingModels event,
+    Emitter<OllamaSettingState> emit,
+  ) {
+    AIEventGetLocalEmbeddingModelSelection().send().then((r) {
+      if (isClosed) return;
+      r.fold(
+        (success) => add(OllamaSettingEvent.didLoadEmbeddingModels(success)),
+        (failure) => Log.error('Failed to refresh embedding models: $failure'),
+      );
+    });
+  }
 }
 
 /// Setting types for mapping
@@ -240,16 +269,20 @@ class SubmittedItem extends Equatable {
 
 @freezed
 class OllamaSettingEvent with _$OllamaSettingEvent {
+  // Settings
   const factory OllamaSettingEvent.started() = _Started;
-  const factory OllamaSettingEvent.didLoadLocalModels(
-    ModelSelectionPB models,
-  ) = _DidLoadLocalModels;
   const factory OllamaSettingEvent.didLoadSetting(
     LocalAISettingPB setting,
   ) = _DidLoadSetting;
   const factory OllamaSettingEvent.updateSetting(
     LocalAISettingPB setting,
   ) = _UpdateSetting;
+
+  // Chat models
+  const factory OllamaSettingEvent.refreshChatModels() = _RefreshChatModels;
+  const factory OllamaSettingEvent.didLoadLocalModels(
+    ModelSelectionPB models,
+  ) = _DidLoadLocalModels;
   const factory OllamaSettingEvent.setDefaultModel(
     AIModelPB model,
   ) = _SetDefaultModel;
@@ -257,8 +290,10 @@ class OllamaSettingEvent with _$OllamaSettingEvent {
     String content,
     SettingType settingType,
   ) = _OnEdit;
-  const factory OllamaSettingEvent.submit() = _OnSubmit;
 
+  // Embedding models
+  const factory OllamaSettingEvent.refreshEmbeddingModels() =
+      _RefreshEmbeddingModels;
   const factory OllamaSettingEvent.didLoadEmbeddingModels(
     EmbeddingModelSelectionPB models,
   ) = _DidLoadEmbeddingModels;
@@ -266,6 +301,7 @@ class OllamaSettingEvent with _$OllamaSettingEvent {
     String embeddingModel,
   ) = _SetSelectedEmbeddingModel;
 
+  const factory OllamaSettingEvent.submit() = _OnSubmit;
   const factory OllamaSettingEvent.notifyResult(
     FlowyResult<void, FlowyError>? successOrFail,
   ) = _NotifyResult;

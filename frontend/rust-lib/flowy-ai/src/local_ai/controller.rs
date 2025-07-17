@@ -437,23 +437,22 @@ impl LocalAIController {
 
   #[instrument(level = "debug", skip_all)]
   pub async fn restart(&self, model: AIModel) -> FlowyResult<()> {
-    if let Some(lack_of_resource) = check_resources(&self.resource).await {
-      let result = self.user_service.validate_vault().await.unwrap_or_default();
-      let vision_enabled = self.is_model_support_vision(&model).await;
-      chat_notification_builder(
-        APPFLOWY_AI_NOTIFICATION_KEY,
-        ChatNotification::UpdateLocalAIState,
-      )
-      .payload(LocalAIStatePB {
-        toggle_on: true,
-        is_vault: result.is_vault,
-        enabled: result.can_use_local_ai(),
-        lack_of_resource: Some(lack_of_resource),
-        is_ready: self.is_ready().await,
-        vision_enabled,
-      })
-      .send();
-    }
+    let lack_of_resource = check_resources(&self.resource).await;
+    let result = self.user_service.validate_vault().await.unwrap_or_default();
+    let vision_enabled = self.is_model_support_vision(&model).await;
+    chat_notification_builder(
+      APPFLOWY_AI_NOTIFICATION_KEY,
+      ChatNotification::UpdateLocalAIState,
+    )
+    .payload(LocalAIStatePB {
+      toggle_on: true,
+      is_vault: result.is_vault,
+      enabled: result.can_use_local_ai(),
+      lack_of_resource,
+      is_ready: self.is_ready().await,
+      vision_enabled,
+    })
+    .send();
     Ok(())
   }
 
