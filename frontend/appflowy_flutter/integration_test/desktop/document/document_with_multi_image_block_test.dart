@@ -135,6 +135,7 @@ void main() {
     testWidgets('insert and delete images from network', (tester) async {
       await tester.initializeAppFlowy();
       await tester.tapAnonymousSignInButton();
+      await tester.expectToSeeHomePage();
 
       // create a new document
       await tester.createNewPageWithNameUnderParent(
