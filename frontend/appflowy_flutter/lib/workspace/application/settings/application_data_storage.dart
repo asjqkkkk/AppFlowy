@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
-import 'package:appflowy/shared/patterns/common_patterns.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:path/path.dart' as p;
@@ -26,10 +25,7 @@ class ApplicationDataStorage {
       return;
     }
 
-    if (Platform.isMacOS) {
-      // remove the prefix `/Volumes/*`
-      path = path.replaceFirst(macOSVolumesRegex, '');
-    } else if (Platform.isWindows) {
+    if (Platform.isWindows) {
       path = path.replaceAll('/', '\\');
     }
 
