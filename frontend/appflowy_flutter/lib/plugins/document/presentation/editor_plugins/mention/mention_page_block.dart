@@ -474,7 +474,6 @@ class _MentionPageBlockContent extends StatelessWidget {
     // if the block is from the same doc, display the paragraph mark icon '¶'
     if (isSameDocument && !isBlockContentEmpty) {
       return [
-        const HSpace(2),
         FlowySvg(
           FlowySvgs.paragraph_mark_s,
           size: Size.square(iconSize - 2.0),
@@ -483,13 +482,13 @@ class _MentionPageBlockContent extends StatelessWidget {
       ];
     } else if (shouldDisplayViewName) {
       return [
-        const HSpace(4),
         Stack(
           children: [
             view.icon.value.isNotEmpty
-                ? EmojiIconWidget(
+                ? RawEmojiIconWidget(
                     emoji: view.icon.toEmojiIconData(),
                     emojiSize: emojiSize,
+                    lineHeight: textStyle?.height ?? 1.0,
                   )
                 : view.defaultIcon(size: Size.square(iconSize + 2.0)),
             if (!isChildPage) ...[

@@ -153,18 +153,28 @@ class AFAvatar extends StatelessWidget {
   }
 
   Widget _buildInitialsCircle(double size, Color bgColor, TextStyle textStyle) {
-    final initial = _getInitials(name);
+    final avatarUrl = url ?? '';
+    final isEmojiAvatarUrl =
+        avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
+    final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
+    final borderRadius = radius ?? size / 2;
+    final text = Text(
+      initial,
+      style: textStyle,
+      textAlign: TextAlign.center,
+    );
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(radius ?? size / 2),
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: textStyle,
-        textAlign: TextAlign.center,
-      ),
+      child: isEmojiAvatarUrl
+          ? SizedBox(
+              width: textStyle.fontSize,
+              child: text,
+            )
+          : text,
     );
   }
 
@@ -172,7 +182,7 @@ class AFAvatar extends StatelessWidget {
     if (name == null || name.trim().isEmpty) return '';
 
     // Always return just the first letter of the name
-    return name.trim()[0].toUpperCase();
+    return Characters(name.trim()).first.toUpperCase();
   }
 
   /// Deterministically pick a color index (1-20) based on the user name
