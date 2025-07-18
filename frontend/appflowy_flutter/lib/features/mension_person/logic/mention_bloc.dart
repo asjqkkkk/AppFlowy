@@ -125,7 +125,20 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
         ))
             .toNullable() ??
         [];
+
     if ((persons.isNotEmpty) && state.query.isEmpty) {
+      personItems =
+          persons.map((p) => PersonMentionMenuItem(person: p)).toList();
+      final newItemMap = state.itemMap
+          .clearItems(MentionMenuType.person)
+          .addItems(personItems);
+      emit(
+        state.copyWith(
+          persons: persons,
+          itemMap: newItemMap,
+          selectedId: newItemMap.items.first.id,
+        ),
+      );
       personListCache.updatePersonList(workspaceId, persons);
     }
   }

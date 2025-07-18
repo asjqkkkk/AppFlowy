@@ -332,7 +332,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         noAccess = !person.deleted &&
             !personState.access &&
             person.role != PersonRole.contact;
-    final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
+    final coverImage = person.coverImageUrl ?? '';
     final isEmojiAvatar = url.isNotEmpty && !url.startsWith('http');
     final theme = AppFlowyTheme.of(this);
     const size = 90.0, radius = 41.0;
@@ -378,11 +378,11 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: theme.surfaceColorScheme.layer01,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(radius + 2),
       ),
-      child: hasCover
+      child: coverImage.isNotEmpty
           ? SizedBox.square(
-              dimension: 100,
+              dimension: size + 10,
               child: Center(child: avatar),
             )
           : avatar,
