@@ -101,6 +101,9 @@ class LocalAISettingBloc
           (error) => Log.error(error.msg, error),
         );
       },
+      refresh: () {
+        _getLocalAiState();
+      },
     );
   }
 
@@ -122,13 +125,15 @@ class LocalAISettingBloc
   void _getLocalAiState() {
     AIEventGetLocalAIState().send().fold(
       (aiState) {
-        if (!isClosed) {
-          if (aiState.isVault) {
-            UserBackendService.refreshPersonalSubscription();
-          }
-
-          add(LocalAISettingEvent.didReceiveAiState(aiState));
+        if (isClosed) {
+          return;
         }
+
+        if (aiState.isVault) {
+          UserBackendService.refreshPersonalSubscription();
+        }
+
+        add(LocalAISettingEvent.didReceiveAiState(aiState));
       },
       Log.error,
     );
@@ -154,6 +159,7 @@ class LocalAISettingEvent with _$LocalAISettingEvent {
   const factory LocalAISettingEvent.paymentSuccessful() = _PaymentSuccessful;
   const factory LocalAISettingEvent.toggle() = _Toggle;
   const factory LocalAISettingEvent.restart() = _Restart;
+  const factory LocalAISettingEvent.refresh() = _Refresh;
 }
 
 @freezed

@@ -8,6 +8,9 @@ import 'package:appflowy/plugins/ai_chat/presentation/message/ai_text_message.da
 import 'package:appflowy/plugins/ai_chat/presentation/message/error_text_message.dart';
 import 'package:appflowy/plugins/ai_chat/presentation/message/message_util.dart';
 import 'package:appflowy/plugins/ai_chat/presentation/message/user_text_message.dart';
+import 'package:appflowy/plugins/local_file/local_file.dart';
+import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -155,6 +158,23 @@ class TextMessageWidget extends StatelessWidget {
     // Check the RAGSource for different source types
     if (metadata.source == "local_file") {
       Log.debug("local_file: ${metadata.name}");
+
+      // Create LocalFileData from metadata
+      final fileData = LocalFileData(
+        filePath: metadata.id, // Assuming the id contains the file path
+        fileName: metadata.name,
+      );
+
+      // Build the plugin and open it in secondary panel
+      final plugin = LocalFilePluginBuilder().build(fileData);
+
+      if (context.mounted) {
+        getIt<TabsBloc>().add(
+          TabsEvent.openSecondaryPlugin(
+            plugin: plugin,
+          ),
+        );
+      }
       return;
     }
 

@@ -8,7 +8,7 @@ use pbkdf2::hmac::Hmac;
 use pbkdf2::pbkdf2;
 use rand::distributions::Alphanumeric;
 use rand::Rng;
-use sha2::Sha256;
+use sha2::{Digest, Sha256};
 
 /// The length of the salt in bytes.
 const SALT_LENGTH: usize = 16;
@@ -38,12 +38,26 @@ pub fn generate_encryption_secret() -> String {
 /// * `data`: The data to encrypt.
 /// * `combined_passphrase_salt`: The concatenated passphrase and salt.
 pub fn encrypt_data<T: AsRef<[u8]>>(data: T, combined_passphrase_salt: &str) -> Result<Vec<u8>> {
+  let nonce: [u8; NONCE_LENGTH] = rand::thread_rng().gen();
+  encrypt_data_with_nonce(data.as_ref(), combined_passphrase_salt, &nonce)
+}
+
+/// Encrypt a byte slice using AES-GCM with a provided nonce.
+///
+/// # Arguments
+/// * `data`: The data to encrypt.
+/// * `combined_passphrase_salt`: The concatenated passphrase and salt.
+/// * `nonce`: The nonce to use for encryption.
+pub fn encrypt_data_with_nonce<T: AsRef<[u8]>>(
+  data: T,
+  combined_passphrase_salt: &str,
+  nonce: &[u8; NONCE_LENGTH],
+) -> Result<Vec<u8>> {
   let (passphrase, salt) = split_passphrase_and_salt(combined_passphrase_salt)?;
   let key = derive_key(passphrase, &salt)?;
   let cipher = Aes256Gcm::new(GenericArray::from_slice(&key));
-  let nonce: [u8; NONCE_LENGTH] = rand::thread_rng().gen();
   let ciphertext = cipher
-    .encrypt(GenericArray::from_slice(&nonce), data.as_ref())
+    .encrypt(GenericArray::from_slice(nonce), data.as_ref())
     .unwrap();
 
   let result = nonce
@@ -82,6 +96,21 @@ pub fn encrypt_text<T: AsRef<[u8]>>(data: T, combined_passphrase_salt: &str) -> 
   Ok(STANDARD.encode(encrypted))
 }
 
+/// Encrypt a string using AES-GCM with a deterministic nonce derived from the data,
+/// and return the result as a base64 encoded string.
+///
+/// # Arguments
+/// * `data`: The string data to encrypt.
+/// * `combined_passphrase_salt`: The concatenated passphrase and salt.
+pub fn encrypt_text_with_deterministic_nonce<T: AsRef<[u8]>>(
+  data: T,
+  combined_passphrase_salt: &str,
+) -> Result<String> {
+  let nonce = generate_deterministic_nonce(data.as_ref());
+  let encrypted = encrypt_data_with_nonce(data.as_ref(), combined_passphrase_salt, &nonce)?;
+  Ok(STANDARD.encode(encrypted))
+}
+
 /// Decrypt a base64 encoded string using AES-GCM.
 ///
 /// # Arguments
@@ -114,6 +143,15 @@ fn generate_random_passphrase() -> String {
         .take(30) // e.g., 30 characters
         .map(char::from)
         .collect()
+}
+
+fn generate_deterministic_nonce(data: &[u8]) -> [u8; NONCE_LENGTH] {
+  let mut hasher = Sha256::new();
+  hasher.update(data);
+  let result = hasher.finalize();
+  let mut nonce = [0u8; NONCE_LENGTH];
+  nonce.copy_from_slice(&result[..NONCE_LENGTH]);
+  nonce
 }
 
 fn generate_random_salt() -> [u8; SALT_LENGTH] {

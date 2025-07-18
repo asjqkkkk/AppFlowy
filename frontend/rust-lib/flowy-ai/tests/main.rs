@@ -2,14 +2,17 @@ mod chat_test;
 mod complete_test;
 mod content_extract;
 mod summary_test;
+mod test_utils;
 mod translate_test;
 
 use flowy_ai::SqliteVectorStore;
+use flowy_ai::embeddings::indexer::LocalEmbeddingModel;
 use flowy_ai::local_ai::chat::LLMChatInfo;
+use flowy_ai::local_ai::chat::llm::LocalLLMController;
 use flowy_ai::local_ai::chat::llm_chat::LLMChat;
 use flowy_ai_pub::cloud::{ContextSuggestedQuestion, QuestionStreamValue, StreamAnswer};
+use flowy_ai_pub::entities::EmbeddingDimension;
 use flowy_sqlite_vec::db::VectorSqliteDB;
-use langchain_rust::url::Url;
 use ollama_rs::Ollama;
 use serde_json::Value;
 use std::sync::{Arc, Once};
@@ -39,7 +42,7 @@ pub fn setup_log() {
 }
 
 pub struct TestContext {
-  ollama: Arc<Ollama>,
+  llm: Arc<LocalLLMController>,
   store: SqliteVectorStore,
   #[allow(dead_code)]
   db: Arc<VectorSqliteDB>,
@@ -54,26 +57,30 @@ impl TestContext {
     // Initialize sqlite-vec extension before creating vector DB
     flowy_sqlite_vec::init_sqlite_vector_extension();
 
-    let ollama_url = "http://localhost:11434";
-    let url = Url::parse(ollama_url)?;
-    let ollama = Arc::new(Ollama::from_url(url.clone()));
-
     let temp_dir = tempdir()?;
     let db = Arc::new(VectorSqliteDB::new(temp_dir.into_path())?);
-    let vector_store = SqliteVectorStore::new(Arc::downgrade(&ollama), Arc::downgrade(&db));
-
+    let llm = Arc::new(LocalLLMController::new(
+      Arc::new(Ollama::default()),
+      "gemma3:4b".to_string(),
+      LocalEmbeddingModel::default(),
+    ));
+    let vector_store = SqliteVectorStore::new(Arc::downgrade(&llm), Arc::downgrade(&db));
     Ok(Self {
-      ollama,
+      llm,
       store: vector_store.clone(),
       db,
       vector_store,
     })
   }
 
+  pub fn embed_dimension(&self) -> EmbeddingDimension {
+    self.llm.embed_dimension()
+  }
+
   pub async fn create_chat(&self, rag_ids: Vec<String>) -> LLMChat {
     let workspace_id = Uuid::new_v4();
     let chat_id = Uuid::new_v4();
-    let model = "llama3.1";
+    let model = "gemma3:4b";
     let info = LLMChatInfo {
       chat_id,
       workspace_id,
@@ -84,7 +91,7 @@ impl TestContext {
 
     LLMChat::new(
       info,
-      self.ollama.clone(),
+      self.llm.as_ref().clone(),
       Some(self.store.clone()),
       None,
       vec![],
@@ -100,6 +107,7 @@ pub struct StreamResult {
   pub sources: Vec<Value>,
   pub suggested_questions: Vec<ContextSuggestedQuestion>,
   pub gen_related_question: bool,
+  pub progress: Vec<String>,
 }
 
 pub async fn collect_stream(stream: StreamAnswer) -> StreamResult {
@@ -108,13 +116,20 @@ pub async fn collect_stream(stream: StreamAnswer) -> StreamResult {
   let mut gen_related_question = true;
   let mut suggested_questions = vec![];
   let mut stream = stream;
+  let mut progress = vec![];
+  let mut chunk_count = 0;
+
+  println!("[Test] Starting to collect stream");
+
   while let Some(chunk) = stream.next().await {
+    chunk_count += 1;
     match chunk {
       Ok(value) => match value {
         QuestionStreamValue::Answer { value } => {
           result.push_str(&value);
         },
         QuestionStreamValue::Metadata { value } => {
+          println!("[Test] Got metadata");
           dbg!("metadata", &value);
           sources.push(value);
         },
@@ -122,25 +137,37 @@ pub async fn collect_stream(stream: StreamAnswer) -> StreamResult {
         QuestionStreamValue::SuggestedQuestion {
           context_suggested_questions,
         } => {
+          println!(
+            "[Test] Got suggested questions: {}",
+            context_suggested_questions.len()
+          );
           suggested_questions = context_suggested_questions;
         },
         QuestionStreamValue::FollowUp {
           should_generate_related_question,
         } => {
+          println!("[Test] Got follow up: {}", should_generate_related_question);
           gen_related_question = should_generate_related_question;
+        },
+        QuestionStreamValue::Progress { value } => {
+          println!("[Test] Got progress: {}", value);
+          progress.push(value);
         },
       },
       Err(e) => {
-        eprintln!("Error: {}", e);
+        eprintln!("[Test] Stream error: {}", e);
       },
     }
   }
+
+  println!("[Test] Stream ended after {} chunks", chunk_count);
 
   StreamResult {
     answer: result,
     sources,
     suggested_questions,
     gen_related_question,
+    progress,
   }
 }
 

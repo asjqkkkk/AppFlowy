@@ -25,9 +25,12 @@ class AFTextField extends StatefulWidget {
     this.controller,
     this.onChanged,
     this.onSubmitted,
+    this.onTapOutside,
     this.autoFocus,
     this.obscureText = false,
     this.expands = false,
+    this.prefixIconBuilder,
+    this.prefixIconConstraints,
     this.suffixIconBuilder,
     this.suffixIconConstraints,
     this.size = AFTextFieldSize.l,
@@ -68,11 +71,20 @@ class AFTextField extends StatefulWidget {
   /// The callback to call when the text field is submitted.
   final void Function(String)? onSubmitted;
 
+  /// The callback to call when the user taps outside the text field.
+  final void Function(PointerDownEvent)? onTapOutside;
+
   /// Enable auto focus.
   final bool? autoFocus;
 
   /// Obscure the text.
   final bool obscureText;
+
+  /// The leading widget to display.
+  final Widget? Function(BuildContext context)? prefixIconBuilder;
+
+  /// The size of the prefix icon.
+  final BoxConstraints? prefixIconConstraints;
 
   /// The trailing widget to display.
   final Widget? Function(BuildContext context, bool isObscured)?
@@ -214,6 +226,7 @@ class _AFTextFieldState extends AFTextFieldState {
       obscureText: isObscured,
       onChanged: widget.onChanged,
       onSubmitted: widget.onSubmitted,
+      onTapOutside: widget.onTapOutside,
       autofocus: widget.autoFocus ?? false,
       maxLength: widget.maxLength,
       inputFormatters: widget.inputFormatters,
@@ -233,6 +246,8 @@ class _AFTextFieldState extends AFTextFieldState {
         errorBorder: errorBorder,
         focusedErrorBorder: focusedErrorBorder,
         hoverColor: theme.borderColorScheme.primaryHover,
+        prefixIcon: widget.prefixIconBuilder?.call(context),
+        prefixIconConstraints: widget.prefixIconConstraints,
         suffixIcon: widget.suffixIconBuilder?.call(context, isObscured),
         suffixIconConstraints: widget.suffixIconConstraints,
       ),

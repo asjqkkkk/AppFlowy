@@ -2,9 +2,9 @@ import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/workspace/logic/personal_subscription_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/appflowy_hosted.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/debounce.dart';
-import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -36,6 +36,14 @@ Future<void> showCreateWorkspaceDialog(BuildContext context) {
     builder: (_) {
       return CreateWorkspaceDialog(
         userName: userName,
+        onSubscribeVaultWorkspace: () {
+          // open checkout link
+          bloc.add(
+            UserWorkspaceEvent.subscribePersonalPlan(
+              plan: PersonalPlanPB.VaultWorkspace,
+            ),
+          );
+        },
         createWorkspaceCallback: (workspaceName, workspaceIcon, workspaceType) {
           bloc.add(
             UserWorkspaceEvent.createWorkspace(
@@ -43,7 +51,7 @@ Future<void> showCreateWorkspaceDialog(BuildContext context) {
               icon: workspaceIcon,
               workspaceType: workspaceType == WorkspaceType.cloud
                   ? WorkspaceTypePB.ServerW
-                  : WorkspaceTypePB.LocalW,
+                  : WorkspaceTypePB.Vault,
             ),
           );
         },
@@ -57,10 +65,12 @@ class CreateWorkspaceDialog extends StatefulWidget {
     super.key,
     required this.userName,
     required this.createWorkspaceCallback,
+    required this.onSubscribeVaultWorkspace,
   });
 
   final String userName;
   final CreateWorkspaceCallback? createWorkspaceCallback;
+  final VoidCallback onSubscribeVaultWorkspace;
 
   @override
   State<CreateWorkspaceDialog> createState() => _CreateWorkspaceDialogState();
@@ -141,32 +151,37 @@ class _CreateWorkspaceDialogState extends State<CreateWorkspaceDialog> {
           ),
           Expanded(
             child: AFModalBody(
-              child: Column(
-                children: [
-                  _IconAndDescription(
-                    textController: textController,
-                    icon: icon,
-                    onChangeIcon: (newIcon) {
-                      setState(() => icon = newIcon);
-                    },
-                  ),
-                  VSpace(
-                    theme.spacing.xxl,
-                  ),
-                  _WorkspaceName(
-                    textController: textController,
-                    focusNode: focusNode,
-                  ),
-                  VSpace(
-                    theme.spacing.xl,
-                  ),
-                  _WorkspaceType(
-                    workspaceType: workspaceType,
-                    onChanged: (newType) {
-                      setState(() => workspaceType = newType);
-                    },
-                  ),
-                ],
+              child: BlocProvider(
+                create: (context) => PersonalSubscriptionBloc()
+                  ..add(PersonalSubscriptionEvent.initialize()),
+                child: Column(
+                  children: [
+                    _IconAndDescription(
+                      textController: textController,
+                      icon: icon,
+                      onChangeIcon: (newIcon) {
+                        setState(() => icon = newIcon);
+                      },
+                    ),
+                    VSpace(
+                      theme.spacing.xxl,
+                    ),
+                    _WorkspaceName(
+                      textController: textController,
+                      focusNode: focusNode,
+                    ),
+                    VSpace(
+                      theme.spacing.xl,
+                    ),
+                    _WorkspaceType(
+                      workspaceType: workspaceType,
+                      onTapWhenDisabled: widget.onSubscribeVaultWorkspace,
+                      onChanged: (newType) {
+                        setState(() => workspaceType = newType);
+                      },
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -318,10 +333,12 @@ class _WorkspaceType extends StatelessWidget {
   const _WorkspaceType({
     required this.workspaceType,
     required this.onChanged,
+    required this.onTapWhenDisabled,
   });
 
   final WorkspaceType workspaceType;
   final void Function(WorkspaceType) onChanged;
+  final VoidCallback onTapWhenDisabled;
 
   @override
   Widget build(BuildContext context) {
@@ -333,10 +350,13 @@ class _WorkspaceType extends StatelessWidget {
         Row(
           children: [
             Flexible(
-              child: Text(
-                LocaleKeys.workspace_workspaceType.tr(),
-                style: theme.textStyle.caption.enhanced(
-                  color: theme.textColorScheme.secondary,
+              child: SizedBox(
+                height: 20.0,
+                child: Text(
+                  LocaleKeys.workspace_workspaceType.tr(),
+                  style: theme.textStyle.caption.enhanced(
+                    color: theme.textColorScheme.secondary,
+                  ),
                 ),
               ),
             ),
@@ -362,56 +382,62 @@ class _WorkspaceType extends StatelessWidget {
         VSpace(
           theme.spacing.xs,
         ),
-        Row(
-          children: [
-            Expanded(
-              child: _WorkspaceTypeCard(
-                workspaceType: WorkspaceType.cloud,
-                isDisabled: false,
-                isSelected: workspaceType == WorkspaceType.cloud,
-                onTap: () => onChanged(WorkspaceType.cloud),
+        FutureBuilder<bool>(
+          future: isOfficialHosted(),
+          builder: (context, snapshot) {
+            return IntrinsicHeight(
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    child: _WorkspaceTypeCard(
+                      workspaceType: WorkspaceType.cloud,
+                      isLoading: false,
+                      isDisabled: false,
+                      isSelected: workspaceType == WorkspaceType.cloud,
+                      onTap: () => onChanged(WorkspaceType.cloud),
+                    ),
+                  ),
+                  HSpace(
+                    theme.spacing.m,
+                  ),
+                  if (snapshot.data == true) ...[
+                    Expanded(
+                      child: BlocBuilder<PersonalSubscriptionBloc,
+                          PersonalSubscriptionState>(
+                        builder: (context, state) {
+                          final isVaultLoading =
+                              state is PersonalSubscriptionStateLoading;
+                          final isVaultDisabled =
+                              state is PersonalSubscriptionStateLoaded &&
+                                  !state.hasVaultSubscription;
+
+                          return _WorkspaceTypeCard(
+                            workspaceType: WorkspaceType.vault,
+                            isDisabled: isVaultDisabled,
+                            isLoading: isVaultLoading,
+                            isSelected: workspaceType == WorkspaceType.vault,
+                            onTap: () {
+                              if (isVaultDisabled) {
+                                onTapWhenDisabled();
+                              } else {
+                                onChanged(WorkspaceType.vault);
+                              }
+                            },
+                            tooltipMessage: !isVaultLoading && isVaultDisabled
+                                ? LocaleKeys
+                                    .workspace_clickToSubscribeVaultWorkspace
+                                    .tr()
+                                : null,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ],
               ),
-            ),
-            HSpace(
-              theme.spacing.m,
-            ),
-            Expanded(
-              child: BlocProvider(
-                create: (context) => PersonalSubscriptionBloc()
-                  ..add(PersonalSubscriptionEvent.initialize()),
-                child: BlocBuilder<PersonalSubscriptionBloc,
-                    PersonalSubscriptionState>(
-                  buildWhen: (previous, current) =>
-                      previous.isLoading != current.isLoading,
-                  builder: (context, state) {
-                    return Stack(
-                      children: [
-                        _WorkspaceTypeCard(
-                          workspaceType: WorkspaceType.vault,
-                          isDisabled: state.subscription == null ||
-                              !state.subscription!
-                                  .hasActiveVaultWorkspaceSubscription,
-                          isSelected: workspaceType == WorkspaceType.vault,
-                          onTap: () => onChanged(WorkspaceType.vault),
-                          tooltipMessage: state.subscription == null
-                              ? LocaleKeys
-                                  .workspace_cannotGetVaultWorkspaceSubscription
-                                  .tr()
-                              : null,
-                        ),
-                        if (state.isLoading)
-                          Positioned.fill(
-                            child: const Center(
-                              child: CircularProgressIndicator.adaptive(),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
+            );
+          },
         ),
       ],
     );
@@ -422,6 +448,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
   const _WorkspaceTypeCard({
     required this.workspaceType,
     required this.isSelected,
+    required this.isLoading,
     required this.isDisabled,
     required this.onTap,
     this.tooltipMessage,
@@ -429,6 +456,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
 
   final WorkspaceType workspaceType;
   final bool isSelected;
+  final bool isLoading;
   final bool isDisabled;
   final VoidCallback onTap;
   final String? tooltipMessage;
@@ -443,12 +471,10 @@ class _WorkspaceTypeCard extends StatelessWidget {
       preferBelow: false,
       child: GestureDetector(
         onTap: () {
-          if (!isDisabled) {
-            onTap();
-          }
+          onTap();
         },
         child: MouseRegion(
-          cursor: isDisabled ? MouseCursor.defer : SystemMouseCursors.click,
+          cursor: SystemMouseCursors.click,
           child: Container(
             padding: EdgeInsets.symmetric(
               horizontal: theme.spacing.xl,
@@ -464,15 +490,23 @@ class _WorkspaceTypeCard extends StatelessWidget {
             ),
             child: Row(
               children: [
-                FlowySvg(
-                  workspaceType == WorkspaceType.cloud
-                      ? FlowySvgs.cloud_m
-                      : FlowySvgs.lock_m,
-                  size: Size.square(20),
-                  color: isDisabled
-                      ? theme.iconColorScheme.tertiary
-                      : theme.iconColorScheme.primary,
-                ),
+                if (isLoading)
+                  SizedBox.square(
+                    dimension: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                    ),
+                  )
+                else
+                  FlowySvg(
+                    workspaceType == WorkspaceType.cloud
+                        ? FlowySvgs.cloud_m
+                        : FlowySvgs.lock_m,
+                    size: Size.square(20),
+                    color: isDisabled
+                        ? theme.iconColorScheme.tertiary
+                        : theme.iconColorScheme.primary,
+                  ),
                 HSpace(
                   theme.spacing.l,
                 ),
@@ -503,7 +537,7 @@ class _WorkspaceTypeCard extends StatelessWidget {
                               ? theme.textColorScheme.tertiary
                               : theme.textColorScheme.secondary,
                         ),
-                        maxLines: 2,
+                        maxLines: 5,
                         overflow: TextOverflow.ellipsis,
                       ),
                     ],

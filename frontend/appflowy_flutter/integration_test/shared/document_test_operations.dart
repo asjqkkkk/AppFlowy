@@ -102,9 +102,7 @@ class EditorOperations {
   ///
   /// Must call [tapAddIconButton] first.
   Future<void> changeEmojiSkinTone(EmojiSkinTone skinTone) async {
-    await tester.tapButton(
-      find.byTooltip(LocaleKeys.emoji_selectSkinTone.tr()),
-    );
+    await tester.tapButton(find.byType(FlowyEmojiSkinToneSelector));
     final skinToneButton = find.byKey(emojiSkinToneKey(skinTone.icon));
     await tester.tapButton(skinToneButton);
   }

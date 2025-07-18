@@ -18,10 +18,10 @@ use flowy_server::af_cloud::define::{USER_DEVICE_ID, USER_EMAIL, USER_SIGN_IN_UR
 use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
 use flowy_server_pub::AuthenticatorType;
 use flowy_user::entities::{
-  AuthTypePB, ChangeWorkspaceIconPB, CloudSettingPB, CreateWorkspacePB, ImportAppFlowyDataPB,
-  OauthSignInPB, OpenUserWorkspacePB, RenameWorkspacePB, RepeatedUserWorkspacePB, SignInUrlPB,
-  SignInUrlPayloadPB, SignUpPayloadPB, UpdateCloudConfigPB, UpdateUserProfilePayloadPB,
-  UserProfilePB, UserWorkspaceIdPB, UserWorkspacePB, WorkspaceTypePB,
+  AuthTypePB, ChangeWorkspaceIconPB, CloudSettingPB, CreateWorkspacePB, DeleteWorkspaceIdPB,
+  ImportAppFlowyDataPB, OauthSignInPB, OpenUserWorkspacePB, RenameWorkspacePB,
+  RepeatedUserWorkspacePB, SignInUrlPB, SignInUrlPayloadPB, SignUpPayloadPB, UpdateCloudConfigPB,
+  UpdateUserProfilePayloadPB, UserProfilePB, UserWorkspaceIdPB, UserWorkspacePB, WorkspaceTypePB,
 };
 use flowy_user::errors::{ErrorCode, FlowyError, FlowyResult};
 use flowy_user::event_map::UserEvent;
@@ -345,6 +345,7 @@ impl EventIntegrationTest {
     let payload = RenameWorkspacePB {
       workspace_id: workspace_id.to_owned(),
       new_name: new_name.to_owned(),
+      workspace_type: WorkspaceTypePB::ServerW,
     };
     match EventBuilder::new(self.clone())
       .event(UserEvent::RenameWorkspace)
@@ -366,6 +367,7 @@ impl EventIntegrationTest {
     let payload = ChangeWorkspaceIconPB {
       workspace_id: workspace_id.to_owned(),
       new_icon: new_icon.to_owned(),
+      workspace_type: WorkspaceTypePB::ServerW,
     };
     match EventBuilder::new(self.clone())
       .event(UserEvent::ChangeWorkspaceIcon)
@@ -403,9 +405,10 @@ impl EventIntegrationTest {
       .parse_or_panic::<RepeatedUserWorkspacePB>()
   }
 
-  pub async fn delete_workspace(&self, workspace_id: &str) {
-    let payload = UserWorkspaceIdPB {
+  pub async fn delete_workspace(&self, workspace_id: &str, workspace_type: WorkspaceType) {
+    let payload = DeleteWorkspaceIdPB {
       workspace_id: workspace_id.to_string(),
+      workspace_type: workspace_type.into(),
     };
     EventBuilder::new(self.clone())
       .event(UserEvent::DeleteWorkspace)

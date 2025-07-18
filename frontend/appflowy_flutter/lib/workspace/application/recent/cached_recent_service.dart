@@ -35,16 +35,21 @@ class CachedRecentService {
   bool isDisposed = false;
 
   Future<List<SectionViewPB>> recentViews() async {
-    if (_isInitialized || _completer.isCompleted) return _recentViews;
+    if (_completer.isCompleted) return _recentViews;
 
-    _isInitialized = true;
-
-    _listener.start(recentViewsUpdated: _recentViewsUpdated);
-    _recentViews = await _readRecentViews().fold(
-      (s) => s.items.unique((e) => e.item.id),
-      (_) => [],
-    );
-    _completer.complete();
+    if (!_isInitialized) {
+      _isInitialized = true;
+      _listener.start(recentViewsUpdated: _recentViewsUpdated);
+      _recentViews = await _readRecentViews().fold(
+        (s) => s.items.unique((e) => e.item.id),
+        (_) => [],
+      );
+      if (!_completer.isCompleted) {
+        _completer.complete();
+      }
+    } else {
+      await _completer.future;
+    }
 
     return _recentViews;
   }

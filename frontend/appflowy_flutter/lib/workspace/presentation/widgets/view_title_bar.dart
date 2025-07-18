@@ -246,7 +246,7 @@ class ViewTitleBar extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
     final state = context.read<UserWorkspaceBloc>().state;
 
-    if (state.currentWorkspace?.workspaceType == WorkspaceTypePB.LocalW) {
+    if (state.currentWorkspace?.workspaceType == WorkspaceTypePB.Vault) {
       return const SizedBox.shrink();
     }
 

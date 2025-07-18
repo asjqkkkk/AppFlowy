@@ -61,7 +61,10 @@ impl UserPaths {
 
   /// Returns the path to the user's data directory.
   pub(crate) fn user_data_dir(&self, uid: i64) -> String {
-    format!("{}/{}", self.root, uid)
+    PathBuf::from(self.root.clone())
+      .join(uid.to_string())
+      .to_string_lossy()
+      .into_owned()
   }
 
   pub fn tanvity_index_path(&self, uid: i64) -> PathBuf {

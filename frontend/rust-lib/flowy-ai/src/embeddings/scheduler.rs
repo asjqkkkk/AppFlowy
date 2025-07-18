@@ -1,5 +1,6 @@
-use crate::embeddings::embedder::{Embedder, OllamaEmbedder};
+use crate::embeddings::embedder::Embedder;
 use crate::embeddings::indexer::IndexerProvider;
+use crate::local_ai::chat::llm::LocalLLMController;
 use crate::search::summary::{LLMDocument, summarize_documents};
 use flowy_ai_pub::cloud::search_dto::{
   SearchContentType, SearchDocumentResponseItem, SearchResult, SearchSummaryResult, Summary,
@@ -8,7 +9,6 @@ use flowy_ai_pub::entities::{EmbeddingRecord, UnindexedCollab, UnindexedData};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::internal::derives::multiconnection::chrono::Utc;
 use flowy_sqlite_vec::db::VectorSqliteDB;
-use ollama_rs::Ollama;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
 use std::sync::{Arc, Weak};
 use tokio::select;
@@ -23,14 +23,14 @@ pub struct EmbeddingScheduler {
   indexer_provider: Arc<IndexerProvider>,
   write_embedding_tx: UnboundedSender<EmbeddingRecord>,
   generate_embedding_tx: mpsc::Sender<UnindexedCollab>,
-  ollama: Arc<Ollama>,
+  ollama: Arc<LocalLLMController>,
   vector_db: Arc<VectorSqliteDB>,
   pub(crate) stop_tx: tokio::sync::broadcast::Sender<()>,
 }
 
 impl EmbeddingScheduler {
   pub fn new(
-    ollama: Arc<Ollama>,
+    ollama: Arc<LocalLLMController>,
     vector_db: Arc<VectorSqliteDB>,
   ) -> FlowyResult<Arc<EmbeddingScheduler>> {
     let indexer_provider = IndexerProvider::new();
@@ -67,9 +67,7 @@ impl EmbeddingScheduler {
   }
 
   pub(crate) fn create_embedder(&self) -> Result<Embedder, FlowyError> {
-    let embedder = Embedder::Ollama(OllamaEmbedder {
-      ollama: self.ollama.clone(),
-    });
+    let embedder = Embedder::Ollama(self.ollama.clone());
     Ok(embedder)
   }
 
@@ -82,14 +80,10 @@ impl EmbeddingScheduler {
   }
 
   pub async fn delete_collab(&self, workspace_id: &Uuid, object_id: &Uuid) -> FlowyResult<()> {
-    self
+    let _ = self
       .vector_db
       .delete_collab(&workspace_id.to_string(), &object_id.to_string())
-      .await
-      .map_err(|err| {
-        error!("[Embedding] Failed to delete collab: {}", err);
-        FlowyError::new(ErrorCode::LocalEmbeddingNotReady, "Failed to delete collab")
-      })?;
+      .await;
     Ok(())
   }
 
@@ -110,7 +104,14 @@ impl EmbeddingScheduler {
       Some(query_embed) => {
         let result = self
           .vector_db
-          .search_with_score(&workspace_id.to_string(), &[], query_embed, 10, 0.1)
+          .search_with_score(
+            &workspace_id.to_string(),
+            &[],
+            query_embed,
+            10,
+            0.1,
+            self.ollama.embed_dimension(),
+          )
           .await
           .map_err(|err| {
             error!("[Embedding] Failed to search: {}", err);
@@ -118,10 +119,11 @@ impl EmbeddingScheduler {
           })?;
 
         debug!(
-          "[Search] Local embedding search workspace:{} with query: {}, got {} items",
+          "[Search] Local embedding search workspace:{} with query: {}, got {} items, embedding dimension: {}",
           workspace_id,
           query,
-          result.len()
+          result.len(),
+          self.ollama.embed_dimension()
         );
 
         let rows = result
@@ -162,7 +164,8 @@ impl EmbeddingScheduler {
       })
       .collect::<Vec<_>>();
 
-    let resp = summarize_documents(&self.ollama, question, model_name, docs)
+    let llm = self.ollama.build_llm(None, None);
+    let resp = summarize_documents(&llm, question, model_name, docs)
       .await
       .map_err(|err| {
         error!("[Embedding] Failed to generate summary: {}", err);
@@ -231,7 +234,7 @@ pub async fn spawn_write_embeddings(
           debug!("[Embedding] Writing {}", record);
           match scheduler
               .vector_db
-              .upsert_collabs_embeddings(&record.workspace_id.to_string(), &record.object_id.to_string(), record.chunks)
+              .upsert_collabs_embeddings(&record.workspace_id.to_string(), &record.object_id.to_string(), record.chunks, record.embedding_dimension)
               .await
           {
             Ok(_) => trace!("[Embedding] Successfully wrote embeddings for {}", record.object_id),
@@ -281,7 +284,7 @@ async fn spawn_generate_embeddings(
             let params: Vec<_> = records.iter().map(|r| r.object_id.to_string()).collect();
             let existing_embeddings = scheduler
                 .vector_db
-                .select_collabs_fragment_ids(&params)
+                .select_collabs_fragment_ids(&params, embedder.dimension())
                 .await
                 .unwrap_or_else(|err| {
                   error!("[Embedding] failed to get existing embeddings: {}", err);
@@ -327,6 +330,7 @@ async fn spawn_generate_embeddings(
                           workspace_id: record.workspace_id,
                           object_id: record.object_id,
                           chunks,
+                          embedding_dimension: embedder.dimension(),
                         };
                         if let Err(err) = write_embedding_tx.send(record) {
                           error!("Failed to send embedding record: {}", err);

@@ -1,15 +1,17 @@
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_page.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/desktop_toolbar/color_picker.dart';
-import 'package:appflowy/plugins/document/presentation/editor_style.dart';
+import 'package:appflowy/workspace/application/user/prelude.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart' hide ColorPicker;
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:flowy_infra_ui/flowy_infra_ui.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
+import '../base/font_colors.dart';
 import 'toolbar_id_enum.dart';
-
-String? _customHighlightColorHex;
 
 final customHighlightColorItem = ToolbarItem(
   id: ToolbarId.highlightColor.id,
@@ -19,7 +21,6 @@ final customHighlightColorItem = ToolbarItem(
       HighlightColorPickerWidget(
     editorState: editorState,
     tooltipBuilder: tooltipBuilder,
-    highlightColor: highlightColor,
   ),
 );
 
@@ -28,12 +29,10 @@ class HighlightColorPickerWidget extends StatefulWidget {
     super.key,
     required this.editorState,
     this.tooltipBuilder,
-    required this.highlightColor,
   });
 
   final EditorState editorState;
   final ToolbarTooltipBuilder? tooltipBuilder;
-  final Color highlightColor;
 
   @override
   State<HighlightColorPickerWidget> createState() =>
@@ -42,186 +41,175 @@ class HighlightColorPickerWidget extends StatefulWidget {
 
 class _HighlightColorPickerWidgetState
     extends State<HighlightColorPickerWidget> {
-  final popoverController = PopoverController();
+  late final popoverController = AFPopoverController()
+    ..addListener(onPopoverChange);
 
-  bool isSelected = false;
-
-  EditorState get editorState => widget.editorState;
-
-  Color get highlightColor => widget.highlightColor;
+  @override
+  void initState() {
+    super.initState();
+    final bloc = context.read<UserWorkspaceBloc>();
+    bloc.add(
+      UserWorkspaceEvent.fetchWorkspaceSubscriptionInfo(
+        workspaceId: bloc.state.currentWorkspace?.workspaceId ?? '',
+      ),
+    );
+  }
 
   @override
   void dispose() {
+    popoverController.dispose();
     super.dispose();
-    popoverController.close();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (editorState.selection == null) {
+    if (widget.editorState.selection == null) {
       return const SizedBox.shrink();
     }
-    final selectionRectList = editorState.selectionRects();
-    final top =
-        selectionRectList.isEmpty ? 0.0 : selectionRectList.first.height;
-    return AppFlowyPopover(
+
+    final theme = AppFlowyTheme.of(context);
+
+    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
+
+    final workspaceId = userWorkspaceState.currentWorkspace?.workspaceId ?? '';
+    final userId = userWorkspaceState.userProfile.id.toString();
+
+    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
+    final isPro = subscriptionPlan != null &&
+        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
+
+    final colors =
+        getColorsInSelection(widget.editorState, ColorType.background);
+
+    final config = getBackgroundColorPickerConfig(
+      isPro: isPro,
+      workspaceId: workspaceId,
+      userId: userId,
+    );
+
+    return AFPopover(
       controller: popoverController,
-      direction: PopoverDirection.bottomWithLeftAligned,
-      offset: Offset(0, top),
-      onOpen: () => keepEditorFocusNotifier.increase(),
-      onClose: () {
-        setState(() {
-          isSelected = false;
-        });
-        keepEditorFocusNotifier.decrease();
+      padding: EdgeInsets.zero,
+      anchor: AFAnchorAuto(
+        followerAnchor: Alignment.bottomRight,
+        targetAnchor: Alignment.centerLeft,
+        offset: Offset(0, 2.0 + theme.spacing.xs + 16.0),
+      ),
+      decoration: BoxDecoration(
+        color: theme.surfaceColorScheme.layer01,
+        borderRadius: BorderRadius.circular(theme.borderRadius.l),
+        boxShadow: theme.shadow.small,
+      ),
+      popover: (context) {
+        return buildPopoverContent(
+          colors,
+          config,
+        );
       },
-      margin: EdgeInsets.zero,
-      popupBuilder: (context) => buildPopoverContent(),
-      child: buildChild(context),
+      child: buildChild(context, colors, config),
     );
   }
 
-  Widget buildChild(BuildContext context) {
-    final theme = AppFlowyTheme.of(context),
-        iconColor = theme.iconColorScheme.primary;
+  Widget buildChild(
+    BuildContext context,
+    List<AFColor> colors,
+    ColorPickerConfig config,
+  ) {
+    final theme = AppFlowyTheme.of(context);
 
-    final child = FlowyIconButton(
-      width: 36,
-      height: 32,
-      hoverColor: EditorStyleCustomizer.toolbarHoverColor(context),
-      icon: SizedBox(
-        width: 20,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            FlowySvg(
-              FlowySvgs.toolbar_text_highlight_m,
-              size: Size(20, 16),
-              color: iconColor,
-            ),
-            buildColorfulDivider(iconColor),
-          ],
-        ),
+    final Color? backgroundColor;
+    if (colors.isEmpty || colors.length > 1) {
+      backgroundColor = null;
+    } else if (colors.first == config.defaultColor) {
+      backgroundColor = null;
+    } else {
+      backgroundColor = colors.first.toColor(theme);
+    }
+
+    final child = AFBaseButton(
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.spacing.m,
+        vertical: theme.spacing.xs,
       ),
-      onPressed: () {
-        setState(() {
-          isSelected = true;
-        });
-        showPopover();
+      borderColor: (context, isHovering, disabled, isFocused) =>
+          Colors.transparent,
+      borderRadius: theme.spacing.m,
+      backgroundColor: (context, isHovering, disabled) {
+        if (isHovering || popoverController.isOpen) {
+          return theme.fillColorScheme.contentHover;
+        }
+        return theme.fillColorScheme.content;
+      },
+      builder: (context, isHovering, disabled) {
+        return SizedBox(
+          height: 24,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              if (backgroundColor == null)
+                FlowySvg(
+                  FlowySvgs.text_color_border_m,
+                  size: Size.square(20),
+                  color: theme.iconColorScheme.primary,
+                )
+              else
+                FlowySvg(
+                  FlowySvgs.text_color_fill_m,
+                  size: Size.square(20),
+                  color: backgroundColor,
+                ),
+              FlowySvg(
+                FlowySvgs.text_highlight_m,
+                size: Size.square(20),
+                color: theme.iconColorScheme.primary,
+              ),
+            ],
+          ),
+        );
+      },
+      onTap: () {
+        if (popoverController.isOpen) {
+          popoverController.hide();
+        } else {
+          popoverController.show();
+        }
       },
     );
 
     return widget.tooltipBuilder?.call(
           context,
           ToolbarId.highlightColor.id,
-          AppFlowyEditorL10n.current.highlightColor,
+          LocaleKeys.document_toolbar_backgroundColor.tr(),
           child,
         ) ??
         child;
   }
 
-  Widget buildColorfulDivider(Color? iconColor) {
-    final List<String> colors = [];
-    final selection = editorState.selection!;
-    final nodes = editorState.getNodesInSelection(selection);
-    final isHighLight = nodes.allSatisfyInSelection(selection, (delta) {
-      if (delta.everyAttributes((attr) => attr.isEmpty)) {
-        return false;
-      }
-
-      return delta.everyAttributes((attr) {
-        final textColorHex = attr[AppFlowyRichTextKeys.backgroundColor];
-        if (textColorHex != null) colors.add(textColorHex);
-        return (textColorHex != null);
-      });
-    });
-
-    final colorLength = colors.length;
-    if (colors.isEmpty || !isHighLight) {
-      return Container(
-        width: 20,
-        height: 4,
-        color: iconColor,
-      );
-    }
-    return SizedBox(
-      width: 20,
-      height: 4,
-      child: Row(
-        children: List.generate(colorLength, (index) {
-          final currentColor = int.tryParse(colors[index]);
-          return Container(
-            width: 20 / colorLength,
-            height: 4,
-            color: currentColor == null ? iconColor : Color(currentColor),
-          );
-        }),
-      ),
-    );
-  }
-
-  Widget buildPopoverContent() {
-    final List<String> colors = [];
-
-    final selection = editorState.selection!;
-    final nodes = editorState.getNodesInSelection(selection);
-    final isHighlight = nodes.allSatisfyInSelection(selection, (delta) {
-      if (delta.everyAttributes((attr) => attr.isEmpty)) {
-        return false;
-      }
-
-      return delta.everyAttributes((attributes) {
-        final highlightColorHex =
-            attributes[AppFlowyRichTextKeys.backgroundColor];
-        if (highlightColorHex != null) colors.add(highlightColorHex);
-        return highlightColorHex != null;
-      });
-    });
-    bool showClearButton = false;
-    nodes.allSatisfyInSelection(selection, (delta) {
-      if (!showClearButton) {
-        showClearButton = delta.whereType<TextInsert>().any(
-          (element) {
-            return element.attributes?[AppFlowyRichTextKeys.backgroundColor] !=
-                null;
-          },
+  Widget buildPopoverContent(
+    List<AFColor> colors,
+    ColorPickerConfig config,
+  ) {
+    return ColorPicker(
+      config: config,
+      selectedColors: colors,
+      onSelectColor: (color) {
+        formatColor(
+          widget.editorState,
+          AppFlowyTheme.of(context),
+          ColorType.background,
+          color,
         );
-      }
-      return true;
-    });
-    return MouseRegion(
-      child: ColorPicker(
-        title: AppFlowyEditorL10n.current.highlightColor,
-        showClearButton: showClearButton,
-        selectedColorHex:
-            (colors.length == 1 && isHighlight) ? colors.first : null,
-        customColorHex: _customHighlightColorHex,
-        colorOptions: generateHighlightColorOptions(),
-        onSubmittedColorHex: (color, isCustomColor) {
-          if (isCustomColor) {
-            _customHighlightColorHex = color;
-          }
-          formatHighlightColor(
-            editorState,
-            editorState.selection,
-            color,
-            withUpdateSelection: true,
-          );
-          hidePopover();
-        },
-        resetText: AppFlowyEditorL10n.current.clearHighlightColor,
-        resetIconName: 'clear_highlight_color',
-      ),
+      },
     );
   }
 
-  void showPopover() {
-    keepEditorFocusNotifier.increase();
-    popoverController.show();
-  }
-
-  void hidePopover() {
-    popoverController.close();
-    keepEditorFocusNotifier.decrease();
+  void onPopoverChange() {
+    setState(() {
+      if (popoverController.isOpen) {
+        keepEditorFocusNotifier.increase();
+      } else {
+        keepEditorFocusNotifier.decrease();
+      }
+    });
   }
 }

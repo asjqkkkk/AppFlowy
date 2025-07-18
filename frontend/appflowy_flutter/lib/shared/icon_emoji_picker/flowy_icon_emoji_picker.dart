@@ -118,6 +118,7 @@ class FlowyIconEmojiPicker extends StatefulWidget {
       PickerTabType.emoji,
       PickerTabType.icon,
     ],
+    this.headerBackgroundColor,
   });
 
   final ValueChanged<SelectedEmojiIconResult>? onSelectedEmoji;
@@ -126,6 +127,7 @@ class FlowyIconEmojiPicker extends StatefulWidget {
   final PickerTabType? initialType;
   final String? documentId;
   final bool showRemoveButton;
+  final Color? headerBackgroundColor;
 
   @override
   State<FlowyIconEmojiPicker> createState() => _FlowyIconEmojiPickerState();
@@ -149,10 +151,7 @@ class _FlowyIconEmojiPickerState extends State<FlowyIconEmojiPicker>
       vsync: this,
     );
     controller.addListener(() {
-      final currentType = widget.tabs[currentIndex];
-      if (currentType == PickerTabType.custom) {
-        SystemChannels.textInput.invokeMethod('TextInput.hide');
-      }
+      SystemChannels.textInput.invokeMethod('TextInput.hide');
     });
   }
 
@@ -211,7 +210,7 @@ class _FlowyIconEmojiPickerState extends State<FlowyIconEmojiPicker>
 
   Widget _buildEmojiPicker() {
     return FlowyEmojiPicker(
-      ensureFocus: true,
+      ensureFocus: UniversalPlatform.isDesktop,
       emojiPerLine: _getEmojiPerLine(context),
       onEmojiSelected: (r) {
         widget.onSelectedEmoji?.call(
@@ -219,6 +218,7 @@ class _FlowyIconEmojiPickerState extends State<FlowyIconEmojiPicker>
         );
         SystemChannels.textInput.invokeMethod('TextInput.hide');
       },
+      headerBackgroundColor: widget.headerBackgroundColor,
     );
   }
 
@@ -232,7 +232,7 @@ class _FlowyIconEmojiPickerState extends State<FlowyIconEmojiPicker>
 
   Widget _buildIconPicker() {
     return FlowyIconPicker(
-      ensureFocus: true,
+      ensureFocus: UniversalPlatform.isDesktop,
       enableBackgroundColorSelection: widget.enableBackgroundColorSelection,
       onSelectedIcon: (r) {
         widget.onSelectedEmoji?.call(

@@ -1,5 +1,6 @@
 use crate::SqliteVectorStore;
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::embeddings::indexer::LocalEmbeddingModel;
+use crate::local_ai::chat::llm::{AFLLM, LocalLLMController};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite_vec::entities::EmbeddedContent;
 use langchain_rust::language_models::llm::LLM;
@@ -64,16 +65,17 @@ pub struct ContextQuestion {
 
 pub struct ContextRelatedQuestionChain {
   workspace_id: Uuid,
-  llm: LLMOllama,
+  llm: AFLLM,
   store: SqliteVectorStore,
 }
 
 impl ContextRelatedQuestionChain {
-  pub fn new(workspace_id: Uuid, ollama: LLMOllama, store: SqliteVectorStore) -> Self {
+  pub fn new(workspace_id: Uuid, controller: LocalLLMController, store: SqliteVectorStore) -> Self {
     let format = FormatType::StructuredJson(JsonStructure::new::<ContextQuestionsResponse>());
+    let llm = controller.build_llm(Some(format), None);
     Self {
       workspace_id,
-      llm: ollama.with_format(format),
+      llm,
       store,
     }
   }
@@ -111,12 +113,17 @@ impl ContextRelatedQuestionChain {
       .questions
       .retain(|v| rag_ids.iter().any(|id| id.as_ref() == v.object_id));
 
+    debug!(
+      "Generated context:{}, related questions: {:?}",
+      context, parsed_result.questions
+    );
     Ok(parsed_result.questions)
   }
 
   pub async fn generate_questions<T>(
     &self,
     rag_ids: &[T],
+    embed_model: LocalEmbeddingModel,
   ) -> FlowyResult<(String, Vec<ContextQuestion>)>
   where
     T: AsRef<str> + Debug,
@@ -129,7 +136,12 @@ impl ContextRelatedQuestionChain {
     let rag_ids_str: Vec<String> = rag_ids.iter().map(|id| id.as_ref().to_string()).collect();
     let context = self
       .store
-      .select_all_embedded_content(&self.workspace_id.to_string(), &rag_ids_str, 3)
+      .select_all_embedded_content(
+        &self.workspace_id.to_string(),
+        &rag_ids_str,
+        3,
+        embed_model.dimension(),
+      )
       .await?;
 
     trace!(

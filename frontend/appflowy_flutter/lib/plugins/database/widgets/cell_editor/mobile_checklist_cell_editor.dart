@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
-import 'package:appflowy/plugins/base/drag_handler.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/checklist_cell_bloc.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';

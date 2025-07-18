@@ -26,7 +26,7 @@ use std::collections::HashMap;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use tokio::sync::broadcast;
-use tracing::{error, info, instrument, trace};
+use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 
 #[derive(Clone)]
@@ -229,7 +229,7 @@ impl DatabaseCollabServiceImpl {
         }
       },
       Some(encoded_collab) => {
-        info!(
+        debug!(
           "build collab: {}:{} with new encode collab, {} bytes",
           collab_type,
           object_id,

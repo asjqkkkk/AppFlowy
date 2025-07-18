@@ -1,5 +1,8 @@
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use async_trait::async_trait;
+use flowy_ai_pub::cloud::MessageCursor;
+use flowy_ai_pub::cloud::chat_dto::ChatAuthorType;
+use flowy_ai_pub::persistence::{chat_auth_type_from_i64, select_chat_messages};
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};
 use langchain_rust::chain::{Chain, LLMChain, LLMChainBuilder};
@@ -7,6 +10,8 @@ use langchain_rust::schemas::{BaseMemory, Message};
 use langchain_rust::{fmt_message, fmt_placeholder, message_formatter, prompt_args};
 use std::sync::{Arc, Weak};
 use tokio::sync::{Mutex, RwLock};
+use tracing::debug;
+use uuid::Uuid;
 
 pub struct SummaryMemory {
   messages: RwLock<Vec<Message>>,
@@ -16,16 +21,47 @@ pub struct SummaryMemory {
   user_service: Option<Weak<dyn AIUserService>>,
 }
 
+fn get_history_message(
+  chat_id: &Uuid,
+  user_service: Option<Weak<dyn AIUserService>>,
+) -> FlowyResult<Vec<Message>> {
+  let mut messages = Vec::new();
+  if let Some(service) = user_service.and_then(|u| u.upgrade()) {
+    let chat_id = chat_id.to_string();
+    let uid = service.user_id()?;
+    let db = service.sqlite_connection(uid)?;
+    if let Ok(result) = select_chat_messages(db, &chat_id, 10, MessageCursor::NextBack) {
+      messages.extend(result.messages.into_iter().map(|record| {
+        match chat_auth_type_from_i64(record.author_type) {
+          ChatAuthorType::Unknown => Message::new_human_message(record.content),
+          ChatAuthorType::Human => Message::new_human_message(record.content),
+          ChatAuthorType::System => Message::new_system_message(record.content),
+          ChatAuthorType::AI => Message::new_ai_message(record.content),
+        }
+      }));
+    }
+  }
+
+  Ok(messages)
+}
+
 impl SummaryMemory {
   pub fn new(
-    llm: LLMOllama,
+    chat_id: &Uuid,
+    llm: AFLLM,
     summary: String,
     user_service: Option<Weak<dyn AIUserService>>,
   ) -> FlowyResult<Self> {
+    let messages = get_history_message(chat_id, user_service.clone())?;
+    debug!(
+      "Loaded {} history messages for chat_id: {}",
+      messages.len(),
+      chat_id,
+    );
     let chain = SummaryMessageChain::new(llm)?;
     Ok(Self {
       chain,
-      messages: RwLock::new(Vec::new()),
+      messages: RwLock::new(messages),
       current_summary: summary,
       user_service,
     })
@@ -90,7 +126,7 @@ struct SummaryMessageChain {
 }
 
 impl SummaryMessageChain {
-  pub fn new(llm: LLMOllama) -> FlowyResult<Self> {
+  pub fn new(llm: AFLLM) -> FlowyResult<Self> {
     let prompt = message_formatter![
       fmt_message!(Message::new_system_message(SUMMARY_SYSTEM_PROMPT)),
       fmt_placeholder!("current_summary"),

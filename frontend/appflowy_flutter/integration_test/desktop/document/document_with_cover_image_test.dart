@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/document_cover_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
@@ -186,7 +187,7 @@ void main() {
 
       // click the shuffle button
       await tester.tapButton(
-        find.byTooltip(LocaleKeys.emoji_random.tr()),
+        find.byFlowySvg(FlowySvgs.icon_shuffle_s),
       );
       tester.expectDocumentIconNotNull();
     });

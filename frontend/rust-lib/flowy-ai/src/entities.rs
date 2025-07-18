@@ -216,6 +216,15 @@ pub struct ModelSelectionPB {
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct EmbeddingModelSelectionPB {
+  #[pb(index = 1)]
+  pub models: Vec<String>,
+
+  #[pb(index = 2)]
+  pub selected_model: String,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
 pub struct RepeatedAIModelPB {
   #[pb(index = 1)]
   pub items: Vec<AIModelPB>,
@@ -231,6 +240,15 @@ pub struct AIModelPB {
 
   #[pb(index = 3)]
   pub desc: String,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct LocalAIModelInfoPB {
+  #[pb(index = 1)]
+  pub name: String,
+
+  #[pb(index = 3)]
+  pub vision: bool,
 }
 
 impl From<AIModel> for AIModelPB {
@@ -528,37 +546,6 @@ pub struct LocalModelStatePB {
   pub is_downloading: bool,
 }
 
-#[derive(Default, ProtoBuf, Clone, Debug)]
-pub struct PendingResourcePB {
-  #[pb(index = 1)]
-  pub name: String,
-
-  #[pb(index = 2)]
-  pub file_size: String,
-
-  #[pb(index = 3)]
-  pub requirements: String,
-
-  #[pb(index = 4)]
-  pub res_type: PendingResourceTypePB,
-}
-
-#[derive(Debug, Default, Clone, ProtoBuf_Enum, PartialEq, Eq, Copy)]
-pub enum PendingResourceTypePB {
-  #[default]
-  LocalAIAppRes = 0,
-  ModelRes = 1,
-}
-
-impl From<PendingResource> for PendingResourceTypePB {
-  fn from(value: PendingResource) -> Self {
-    match value {
-      PendingResource::PluginExecutableNotReady { .. } => PendingResourceTypePB::LocalAIAppRes,
-      _ => PendingResourceTypePB::ModelRes,
-    }
-  }
-}
-
 #[derive(Debug, Default, Clone, ProtoBuf_Enum, PartialEq, Eq, Copy)]
 pub enum RunningStatePB {
   #[default]
@@ -585,6 +572,9 @@ pub struct LocalAIStatePB {
 
   #[pb(index = 5)]
   pub is_ready: bool,
+
+  #[pb(index = 6)]
+  pub vision_enabled: bool,
 }
 
 #[derive(Default, ProtoBuf, Validate, Clone, Debug)]
@@ -716,18 +706,13 @@ pub struct LackOfAIResourcePB {
 #[derive(Debug, Default, Clone, ProtoBuf_Enum)]
 pub enum LackOfAIResourceTypePB {
   #[default]
-  PluginExecutableNotReady = 0,
-  OllamaServerNotReady = 1,
-  MissingModel = 2,
+  OllamaServerNotReady = 0,
+  MissingModel = 1,
 }
 
 impl From<PendingResource> for LackOfAIResourcePB {
   fn from(value: PendingResource) -> Self {
     match value {
-      PendingResource::PluginExecutableNotReady => Self {
-        resource_type: LackOfAIResourceTypePB::PluginExecutableNotReady,
-        missing_model_names: vec![],
-      },
       PendingResource::OllamaServerNotReady => Self {
         resource_type: LackOfAIResourceTypePB::OllamaServerNotReady,
         missing_model_names: vec![],

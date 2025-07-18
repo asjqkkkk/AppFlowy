@@ -1,5 +1,6 @@
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/theme_extension.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -41,6 +42,7 @@ class MobileEmojiPickerScreen extends StatelessWidget {
           onSelectedEmoji: (r) {
             context.pop<EmojiIconData>(r.data);
           },
+          headerBackgroundColor: AFThemeExtension.of(context).background,
         ),
       ),
     );

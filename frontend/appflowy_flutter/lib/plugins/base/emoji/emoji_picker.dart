@@ -31,11 +31,13 @@ class FlowyEmojiPicker extends StatefulWidget {
     required this.onEmojiSelected,
     this.emojiPerLine = 9,
     this.ensureFocus = false,
+    this.headerBackgroundColor,
   });
 
   final ValueChanged<EmojiPickerResult> onEmojiSelected;
   final int emojiPerLine;
   final bool ensureFocus;
+  final Color? headerBackgroundColor;
 
   @override
   State<FlowyEmojiPicker> createState() => _FlowyEmojiPickerState();
@@ -88,7 +90,10 @@ class _FlowyEmojiPickerState extends State<FlowyEmojiPicker> {
         RecentIcons.putEmoji(id);
       },
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      headerBuilder: (_, category) => FlowyEmojiHeader(category: category),
+      headerBuilder: (_, category) => FlowyEmojiHeader(
+        category: category,
+        backgroundColor: widget.headerBackgroundColor,
+      ),
       itemBuilder: (context, emojiId, emoji, callback) {
         final name = emojiData.emojis[emojiId]?.name ?? '';
         return SizedBox.square(

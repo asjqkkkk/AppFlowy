@@ -18,7 +18,7 @@ class DragHandle extends StatelessWidget {
       width: 36.0,
       margin: margin ?? EdgeInsets.symmetric(vertical: theme.spacing.s),
       decoration: BoxDecoration(
-        color: theme.fillColorScheme.secondary,
+        color: theme.iconColorScheme.quaternary,
         borderRadius: BorderRadius.circular(2),
       ),
     );

@@ -1,4 +1,4 @@
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use crate::local_ai::completion::stream_interpreter::stream_interpreter_for_completion;
 use crate::local_ai::completion::writer::{
   AskAiWriter, CompletionWriterContext, ContinueWriteWriter, CustomWriter, ExplainWriter,
@@ -37,11 +37,11 @@ pub struct WriterConfig {
 }
 
 pub struct CompletionChain {
-  ollama: LLMOllama,
+  ollama: AFLLM,
 }
 
 impl CompletionChain {
-  pub fn new(ollama: LLMOllama) -> Self {
+  pub fn new(ollama: AFLLM) -> Self {
     Self { ollama }
   }
 

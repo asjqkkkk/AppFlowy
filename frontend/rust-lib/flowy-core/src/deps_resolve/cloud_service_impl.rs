@@ -233,8 +233,18 @@ impl UserServerProvider for ServerProvider {
 
   /// Returns the [UserWorkspaceService] base on the current [AuthProvider].
   /// Creates a new [AppFlowyServer] if it doesn't exist.
-  fn workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
+  fn current_workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
     let workspace_type = self.get_current_workspace_type()?;
+    let service = self
+      .get_server_from_workspace_type(workspace_type)?
+      .user_service();
+    Ok(service)
+  }
+
+  fn workspace_service(
+    &self,
+    workspace_type: WorkspaceType,
+  ) -> Result<Arc<dyn UserWorkspaceService>, FlowyError> {
     let service = self
       .get_server_from_workspace_type(workspace_type)?
       .user_service();
@@ -697,7 +707,7 @@ impl ChatCloudService for ServerProvider {
       .await
   }
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     workspace_id: &Uuid,
     chat_id: &Uuid,
@@ -707,7 +717,7 @@ impl ChatCloudService for ServerProvider {
   ) -> Result<StreamAnswer, FlowyError> {
     self
       .get_chat_service()?
-      .stream_answer(workspace_id, chat_id, question_id, format, ai_model)
+      .stream_question(workspace_id, chat_id, question_id, format, ai_model)
       .await
   }
 

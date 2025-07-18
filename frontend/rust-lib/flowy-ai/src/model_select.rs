@@ -1,8 +1,11 @@
+use crate::embeddings::indexer::supported_dimensions;
 use crate::local_ai::controller::LocalAIController;
+use crate::local_ai::util::is_support_embedding;
 use arc_swap::ArcSwapOption;
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
+use futures::future;
 use lib_infra::async_trait::async_trait;
 use lib_infra::util::timestamp;
 use std::collections::HashSet;
@@ -78,6 +81,16 @@ impl ModelSelectionControl {
     } else {
       models
     }
+  }
+
+  #[instrument(level = "debug", skip(self))]
+  pub async fn get_embedding_models(&self) -> Vec<String> {
+    let mut models = Vec::new();
+    for source in &self.sources {
+      let mut list = source.list_embedding_models().await;
+      models.append(&mut list);
+    }
+    models
   }
 
   /// Fetches all server‐side models and, if specified, a single local model by name.
@@ -287,6 +300,8 @@ pub trait ModelSource: Send + Sync {
 
   /// Asynchronously returns a list of available models from this source
   async fn list_chat_models(&self, workspace_id: &Uuid) -> Vec<Model>;
+
+  async fn list_embedding_models(&self) -> Vec<String>;
 }
 
 pub struct LocalAiSource {
@@ -306,7 +321,7 @@ impl ModelSource for LocalAiSource {
   }
 
   async fn list_chat_models(&self, _workspace_id: &Uuid) -> Vec<Model> {
-    match self.controller.ollama.load_full() {
+    match self.controller.llm_controller.load_full() {
       None => vec![],
       Some(ollama) => ollama
         .list_local_models()
@@ -314,11 +329,51 @@ impl ModelSource for LocalAiSource {
         .map(|models| {
           models
             .into_iter()
-            .filter(|m| !m.name.contains("embed"))
+            .filter(|m| !m.name.to_lowercase().contains("embed"))
             .map(|m| AIModel::local(m.name, String::new()))
             .collect()
         })
         .unwrap_or_default(),
+    }
+  }
+
+  async fn list_embedding_models(&self) -> Vec<String> {
+    match self.controller.llm_controller.load_full() {
+      None => vec![],
+      Some(ollama) => {
+        let models = ollama
+          .list_local_models()
+          .await
+          .map(|models| {
+            models
+              .into_iter()
+              .filter(|m| m.name.to_lowercase().contains("embed"))
+              .map(|m| m.name)
+              .collect::<Vec<_>>()
+          })
+          .unwrap_or_default();
+
+        let supported_dim = supported_dimensions();
+        let futures = models.into_iter().map(|model| {
+          let ollama = ollama.clone();
+          let cloned_supported_dim = supported_dim.clone();
+          async move {
+            if let Ok(model_info) = ollama.show_model_info(model.clone()).await {
+              if is_support_embedding(&cloned_supported_dim, &model, &model_info) {
+                return Some(model);
+              } else {
+                info!("Model {} does not support embedding, skipping", model);
+              }
+            }
+            None
+          }
+        });
+        future::join_all(futures)
+          .await
+          .into_iter()
+          .flatten()
+          .collect()
+      },
     }
   }
 }
@@ -394,6 +449,10 @@ impl ModelSource for ServerAiSource {
         Vec::new()
       },
     }
+  }
+
+  async fn list_embedding_models(&self) -> Vec<String> {
+    vec![]
   }
 }
 

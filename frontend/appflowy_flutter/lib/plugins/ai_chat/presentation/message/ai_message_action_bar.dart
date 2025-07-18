@@ -445,7 +445,7 @@ class _ChangeModelButtonState extends State<ChangeModelButton> {
       child: buildButton(context),
       popupBuilder: (_) {
         final bloc = context.read<AIPromptInputBloc>();
-        final (models, _) = bloc.aiModelStateNotifier.getModelSelection();
+        final models = bloc.aiModelStateNotifier.modelSelection.availableModels;
         return SelectModelPopoverContent(
           models: models,
           selectedModel: null,

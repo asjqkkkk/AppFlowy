@@ -16,6 +16,7 @@ import 'package:appflowy/plugins/inline_actions/inline_actions_service.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/shortcuts/settings_shortcuts_service.dart';
+import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/application/view_info/view_info_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/af_focus_manager.dart';
@@ -28,6 +29,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
+import 'editor_plugins/base/font_colors.dart';
 import 'editor_plugins/desktop_toolbar/desktop_floating_toolbar.dart';
 import 'editor_plugins/toolbar_item/custom_format_toolbar_items.dart';
 import 'editor_plugins/toolbar_item/custom_hightlight_color_toolbar_item.dart';
@@ -209,7 +211,15 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
       SimpleTableCellBlockKeys.type,
       SimpleTableRowBlockKeys.type,
     ]);
-    AppFlowyRichTextKeys.supportSliced.add(AppFlowyRichTextKeys.fontFamily);
+    AppFlowyRichTextKeys.supportSliced.addAll([
+      AppFlowyRichTextKeys.fontFamily,
+      AppFlowyRichTextTokenKeys.textColor,
+      AppFlowyRichTextTokenKeys.backgroundColor,
+    ]);
+    AppFlowyRichTextKeys.supportToggled.addAll([
+      AppFlowyRichTextTokenKeys.textColor,
+      AppFlowyRichTextTokenKeys.backgroundColor,
+    ]);
 
     // customize the dynamic theme color
     _customizeBlockComponentBackgroundColorDecorator();
@@ -450,16 +460,24 @@ class _AppFlowyEditorPageState extends State<AppFlowyEditorPage>
             color: appTheme.surfaceColorScheme.primary,
             boxShadow: appTheme.shadow.small,
           ),
-          toolbarBuilder: (_, child, onDismiss, isMetricsChanged) =>
-              BlocProvider.value(
-            value: context.read<DocumentBloc>(),
-            child: DesktopFloatingToolbar(
-              editorState: editorState,
-              onDismiss: onDismiss,
-              enableAnimation: !isMetricsChanged,
-              child: child,
-            ),
-          ),
+          toolbarBuilder: (_, child, onDismiss, isMetricsChanged) {
+            return MultiBlocProvider(
+              providers: [
+                BlocProvider.value(
+                  value: context.read<DocumentBloc>(),
+                ),
+                BlocProvider.value(
+                  value: context.read<UserWorkspaceBloc>(),
+                ),
+              ],
+              child: DesktopFloatingToolbar(
+                editorState: editorState,
+                onDismiss: onDismiss,
+                enableAnimation: !isMetricsChanged,
+                child: child,
+              ),
+            );
+          },
           placeHolderBuilder: (_) => customPlaceholderItem,
           editorState: editorState,
           editorScrollController: editorScrollController,

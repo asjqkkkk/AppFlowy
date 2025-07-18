@@ -74,7 +74,6 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
               WorkspaceMoreButton(
                 popoverMutex: popoverMutex,
               ),
-              const HSpace(8.0),
             ],
           ),
         ),
@@ -222,6 +221,7 @@ class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
               UserWorkspaceEvent.updateWorkspaceIcon(
                 workspaceId: widget.workspace.workspaceId,
                 icon: result.emoji,
+                workspaceType: widget.workspace.workspaceType,
               ),
             ),
       ),
@@ -318,7 +318,7 @@ class _WorkspaceInfo extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (workspace.workspaceType == WorkspaceTypePB.LocalW) ...[
+                    if (workspace.workspaceType == WorkspaceTypePB.Vault) ...[
                       const HSpace(6.0),
                       FlowySvg(
                         FlowySvgs.vault_indicator_m,
@@ -342,7 +342,7 @@ class _WorkspaceInfo extends StatelessWidget {
                     figmaLineHeight: 12.0,
                     color: Theme.of(context).hintColor,
                   ),
-                if (workspace.workspaceType == WorkspaceTypePB.LocalW)
+                if (workspace.workspaceType == WorkspaceTypePB.Vault)
                   FlowyText.regular(
                     LocaleKeys.workspace_vaultWorkspace.tr(),
                     fontSize: 10.0,
@@ -387,7 +387,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: FlowyButton(
         key: createWorkspaceButtonKey,
         onTap: () {
@@ -431,7 +431,7 @@ class _ImportNotionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 40,
+      height: 44,
       child: FlowyButton(
         key: importNotionButtonKey,
         onTap: () {

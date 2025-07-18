@@ -74,7 +74,10 @@ class AlignItems extends StatelessWidget {
             },
           );
         },
-        icon: currentAlignItem.$2,
+        icon: FlowySvg(
+          currentAlignItem.$2,
+          color: theme.toolbarMenuIconColor,
+        ),
         isSelected: false,
         iconPadding: const EdgeInsets.symmetric(
           vertical: 14.0,
@@ -87,12 +90,14 @@ class AlignItems extends StatelessWidget {
 
   (String, FlowySvgData) _getCurrentAlignItem() {
     final align = _getCurrentBlockAlign();
-    if (align == _center) {
-      return (_right, FlowySvgs.m_aa_align_right_s);
-    } else if (align == _right) {
+    if (align == _left) {
       return (_left, FlowySvgs.m_aa_align_left_s);
-    } else {
+    } else if (align == _center) {
       return (_center, FlowySvgs.m_aa_align_center_s);
+    } else if (align == _right) {
+      return (_right, FlowySvgs.m_aa_align_right_s);
+    } else {
+      return (_left, FlowySvgs.m_aa_align_left_s);
     }
   }
 

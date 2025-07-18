@@ -38,7 +38,7 @@
     "continueAnonymousUser": "Continue with an anonymous session",
     "continueWithLocalModel": "Continue with local model",
     "switchToAppFlowyCloud": "AppFlowy Cloud",
-    "anonymousMode": "Anonymous mode",
+    "anonymousMode": "Anonymous",
     "buttonText": "Sign In",
     "signingInText": "Signing in...",
     "forgotPassword": "Forgot Password?",
@@ -120,7 +120,7 @@
     "vaultWorkspace": "Vault",
     "vaultIndicator": "Vault",
     "vaultWorkspaceDescription": "Private and offline— AI runs locally, no data transfer",
-    "createVaultWorkspaceDisabled": "Create secure, offline Vaults with Pro.\nUpgrade to unlock!",
+    "clickToSubscribeVaultWorkspace": "Click to unlock unlimited Vaults",
     "cannotGetVaultWorkspaceSubscription": "Cannot get Vault workspace subscription information",
     "createANewWorkspace": "Create a new workspace",
     "createWorkspaceDescription": "Separate your work into organized workspaces with full control over team access and data privacy",
@@ -497,6 +497,7 @@
     "complete": "Complete",
     "change": "Change",
     "save": "Save",
+    "apply": "Apply",
     "generate": "Generate",
     "esc": "ESC",
     "keep": "Keep",
@@ -968,6 +969,8 @@
         "localAINotReadyTextFieldPrompt": "You can not edit while Local AI is loading",
         "localAIDisabledTextFieldPrompt": "You can not edit while Local AI is disabled",
         "localAIWithoutSubscription": "You cannot use local AI with Vault Workspace unless you have an active Vault Workspace subscription",
+        "localAIApplySettings": "Apply",
+        "localAIRefreshModels": "Click to refresh",
         "failToLoadLocalAI": "Failed to start local AI.",
         "restartLocalAI": "Restart",
         "disableLocalAITitle": "Disable local AI",
@@ -989,7 +992,8 @@
         "instructions": "instructions",
         "installOllamaLai": "to set up Ollama and AppFlowy Local AI.",
         "modelsMissing": "Cannot find the required models: ",
-        "downloadModel": "to download them."
+        "downloadModel": "to download them.",
+        "settingsSaved": "Settings saved"
       }
     },
     "planPage": {
@@ -1033,7 +1037,8 @@
           "vaultWorkspaceTitle": "Vault Workspace"
         },
         "addons": {
-          "title": "Add-ons",
+          "title": "Workspace Add-ons",
+          "tooltip": "Workspace add-ons are tied to the single workspace you purchased them from",
           "addLabel": "Add",
           "activeLabel": "Added",
           "aiMax": {
@@ -1055,6 +1060,12 @@
             "price": "{}",
             "priceInfo": "Per user per month billed annually"
           }
+        },
+        "accountAddons": {
+          "title": "Account Add-ons",
+          "tooltip": "Account add-ons are linked to your AppFlowy account. No matter which workspace you purchase it from, you can create unlimited Vaults under the same cloud account",
+          "addLabel": "Add",
+          "activeLabel": "Added"
         },
         "deal": {
           "bannerLabel": "New year deal!",
@@ -1153,7 +1164,8 @@
         "tooltipSix": "Lifetime means the number of responses never reset",
         "intelligentSearch": "Intelligent search",
         "tooltipSeven": "Allows you to customize part of the URL for your workspace",
-        "customNamespaceTooltip": "Custom published site URL"
+        "customNamespaceTooltip": "Custom published site URL",
+        "expandedColors": "Expanded colors"
       },
       "freeLabels": {
         "itemOne": "Charged per workspace",
@@ -1182,7 +1194,7 @@
         "description": "Your payment has been successfully processed and your plan is upgraded to @:appName {}. You can view your plan details on the Plan page"
       },
       "downgradeDialog": {
-        "title": "Are you sure you want to downgrade your plan?",
+        "title": "Downgrade Plan",
         "description": "Downgrading your plan will revert you back to the Free plan. Members may lose access to this workspace and you may need to free up space to meet the storage limits of the Free plan.",
         "downgradeLabel": "Downgrade plan"
       }
@@ -2283,6 +2295,7 @@
       "resetToDefaultFont": "Reset to default",
       "textSize": "Text size",
       "textColor": "Text color",
+      "backgroundColor": "Background color",
       "h1": "Heading 1",
       "h2": "Heading 2",
       "h3": "Heading 3",
@@ -2460,7 +2473,8 @@
     "deleteContentCaption": "if you delete this {pageType}, you can restore it from the trash."
   },
   "colors": {
-    "custom": "Custom",
+    "custom": "Custom color",
+    "recent": "Recent color",
     "default": "Default",
     "red": "Red",
     "orange": "Orange",
@@ -2470,7 +2484,27 @@
     "purple": "Purple",
     "pink": "Pink",
     "brown": "Brown",
-    "gray": "Gray"
+    "gray": "Gray",
+    "rose": "Rose",
+    "papaya": "Papaya",
+    "tangerine": "Tangerine",
+    "mango": "Mango",
+    "lemon": "Lemon",
+    "olive": "Olive",
+    "lime": "Lime",
+    "grass": "Grass",
+    "forest": "Forest",
+    "jade": "Jade",
+    "aqua": "Aqua",
+    "azure": "Azure",
+    "denim": "Denim",
+    "mauve": "Mauve",
+    "lavender": "Lavender",
+    "lilac": "Lilac",
+    "mallow": "Mallow",
+    "camellia": "Camellia",
+    "smoke": "Smoke",
+    "iron": "Iron"
   },
   "emoji": {
     "emojiTab": "Emoji",
@@ -2931,7 +2965,7 @@
     "title": "Spaces",
     "defaultSpaceName": "General",
     "upgradeSpaceTitle": "Enable Spaces",
-    "upgradeSpaceDescription": "Create multiple public and private Spaces to better organize your workspace.",
+    "upgradeSpaceDescription": "Create multiple spaces to better organize your workspace.",
     "upgrade": "Update",
     "upgradeYourSpace": "Create multiple Spaces",
     "quicklySwitch": "Quickly switch to the next space",
@@ -3569,5 +3603,19 @@
     "noPermissionToCreatePage": "You don't have permission to create a page in this workspace",
     "failedToCreatePage": "Failed to create page",
     "noPermissionToCreateAnAIChat": "No permission to create an AI Chat"
+  },
+  "localFile": {
+    "fileNotFound": "File not found: {}",
+    "errorLoadingPDF": "Error loading PDF: {}",
+    "errorLoadingFile": "Error loading file: {}",
+    "pageCount": "Page {} of {}",
+    "contentCopied": "Content copied to clipboard",
+    "copyContent": "Copy content",
+    "failedToLoadPDF": "Failed to load PDF",
+    "errorLoadingPDFWithMessage": "Error loading PDF: {}",
+    "previewNotAvailable": "Preview not available",
+    "fileTypeCannotBeDisplayed": "This file type cannot be displayed",
+    "openExternallyNotImplemented": "Opening file externally is not yet implemented",
+    "openExternally": "Open Externally"
   }
 }

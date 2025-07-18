@@ -5,7 +5,7 @@ use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::upsert::excluded;
 use flowy_sqlite::{
   DBConnection, ExpressionMethods, Identifiable, Insertable, OptionalExtension, QueryResult,
-  Queryable, diesel, insert_into,
+  Queryable, SqliteConnection, diesel, insert_into,
   query_dsl::*,
   schema::{chat_message_table, chat_message_table::dsl},
 };
@@ -234,4 +234,46 @@ pub fn select_answer_where_match_reply_message_id(
     .filter(chat_message_table::chat_id.eq(chat_id))
     .first::<ChatMessageTable>(&mut *conn)
     .optional()
+}
+
+pub fn chat_auth_type_from_i64(value: i64) -> ChatAuthorType {
+  match value {
+    1 => ChatAuthorType::Human,
+    2 => ChatAuthorType::System,
+    3 => ChatAuthorType::AI,
+    _ => ChatAuthorType::Unknown,
+  }
+}
+
+/// Returns a pair of messages: (question_message, answer_message)
+/// where question_message has message_id = message_id_val
+/// and answer_message has reply_message_id = message_id_val
+pub fn select_message_pair(
+  conn: &mut SqliteConnection,
+  chat_id: &str,
+  message_id_val: i64,
+) -> QueryResult<Option<(ChatMessageTable, ChatMessageTable)>> {
+  // First, get the question message
+  let question_message = dsl::chat_message_table
+    .filter(chat_message_table::message_id.eq(message_id_val))
+    .filter(chat_message_table::chat_id.eq(chat_id))
+    .first::<ChatMessageTable>(conn)
+    .optional()?;
+
+  match question_message {
+    Some(question) => {
+      // Then, get the answer message that replies to this question
+      let answer_message = dsl::chat_message_table
+        .filter(chat_message_table::reply_message_id.eq(message_id_val))
+        .filter(chat_message_table::chat_id.eq(chat_id))
+        .first::<ChatMessageTable>(conn)
+        .optional()?;
+
+      match answer_message {
+        Some(answer) => Ok(Some((question, answer))),
+        None => Ok(None), // No answer found for this question
+      }
+    },
+    None => Ok(None), // Question message not found
+  }
 }

@@ -1,7 +1,9 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/settings/plan/settings_person_plan_bloc.dart';
 import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/billing.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
@@ -55,9 +57,24 @@ class VaultWorkspaceAddOn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return AddOnBox(
       title: LocaleKeys.settings_planPage_planUsage_addons_vaultWorkspace_title
           .tr(),
+      titleAccessory: FlowyTooltip(
+        message: LocaleKeys.workspace_learnMore.tr(),
+        child: AFGhostButton.normal(
+          onTap: () => afLaunchUrlString(
+            "https://appflowy.com/guide/vault-workspace",
+          ),
+          padding: EdgeInsets.zero,
+          builder: (context, isHovering, disabled) => FlowySvg(
+            FlowySvgs.ai_explain_m,
+            size: Size.square(20),
+            color: theme.iconColorScheme.secondary,
+          ),
+        ),
+      ),
       description: LocaleKeys
           .settings_planPage_planUsage_addons_vaultWorkspace_description
           .tr(),
@@ -86,6 +103,7 @@ class AddOnBox extends StatelessWidget {
   const AddOnBox({
     super.key,
     required this.title,
+    this.titleAccessory,
     required this.description,
     required this.price,
     required this.priceInfo,
@@ -96,6 +114,7 @@ class AddOnBox extends StatelessWidget {
   });
 
   final String title;
+  final Widget? titleAccessory;
   final String description;
   final String price;
   final String priceInfo;
@@ -138,10 +157,21 @@ class AddOnBox extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    return FlowyText.semibold(
-      title,
-      fontSize: 14,
-      color: AFThemeExtension.of(context).strongText,
+    final theme = AppFlowyTheme.of(context);
+    return Row(
+      children: [
+        FlowyText.semibold(
+          title,
+          fontSize: 14,
+          color: AFThemeExtension.of(context).strongText,
+        ),
+        if (titleAccessory != null) ...[
+          HSpace(
+            theme.spacing.xs,
+          ),
+          titleAccessory!,
+        ],
+      ],
     );
   }
 
@@ -149,6 +179,7 @@ class AddOnBox extends StatelessWidget {
     return FlowyText.regular(
       description,
       fontSize: 12,
+      maxLines: 10,
       color: AFThemeExtension.of(context).secondaryTextColor,
     );
   }

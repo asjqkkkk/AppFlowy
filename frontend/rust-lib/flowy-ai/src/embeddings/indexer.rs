@@ -1,31 +1,77 @@
 use crate::embeddings::document_indexer::DocumentIndexer;
 use crate::embeddings::embedder::Embedder;
 use flowy_ai_pub::cloud::CollabType;
-use flowy_ai_pub::entities::EmbeddedChunk;
+use flowy_ai_pub::entities::{EmbeddedChunk, EmbeddingDimension};
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::Arc;
+use tracing::warn;
 use uuid::Uuid;
 
-#[derive(Serialize, Deserialize, Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum EmbeddingModel {
-  NomicEmbedText,
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum LocalEmbeddingModel {
+  Dim768 { model_name: String },
+  Dim2560 { model_name: String },
 }
 
-impl EmbeddingModel {
-  pub fn name(&self) -> &'static str {
+pub fn supported_dimensions() -> Vec<usize> {
+  vec![
+    EmbeddingDimension::Dim768.size(),
+    EmbeddingDimension::Dim2560.size(),
+  ]
+}
+
+impl Default for LocalEmbeddingModel {
+  fn default() -> Self {
+    LocalEmbeddingModel::Dim768 {
+      model_name: "nomic-embed-text".to_string(),
+    }
+  }
+}
+
+impl Display for LocalEmbeddingModel {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    write!(f, "{}", self.name())
+  }
+}
+
+impl From<(String, usize)> for LocalEmbeddingModel {
+  fn from((model_name, dimension): (String, usize)) -> Self {
+    match dimension {
+      768 => LocalEmbeddingModel::Dim768 { model_name },
+      2560 => LocalEmbeddingModel::Dim2560 { model_name },
+      _ => {
+        warn!(
+          "Unsupported embedding model:{} with dimension: {}. Defaulting to 768.",
+          model_name, dimension
+        );
+        LocalEmbeddingModel::Dim768 { model_name }
+      },
+    }
+  }
+}
+
+impl LocalEmbeddingModel {
+  pub fn name(&self) -> &str {
     match self {
-      EmbeddingModel::NomicEmbedText => "nomic-embed-text",
+      LocalEmbeddingModel::Dim768 { model_name } => model_name.as_str(),
+      LocalEmbeddingModel::Dim2560 { model_name } => model_name.as_str(),
     }
   }
 
-  #[allow(dead_code)]
-  pub fn dimension(&self) -> usize {
+  pub fn dimension(&self) -> EmbeddingDimension {
     match self {
-      // https://ollama.com/library/nomic-embed-text/blobs/970aa74c0a90
-      EmbeddingModel::NomicEmbedText => 768,
+      LocalEmbeddingModel::Dim768 { .. } => {
+        // https://ollama.com/library/nomic-embed-text/blobs/970aa74c0a90
+        EmbeddingDimension::Dim768
+      },
+      LocalEmbeddingModel::Dim2560 { .. } => {
+        // https://huggingface.co/Qwen/Qwen3-Embedding-8B
+        EmbeddingDimension::Dim2560
+      },
     }
   }
 }
@@ -36,7 +82,7 @@ pub trait Indexer: Send + Sync {
     &self,
     object_id: Uuid,
     paragraphs: Vec<String>,
-    model: EmbeddingModel,
+    model: LocalEmbeddingModel,
   ) -> Result<Vec<EmbeddedChunk>, FlowyError>;
 
   async fn embed(

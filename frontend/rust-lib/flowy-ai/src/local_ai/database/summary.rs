@@ -1,4 +1,4 @@
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use flowy_database_pub::cloud::SummaryRowContent;
 use flowy_error::{FlowyError, FlowyResult};
 use langchain_rust::language_models::llm::LLM;
@@ -29,11 +29,11 @@ Output: Card 1 is currently in the "To do" status
 "#;
 
 pub struct DatabaseSummaryChain {
-  llm: LLMOllama,
+  llm: AFLLM,
 }
 
 impl DatabaseSummaryChain {
-  pub fn new(llm: LLMOllama) -> Self {
+  pub fn new(llm: AFLLM) -> Self {
     Self { llm }
   }
 

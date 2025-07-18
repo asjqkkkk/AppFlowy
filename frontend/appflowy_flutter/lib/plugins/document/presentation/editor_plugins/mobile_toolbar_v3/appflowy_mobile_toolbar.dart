@@ -7,6 +7,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_too
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/_toolbar_theme.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/appflowy_mobile_toolbar_item.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/keyboard_height_observer.dart';
+import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:collection/collection.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -113,8 +114,15 @@ class _AppFlowyMobileToolbarState extends State<AppFlowyMobileToolbar> {
         }
 
         return RepaintBoundary(
-          child: BlocProvider.value(
-            value: context.read<DocumentBloc>(),
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider.value(
+                value: context.read<DocumentBloc>(),
+              ),
+              BlocProvider.value(
+                value: context.read<UserWorkspaceBloc>(),
+              ),
+            ],
             child: _MobileToolbar(
               editorState: widget.editorState,
               toolbarItems: widget.toolbarItemsBuilder(selection),

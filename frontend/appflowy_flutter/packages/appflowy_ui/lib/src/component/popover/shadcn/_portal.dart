@@ -227,7 +227,7 @@ class _ShadPortalState extends State<ShadPortal> {
         ),
     };
 
-    followerOffset += targetOffset + anchor.offset;
+    followerOffset += targetOffset + Offset(anchor.offset.dx, 0);
 
     final target = box.localToGlobal(
       followerOffset,
@@ -242,7 +242,7 @@ class _ShadPortalState extends State<ShadPortal> {
     return CustomSingleChildLayout(
       delegate: ShadPositionDelegate(
         target: target,
-        verticalOffset: 0,
+        verticalOffset: anchor.offset.dy,
         preferBelow: true,
       ),
       child: KeyedSubtree(

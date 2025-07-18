@@ -8,7 +8,7 @@ use crate::user_manager::UserManager;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::*;
-use flowy_user_pub::sql::UserWorkspaceChangeset;
+use flowy_user_pub::sql::{select_user_auth_provider, UserWorkspaceChangeset};
 use lib_dispatch::prelude::*;
 use lib_infra::box_any::BoxAny;
 use std::str::FromStr;
@@ -431,11 +431,11 @@ pub async fn get_all_workspace_handler(
 ) -> DataResult<RepeatedUserWorkspacePB, FlowyError> {
   let manager = upgrade_manager(manager)?;
   let session = manager.get_session()?;
-  let profile = manager
-    .get_user_profile_from_disk(session.user_id, &session.workspace_id)
-    .await?;
+
+  let mut conn = manager.db_connection(session.user_id)?;
+  let auth_provider = select_user_auth_provider(session.user_id, &mut conn)?;
   let user_workspaces = manager
-    .get_all_user_workspaces(profile.uid, profile.auth_type)
+    .get_all_user_workspaces(session.user_id, auth_provider)
     .await?;
 
   data_result_ok(RepeatedUserWorkspacePB::from(user_workspaces))
@@ -614,13 +614,15 @@ pub async fn create_workspace_handler(
 
 #[tracing::instrument(level = "debug", skip_all, err)]
 pub async fn delete_workspace_handler(
-  delete_workspace_param: AFPluginData<UserWorkspaceIdPB>,
+  delete_workspace_param: AFPluginData<DeleteWorkspaceIdPB>,
   manager: AFPluginState<Weak<UserManager>>,
 ) -> Result<(), FlowyError> {
-  let workspace_id = delete_workspace_param.try_into_inner()?.workspace_id;
+  let params = delete_workspace_param.try_into_inner()?;
   let manager = upgrade_manager(manager)?;
-  let workspace_id = Uuid::from_str(&workspace_id)?;
-  manager.delete_workspace(&workspace_id).await?;
+  let workspace_id = Uuid::from_str(&params.workspace_id)?;
+  manager
+    .delete_workspace(&workspace_id, params.workspace_type.into())
+    .await?;
   Ok(())
 }
 
@@ -639,7 +641,9 @@ pub async fn rename_workspace_handler(
     role: None,
     member_count: None,
   };
-  manager.patch_workspace(&workspace_id, changeset).await?;
+  manager
+    .patch_workspace(&workspace_id, changeset, params.workspace_type.into())
+    .await?;
   Ok(())
 }
 
@@ -658,7 +662,9 @@ pub async fn change_workspace_icon_handler(
     role: None,
     member_count: None,
   };
-  manager.patch_workspace(&workspace_id, changeset).await?;
+  manager
+    .patch_workspace(&workspace_id, changeset, params.workspace_type.into())
+    .await?;
   Ok(())
 }
 
@@ -847,6 +853,14 @@ pub async fn start_ws_connect_handler(
 ) -> Result<(), FlowyError> {
   let manager = upgrade_manager(manager)?;
   manager.start_ws_connect_state().await?;
+  Ok(())
+}
+
+pub async fn start_ws_connect_if_need_handler(
+  manager: AFPluginState<Weak<UserManager>>,
+) -> Result<(), FlowyError> {
+  let manager = upgrade_manager(manager)?;
+  manager.reconnect_if_needed();
   Ok(())
 }
 

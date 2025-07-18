@@ -196,6 +196,16 @@ pub struct UserWorkspaceIdPB {
 }
 
 #[derive(ProtoBuf, Default, Clone, Validate)]
+pub struct DeleteWorkspaceIdPB {
+  #[pb(index = 1)]
+  #[validate(custom(function = "required_not_empty_str"))]
+  pub workspace_id: String,
+
+  #[pb(index = 2)]
+  pub workspace_type: WorkspaceTypePB,
+}
+
+#[derive(ProtoBuf, Default, Clone, Validate)]
 pub struct OpenUserWorkspacePB {
   #[pb(index = 1)]
   #[validate(custom(function = "required_not_empty_str"))]
@@ -228,14 +238,14 @@ pub struct CreateWorkspacePB {
 #[repr(u8)]
 pub enum WorkspaceTypePB {
   #[default]
-  LocalW = 0,
+  Vault = 0,
   ServerW = 1,
 }
 
 impl From<i32> for WorkspaceTypePB {
   fn from(value: i32) -> Self {
     match value {
-      0 => WorkspaceTypePB::LocalW,
+      0 => WorkspaceTypePB::Vault,
       1 => WorkspaceTypePB::ServerW,
       _ => WorkspaceTypePB::ServerW,
     }
@@ -245,7 +255,7 @@ impl From<i32> for WorkspaceTypePB {
 impl From<WorkspaceType> for WorkspaceTypePB {
   fn from(value: WorkspaceType) -> Self {
     match value {
-      WorkspaceType::Vault => WorkspaceTypePB::LocalW,
+      WorkspaceType::Vault => WorkspaceTypePB::Vault,
       WorkspaceType::Cloud => WorkspaceTypePB::ServerW,
     }
   }
@@ -254,7 +264,7 @@ impl From<WorkspaceType> for WorkspaceTypePB {
 impl From<WorkspaceTypePB> for WorkspaceType {
   fn from(value: WorkspaceTypePB) -> Self {
     match value {
-      WorkspaceTypePB::LocalW => WorkspaceType::Vault,
+      WorkspaceTypePB::Vault => WorkspaceType::Vault,
       WorkspaceTypePB::ServerW => WorkspaceType::Cloud,
     }
   }
@@ -305,6 +315,9 @@ pub struct RenameWorkspacePB {
   #[pb(index = 2)]
   #[validate(custom(function = "required_not_empty_str"))]
   pub new_name: String,
+
+  #[pb(index = 3)]
+  pub workspace_type: WorkspaceTypePB,
 }
 
 #[derive(ProtoBuf, Default, Clone, Validate)]
@@ -315,6 +328,9 @@ pub struct ChangeWorkspaceIconPB {
 
   #[pb(index = 2)]
   pub new_icon: String,
+
+  #[pb(index = 3)]
+  pub workspace_type: WorkspaceTypePB,
 }
 
 #[derive(Debug, ProtoBuf, Default, Clone)]

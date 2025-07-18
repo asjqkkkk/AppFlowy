@@ -7,6 +7,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/type_option_menu_item.dart';
 import 'package:appflowy/mobile/presentation/presentation.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/emoji_picker_button.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/add_block_toolbar_item.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/_simple_table_bottom_sheet_actions.dart';
@@ -644,8 +645,9 @@ extension CommonOperations on WidgetTester {
         layout: layout,
         parentName: parentName,
       ),
-      matching:
-          find.byTooltip(LocaleKeys.document_plugins_cover_changeIcon.tr()),
+      matching: find.byWidgetPredicate((w) {
+        return (w is RawEmojiIconWidget) || (w is FlowySvg);
+      }),
     );
     await tapButton(iconButton);
     if (icon.type == FlowyIconType.emoji) {
@@ -755,8 +757,8 @@ extension CommonOperations on WidgetTester {
 
     // click the create button
     final createButton = find.byKey(createWorkspaceButtonKey);
-    expect(createButton, findsOneWidget);
-    await tapButton(createButton);
+    await tapButton(createButton, pumpAndSettle: false);
+    await pump(const Duration(milliseconds: 500));
 
     // input the workspace name
     final workspaceNameInput = find.descendant(
@@ -764,7 +766,7 @@ extension CommonOperations on WidgetTester {
       matching: find.byType(TextField),
     );
     await enterText(workspaceNameInput, name);
-    await pumpAndSettle();
+    await pump(const Duration(milliseconds: 500));
 
     await tapButton(
       find.text(LocaleKeys.workspace_create.tr()),

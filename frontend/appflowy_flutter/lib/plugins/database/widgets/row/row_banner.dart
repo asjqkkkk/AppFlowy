@@ -69,8 +69,8 @@ class RowBanner extends StatefulWidget {
 class _RowBannerState extends State<RowBanner> {
   final _isHovering = ValueNotifier(false);
   late final isLocalMode =
-      (widget.userProfile?.workspaceType ?? WorkspaceTypePB.LocalW) ==
-          WorkspaceTypePB.LocalW;
+      (widget.userProfile?.workspaceType ?? WorkspaceTypePB.Vault) ==
+          WorkspaceTypePB.Vault;
 
   @override
   void dispose() {

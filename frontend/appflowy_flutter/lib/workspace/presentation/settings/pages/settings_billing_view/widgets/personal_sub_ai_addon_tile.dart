@@ -43,6 +43,7 @@ class PersonalSubscriptionAIAddonTile extends StatelessWidget {
           loading: (loading) => _buildLoadingView(),
           ready: (ready) => SingleSettingAction(
             label: label,
+            labelMaxLines: 4,
             description: _getDescription(
               ready.subscriptionState,
               dateFormat,

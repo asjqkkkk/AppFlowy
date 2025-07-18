@@ -30,6 +30,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f26201604c87b1e01bd3d98f8d5d9a8fcbb815e8cedb41ffccbeb4bf593a35fe"
 
 [[package]]
+name = "adler2"
+version = "2.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
+
+[[package]]
 name = "aead"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -163,7 +169,7 @@ checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 [[package]]
 name = "app-error"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "bincode",
@@ -184,7 +190,7 @@ dependencies = [
 [[package]]
 name = "appflowy-ai-client"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "bytes",
@@ -199,7 +205,7 @@ dependencies = [
 [[package]]
 name = "appflowy-proto"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "bytes",
  "collab",
@@ -230,9 +236,9 @@ checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
 name = "arrayvec"
-version = "0.7.4"
+version = "0.7.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "96d30a06541fbafbc7f82ed10c06164cfbd2c401138f6addd8404629c4b16711"
+checksum = "7c02d123df017efcdfbd739ef81735b36c5ba83ec3c59c80a9d7ecc718f92e50"
 
 [[package]]
 name = "assert-json-diff"
@@ -475,7 +481,7 @@ dependencies = [
  "cc",
  "cfg-if",
  "libc",
- "miniz_oxide",
+ "miniz_oxide 0.7.1",
  "object",
  "rustc-demangle",
 ]
@@ -715,10 +721,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
+name = "bytemuck"
+version = "1.23.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c76a5792e44e4abe34d3abf15636779261d45a7450612059293d1d2cfc63422"
+
+[[package]]
 name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
+name = "byteorder-lite"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8f1fe948ff07f4bd06c30984e69f5b4899c516a3ef74f34df92a2df2ab535495"
 
 [[package]]
 name = "bytes"
@@ -878,7 +896,7 @@ dependencies = [
 [[package]]
 name = "client-api"
 version = "0.2.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "again",
  "anyhow",
@@ -938,7 +956,7 @@ dependencies = [
 [[package]]
 name = "client-api-entity"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "collab-entity",
  "collab-rt-entity",
@@ -951,7 +969,7 @@ dependencies = [
 [[package]]
 name = "client-websocket"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "futures-channel",
  "futures-util",
@@ -1199,7 +1217,7 @@ dependencies = [
 [[package]]
 name = "collab-rt-entity"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "bincode",
@@ -1221,7 +1239,7 @@ dependencies = [
 [[package]]
 name = "collab-rt-protocol"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1647,7 +1665,7 @@ checksum = "c2e66c9d817f1720209181c316d28635c050fa304f9c79e47a520882661b7308"
 [[package]]
 name = "database-entity"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "bincode",
  "bytes",
@@ -2173,6 +2191,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "fdeflate"
+version = "0.3.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1e6853b52649d4ac5c0bd02320cddc5ba956bdb407c4b75a2c6b75bf51500f8c"
+dependencies = [
+ "simd-adler32",
+]
+
+[[package]]
 name = "filetime"
 version = "0.2.23"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2197,7 +2224,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5f54427cfd1c7829e2a139fcefea601bf088ebca651d2bf53ebc600eac295dae"
 dependencies = [
  "crc32fast",
- "miniz_oxide",
+ "miniz_oxide 0.7.1",
 ]
 
 [[package]]
@@ -2212,6 +2239,7 @@ dependencies = [
  "base64 0.21.5",
  "bytes",
  "dashmap 6.0.1",
+ "flate2",
  "flowy-ai-pub",
  "flowy-codegen",
  "flowy-database-pub",
@@ -2223,6 +2251,7 @@ dependencies = [
  "flowy-storage-pub",
  "futures",
  "futures-util",
+ "image",
  "langchain-rust",
  "lib-dispatch",
  "lib-infra",
@@ -2555,6 +2584,7 @@ dependencies = [
  "futures",
  "lib-dispatch",
  "lib-infra",
+ "moka",
  "num_enum",
  "protobuf",
  "regex",
@@ -2695,6 +2725,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "tracing",
+ "url",
  "uuid",
  "workspace-template",
 ]
@@ -3216,7 +3247,7 @@ dependencies = [
 [[package]]
 name = "gotrue"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "getrandom 0.2.10",
@@ -3231,7 +3262,7 @@ dependencies = [
 [[package]]
 name = "gotrue-entity"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "app-error",
  "jsonwebtoken",
@@ -3864,6 +3895,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "image"
+version = "0.25.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "db35664ce6b9810857a38a906215e75a9c879f0696556a39f59c62829710251a"
+dependencies = [
+ "bytemuck",
+ "byteorder-lite",
+ "num-traits",
+ "png",
+ "zune-core",
+ "zune-jpeg",
+]
+
+[[package]]
 name = "include_dir"
 version = "0.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3924,7 +3969,7 @@ dependencies = [
 [[package]]
 name = "infra"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "bytes",
@@ -4655,6 +4700,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "miniz_oxide"
+version = "0.8.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1fa76a2c86f704bdb222d66965fb3d63269ce38518b83cb0575fca855ebb6316"
+dependencies = [
+ "adler2",
+ "simd-adler32",
+]
+
+[[package]]
 name = "mio"
 version = "0.8.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4862,9 +4917,9 @@ dependencies = [
 
 [[package]]
 name = "num-traits"
-version = "0.2.16"
+version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f30b0abd723be7e2ffca1272140fac1a2f084c77ec3e123c192b66af1ee9e6c2"
+checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
@@ -5355,6 +5410,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
+name = "png"
+version = "0.17.16"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82151a2fc869e011c153adc57cf2789ccb8d9906ce52c0b39a6b5697749d7526"
+dependencies = [
+ "bitflags 1.3.2",
+ "crc32fast",
+ "fdeflate",
+ "flate2",
+ "miniz_oxide 0.8.9",
+]
+
+[[package]]
 name = "polyval"
 version = "0.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5821,9 +5889,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.35"
+version = "1.0.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "291ec9ab5efd934aaf503a6466c5d5251535d108ee747472c3977cc5acc868ef"
+checksum = "1885c039570dc00dcb4ff087a89e185fd56bae234ddc7f056a945bf36467248d"
 dependencies = [
  "proc-macro2",
 ]
@@ -6917,7 +6985,7 @@ dependencies = [
 [[package]]
 name = "shared-entity"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "app-error",
@@ -8616,9 +8684,9 @@ dependencies = [
 
 [[package]]
 name = "weezl"
-version = "0.1.8"
+version = "0.1.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53a85b86a771b1c87058196170769dd264f66c0782acf1ae6cc51bfd64b39082"
+checksum = "a751b3277700db47d3e574514de2eced5e54dc8a5436a3bf7a0b248b2cee16f3"
 
 [[package]]
 name = "which"
@@ -9065,7 +9133,7 @@ dependencies = [
 [[package]]
 name = "workspace-template"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=a651b05c7d10eaf8da8bf030718969dea4dc4d67#a651b05c7d10eaf8da8bf030718969dea4dc4d67"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=4477e37bb52c73cb05c43e14751fab015ad4b999#4477e37bb52c73cb05c43e14751fab015ad4b999"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -9377,4 +9445,19 @@ checksum = "0a4e40c320c3cb459d9a9ff6de98cff88f4751ee9275d140e2be94a2b74e4c13"
 dependencies = [
  "cc",
  "pkg-config",
+]
+
+[[package]]
+name = "zune-core"
+version = "0.4.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f423a2c17029964870cfaabb1f13dfab7d092a62a29a89264f4d36990ca414a"
+
+[[package]]
+name = "zune-jpeg"
+version = "0.4.19"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c9e525af0a6a658e031e95f14b7f889976b74a11ba0eca5a5fc9ac8a1c43a6a"
+dependencies = [
+ "zune-core",
 ]

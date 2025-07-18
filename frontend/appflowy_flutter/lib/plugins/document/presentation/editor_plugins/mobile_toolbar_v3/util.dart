@@ -24,12 +24,11 @@ class MobileToolbarMenuItemWrapper extends StatelessWidget {
     this.showRightArrow = false,
     this.textPadding = EdgeInsets.zero,
     required this.onTap,
-    this.iconColor,
   });
 
   final Size size;
   final VoidCallback onTap;
-  final FlowySvgData? icon;
+  final Widget? icon;
   final String? text;
   final bool? enable;
   final String? fontFamily;
@@ -44,20 +43,17 @@ class MobileToolbarMenuItemWrapper extends StatelessWidget {
   final Color? backgroundColor;
   final Color? selectedBackgroundColor;
   final EdgeInsets textPadding;
-  final Color? iconColor;
 
   @override
   Widget build(BuildContext context) {
     final theme = ToolbarColorExtension.of(context);
-    Color? iconColor = this.iconColor;
-    if (iconColor == null) {
-      if (enable != null) {
-        iconColor = enable! ? null : theme.toolbarMenuIconDisabledColor;
-      } else {
-        iconColor = isSelected
-            ? theme.toolbarMenuIconSelectedColor
-            : theme.toolbarMenuIconColor;
-      }
+    final Color? iconColor;
+    if (enable != null) {
+      iconColor = enable! ? null : theme.toolbarMenuIconDisabledColor;
+    } else {
+      iconColor = isSelected
+          ? theme.toolbarMenuIconSelectedColor
+          : theme.toolbarMenuIconColor;
     }
     final textColor =
         enable == false ? theme.toolbarMenuIconDisabledColor : null;
@@ -66,7 +62,7 @@ class MobileToolbarMenuItemWrapper extends StatelessWidget {
     final radius = Radius.circular(12 * scale);
     final Widget child;
     if (icon != null) {
-      child = FlowySvg(icon!, color: iconColor);
+      child = icon!;
     } else if (text != null) {
       child = Padding(
         padding: textPadding * scale,

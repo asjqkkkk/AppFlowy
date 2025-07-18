@@ -5,6 +5,8 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_too
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 
+import '_toolbar_theme.dart';
+
 class HeadingsAndTextItems extends StatelessWidget {
   const HeadingsAndTextItems({
     super.key,
@@ -61,6 +63,7 @@ class _HeadingOrTextItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = ToolbarColorExtension.of(context);
     final isSelected = editorState.isBlockTypeSelected(
       blockType,
       level: level,
@@ -75,7 +78,12 @@ class _HeadingOrTextItem extends StatelessWidget {
     return MobileToolbarMenuItemWrapper(
       size: const Size(76, 52),
       onTap: () async => _convert(isSelected),
-      icon: icon,
+      icon: FlowySvg(
+        icon,
+        color: isSelected
+            ? theme.toolbarMenuIconSelectedColor
+            : theme.toolbarMenuIconColor,
+      ),
       isSelected: isSelected,
       iconPadding: padding,
     );

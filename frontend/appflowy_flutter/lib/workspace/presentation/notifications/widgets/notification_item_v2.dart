@@ -89,9 +89,7 @@ class NotificationItemV2 extends StatelessWidget {
                   ),
                   onTap: () async {
                     final view = state.view;
-                    if (view == null) {
-                      return;
-                    }
+                    if (view == null) return;
 
                     homeSetting
                         .add(HomeSettingEvent.collapseNotificationPanel());
@@ -112,7 +110,9 @@ class NotificationItemV2 extends StatelessWidget {
                     reminderBloc.add(
                       ReminderEvent.pressReminder(
                         reminderId: reminder.id,
+                        view: view,
                         path: path,
+                        blockId: blockId,
                       ),
                     );
                   },

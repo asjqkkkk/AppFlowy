@@ -28,7 +28,7 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
 
   @override
   Future<void> close() async {
-    await aiModelStateNotifier.dispose();
+    aiModelStateNotifier.dispose();
     return super.close();
   }
 
@@ -113,21 +113,20 @@ class AIPromptInputBloc extends Bloc<AIPromptInputEvent, AIPromptInputState> {
   }
 
   void _startListening() {
-    aiModelStateNotifier.addListener(
-      onStateChanged: (modelState) {
-        add(
-          AIPromptInputEvent.updateAIState(modelState),
-        );
-      },
-    );
+    aiModelStateNotifier.addListener(() {
+      add(
+        AIPromptInputEvent.updateAIState(aiModelStateNotifier.state),
+      );
+    });
   }
 
   void _init() {
-    final modelState = aiModelStateNotifier.getState();
+    final modelState = aiModelStateNotifier.state;
     add(AIPromptInputEvent.updateAIState(modelState));
 
-    Future.delayed(const Duration(milliseconds: 500), () {
-      if (!isClosed && aiModelStateNotifier.getModelSelection().$1.isEmpty) {
+    Future.delayed(const Duration(milliseconds: 2000), () {
+      if (!isClosed &&
+          aiModelStateNotifier.modelSelection.availableModels.isEmpty) {
         add(const AIPromptInputEvent.receivedEmptyModelList());
       }
     });
@@ -199,7 +198,6 @@ class AIPromptInputState with _$AIPromptInputState {
           isEditable: true,
           hintText: '',
           localAIEnabled: false,
-          tooltip: null,
           supportChatWithFile: false,
         ),
         showPredefinedFormats: format != null,

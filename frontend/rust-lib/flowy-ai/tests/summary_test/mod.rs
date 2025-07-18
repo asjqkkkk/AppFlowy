@@ -1,5 +1,5 @@
 use crate::setup_log;
-use flowy_ai::local_ai::chat::llm::LLMOllama;
+use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::database::summary::DatabaseSummaryChain;
 use std::collections::HashMap;
 
@@ -7,7 +7,7 @@ use std::collections::HashMap;
 async fn local_ai_test_database_summary() {
   setup_log();
 
-  let ollama = LLMOllama::default().with_model("llama3.1");
+  let ollama = AFLLM::default();
   let chain = DatabaseSummaryChain::new(ollama);
 
   let mut data = HashMap::new();

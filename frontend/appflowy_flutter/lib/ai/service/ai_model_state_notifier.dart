@@ -6,214 +6,165 @@ import 'package:appflowy/workspace/application/settings/ai/local_llm_listener.da
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-ai/entities.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:equatable/equatable.dart';
+import 'package:flutter/foundation.dart';
 import 'package:universal_platform/universal_platform.dart';
 
-typedef OnModelStateChangedCallback = void Function(AIModelState state);
-typedef OnAvailableModelsChangedCallback = void Function(
-  List<AIModelPB>,
-  AIModelPB?,
-);
+/// Repository pattern for AI data operations
+class AIModelRepository {
+  Future<FlowyResult<ModelSelectionPB, FlowyError>> fetchModelSelection(
+    String objectId,
+  ) async {
+    return AIEventGetSourceModelSelection(
+      ModelSourcePB(source: objectId),
+    ).send();
+  }
 
-/// Represents the state of an AI model
-class AIModelState {
-  const AIModelState({
-    required this.type,
-    required this.hintText,
-    required this.tooltip,
-    required this.isEditable,
-    required this.localAIEnabled,
-    required this.supportChatWithFile,
-  });
-  final AiType type;
-
-  /// The text displayed as placeholder/hint in the input field
-  /// Shows different messages based on AI state (enabled, initializing, disabled)
-  final String hintText;
-
-  /// Optional tooltip text that appears on hover
-  /// Provides additional context about the current state of the AI
-  /// Null when no tooltip should be shown
-  final String? tooltip;
-
-  final bool isEditable;
-  final bool localAIEnabled;
-  final bool supportChatWithFile;
+  Future<FlowyResult<LocalAIStatePB, FlowyError>> fetchLocalAIState() async {
+    return AIEventGetLocalAIState().send();
+  }
 }
 
-class AIModelStateNotifier {
-  AIModelStateNotifier({required this.objectId})
-      : _localAIListener =
-            UniversalPlatform.isDesktop ? LocalAIStateListener() : null,
-        _aiModelSwitchListener = AIModelSwitchListener(objectId: objectId) {
-    _startListening();
-    _init();
+/// Main refactored notifier with backward compatible API
+class AIModelStateNotifier extends ChangeNotifier {
+  AIModelStateNotifier({
+    required this.objectId,
+    AIPlatformConfig? platformConfig,
+    AIModelRepository? repository,
+  })  : _platformConfig = platformConfig ?? _createPlatformConfig(),
+        _repository = repository ?? AIModelRepository(),
+        _stateComputer = AIStateComputer(
+          platformConfig ?? _createPlatformConfig(),
+        ) {
+    _initialize();
   }
 
   final String objectId;
-  final LocalAIStateListener? _localAIListener;
-  final AIModelSwitchListener _aiModelSwitchListener;
+  final AIPlatformConfig _platformConfig;
+  final AIModelRepository _repository;
+  final AIStateComputer _stateComputer;
 
+  // Listeners
+  LocalAIStateListener? _localAIListener;
+  late final AIModelSwitchListener _aiModelSwitchListener;
+
+  // State
+  AIModelState _currentState = AIModelState.initial();
+  ModelSelectionState _modelSelection = const ModelSelectionState(
+    availableModels: [],
+  );
   LocalAIStatePB? _localAIState;
-  List<AIModelPB> _availableModels = [];
-  AIModelPB? _selectedModel;
 
-  AIModelState _currentState = _defaultState();
+  // Public getters
+  AIModelState get state => _currentState;
+  ModelSelectionState get modelSelection => _modelSelection;
+  bool get hasError => _currentState.error != null;
 
-  final List<OnModelStateChangedCallback> _stateChangedCallbacks = [];
-  final List<OnAvailableModelsChangedCallback>
-      _availableModelsChangedCallbacks = [];
+  static AIPlatformConfig _createPlatformConfig() {
+    return UniversalPlatform.isDesktop
+        ? DesktopPlatformConfig()
+        : MobilePlatformConfig();
+  }
 
-  /// Starts platform-specific listeners
-  void _startListening() {
-    if (UniversalPlatform.isDesktop) {
-      _localAIListener?.start(
-        stateCallback: (state) async {
-          _localAIState = state;
-          _updateAll();
-        },
-      );
-    }
+  void _initialize() {
+    _setupListeners();
+    _loadInitialData();
+  }
 
+  void _setupListeners() {
+    // Setup AI model switch listener
+    _aiModelSwitchListener = AIModelSwitchListener(objectId: objectId);
     _aiModelSwitchListener.start(
-      onUpdateSelectedModel: (model) async {
-        _selectedModel = model;
-        _updateAll();
-        if (model.isLocal && UniversalPlatform.isDesktop) {
-          await _loadLocalState();
-          _updateAll();
-        }
-      },
+      onUpdateSelectedModel: _handleModelUpdate,
+    );
+
+    _localAIListener = LocalAIStateListener();
+    _localAIListener!.start(
+      stateCallback: _handleLocalAIStateUpdate,
     );
   }
 
-  Future<void> _init() async {
-    await Future.wait([
-      if (UniversalPlatform.isDesktop) _loadLocalState(),
-      _loadModelSelection(),
-    ]);
-    _updateAll();
-  }
-
-  /// Register callbacks for state or available-models changes
-  void addListener({
-    OnModelStateChangedCallback? onStateChanged,
-    OnAvailableModelsChangedCallback? onAvailableModelsChanged,
-  }) {
-    if (onStateChanged != null) {
-      _stateChangedCallbacks.add(onStateChanged);
-    }
-    if (onAvailableModelsChanged != null) {
-      _availableModelsChangedCallbacks.add(onAvailableModelsChanged);
-    }
-  }
-
-  /// Remove previously registered callbacks
-  void removeListener({
-    OnModelStateChangedCallback? onStateChanged,
-    OnAvailableModelsChangedCallback? onAvailableModelsChanged,
-  }) {
-    if (onStateChanged != null) {
-      _stateChangedCallbacks.remove(onStateChanged);
-    }
-    if (onAvailableModelsChanged != null) {
-      _availableModelsChangedCallbacks.remove(onAvailableModelsChanged);
-    }
-  }
-
-  Future<void> dispose() async {
-    _stateChangedCallbacks.clear();
-    _availableModelsChangedCallbacks.clear();
-    await _localAIListener?.stop();
-    await _aiModelSwitchListener.stop();
-  }
-
-  /// Returns current AIModelState
-  AIModelState getState() => _currentState;
-
-  /// Returns available models and the selected model
-  (List<AIModelPB>, AIModelPB?) getModelSelection() =>
-      (_availableModels, _selectedModel);
-
-  void _updateAll() {
-    _currentState = _computeState();
-    for (final cb in _stateChangedCallbacks) {
-      cb(_currentState);
-    }
-    for (final cb in _availableModelsChangedCallbacks) {
-      cb(_availableModels, _selectedModel);
+  Future<void> _loadInitialData() async {
+    try {
+      await Future.wait([
+        _loadModelSelection(),
+        if (_platformConfig.supportsLocalAI) _loadLocalAIState(),
+      ]);
+      _updateState();
+    } catch (e) {
+      Log.error('Failed to load initial AI data: $e');
+      _updateStateWithError(e.toString());
     }
   }
 
   Future<void> _loadModelSelection() async {
-    await AIEventGetSourceModelSelection(
-      ModelSourcePB(source: objectId),
-    ).send().fold(
-      (ms) {
-        _availableModels = ms.models;
-        _selectedModel = ms.selectedModel;
-      },
-      (e) => Log.error("Failed to fetch models: \$e"),
-    );
-  }
-
-  Future<void> _loadLocalState() async {
-    await AIEventGetLocalAIState().send().fold(
-          (s) => _localAIState = s,
-          (e) => Log.error("Failed to fetch local AI state: \$e"),
+    final result = await _repository.fetchModelSelection(objectId);
+    result.fold(
+      (selection) {
+        _modelSelection = ModelSelectionState(
+          availableModels: selection.models,
+          selectedModel: selection.selectedModel,
         );
+      },
+      (error) {
+        Log.error('Failed to fetch model selection: $error');
+        _updateStateWithError(error.toString());
+      },
+    );
   }
 
-  static AIModelState _defaultState() => AIModelState(
-        type: AiType.cloud,
-        hintText: LocaleKeys.chat_inputMessageHint.tr(),
-        tooltip: null,
-        isEditable: true,
-        localAIEnabled: false,
-        supportChatWithFile: false,
-      );
-
-  /// Core logic computing the state from local and selection data
-  AIModelState _computeState() {
-    if (UniversalPlatform.isMobile) return _defaultState();
-
-    if (_selectedModel == null || _localAIState == null) {
-      return _defaultState();
-    }
-
-    if (FlowyRunner.currentMode.isTest) {
-      return _defaultState();
-    }
-
-    if (!_selectedModel!.isLocal &&
-        _availableModels.map((m) => m.name).contains(_selectedModel!.name)) {
-      return _defaultState();
-    }
-
-    final enabled = _localAIState!.toggleOn;
-    final running = _localAIState!.isReady;
-    final hintKey = enabled
-        ? (running
-            ? LocaleKeys.chat_inputLocalAIMessageHint
-            : LocaleKeys.settings_aiPage_keys_localAIInitializing)
-        : LocaleKeys.settings_aiPage_keys_localAIDisabled;
-    final tooltipKey = enabled
-        ? (running
-            ? null
-            : LocaleKeys.settings_aiPage_keys_localAINotReadyTextFieldPrompt)
-        : LocaleKeys.settings_aiPage_keys_localAIDisabledTextFieldPrompt;
-
-    final supportChatWithFile = _localAIState!.isVault;
-
-    return AIModelState(
-      type: AiType.local,
-      hintText: hintKey.tr(),
-      tooltip: tooltipKey?.tr(),
-      isEditable: enabled && running,
-      localAIEnabled: enabled,
-      supportChatWithFile: supportChatWithFile,
+  Future<void> _loadLocalAIState() async {
+    final result = await _repository.fetchLocalAIState();
+    result.fold(
+      (state) => _localAIState = state,
+      (error) => Log.error('Failed to fetch local AI state: $error'),
     );
+  }
+
+  void _handleModelUpdate(AIModelPB model) async {
+    _modelSelection = ModelSelectionState(
+      availableModels: _modelSelection.availableModels,
+      selectedModel: model,
+    );
+
+    // Reload local AI state if switching to local model
+    if (model.isLocal && _platformConfig.supportsLocalAI) {
+      await _loadLocalAIState();
+    }
+
+    _updateState();
+  }
+
+  void _handleLocalAIStateUpdate(LocalAIStatePB state) async {
+    _localAIState = state;
+    await _loadModelSelection();
+    _updateState();
+  }
+
+  void _updateState() {
+    final AIModelState newState = _stateComputer.computeState(
+      modelSelection: _modelSelection,
+      localAIState: _localAIState,
+    );
+
+    _currentState = newState;
+    notifyListeners();
+  }
+
+  void _updateStateWithError(String error) {
+    final newState = _currentState.copyWith(error: error);
+    _currentState = newState;
+    notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _localAIListener?.stop();
+    _aiModelSwitchListener.stop();
+    super.dispose();
   }
 }
 
@@ -221,4 +172,185 @@ extension AIModelPBExtension on AIModelPB {
   bool get isDefault => name == 'Auto';
   String get i18n =>
       isDefault ? LocaleKeys.chat_switchModel_autoModel.tr() : name;
+}
+
+typedef OnModelStateChangedCallback = void Function(AIModelState state);
+typedef OnAvailableModelsChangedCallback = void Function(
+  List<AIModelPB>,
+  AIModelPB?,
+);
+
+/// Represents the state of an AI model - now immutable and comparable
+class AIModelState extends Equatable {
+  const AIModelState({
+    required this.type,
+    required this.hintText,
+    this.tooltip,
+    required this.isEditable,
+    required this.localAIEnabled,
+    required this.supportChatWithFile,
+    this.error,
+  });
+
+  factory AIModelState.initial() => AIModelState(
+        type: AiType.cloud,
+        hintText: LocaleKeys.chat_inputMessageHint.tr(),
+        isEditable: true,
+        localAIEnabled: false,
+        supportChatWithFile: false,
+      );
+
+  final AiType type;
+  final String hintText;
+  final String? tooltip;
+  final bool isEditable;
+  final bool localAIEnabled;
+  final bool supportChatWithFile;
+  final String? error;
+
+  @override
+  List<Object?> get props => [
+        type,
+        hintText,
+        tooltip,
+        isEditable,
+        localAIEnabled,
+        supportChatWithFile,
+        error,
+      ];
+
+  AIModelState copyWith({
+    AiType? type,
+    String? hintText,
+    String? tooltip,
+    bool? isEditable,
+    bool? localAIEnabled,
+    bool? supportChatWithFile,
+    String? error,
+  }) {
+    return AIModelState(
+      type: type ?? this.type,
+      hintText: hintText ?? this.hintText,
+      tooltip: tooltip ?? this.tooltip,
+      isEditable: isEditable ?? this.isEditable,
+      localAIEnabled: localAIEnabled ?? this.localAIEnabled,
+      supportChatWithFile: supportChatWithFile ?? this.supportChatWithFile,
+      error: error ?? this.error,
+    );
+  }
+}
+
+/// Model selection state - separate from the AI state
+class ModelSelectionState extends Equatable {
+  const ModelSelectionState({
+    required this.availableModels,
+    this.selectedModel,
+  });
+
+  final List<AIModelPB> availableModels;
+  final AIModelPB? selectedModel;
+
+  @override
+  List<Object?> get props => [availableModels, selectedModel];
+}
+
+/// Platform-specific configuration abstraction
+abstract class AIPlatformConfig {
+  bool get supportsLocalAI;
+  bool get isTestMode;
+}
+
+class DesktopPlatformConfig implements AIPlatformConfig {
+  @override
+  bool get supportsLocalAI => true;
+
+  @override
+  bool get isTestMode => FlowyRunner.currentMode.isTest;
+}
+
+class MobilePlatformConfig implements AIPlatformConfig {
+  @override
+  bool get supportsLocalAI => false;
+
+  @override
+  bool get isTestMode => false;
+}
+
+/// State computation logic extracted into a separate class
+class AIStateComputer {
+  const AIStateComputer(this.platformConfig);
+
+  final AIPlatformConfig platformConfig;
+
+  AIModelState computeState({
+    required ModelSelectionState modelSelection,
+    LocalAIStatePB? localAIState,
+  }) {
+    // Mobile or no model selected - return default state
+    if (!platformConfig.supportsLocalAI ||
+        modelSelection.selectedModel == null) {
+      return AIModelState.initial();
+    }
+
+    // Test mode - return default state
+    if (platformConfig.isTestMode) {
+      return AIModelState.initial();
+    }
+
+    final selectedModel = modelSelection.selectedModel!;
+
+    // Cloud model selected
+    if (!selectedModel.isLocal) {
+      return _computeCloudAIState(modelSelection);
+    }
+
+    // Local AI model selected
+    if (localAIState == null) {
+      return AIModelState.initial().copyWith(
+        error: LocaleKeys.settings_aiPage_keys_localAIDisabled.tr(),
+      );
+    }
+
+    return _computeLocalAIState(localAIState);
+  }
+
+  AIModelState _computeCloudAIState(ModelSelectionState modelSelection) {
+    return AIModelState(
+      type: AiType.cloud,
+      hintText: LocaleKeys.chat_inputMessageHint.tr(),
+      isEditable: true,
+      localAIEnabled: false,
+      supportChatWithFile: false,
+    );
+  }
+
+  AIModelState _computeLocalAIState(LocalAIStatePB localAIState) {
+    final enabled = localAIState.toggleOn;
+    final running = localAIState.isReady;
+
+    String hintText;
+    String? tooltip;
+
+    if (!enabled) {
+      hintText = LocaleKeys.settings_aiPage_keys_localAIDisabled.tr();
+      tooltip =
+          LocaleKeys.settings_aiPage_keys_localAIDisabledTextFieldPrompt.tr();
+    } else if (!running) {
+      hintText = LocaleKeys.settings_aiPage_keys_localAIInitializing.tr();
+      tooltip =
+          LocaleKeys.settings_aiPage_keys_localAINotReadyTextFieldPrompt.tr();
+    } else {
+      hintText = LocaleKeys.chat_inputLocalAIMessageHint.tr();
+      tooltip = null;
+    }
+
+    return AIModelState(
+      type: AiType.local,
+      hintText: hintText,
+      tooltip: tooltip,
+      isEditable: enabled && running,
+      localAIEnabled: enabled,
+      supportChatWithFile: localAIState.isVault,
+    );
+  }
 }

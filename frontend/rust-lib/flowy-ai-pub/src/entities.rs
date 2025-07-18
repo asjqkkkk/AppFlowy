@@ -1,8 +1,10 @@
 use crate::cloud::CollabType;
 use crate::cloud::workspace_dto::ViewIcon;
+use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use std::fmt::Display;
 use twox_hash::xxhash64::Hasher;
 use uuid::Uuid;
+
 pub const RAG_IDS: &str = "rag_ids";
 pub const SOURCE_ID: &str = "id";
 pub const WORKSPACE_ID: &str = "workspace_id";
@@ -12,6 +14,7 @@ pub struct EmbeddingRecord {
   pub workspace_id: Uuid,
   pub object_id: Uuid,
   pub chunks: Vec<EmbeddedChunk>,
+  pub embedding_dimension: EmbeddingDimension,
 }
 
 impl Display for EmbeddingRecord {
@@ -91,8 +94,8 @@ pub struct EmbeddedChunk {
   pub content: Option<String>,
   pub metadata: Option<String>,
   pub fragment_index: i32,
-  pub embedder_type: i32,
   pub embeddings: Option<Vec<f32>>,
+  pub dimension: usize,
 }
 
 #[derive(Debug, Clone)]
@@ -110,5 +113,49 @@ impl Display for SearchResult {
       "SearchResult(oid: {}, content: {}, score: {})",
       self.oid, self.content, self.score
     )
+  }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EmbeddingDimension {
+  Dim768,
+  Dim2560,
+}
+
+impl Display for EmbeddingDimension {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    match self {
+      EmbeddingDimension::Dim768 => write!(f, "768"),
+      EmbeddingDimension::Dim2560 => write!(f, "2560"),
+    }
+  }
+}
+
+impl EmbeddingDimension {
+  /// Get the table name for this embedding dimension
+  pub fn table_name(&self) -> &'static str {
+    match self {
+      EmbeddingDimension::Dim768 => "af_collab_embeddings",
+      EmbeddingDimension::Dim2560 => "af_collab_embeddings_2560",
+    }
+  }
+
+  pub fn size(&self) -> usize {
+    match self {
+      EmbeddingDimension::Dim768 => 768,
+      EmbeddingDimension::Dim2560 => 2560,
+    }
+  }
+
+  /// Create dimension from the embedding vector length
+  pub fn from_embedding_size(size: usize) -> FlowyResult<Self> {
+    match size {
+      768 => Ok(EmbeddingDimension::Dim768),
+      2560 => Ok(EmbeddingDimension::Dim2560),
+      _ => Err(FlowyError::new(
+        ErrorCode::InvalidParams,
+        format!("Invalid embedding size: {}", size),
+      )),
+    }
   }
 }

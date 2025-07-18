@@ -20,6 +20,10 @@ impl ModelSource for MockModelSource {
   async fn list_chat_models(&self, _workspace_id: &Uuid) -> Vec<AIModel> {
     self.models.clone()
   }
+
+  async fn list_embedding_models(&self) -> Vec<String> {
+    vec![]
+  }
 }
 
 struct MockModelStorage {

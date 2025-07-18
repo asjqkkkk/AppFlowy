@@ -138,7 +138,7 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
               final bloc = context.read<UserWorkspaceBloc>();
               final isLocalWorkspace =
                   bloc.state.currentWorkspace?.workspaceType ==
-                      WorkspaceTypePB.LocalW;
+                      WorkspaceTypePB.Vault;
               if (state.isEmptyList && isLocalWorkspace) {
                 showSimpleAFDialog(
                   context: context,
@@ -288,6 +288,7 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
     paletteBloc.add(CommandPaletteEvent.askedAI());
     final query = paletteState.query ?? '';
     if (query.isEmpty) return;
+
     final sources = (paletteState.askAISources ?? []).map((e) => e.id).toList();
     final files =
         context.read<AIPromptInputBloc?>()?.consumeAttachedFiles() ?? {};

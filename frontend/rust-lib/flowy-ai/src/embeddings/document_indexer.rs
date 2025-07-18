@@ -1,11 +1,11 @@
 use crate::ai_tool::text_split::{RAGSource, split_text_into_chunks};
 use crate::embeddings::embedder::Embedder;
-use crate::embeddings::indexer::{EmbeddingModel, Indexer};
+use crate::embeddings::indexer::{Indexer, LocalEmbeddingModel};
 use flowy_ai_pub::entities::EmbeddedChunk;
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;
 use ollama_rs::generation::embeddings::request::{EmbeddingsInput, GenerateEmbeddingsRequest};
-use tracing::{error, warn};
+use tracing::{debug, error, warn};
 use uuid::Uuid;
 
 pub struct DocumentIndexer;
@@ -16,7 +16,7 @@ impl Indexer for DocumentIndexer {
     &self,
     object_id: Uuid,
     paragraphs: Vec<String>,
-    model: EmbeddingModel,
+    model: LocalEmbeddingModel,
   ) -> Result<Vec<EmbeddedChunk>, FlowyError> {
     if paragraphs.is_empty() {
       warn!(
@@ -34,7 +34,6 @@ impl Indexer for DocumentIndexer {
       200,
       RAGSource::AppFlowyDocument,
     )
-    .map(|v| v.0)
   }
 
   async fn embed(
@@ -60,6 +59,10 @@ impl Indexer for DocumentIndexer {
       contents.push(chunks[i].content.as_ref().unwrap().to_owned());
     }
 
+    debug!(
+      "[Embedding] Requesting embeddings for content: {:?}",
+      contents
+    );
     let request = GenerateEmbeddingsRequest::new(
       embedder.model().name().to_string(),
       EmbeddingsInput::Multiple(contents),

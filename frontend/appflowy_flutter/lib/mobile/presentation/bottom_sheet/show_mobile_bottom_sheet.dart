@@ -1,5 +1,5 @@
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
-import 'package:appflowy/plugins/base/drag_handler.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -60,16 +60,15 @@ Future<T?> showMobileBottomSheet<T>(
   );
   assert(!(showCloseButton && showBackButton));
 
+  final theme = AppFlowyTheme.of(context);
   shape ??= const RoundedRectangleBorder(
     borderRadius: BorderRadius.vertical(
       top: Radius.circular(16),
     ),
   );
 
-  backgroundColor ??= Theme.of(context).brightness == Brightness.light
-      ? const Color(0xFFF7F8FB)
-      : const Color(0xFF23262B);
-  barrierColor ??= Colors.black.withValues(alpha: 0.3);
+  backgroundColor ??= theme.surfaceColorScheme.layer01;
+  barrierColor ??= theme.surfaceColorScheme.overlay;
 
   return showModalBottomSheet<T>(
     context: context,

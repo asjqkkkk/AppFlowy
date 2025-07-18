@@ -45,6 +45,7 @@ flowy-sqlite = { workspace = true }
 flowy-ai = { workspace = true }
 chrono.workspace = true
 workspace-template.workspace = true
+url = "2.5.0"
 
 [dependencies.client-api]
 workspace = true

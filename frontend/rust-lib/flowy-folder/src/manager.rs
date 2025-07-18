@@ -56,11 +56,13 @@ use flowy_user_pub::entities::WorkspaceType;
 use flowy_user_pub::entities::{Role, UserWorkspace};
 use flowy_user_pub::workspace_collab::adaptor::{CollabPersistenceImpl, WorkspaceCollabAdaptor};
 use futures::future;
+use moka::sync::Cache;
 use serde_json;
 use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
+use std::time::Duration;
 use tokio::sync::RwLockWriteGuard;
 use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
@@ -84,6 +86,7 @@ pub struct FolderManager {
   pub cloud_service: Weak<dyn FolderCloudService>,
   pub(crate) store_preferences: Arc<KVStorePreferences>,
   pub(crate) folder_ready_notifier: tokio::sync::watch::Sender<bool>,
+  view_ids_cache: ViewIdsCache,
 }
 
 impl Drop for FolderManager {
@@ -100,6 +103,11 @@ impl FolderManager {
     store_preferences: Arc<KVStorePreferences>,
   ) -> FlowyResult<Self> {
     let (folder_ready_notifier, _) = tokio::sync::watch::channel(false);
+
+    let view_ids_cache = Cache::builder()
+      .time_to_live(Duration::from_secs(2))
+      .build();
+
     let manager = Self {
       user,
       mutex_folder: Default::default(),
@@ -108,6 +116,7 @@ impl FolderManager {
       cloud_service,
       store_preferences,
       folder_ready_notifier,
+      view_ids_cache,
     };
 
     Ok(manager)
@@ -239,24 +248,9 @@ impl FolderManager {
       .open_folder(uid, *workspace_id, data_source, folder_notifier)
       .await;
 
-    // If opening the folder fails due to missing required data (indicated by a `FolderError::NoRequiredData`),
-    // the function logs an informational message and attempts to clear the folder data by deleting its
-    // document from the collaborative database. It then returns the encountered error.
     match result {
       Ok(folder) => Ok(folder),
-      Err(err) => {
-        info!(
-          "Clear the folder data and try to open the folder again due to: {}",
-          err
-        );
-
-        if let Some(db) = self.user.collab_db(uid).ok().and_then(|a| a.upgrade()) {
-          let _ = db
-            .delete_doc(uid, &workspace_id.to_string(), &workspace_id.to_string())
-            .await;
-        }
-        Err(err.into())
-      },
+      Err(err) => Err(err.into()),
     }
   }
 
@@ -681,7 +675,7 @@ impl FolderManager {
     let folder = lock.read().await;
 
     // trash views and other private views should not be accessed
-    let view_ids_should_be_filtered = Self::get_all_trash_ids(&folder, uid);
+    let view_ids_should_be_filtered = self.get_all_trash_ids_cached(true).await?;
     let no_access_view_ids = self.get_no_access_view_ids().await?;
 
     if view_ids_should_be_filtered.contains(&view_id) {
@@ -702,7 +696,9 @@ impl FolderManager {
           .into_iter()
           .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
           .collect::<Vec<_>>();
+
         child_views.retain(|view| !no_access_view_ids.contains(&view.id));
+
         let view_pb = view_pb_with_child_views(view, child_views);
         Ok(view_pb)
       },
@@ -812,6 +808,9 @@ impl FolderManager {
       .await?;
 
     let uid = self.user.user_id()?;
+
+    self.clear_trash_ids_cache(Some(uid)).await;
+
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
       // Check if the view is already in trash, if not we can move the same
@@ -919,6 +918,20 @@ impl FolderManager {
       return Err(FlowyError::view_is_locked());
     }
 
+    // check if the new parent is a descendant of the view being moved
+    let new_parent_ancestors = self
+      .get_view_ancestors_pb(&new_parent_id.to_string())
+      .await?;
+    if new_parent_ancestors
+      .iter()
+      .any(|ancestor| ancestor.id == view_id.to_string())
+    {
+      return Err(FlowyError::new(
+        flowy_error::ErrorCode::InvalidParams,
+        "Can't move a view to its own descendant",
+      ));
+    }
+
     let old_parent_id = Uuid::from_str(&view.parent_view_id)?;
     if let Some(lock) = self.mutex_folder.load_full() {
       let mut folder = lock.write().await;
@@ -965,6 +978,9 @@ impl FolderManager {
     }
 
     let uid = self.user.user_id()?;
+
+    self.clear_private_view_ids_cache(Some(uid)).await;
+
     if let Some((is_workspace, parent_view_id, child_views)) = self.get_view_relation(view_id).await
     {
       // The display parent view is the view that is displayed in the UI
@@ -1136,14 +1152,13 @@ impl FolderManager {
           let other_private_view_ids = if let Some(precomputed_ids) = other_private_view_ids {
             precomputed_ids.to_vec()
           } else {
-            let uid = self.user.user_id()?;
             // Check if this is a private view that doesn't belong to the current user
             let lock = self
               .mutex_folder
               .load_full()
               .ok_or_else(folder_not_init_error)?;
             let folder = lock.read().await;
-            let ids = Self::get_other_private_view_ids(&folder, uid);
+            let ids = self.get_other_private_view_ids_cached(true).await?;
             drop(folder);
             ids
           };
@@ -2248,6 +2263,8 @@ impl FolderManager {
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn restore_trash(&self, trash_id: &str) {
     if let Ok(uid) = self.user.user_id() {
+      self.clear_trash_ids_cache(Some(uid)).await;
+
       if let Some(lock) = self.mutex_folder.load_full() {
         let mut folder = lock.write().await;
         folder.delete_trash_view_ids(vec![trash_id.to_string()], uid);
@@ -2259,6 +2276,8 @@ impl FolderManager {
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn delete_my_trash(&self) {
     if let Ok(uid) = self.user.user_id() {
+      self.clear_trash_ids_cache(Some(uid)).await;
+
       if let Some(lock) = self.mutex_folder.load_full() {
         let deleted_trash = lock.read().await.get_my_trash_info(uid);
 
@@ -2281,6 +2300,7 @@ impl FolderManager {
   #[tracing::instrument(level = "debug", skip(self, view_id), err)]
   pub async fn delete_trash(&self, view_id: &str) -> FlowyResult<()> {
     let uid = self.user.user_id()?;
+    self.clear_trash_ids_cache(Some(uid)).await;
     if let Some(lock) = self.mutex_folder.load_full() {
       let view = {
         let mut folder = lock.write().await;
@@ -2564,6 +2584,32 @@ impl FolderManager {
       all_trash_ids.extend(get_all_child_view_ids(folder, &trash_id, uid));
     }
     all_trash_ids
+  }
+
+  pub async fn get_all_trash_ids_cached(&self, with_cache: bool) -> FlowyResult<Vec<String>> {
+    let uid = self.user.user_id()?;
+
+    if with_cache {
+      if let Some(cached_trash_ids) = self.view_ids_cache.get(&(uid, ViewIdsCacheType::TrashIds)) {
+        return Ok(cached_trash_ids);
+      }
+    }
+
+    let lock = self
+      .mutex_folder
+      .load_full()
+      .ok_or_else(folder_not_init_error)?;
+    let folder = lock.read().await;
+    let trash_ids = Self::get_all_trash_ids(&folder, uid);
+    drop(folder);
+
+    if with_cache {
+      self
+        .view_ids_cache
+        .insert((uid, ViewIdsCacheType::TrashIds), trash_ids.clone());
+    }
+
+    Ok(trash_ids)
   }
 
   /// Filter the views that are in the trash and belong to the other private sections.
@@ -2975,6 +3021,71 @@ impl FolderManager {
     let combined_views = [views_with_permission, shared_views].concat();
     Ok(combined_views)
   }
+
+  pub async fn get_other_private_view_ids_cached(
+    &self,
+    with_cache: bool,
+  ) -> FlowyResult<Vec<String>> {
+    let uid = self.user.user_id()?;
+
+    if with_cache {
+      if let Some(cached_view_ids) = self
+        .view_ids_cache
+        .get(&(uid, ViewIdsCacheType::PrivateViewIds))
+      {
+        return Ok(cached_view_ids);
+      }
+    }
+
+    let lock = self
+      .mutex_folder
+      .load_full()
+      .ok_or_else(folder_not_init_error)?;
+    let folder = lock.read().await;
+    let view_ids = Self::get_other_private_view_ids(&folder, uid);
+    drop(folder);
+
+    if with_cache {
+      self
+        .view_ids_cache
+        .insert((uid, ViewIdsCacheType::PrivateViewIds), view_ids.clone());
+    }
+
+    Ok(view_ids)
+  }
+
+  pub async fn clear_private_view_ids_cache(&self, uid: Option<i64>) {
+    if let Some(uid) = uid {
+      self
+        .view_ids_cache
+        .remove(&(uid, ViewIdsCacheType::PrivateViewIds));
+    } else {
+      self.view_ids_cache.invalidate_all();
+    }
+  }
+
+  pub async fn clear_trash_ids_cache(&self, uid: Option<i64>) {
+    if let Some(uid) = uid {
+      self
+        .view_ids_cache
+        .remove(&(uid, ViewIdsCacheType::TrashIds));
+    } else {
+      self.view_ids_cache.invalidate_all();
+    }
+  }
+
+  pub async fn clear_all_view_caches(&self, uid: Option<i64>) {
+    if let Some(uid) = uid {
+      self
+        .view_ids_cache
+        .remove(&(uid, ViewIdsCacheType::PrivateViewIds));
+      self
+        .view_ids_cache
+        .remove(&(uid, ViewIdsCacheType::TrashIds));
+    } else {
+      self.view_ids_cache.invalidate_all();
+    }
+  }
 }
 
 /// Return the views that belong to the workspace. The views are filtered by the trash and all the private views.
@@ -3079,3 +3190,11 @@ impl Display for FolderInitDataSource {
     }
   }
 }
+
+#[derive(Debug, Clone, Hash, Eq, PartialEq)]
+enum ViewIdsCacheType {
+  PrivateViewIds,
+  TrashIds,
+}
+
+type ViewIdsCache = Cache<(i64, ViewIdsCacheType), Vec<String>>;

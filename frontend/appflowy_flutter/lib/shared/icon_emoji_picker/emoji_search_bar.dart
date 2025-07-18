@@ -170,6 +170,7 @@ class _SearchTextFieldState extends State<_SearchTextField> {
       height: 36.0,
       child: FlowyTextField(
         focusNode: focusNode,
+        autoFocus: widget.ensureFocus,
         hintText: LocaleKeys.search_label.tr(),
         hintStyle: Theme.of(context).textTheme.bodyMedium!.copyWith(
               fontSize: 14.0,

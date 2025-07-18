@@ -52,6 +52,11 @@ lopdf = { version = "0.36.0" }
 markdown = { version = "1.0.0" }
 rayon = "1.10.0"
 num_enum.workspace = true
+flate2 = "1.0"
+image = { version = "0.25", default-features = false, features = [
+  "png",
+  "jpeg",
+] }
 
 [target.'cfg(any(target_os = "macos", target_os = "linux", target_os = "windows"))'.dependencies]
 notify = "6.1.1"

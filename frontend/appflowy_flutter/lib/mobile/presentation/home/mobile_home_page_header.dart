@@ -135,12 +135,11 @@ class _MobileWorkspace extends StatelessWidget {
                       UserWorkspaceEvent.updateWorkspaceIcon(
                         workspaceId: currentWorkspace.workspaceId,
                         icon: result.emoji,
+                        workspaceType: currentWorkspace.workspaceType,
                       ),
                     ),
               ),
-              currentWorkspace.icon.isNotEmpty
-                  ? const HSpace(2)
-                  : const HSpace(8),
+              HSpace(8),
               Flexible(
                 child: FlowyText.semibold(
                   currentWorkspace.name,

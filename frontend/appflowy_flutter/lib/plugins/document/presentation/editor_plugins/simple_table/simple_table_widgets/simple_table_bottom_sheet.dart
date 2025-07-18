@@ -1,13 +1,18 @@
+import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/_color_list.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/_toolbar_theme.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/_simple_table_bottom_sheet_actions.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/size.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
+
+import '../../base/font_colors.dart';
 
 enum _SimpleTableBottomSheetMenuState {
   cellActionMenu,
@@ -481,6 +486,157 @@ class _SimpleTableBottomSheetState extends State<SimpleTableBottomSheet> {
     widget.editorState.updateTableAlign(
       tableNode: widget.tableNode,
       align: align,
+    );
+  }
+}
+
+class EditorTextColorWidget extends StatelessWidget {
+  EditorTextColorWidget({
+    super.key,
+    this.selectedColor,
+    required this.onSelectedColor,
+  });
+
+  final Color? selectedColor;
+  final void Function(Color color) onSelectedColor;
+
+  final colors = [
+    const Color(0x00FFFFFF),
+    const Color(0xFFDB3636),
+    const Color(0xFFEA8F06),
+    const Color(0xFF18A166),
+    const Color(0xFF205EEE),
+    const Color(0xFFC619C9),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return GridView.count(
+      crossAxisCount: 6,
+      shrinkWrap: true,
+      padding: EdgeInsets.zero,
+      physics: const NeverScrollableScrollPhysics(),
+      children: colors.mapIndexed(
+        (index, color) {
+          return _TextColorItem(
+            color: color,
+            isSelected:
+                selectedColor == null ? index == 0 : selectedColor == color,
+            onTap: () => onSelectedColor(color),
+          );
+        },
+      ).toList(),
+    );
+  }
+}
+
+class _TextColorItem extends StatelessWidget {
+  const _TextColorItem({
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+  final Color color;
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.all(6.0),
+        decoration: BoxDecoration(
+          borderRadius: Corners.s12Border,
+          border: Border.all(
+            width: isSelected ? 2.0 : 1.0,
+            color: isSelected
+                ? const Color(0xff00C6F1)
+                : Theme.of(context).dividerColor,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: FlowyText(
+          'A',
+          fontSize: 24,
+          color: color.a == 0 ? null : color,
+        ),
+      ),
+    );
+  }
+}
+
+class EditorBackgroundColors extends StatelessWidget {
+  const EditorBackgroundColors({
+    super.key,
+    this.selectedColor,
+    required this.onSelectedColor,
+  });
+
+  final Color? selectedColor;
+  final void Function(Color color) onSelectedColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).brightness == Brightness.light
+        ? EditorFontColors.lightColors
+        : EditorFontColors.darkColors;
+    return GridView.count(
+      crossAxisCount: 6,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: colors.mapIndexed(
+        (index, color) {
+          return _BackgroundColorItem(
+            color: color,
+            isSelected:
+                selectedColor == null ? index == 0 : selectedColor == color,
+            onTap: () => onSelectedColor(color),
+          );
+        },
+      ).toList(),
+    );
+  }
+}
+
+class _BackgroundColorItem extends StatelessWidget {
+  const _BackgroundColorItem({
+    required this.color,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final VoidCallback onTap;
+  final Color color;
+  final bool isSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = ToolbarColorExtension.of(context);
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.all(6.0),
+        decoration: BoxDecoration(
+          color: color,
+          borderRadius: Corners.s12Border,
+          border: Border.all(
+            width: isSelected ? 2.0 : 1.0,
+            color: isSelected
+                ? theme.toolbarMenuItemSelectedBackgroundColor
+                : Theme.of(context).dividerColor,
+          ),
+        ),
+        alignment: Alignment.center,
+        child: isSelected
+            ? const FlowySvg(
+                FlowySvgs.m_blue_check_s,
+                size: Size.square(28.0),
+                blendMode: null,
+              )
+            : null,
+      ),
     );
   }
 }

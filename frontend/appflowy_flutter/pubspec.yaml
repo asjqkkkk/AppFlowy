@@ -152,6 +152,7 @@ dependencies:
   talker: ^4.7.1
 
   analyzer: 6.11.0
+  pdfx: ^2.9.2
 
 dev_dependencies:
   # Introduce talker to log the bloc events, and only log the events in the development mode
@@ -260,6 +261,12 @@ dependency_overrides:
       url: https://github.com/LucasXu0/flutter_web_auth_2.git
       ref: cb27c508f840e888e6e5a7408c6b89d5995e48c8
       path: flutter_web_auth_2
+
+  pdfx:
+    git:
+      url: https://github.com/richardshiue/packages.flutter.git
+      ref: becdf25
+      path: packages/pdfx
 
 flutter:
   generate: true

@@ -43,7 +43,6 @@ pub enum WatchDiskEvent {
 
 #[derive(Debug, Clone)]
 pub enum PendingResource {
-  PluginExecutableNotReady,
   OllamaServerNotReady,
   MissingModel(String),
 }
@@ -129,7 +128,6 @@ impl LocalAIResourceController {
 
     // Query the /api/tags endpoint to get a structured list of locally available models.
     let tags_url = format!("{}/api/tags", setting.ollama_server_url);
-
     match client.get(&tags_url).send().await {
       Ok(resp) if resp.status().is_success() => {
         let tags: TagsResponse = resp.json().await.inspect_err(|e| {

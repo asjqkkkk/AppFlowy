@@ -1,57 +1,51 @@
 import 'dart:async';
 
+import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
+import 'package:appflowy/workspace/application/subscription_success_listenable/subscription_success_listenable.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_result/appflowy_result.dart';
 import 'package:bloc/bloc.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
-
-part 'personal_subscription_bloc.freezed.dart';
 
 class PersonalSubscriptionBloc
     extends Bloc<PersonalSubscriptionEvent, PersonalSubscriptionState> {
-  PersonalSubscriptionBloc() : super(PersonalSubscriptionState.initial()) {
+  PersonalSubscriptionBloc() : super(PersonalSubscriptionState.loading()) {
     on<PersonalSubscriptionEventInitialize>(_onInitialize);
-    on<PersonalSubscriptionEventFetch>(_onFetch);
     on<PersonalSubscriptionEventDidFetch>(_onDidFetch);
+
+    _successListenable = getIt<SubscriptionSuccessListenable>();
+    _successListenable.addListener(_onSubscriptionPaymentSuccessful);
+  }
+
+  late final SubscriptionSuccessListenable _successListenable;
+
+  @override
+  Future<void> close() {
+    _successListenable.removeListener(_onSubscriptionPaymentSuccessful);
+    return super.close();
+  }
+
+  void _onSubscriptionPaymentSuccessful() {
+    if (!isClosed) {
+      add(PersonalSubscriptionEvent.initialize());
+    }
   }
 
   Future<void> _onInitialize(
     PersonalSubscriptionEventInitialize event,
     Emitter<PersonalSubscriptionState> emit,
   ) async {
-    add(const PersonalSubscriptionEvent.fetch());
-  }
-
-  Future<void> _onFetch(
-    PersonalSubscriptionEventFetch event,
-    Emitter<PersonalSubscriptionState> emit,
-  ) async {
-    emit(state.copyWith(isLoading: true));
-
-    unawaited(
-      UserEventGetPersonalSubscription().send().then(
-        (result) {
-          result.fold(
-            (subscription) {
-              if (!isClosed) {
-                add(
-                  PersonalSubscriptionEvent.didFetch(
-                    false,
-                    subscription,
-                  ),
-                );
-              }
-            },
-            (error) {
-              if (!isClosed) {
-                add(
-                  PersonalSubscriptionEvent.didFetch(false, null),
-                );
-              }
-            },
+    await UserEventGetPersonalSubscription().send().fold(
+      (subscription) {
+        if (!isClosed) {
+          add(
+            PersonalSubscriptionEvent.didFetch(subscription),
           );
-        },
-      ),
+        }
+      },
+      Log.error,
     );
   }
 
@@ -60,33 +54,50 @@ class PersonalSubscriptionBloc
     Emitter<PersonalSubscriptionState> emit,
   ) async {
     emit(
-      state.copyWith(
-        subscription: event.subscription,
-        isLoading: event.isLoading,
+      PersonalSubscriptionStateLoaded(
+        hasVaultSubscription:
+            event.subscription.hasActiveVaultWorkspaceSubscription,
       ),
     );
   }
 }
 
-@freezed
-class PersonalSubscriptionEvent with _$PersonalSubscriptionEvent {
-  const factory PersonalSubscriptionEvent.initialize() =
-      PersonalSubscriptionEventInitialize;
-  const factory PersonalSubscriptionEvent.fetch() =
-      PersonalSubscriptionEventFetch;
-  const factory PersonalSubscriptionEvent.didFetch(
-    bool isLoading,
-    PersonalSubscriptionInfoPB? subscription,
-  ) = PersonalSubscriptionEventDidFetch;
+sealed class PersonalSubscriptionEvent {
+  const PersonalSubscriptionEvent();
+
+  factory PersonalSubscriptionEvent.initialize() =>
+      const PersonalSubscriptionEventInitialize();
+  factory PersonalSubscriptionEvent.didFetch(
+    PersonalSubscriptionInfoPB subscription,
+  ) =>
+      PersonalSubscriptionEventDidFetch(subscription);
 }
 
-@freezed
-class PersonalSubscriptionState with _$PersonalSubscriptionState {
-  const factory PersonalSubscriptionState({
-    PersonalSubscriptionInfoPB? subscription,
-    @Default(false) bool isLoading,
-  }) = _PersonalSubscriptionState;
+class PersonalSubscriptionEventInitialize extends PersonalSubscriptionEvent {
+  const PersonalSubscriptionEventInitialize();
+}
 
-  factory PersonalSubscriptionState.initial() =>
-      const PersonalSubscriptionState();
+class PersonalSubscriptionEventDidFetch extends PersonalSubscriptionEvent {
+  const PersonalSubscriptionEventDidFetch(this.subscription);
+
+  final PersonalSubscriptionInfoPB subscription;
+}
+
+sealed class PersonalSubscriptionState {
+  const PersonalSubscriptionState();
+
+  factory PersonalSubscriptionState.loading() =>
+      const PersonalSubscriptionStateLoading();
+}
+
+class PersonalSubscriptionStateLoading extends PersonalSubscriptionState {
+  const PersonalSubscriptionStateLoading();
+}
+
+class PersonalSubscriptionStateLoaded extends PersonalSubscriptionState {
+  const PersonalSubscriptionStateLoaded({
+    required this.hasVaultSubscription,
+  });
+
+  final bool hasVaultSubscription;
 }

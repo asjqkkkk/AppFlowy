@@ -49,7 +49,7 @@ enum ImportType {
   List<String> get allowedExtensions {
     switch (this) {
       case ImportType.markdownOrText:
-        return ['md', 'txt'];
+        return ['md', 'markdown', 'txt'];
       case ImportType.csv:
         return ['csv'];
       case ImportType.afDatabase:

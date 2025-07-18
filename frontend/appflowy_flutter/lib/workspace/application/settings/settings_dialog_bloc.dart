@@ -1,5 +1,6 @@
 import 'package:appflowy/user/application/user_listener.dart';
-import 'package:appflowy_backend/dispatch/dispatch.dart';
+import 'package:appflowy/workspace/presentation/settings/widgets/setting_appflowy_cloud.dart'
+    as billing_service;
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
@@ -92,36 +93,13 @@ class SettingsDialogBloc
     UserProfilePB userProfile, [
     AFRolePB? currentWorkspaceMemberRole,
   ]) async {
-    if ([
-      WorkspaceTypePB.LocalW,
-    ].contains(userProfile.workspaceType)) {
-      return false;
-    }
-
+    // hide the billing for non-owner
     if (currentWorkspaceMemberRole == null ||
         currentWorkspaceMemberRole != AFRolePB.Owner) {
       return false;
     }
 
-    if (kDebugMode) {
-      return true;
-    }
-
-    final result = await UserEventGetCloudConfig().send();
-    return result.fold(
-      (cloudSetting) {
-        final whiteList = [
-          "https://beta.appflowy.cloud",
-          "https://test.appflowy.cloud",
-        ];
-
-        return whiteList.contains(cloudSetting.serverUrl);
-      },
-      (err) {
-        Log.error("Failed to get cloud config: $err");
-        return false;
-      },
-    );
+    return billing_service.isBillingEnabled();
   }
 }
 

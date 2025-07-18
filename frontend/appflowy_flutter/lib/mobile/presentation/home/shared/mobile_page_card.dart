@@ -182,35 +182,33 @@ class MobileViewPage extends StatelessWidget {
   Widget _buildTitle(BuildContext context, RecentViewState state) {
     final name = state.name;
     final icon = state.icon;
-    return RichText(
-      maxLines: 3,
-      overflow: TextOverflow.ellipsis,
-      text: TextSpan(
-        children: [
-          if (icon.isNotEmpty) ...[
-            WidgetSpan(
-              child: SizedBox(
-                width: 20,
-                child: RawEmojiIconWidget(
-                  emoji: icon,
-                  emojiSize: 18.0,
-                ),
-              ),
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (icon.isNotEmpty) ...[
+          SizedBox(
+            width: 20,
+            child: RawEmojiIconWidget(
+              emoji: icon,
+              emojiSize: 18.0,
+              lineHeight: 1,
             ),
-            const WidgetSpan(child: HSpace(8.0)),
-          ],
-          TextSpan(
-            text: name.orDefault(
-              LocaleKeys.menuAppHeader_defaultNewPageName.tr(),
-            ),
+          ),
+          const HSpace(8),
+        ],
+        Flexible(
+          child: Text(
+            name.orDefault(LocaleKeys.menuAppHeader_defaultNewPageName.tr()),
             style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                   fontSize: 16.0,
                   fontWeight: FontWeight.w600,
-                  height: 1.3,
+                  height: 1.1,
                 ),
+            maxLines: 3,
+            overflow: TextOverflow.ellipsis,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 

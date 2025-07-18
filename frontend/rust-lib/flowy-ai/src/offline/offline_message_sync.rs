@@ -137,7 +137,7 @@ impl ChatCloudService for AutoSyncChatService {
     Ok(message)
   }
 
-  async fn stream_answer(
+  async fn stream_question(
     &self,
     workspace_id: &Uuid,
     chat_id: &Uuid,
@@ -147,7 +147,7 @@ impl ChatCloudService for AutoSyncChatService {
   ) -> Result<StreamAnswer, FlowyError> {
     self
       .cloud_service
-      .stream_answer(workspace_id, chat_id, question_id, format, ai_model)
+      .stream_question(workspace_id, chat_id, question_id, format, ai_model)
       .await
   }
 

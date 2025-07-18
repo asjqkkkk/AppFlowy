@@ -38,8 +38,9 @@ class RustWorkspaceRepositoryImpl implements WorkspaceRepository {
   @override
   Future<FlowyResult<void, FlowyError>> deleteWorkspace({
     required String workspaceId,
+    required WorkspaceTypePB workspaceType,
   }) async {
-    return _userService.deleteWorkspaceById(workspaceId);
+    return _userService.deleteWorkspaceById(workspaceId, workspaceType);
   }
 
   @override
@@ -54,16 +55,18 @@ class RustWorkspaceRepositoryImpl implements WorkspaceRepository {
   Future<FlowyResult<void, FlowyError>> renameWorkspace({
     required String workspaceId,
     required String name,
+    required WorkspaceTypePB workspaceType,
   }) async {
-    return _userService.renameWorkspace(workspaceId, name);
+    return _userService.renameWorkspace(workspaceId, name, workspaceType);
   }
 
   @override
   Future<FlowyResult<void, FlowyError>> updateWorkspaceIcon({
     required String workspaceId,
     required String icon,
+    required WorkspaceTypePB workspaceType,
   }) async {
-    return _userService.updateWorkspaceIcon(workspaceId, icon);
+    return _userService.updateWorkspaceIcon(workspaceId, icon, workspaceType);
   }
 
   @override

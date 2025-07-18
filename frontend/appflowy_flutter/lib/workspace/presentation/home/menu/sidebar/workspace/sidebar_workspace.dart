@@ -52,6 +52,7 @@ class _SidebarWorkspaceState extends State<SidebarWorkspace> {
   @override
   void dispose() {
     onHover.dispose();
+    loadingIndicator = null;
     openWorkspaceNotifier.removeListener(_openWorkspaceFromInvitation);
     showDebounce.dispose();
     loadingIndicator?.stop();
@@ -465,6 +466,7 @@ class _SideBarSwitchWorkspaceButtonChild extends StatelessWidget {
                       UserWorkspaceEvent.updateWorkspaceIcon(
                         workspaceId: currentWorkspace.workspaceId,
                         icon: result.emoji,
+                        workspaceType: currentWorkspace.workspaceType,
                       ),
                     ),
               ),

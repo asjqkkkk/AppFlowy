@@ -189,8 +189,16 @@ class SummaryButton extends StatelessWidget {
       builder: (context, state) {
         return state.loadingState.when(
           loading: () {
-            return const Center(
-              child: CircularProgressIndicator.adaptive(),
+            return Container(
+              height: 26,
+              width: 26,
+              alignment: Alignment.center,
+              child: SizedBox.square(
+                dimension: 12.0,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.0,
+                ),
+              ),
             );
           },
           finish: () {

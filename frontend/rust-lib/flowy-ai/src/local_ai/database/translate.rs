@@ -1,7 +1,7 @@
 use anyhow::Result;
 use std::collections::HashMap;
 
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use flowy_ai_pub::cloud::ai_dto::{TranslateRowData, TranslateRowResponse};
 use flowy_database_pub::cloud::TranslateItem;
 use flowy_error::{FlowyError, FlowyResult};
@@ -38,16 +38,15 @@ Important Formatting Rules:
 
 const TRANSLATE_USER_PROMPT: &str = r#"
 Translate following {input} into {language}.
-Output:
 "#;
 
 /// The main chain for translating database content
 pub struct DatabaseTranslateChain {
-  llm: LLMOllama,
+  llm: AFLLM,
 }
 
 impl DatabaseTranslateChain {
-  pub fn new(ollama: LLMOllama) -> Self {
+  pub fn new(ollama: AFLLM) -> Self {
     Self { llm: ollama }
   }
 
@@ -85,11 +84,35 @@ impl DatabaseTranslateChain {
   fn parse_response(&self, response_text: &str) -> FlowyResult<TranslateRowResponse> {
     info!("[Database Translate] Parsing response: {}", response_text);
 
+    // LLMs sometimes include additional formatting in their responses.
+    // We need to clean up common patterns before parsing the JSON:
+    // 1. Strip "Output:" prefix that might be included due to the prompt
+    // 2. Strip markdown code block formatting (```json ... ```)
+
+    // Strip "Output:" prefix if present
+    let mut cleaned_text = if let Some(text) = response_text.strip_prefix("Output:") {
+      text.trim()
+    } else {
+      response_text.trim()
+    };
+
+    // Strip markdown code blocks if present
+    if cleaned_text.starts_with("```") {
+      // Find the first newline after ```
+      if let Some(start_idx) = cleaned_text.find('\n') {
+        let without_start = &cleaned_text[start_idx + 1..];
+        // Find the closing ```
+        if let Some(end_idx) = without_start.rfind("```") {
+          cleaned_text = without_start[..end_idx].trim();
+        }
+      }
+    }
+
     // Try different parsing strategies in sequence
     self
-      .try_parse_json_array(response_text)
-      .or_else(|_| self.try_parse_json_object(response_text))
-      .or_else(|_| self.fallback_parse(response_text))
+      .try_parse_json_array(cleaned_text)
+      .or_else(|_| self.try_parse_json_object(cleaned_text))
+      .or_else(|_| self.fallback_parse(cleaned_text))
       .map_err(|e| {
         FlowyError::internal().with_context(format!("Failed to parse translation response: {}", e))
       })

@@ -219,7 +219,7 @@ pub(crate) async fn chat_file_handler(
   let data = data.try_into_inner()?;
   let file_path = PathBuf::from(&data.file_path);
 
-  let allowed_extensions = ["pdf", "md", "txt"];
+  let allowed_extensions = ["pdf", "md", "markdown", "txt"];
   let extension = file_path
     .extension()
     .and_then(|ext| ext.to_str())
@@ -233,7 +233,7 @@ pub(crate) async fn chat_file_handler(
   if !allowed_extensions.contains(&extension) {
     return Err(FlowyError::new(
       ErrorCode::UnsupportedFileFormat,
-      "Only support pdf,md and txt",
+      "Only support pdf, md, markdown and txt",
     ));
   }
   let file_size = fs::metadata(&file_path)
@@ -265,7 +265,7 @@ pub(crate) async fn restart_local_ai_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
 ) -> Result<(), FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  ai_manager.local_ai_controller.restart_plugin().await;
+  ai_manager.restart().await?;
   Ok(())
 }
 
@@ -275,10 +275,7 @@ pub(crate) async fn toggle_local_ai_handler(
 ) -> DataResult<LocalAIStatePB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
   ai_manager.toggle_local_ai().await?;
-  let state = ai_manager
-    .local_ai_controller
-    .refresh_local_ai_state(false)
-    .await?;
+  let state = ai_manager.get_local_ai_state().await?;
   data_result_ok(state)
 }
 
@@ -287,10 +284,7 @@ pub(crate) async fn get_local_ai_state_handler(
   ai_manager: AFPluginState<Weak<AIManager>>,
 ) -> DataResult<LocalAIStatePB, FlowyError> {
   let ai_manager = upgrade_ai_manager(ai_manager)?;
-  let state = ai_manager
-    .local_ai_controller
-    .refresh_local_ai_state(false)
-    .await?;
+  let state = ai_manager.get_local_ai_state().await?;
   data_result_ok(state)
 }
 
@@ -412,4 +406,22 @@ pub(crate) async fn get_chat_attached_files_handler(
   let ai_manager = upgrade_ai_manager(ai_manager)?;
   let files = ai_manager.get_chat_attached_files(&chat_id).await?;
   data_result_ok(AttachedChatFilesPB { files })
+}
+
+pub(crate) async fn get_local_model_info_handler(
+  data: AFPluginData<AIModelPB>,
+  ai_manager: AFPluginState<Weak<AIManager>>,
+) -> DataResult<LocalAIModelInfoPB, FlowyError> {
+  let params = data.into_inner();
+  let ai_manager = upgrade_ai_manager(ai_manager)?;
+  let info = ai_manager.get_local_model_info(&params.name).await?;
+  data_result_ok(info)
+}
+
+pub(crate) async fn get_local_embedding_models_handler(
+  ai_manager: AFPluginState<Weak<AIManager>>,
+) -> DataResult<EmbeddingModelSelectionPB, FlowyError> {
+  let ai_manager = upgrade_ai_manager(ai_manager)?;
+  let info = ai_manager.get_local_available_embedding_model().await?;
+  data_result_ok(info)
 }

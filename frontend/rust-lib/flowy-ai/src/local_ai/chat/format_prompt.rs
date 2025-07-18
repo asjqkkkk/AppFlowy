@@ -3,10 +3,12 @@ use flowy_ai_pub::cloud::ResponseFormat;
 use flowy_error::{FlowyError, FlowyResult};
 use langchain_rust::prompt::{
   FormatPrompter, HumanMessagePromptTemplate, MessageFormatter, PromptArgs, PromptError,
+  SystemMessagePromptTemplate,
 };
 use langchain_rust::schemas::{Message, PromptValue};
-use langchain_rust::template_jinja2;
+use langchain_rust::{prompt_args, template_jinja2};
 use std::sync::{Arc, RwLock};
+use tracing::debug;
 
 const QA_CONTEXT_TEMPLATE: &str = r#"
 Only Use the context provided below to formulate your answer. Do not use any other information.
@@ -32,6 +34,16 @@ fn template_from_rag_ids(rag_ids: &[String]) -> HumanMessagePromptTemplate {
   }
 }
 
+const QA_HISTORY_TEMPLATE: &str = r#"
+The following is a conversation between the User and you. Refer to the conversation history below when answering the User's question.
+Current conversation:
+{{chat_history}}
+"#;
+
+fn history_template() -> SystemMessagePromptTemplate {
+  SystemMessagePromptTemplate::new(template_jinja2!(QA_HISTORY_TEMPLATE, "chat_history"))
+}
+
 struct FormatState {
   format_msg: Arc<Message>,
   format: ResponseFormat,
@@ -41,12 +53,14 @@ pub struct AFContextPrompt {
   rag_ids: Vec<String>,
   system_msg: Arc<Message>,
   state: Arc<RwLock<FormatState>>,
-  user_tmpl: Arc<RwLock<HumanMessagePromptTemplate>>,
+  context_template: Arc<RwLock<HumanMessagePromptTemplate>>,
+  history_template: Arc<SystemMessagePromptTemplate>,
 }
 
 impl AFContextPrompt {
   pub fn new(system_msg: Message, fmt: &ResponseFormat, rag_ids: &[String]) -> Self {
-    let user_tmpl = template_from_rag_ids(rag_ids);
+    let context_template = template_from_rag_ids(rag_ids);
+    let history_template = history_template();
     let state = FormatState {
       format_msg: Arc::new(format_prompt(fmt)),
       format: fmt.clone(),
@@ -56,7 +70,8 @@ impl AFContextPrompt {
       rag_ids: rag_ids.to_vec(),
       system_msg: Arc::new(system_msg),
       state: Arc::new(RwLock::new(state)),
-      user_tmpl: Arc::new(RwLock::new(user_tmpl)),
+      context_template: Arc::new(RwLock::new(context_template)),
+      history_template: Arc::new(history_template),
     }
   }
 
@@ -66,13 +81,13 @@ impl AFContextPrompt {
     }
     self.rag_ids = rag_ids.to_vec();
     let template = template_from_rag_ids(rag_ids);
-    if let Ok(mut w) = self.user_tmpl.try_write() {
+    if let Ok(mut w) = self.context_template.try_write() {
       *w = template;
     }
   }
 
   /// Returns true if we actually swapped in a new instruction
-  pub fn update_format(&self, new_fmt: &ResponseFormat) -> FlowyResult<()> {
+  pub fn set_format(&self, new_fmt: &ResponseFormat) -> FlowyResult<()> {
     let mut st = self
       .state
       .write()
@@ -93,29 +108,42 @@ impl Clone for AFContextPrompt {
       rag_ids: self.rag_ids.clone(),
       system_msg: Arc::clone(&self.system_msg),
       state: Arc::clone(&self.state),
-      user_tmpl: Arc::clone(&self.user_tmpl),
+      context_template: Arc::clone(&self.context_template),
+      history_template: Arc::clone(&self.history_template),
     }
   }
 }
 
 impl MessageFormatter for AFContextPrompt {
-  fn format_messages(&self, args: PromptArgs) -> Result<Vec<Message>, PromptError> {
-    let mut out = Vec::with_capacity(3);
+  fn format_messages(&self, mut args: PromptArgs) -> Result<Vec<Message>, PromptError> {
+    let chat_history = args.remove("chat_history");
+
+    let mut out = Vec::with_capacity(4);
     out.push((*self.system_msg).clone());
 
     if let Ok(st) = self.state.try_read() {
       out.push((*st.format_msg).clone());
     }
 
-    if let Ok(user_tmpl) = self.user_tmpl.try_read() {
-      out.extend(user_tmpl.format_messages(args)?);
+    if let Some(serde_json::Value::Array(chat_history)) = chat_history {
+      if !chat_history.is_empty() {
+        let args = prompt_args! {
+            "chat_history" => chat_history,
+        };
+        out.extend(self.history_template.format_messages(args)?);
+      }
     }
 
+    if let Ok(context_template) = self.context_template.try_read() {
+      out.extend(context_template.format_messages(args)?);
+    }
+
+    debug!("👀👀👀 Formatted messages: {:#?}", out);
     Ok(out)
   }
 
   fn input_variables(&self) -> Vec<String> {
-    vec!["context".into(), "question".into()]
+    vec!["context".into(), "question".into(), "chat_history".into()]
   }
 }
 

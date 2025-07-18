@@ -681,6 +681,9 @@ final _planLabels = [
         .settings_comparePlanDialog_planLabels_customNamespaceTooltip
         .tr(),
   ),
+  _PlanItem(
+    label: LocaleKeys.settings_comparePlanDialog_planLabels_expandedColors.tr(),
+  ),
 ];
 
 class _CellItem {
@@ -724,6 +727,9 @@ final List<_CellItem> _freeLabels = [
   const _CellItem(
     label: '',
   ),
+  const _CellItem(
+    label: '',
+  ),
 ];
 
 final List<_CellItem> _proLabels = [
@@ -756,6 +762,10 @@ final List<_CellItem> _proLabels = [
   ),
   _CellItem(
     label: LocaleKeys.settings_comparePlanDialog_proLabels_itemFileUpload.tr(),
+  ),
+  const _CellItem(
+    label: '',
+    icon: FlowySvgs.check_m,
   ),
   const _CellItem(
     label: '',
