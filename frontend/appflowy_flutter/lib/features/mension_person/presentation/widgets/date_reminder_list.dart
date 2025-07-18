@@ -9,6 +9,7 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 import 'item_visibility_detector.dart';
 
@@ -36,7 +37,9 @@ class DateReminderList extends StatelessWidget {
             id: item.id,
             child: AFTextMenuItem(
               title: item.id,
-              selected: context.read<MentionBloc>().state.selectedId == item.id,
+              selected:
+                  context.read<MentionBloc>().state.selectedId == item.id &&
+                      UniversalPlatform.isDesktop,
               onTap: () => mentionBloc.add(MentionEvent.executeItem(item)),
               backgroundColor: context.mentionItemBGColor,
             ),

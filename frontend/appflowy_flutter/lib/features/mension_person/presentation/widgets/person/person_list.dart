@@ -36,7 +36,7 @@ class PersonList extends StatelessWidget {
     final workspaceType =
         userWorkspaceBloc.state.currentWorkspace?.workspaceType;
 
-    if (workspaceType == WorkspaceTypePB.LocalW || items.isEmpty) {
+    if (workspaceType == WorkspaceTypePB.Vault || items.isEmpty) {
       return const SizedBox.shrink();
     }
 
@@ -112,7 +112,8 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
               size: AFAvatarSize.s,
               name: person.name,
             ),
-            selected: state.selectedId == person.id,
+            selected:
+                state.selectedId == person.id && UniversalPlatform.isDesktop,
             title: person.name,
             subtitle: person.email,
             backgroundColor: context.mentionItemBGColor,

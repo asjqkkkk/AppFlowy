@@ -73,7 +73,8 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
       return MentionMenuItenVisibilityDetector(
         id: view.id,
         child: AFTextMenuItem(
-          selected: mentionState.selectedId == view.id,
+          selected:
+              mentionState.selectedId == view.id && UniversalPlatform.isDesktop,
           leading: SizedBox(
             width: 24,
             child: Center(child: view.buildIcon(context)),
@@ -94,7 +95,8 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
       return MentionMenuItenVisibilityDetector(
         id: id,
         child: AFTextMenuItem(
-          selected: mentionState.selectedId == id,
+          selected:
+              mentionState.selectedId == id && UniversalPlatform.isDesktop,
           title: LocaleKeys.inlineActions_createPage
               .tr(args: [mentionState.query]),
           leading: SizedBox.square(

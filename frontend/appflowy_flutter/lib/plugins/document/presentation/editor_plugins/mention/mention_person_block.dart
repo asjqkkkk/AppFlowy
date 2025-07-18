@@ -5,8 +5,8 @@ import 'package:appflowy/features/mension_person/presentation/widgets/mobile/mob
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
-import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -238,8 +238,12 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   }
 
   Widget buildNormalPerson(BuildContext context, String name) {
-    final theme = AppFlowyTheme.of(context),
-        color = theme.textColorScheme.tertiary,
+    final bloc = context.read<PersonBloc>(),
+        state = bloc.state,
+        theme = AppFlowyTheme.of(context),
+        color = state.access
+            ? theme.textColorScheme.secondary
+            : theme.textColorScheme.tertiary,
         style = widget.textStyle?.copyWith(
               color: color,
               leadingDistribution: TextLeadingDistribution.even,
