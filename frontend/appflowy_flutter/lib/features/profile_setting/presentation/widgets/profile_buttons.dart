@@ -105,7 +105,7 @@ class _PreviewButtonState extends State<PreviewButton> {
   Widget build(BuildContext context) {
     final bloc = context.read<ProfileSettingBloc>(),
         theme = AppFlowyTheme.of(context),
-        isLocal = bloc.userProfile.workspaceType == WorkspaceTypePB.LocalW;
+        isLocal = bloc.userProfile.workspaceType == WorkspaceTypePB.Vault;
     if (isLocal) return const SizedBox.shrink();
     return AppFlowyPopover(
       direction: PopoverDirection.bottomWithCenterAligned,

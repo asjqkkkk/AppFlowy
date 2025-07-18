@@ -31,7 +31,7 @@ class SettingsProfileView extends StatelessWidget {
     final theme = AppFlowyTheme.of(context),
         spacing = theme.spacing,
         xxl = spacing.xxl,
-        isLocal = userProfile.workspaceType == WorkspaceTypePB.LocalW;
+        isLocal = userProfile.workspaceType == WorkspaceTypePB.Vault;
     return BlocProvider(
       create: (context) => ProfileSettingBloc(
         userProfile: userProfile,
