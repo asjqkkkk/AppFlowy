@@ -14,19 +14,23 @@ class SettingsDropdown<T> extends StatefulWidget {
     required this.selectedOption,
     required this.options,
     this.onChanged,
+    this.onOpen,
     this.actions,
     this.expandWidth = true,
     this.selectOptionCompare,
     this.textStyle,
+    this.editable = true,
   });
 
   final T selectedOption;
   final CompareFunction<T>? selectOptionCompare;
   final List<DropdownMenuEntry<T>> options;
   final void Function(T)? onChanged;
+  final void Function()? onOpen;
   final List<Widget>? actions;
   final bool expandWidth;
   final TextStyle? textStyle;
+  final bool editable;
 
   @override
   State<SettingsDropdown<T>> createState() => _SettingsDropdownState<T>();
@@ -54,6 +58,7 @@ class _SettingsDropdownState<T> extends State<SettingsDropdown<T>> {
           child: AFDropdownMenu<T>(
             controller: controller,
             expandedInsets: widget.expandWidth ? EdgeInsets.zero : null,
+            editable: widget.editable,
             initialSelection: widget.selectedOption,
             dropdownMenuEntries: widget.options,
             selectOptionCompare: widget.selectOptionCompare,
@@ -109,6 +114,7 @@ class _SettingsDropdownState<T> extends State<SettingsDropdown<T>> {
             onSelected: (v) async {
               v != null ? widget.onChanged?.call(v) : null;
             },
+            onOpen: widget.onOpen,
           ),
         ),
         if (widget.actions?.isNotEmpty == true) ...[

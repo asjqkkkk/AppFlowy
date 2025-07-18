@@ -246,7 +246,7 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
               );
             });
           },
-          pressReminder: (reminderId, path, view) {
+          pressReminder: (reminderId, path, view, blockId) {
             final reminder =
                 state.reminders.firstWhereOrNull((r) => r.id == reminderId);
 
@@ -273,6 +273,8 @@ class ReminderBloc extends Bloc<ReminderEvent, ReminderState> {
               arguments: {
                 ActionArgumentKeys.view: view,
                 ActionArgumentKeys.nodePath: path,
+                if (blockId != null && view?.layout == ViewLayoutPB.Document)
+                  ActionArgumentKeys.blockId: blockId,
                 ActionArgumentKeys.rowId: rowId,
               },
             );
@@ -608,6 +610,7 @@ class ReminderEvent with _$ReminderEvent {
     required String reminderId,
     @Default(null) int? path,
     @Default(null) ViewPB? view,
+    @Default(null) String? blockId,
   }) = _PressReminder;
 
   // Event to refresh reminders

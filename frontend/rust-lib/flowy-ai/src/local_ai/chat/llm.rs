@@ -4,27 +4,34 @@ use langchain_rust::language_models::llm::LLM;
 use langchain_rust::language_models::{GenerateResult, LLMError, TokenUsage};
 use langchain_rust::schemas::{Message, StreamData};
 use ollama_rs::error::OllamaError;
+use std::ops::{Deref, DerefMut};
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio_stream::StreamExt;
 
+use crate::embeddings::indexer::LocalEmbeddingModel;
+use crate::local_ai::controller::LocalAISetting;
+use flowy_ai_pub::entities::EmbeddingDimension;
+use flowy_error::FlowyResult;
 use ollama_rs::Ollama;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
+use ollama_rs::generation::embeddings::GenerateEmbeddingsResponse;
+use ollama_rs::generation::embeddings::request::GenerateEmbeddingsRequest;
 use ollama_rs::generation::parameters::FormatType;
-use ollama_rs::models::{ModelInfo, ModelOptions};
+use ollama_rs::models::{LocalModel, ModelInfo, ModelOptions};
 use tracing::debug;
 
 #[derive(Debug, Clone)]
-pub struct LLMOllama {
-  pub model_name: String,
+pub struct AFLLM {
   ollama: Arc<Ollama>,
   format: Option<FormatType>,
   options: Option<ModelOptions>,
+  pub model_name: String,
 }
 
-impl Default for LLMOllama {
+impl Default for AFLLM {
   fn default() -> Self {
-    LLMOllama {
+    AFLLM {
       model_name: "gemma3:4b".to_string(),
       ollama: Arc::new(Ollama::default()),
       format: None,
@@ -33,14 +40,14 @@ impl Default for LLMOllama {
   }
 }
 
-impl LLMOllama {
+impl AFLLM {
   pub fn new(
     model: &str,
     ollama: Arc<Ollama>,
     format: Option<FormatType>,
     options: Option<ModelOptions>,
   ) -> Self {
-    LLMOllama {
+    AFLLM {
       model_name: model.to_string(),
       ollama,
       format,
@@ -53,14 +60,9 @@ impl LLMOllama {
     self
   }
 
-  pub fn with_format(mut self, format: FormatType) -> Self {
+  pub fn set_format(&mut self, format: FormatType) {
+    debug!("set format {:?}", format);
     self.format = Some(format);
-    self
-  }
-
-  pub fn with_model(mut self, model: &str) -> Self {
-    self.model_name = model.to_string();
-    self
   }
 
   pub fn set_model(&mut self, model: &str) {
@@ -134,8 +136,22 @@ impl LLMOllama {
   }
 }
 
+impl Deref for AFLLM {
+  type Target = Arc<Ollama>;
+
+  fn deref(&self) -> &Self::Target {
+    &self.ollama
+  }
+}
+
+impl DerefMut for AFLLM {
+  fn deref_mut(&mut self) -> &mut Self::Target {
+    &mut self.ollama
+  }
+}
+
 #[async_trait]
-impl LLM for LLMOllama {
+impl LLM for AFLLM {
   async fn generate(&self, messages: &[Message]) -> Result<GenerateResult, LLMError> {
     let request = self.generate_request(messages);
     let result = self.ollama.send_chat_messages(request).await?;
@@ -170,5 +186,116 @@ impl LLM for LLMOllama {
     });
 
     Ok(Box::pin(stream))
+  }
+}
+
+#[derive(Debug, Clone)]
+pub struct LocalLLMController {
+  ollama: Arc<Ollama>,
+  model_name: String,
+  embed_model: LocalEmbeddingModel,
+}
+
+impl LocalLLMController {
+  pub fn new(ollama: Arc<Ollama>, model_name: String, embed_model: LocalEmbeddingModel) -> Self {
+    LocalLLMController {
+      ollama,
+      model_name,
+      embed_model,
+    }
+  }
+
+  pub fn is_setting_changed(&self, setting: &LocalAISetting) -> bool {
+    if self.ollama.uri() != setting.ollama_server_url {
+      debug!(
+        "Ollama server URL changed from {} to {}",
+        self.ollama.uri(),
+        setting.ollama_server_url
+      );
+      return true;
+    }
+
+    if self.model_name != setting.chat_model_name {
+      debug!(
+        "LLM model changed from {} to {}",
+        self.model_name, setting.chat_model_name
+      );
+      return true;
+    }
+
+    if self.embed_model.name() != setting.embedding_model_name {
+      debug!(
+        "Embedding model changed from {} to {}",
+        self.embed_model.name(),
+        setting.embedding_model_name
+      );
+      return true;
+    }
+
+    false
+  }
+
+  pub fn build_llm(&self, format: Option<FormatType>, options: Option<ModelOptions>) -> AFLLM {
+    let model_name = self.model_name.clone();
+    AFLLM::new(&model_name, self.ollama.clone(), format, options)
+  }
+
+  pub fn build_with_model(&self, model: &str) -> AFLLM {
+    AFLLM::new(model, self.ollama.clone(), None, None)
+  }
+
+  pub fn global_model(&self) -> String {
+    self.model_name.clone()
+  }
+
+  pub fn uri(&self) -> String {
+    self.ollama.uri()
+  }
+
+  pub fn url_str(&self) -> &str {
+    self.ollama.url_str()
+  }
+
+  pub async fn show_model_info(&self, model_name: String) -> FlowyResult<ModelInfo> {
+    let info = self.ollama.show_model_info(model_name).await?;
+    Ok(info)
+  }
+
+  pub async fn list_local_models(&self) -> FlowyResult<Vec<LocalModel>> {
+    let models = self.ollama.list_local_models().await?;
+    Ok(models)
+  }
+
+  pub async fn generate_embeddings(
+    &self,
+    request: GenerateEmbeddingsRequest,
+  ) -> FlowyResult<GenerateEmbeddingsResponse> {
+    let resp = self.ollama.generate_embeddings(request).await?;
+    Ok(resp)
+  }
+
+  pub fn set_embed_model(&mut self, embed_model: LocalEmbeddingModel) {
+    debug!("set embed model {}", embed_model);
+    self.embed_model = embed_model;
+  }
+
+  pub fn get_embed_model(&self) -> &LocalEmbeddingModel {
+    &self.embed_model
+  }
+
+  pub fn embed_model(&self) -> LocalEmbeddingModel {
+    self.embed_model.clone()
+  }
+
+  pub fn embed_dimension(&self) -> EmbeddingDimension {
+    self.embed_model.dimension()
+  }
+
+  pub async fn embed(
+    &self,
+    request: GenerateEmbeddingsRequest,
+  ) -> FlowyResult<GenerateEmbeddingsResponse> {
+    let resp = self.ollama.generate_embeddings(request).await?;
+    Ok(resp)
   }
 }

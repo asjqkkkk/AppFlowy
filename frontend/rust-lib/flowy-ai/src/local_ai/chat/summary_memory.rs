@@ -1,4 +1,4 @@
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::AFLLM;
 use async_trait::async_trait;
 use flowy_ai_pub::cloud::MessageCursor;
 use flowy_ai_pub::cloud::chat_dto::ChatAuthorType;
@@ -48,7 +48,7 @@ fn get_history_message(
 impl SummaryMemory {
   pub fn new(
     chat_id: &Uuid,
-    llm: LLMOllama,
+    llm: AFLLM,
     summary: String,
     user_service: Option<Weak<dyn AIUserService>>,
   ) -> FlowyResult<Self> {
@@ -126,7 +126,7 @@ struct SummaryMessageChain {
 }
 
 impl SummaryMessageChain {
-  pub fn new(llm: LLMOllama) -> FlowyResult<Self> {
+  pub fn new(llm: AFLLM) -> FlowyResult<Self> {
     let prompt = message_formatter![
       fmt_message!(Message::new_system_message(SUMMARY_SYSTEM_PROMPT)),
       fmt_placeholder!("current_summary"),

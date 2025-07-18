@@ -1,5 +1,5 @@
+use crate::local_ai::chat::llm::AFLLM;
 use flowy_error::FlowyError;
-use ollama_rs::Ollama;
 use ollama_rs::generation::chat::request::ChatMessageRequest;
 use ollama_rs::generation::chat::{ChatMessage, MessageRole};
 use ollama_rs::generation::parameters::{FormatType, JsonStructure};
@@ -60,7 +60,7 @@ fn convert_documents_to_text(documents: Vec<LLMDocument>) -> String {
 }
 
 pub async fn summarize_documents(
-  client: &Ollama,
+  client: &AFLLM,
   question: &str,
   model_name: &str,
   documents: Vec<LLMDocument>,
@@ -103,12 +103,19 @@ pub async fn summarize_documents(
 
 #[cfg(test)]
 mod tests {
+  use crate::local_ai::chat::llm::AFLLM;
   use crate::search::summary::{LLMDocument, summarize_documents};
   use ollama_rs::Ollama;
+  use std::sync::Arc;
 
   #[tokio::test]
   async fn summarize_documents_test() {
-    let ollama = Ollama::try_new("http://localhost:11434").unwrap();
+    let ollama = AFLLM::new(
+      "llama3.1",
+      Arc::new(Ollama::try_new("http://localhost:11434").unwrap()),
+      None,
+      None,
+    );
     let docs = vec![
       ("Rust is a multiplayer survival game developed by Facepunch Studios, first released in early access in December 2013 and fully launched in February 2018. It has since become one of the most popular games in the survival genre, known for its harsh environment, intricate crafting system, and player-driven dynamics. The game is available on Windows, macOS, and PlayStation, with a community-driven approach to updates and content additions.", uuid::Uuid::new_v4()),
       ("Rust is a modern, system-level programming language designed with a focus on performance, safety, and concurrency. It was created by Mozilla and first released in 2010, with its 1.0 version launched in 2015. Rust is known for providing the control and performance of languages like C and C++, but with built-in safety features that prevent common programming errors, such as memory leaks, data races, and buffer overflows.", uuid::Uuid::new_v4()),

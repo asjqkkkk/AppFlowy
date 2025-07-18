@@ -856,6 +856,14 @@ pub async fn start_ws_connect_handler(
   Ok(())
 }
 
+pub async fn start_ws_connect_if_need_handler(
+  manager: AFPluginState<Weak<UserManager>>,
+) -> Result<(), FlowyError> {
+  let manager = upgrade_manager(manager)?;
+  manager.reconnect_if_needed();
+  Ok(())
+}
+
 #[tracing::instrument(level = "info", skip_all, err)]
 pub async fn subscribe_personal_plan_handler(
   params: AFPluginData<SubscribePersonalPB>,

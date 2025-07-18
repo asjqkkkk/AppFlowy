@@ -1,12 +1,10 @@
 import 'dart:io';
 
-import 'package:appflowy/plugins/document/presentation/editor_drop_manager.dart';
-import 'package:flutter/material.dart';
-
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
+import 'package:appflowy/plugins/document/presentation/editor_drop_manager.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/mobile_block_action_buttons.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/custom_image_block_component/custom_image_block_component.dart';
@@ -24,6 +22,7 @@ import 'package:flowy_infra/uuid.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
 import 'package:flowy_infra_ui/style_widget/snap_bar.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart';
@@ -60,7 +59,7 @@ class ImagePlaceholderState extends State<ImagePlaceholder> {
 
   @override
   void didChangeDependencies() {
-    if (UniversalPlatform.isMobile) {
+    if (!UniversalPlatform.isMobile) {
       dropManagerState = context.read<EditorDropManagerState>();
     }
     super.didChangeDependencies();

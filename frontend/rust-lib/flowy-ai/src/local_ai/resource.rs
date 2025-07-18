@@ -43,7 +43,6 @@ pub enum WatchDiskEvent {
 
 #[derive(Debug, Clone)]
 pub enum PendingResource {
-  PluginExecutableNotReady,
   OllamaServerNotReady,
   MissingModel(String),
 }

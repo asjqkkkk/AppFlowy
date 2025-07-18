@@ -43,7 +43,7 @@
                 //   - Single crate: "flowy_user=debug"
                 //   - Multiple crates: "flowy_user=debug,flowy_core=trace"
                 //   - All crates: "trace"
-                "RUST_LOG": "flowy_core=debug,flowy_user=debug,flowy_ai=debug,client_api=debug,flowy_server=debug,sync_log=debug,flowy_database2=debug,flowy_sqlite_vec=debug",
+                "RUST_LOG": "flowy_core=debug,flowy_user=debug,flowy_ai=debug,client_api=debug,flowy_server=debug,sync_log=debug,flowy_database2=debug,flowy_search=debug",
                 "RUST_BACKTRACE": "1",
                 // When test with billing, don't forget to set the gateway url:
                 // current config:
@@ -65,8 +65,7 @@
             "type": "dart",
             "preLaunchTask": "AF: Clean + Rebuild All",
             "env": {
-                "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
+                "RUST_LOG": "info",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },
@@ -78,7 +77,6 @@
             "preLaunchTask": "AF: Build Appflowy Core For iOS",
             "env": {
                 "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },
@@ -90,7 +88,6 @@
             "preLaunchTask": "AF: Clean + Rebuild All (iOS)",
             "env": {
                 "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },
@@ -102,7 +99,6 @@
             "preLaunchTask": "AF: Build Appflowy Core For iOS Simulator",
             "env": {
                 "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },
@@ -114,7 +110,6 @@
             "preLaunchTask": "AF: Clean + Rebuild All (iOS Simulator)",
             "env": {
                 "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },
@@ -137,7 +132,6 @@
             "preLaunchTask": "AF: Clean + Rebuild All (Android)",
             "env": {
                 "RUST_LOG": "trace",
-                "SYNC_LOG_ENABLE": "false",
             },
             "cwd": "${workspaceRoot}/appflowy_flutter"
         },

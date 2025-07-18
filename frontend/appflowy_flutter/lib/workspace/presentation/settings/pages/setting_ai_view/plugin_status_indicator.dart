@@ -5,7 +5,10 @@ import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/settings/ai/local_ai_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-ai/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/theme_extension.dart';
+import 'package:flowy_infra_ui/style_widget/icon_button.dart';
 import 'package:flowy_infra_ui/style_widget/text.dart';
+import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -155,14 +158,28 @@ class _LackOfResource extends StatelessWidget {
           const HSpace(8),
           Expanded(
             child: switch (resource.resourceType) {
-              LackOfAIResourceTypePB.PluginExecutableNotReady =>
-                _buildNoLAI(context),
               LackOfAIResourceTypePB.OllamaServerNotReady =>
                 _buildNoOllama(context),
               LackOfAIResourceTypePB.MissingModel =>
                 _buildNoModel(context, resource.missingModelNames),
               _ => const SizedBox.shrink(),
             },
+          ),
+          // const Spacer(),
+          FlowyTooltip(
+            message: LocaleKeys.settings_aiPage_keys_localAIRefreshModels.tr(),
+            child: FlowyIconButton(
+              icon: FlowySvg(
+                FlowySvgs.reload_s,
+                size: const Size.square(20.0),
+                color: AFThemeExtension.of(context).textColor,
+              ),
+              onPressed: () {
+                context
+                    .read<LocalAISettingBloc>()
+                    .add(const LocalAISettingEvent.refresh());
+              },
+            ),
           ),
         ],
       ),
@@ -171,23 +188,6 @@ class _LackOfResource extends StatelessWidget {
 
   TextStyle? _textStyle(BuildContext context) {
     return Theme.of(context).textTheme.bodyMedium?.copyWith(height: 1.5);
-  }
-
-  Widget _buildNoLAI(BuildContext context) {
-    final textStyle = _textStyle(context);
-    return RichText(
-      maxLines: 3,
-      text: TextSpan(
-        children: [
-          TextSpan(
-            text: LocaleKeys.settings_aiPage_keys_laiNotReady.tr(),
-            style: textStyle,
-          ),
-          TextSpan(text: ' ', style: _textStyle(context)),
-          ..._downloadInstructions(textStyle),
-        ],
-      ),
-    );
   }
 
   Widget _buildNoOllama(BuildContext context) {

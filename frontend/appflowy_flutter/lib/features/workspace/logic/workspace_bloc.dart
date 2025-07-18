@@ -576,6 +576,12 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
   }
 
   Future<void> _initializeWorkspaces(Emitter<UserWorkspaceState> emit) async {
+    unawaited(
+      UserBackendService.refreshPersonalSubscription(
+        delay: const Duration(seconds: 10),
+      ),
+    );
+
     final result = await _fetchWorkspaces(
       initialWorkspaceId: initialWorkspaceId,
     );

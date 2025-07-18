@@ -6,7 +6,6 @@ import 'package:appflowy/plugins/document/application/document_diff.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
 import 'package:appflowy/shared/list_extension.dart';
 import 'package:appflowy/startup/tasks/device_info_task.dart';
-import 'package:appflowy/util/color_generator/color_generator.dart';
 import 'package:appflowy/util/json_print.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-document/protobuf.dart';
@@ -222,7 +221,6 @@ class DocumentCollabAdapter {
           offset: end.offset.toInt(),
         ),
       );
-      final color = ColorGenerator(uid + did).toColor();
       final remoteSelection = RemoteSelection(
         id: uid,
         selection: selection,
@@ -233,7 +231,7 @@ class DocumentCollabAdapter {
             top: rect.top - 14,
             left: selection.isCollapsed ? rect.right : rect.left,
             child: ColoredBox(
-              color: color,
+              color: cursorColor,
               child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 2.0,

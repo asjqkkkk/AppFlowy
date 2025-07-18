@@ -88,7 +88,7 @@ void main() {
       required String id,
       required String name,
       String icon = '',
-      WorkspaceTypePB workspaceType = WorkspaceTypePB.LocalW,
+      WorkspaceTypePB workspaceType = WorkspaceTypePB.Vault,
       int createdAt = 1000,
     }) {
       return UserWorkspacePB()
@@ -301,7 +301,7 @@ void main() {
             () => mockRepository.createWorkspace(
               name: 'New Workspace',
               icon: '',
-              workspaceType: WorkspaceTypePB.LocalW,
+              workspaceType: WorkspaceTypePB.Vault,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(newWorkspace),
@@ -318,7 +318,7 @@ void main() {
         act: (bloc) => bloc.add(
           UserWorkspaceEvent.createWorkspace(
             name: 'New Workspace',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -388,7 +388,7 @@ void main() {
         act: (bloc) => bloc.add(
           UserWorkspaceEvent.createWorkspace(
             name: 'New Workspace',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -444,7 +444,7 @@ void main() {
         act: (bloc) => bloc.add(
           UserWorkspaceEvent.deleteWorkspace(
             workspaceId: 'workspace-1',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -470,7 +470,7 @@ void main() {
           when(
             () => mockRepository.deleteWorkspace(
               workspaceId: any(named: 'workspaceId'),
-              workspaceType: WorkspaceTypePB.LocalW,
+              workspaceType: WorkspaceTypePB.Vault,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(null),
@@ -527,7 +527,7 @@ void main() {
         act: (bloc) => bloc.add(
           UserWorkspaceEvent.deleteWorkspace(
             workspaceId: 'workspace-2',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -561,7 +561,7 @@ void main() {
             () => mockRepository.renameWorkspace(
               workspaceId: 'workspace-1',
               name: 'Renamed Workspace',
-              workspaceType: WorkspaceTypePB.LocalW,
+              workspaceType: WorkspaceTypePB.Vault,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(null),
@@ -590,7 +590,7 @@ void main() {
           UserWorkspaceEvent.renameWorkspace(
             workspaceId: 'workspace-1',
             name: 'Renamed Workspace',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -611,7 +611,7 @@ void main() {
             () => mockRepository.renameWorkspace(
               workspaceId: 'workspace-1',
               name: 'Renamed Workspace',
-              workspaceType: WorkspaceTypePB.LocalW,
+              workspaceType: WorkspaceTypePB.Vault,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.failure(
@@ -638,7 +638,7 @@ void main() {
           UserWorkspaceEvent.renameWorkspace(
             workspaceId: 'workspace-1',
             name: 'Renamed Workspace',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -661,7 +661,7 @@ void main() {
             () => mockRepository.updateWorkspaceIcon(
               workspaceId: 'workspace-1',
               icon: '🚀',
-              workspaceType: WorkspaceTypePB.LocalW,
+              workspaceType: WorkspaceTypePB.Vault,
             ),
           ).thenAnswer(
             (_) async => FlowyResult.success(null),
@@ -690,7 +690,7 @@ void main() {
           UserWorkspaceEvent.updateWorkspaceIcon(
             workspaceId: 'workspace-1',
             icon: '🚀',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [
@@ -730,7 +730,7 @@ void main() {
           UserWorkspaceEvent.updateWorkspaceIcon(
             workspaceId: 'workspace-1',
             icon: '🚀',
-            workspaceType: WorkspaceTypePB.LocalW,
+            workspaceType: WorkspaceTypePB.Vault,
           ),
         ),
         expect: () => [],

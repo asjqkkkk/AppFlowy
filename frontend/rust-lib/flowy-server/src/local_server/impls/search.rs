@@ -62,11 +62,6 @@ impl SearchCloudService for LocalSearchServiceImpl {
   ) -> Result<SearchSummaryResult, FlowyError> {
     #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
     {
-      if search_results.is_empty() {
-        debug!("[Search] No search results to summarize");
-        return Ok(SearchSummaryResult { summaries: vec![] });
-      }
-
       if let Ok(scheduler) = flowy_ai::embeddings::context::EmbedContext::shared().get_scheduler() {
         let setting = self.local_ai.get_local_ai_setting();
         match scheduler

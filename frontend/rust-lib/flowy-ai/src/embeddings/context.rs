@@ -1,15 +1,15 @@
 use crate::embeddings::scheduler::EmbeddingScheduler;
+use crate::local_ai::chat::llm::LocalLLMController;
 use arc_swap::ArcSwapOption;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite_vec::db::VectorSqliteDB;
 use lib_infra::util::get_operating_system;
-use ollama_rs::Ollama;
 use std::path::PathBuf;
 use std::sync::{Arc, OnceLock};
 use tracing::{error, info, warn};
 
 pub struct EmbedContext {
-  ollama: ArcSwapOption<Ollama>,
+  local_llm_controller: ArcSwapOption<LocalLLMController>,
   vector_db: ArcSwapOption<VectorSqliteDB>,
   scheduler: ArcSwapOption<EmbeddingScheduler>,
 }
@@ -19,7 +19,7 @@ impl EmbedContext {
     static INSTANCE: OnceLock<Arc<EmbedContext>> = OnceLock::new();
     INSTANCE.get_or_init(|| {
       Arc::new(EmbedContext {
-        ollama: ArcSwapOption::empty(),
+        local_llm_controller: ArcSwapOption::empty(),
         vector_db: ArcSwapOption::empty(),
         scheduler: Default::default(),
       })
@@ -50,19 +50,12 @@ impl EmbedContext {
     }
   }
 
-  pub fn set_ollama(&self, ollama: Option<Arc<Ollama>>) {
-    if let Some(ollama) = ollama {
-      if let Some(o) = self.ollama.load().as_ref() {
-        if o.uri() == ollama.uri() {
-          info!("[Embedding] Ollama does not change");
-          return;
-        }
-      }
-
-      self.ollama.store(Some(ollama));
+  pub fn set_llm(&self, llm: Option<Arc<LocalLLMController>>) {
+    if let Some(local_llm_controller) = llm {
+      self.local_llm_controller.store(Some(local_llm_controller));
       self.try_create_scheduler();
     } else {
-      self.ollama.store(None);
+      self.local_llm_controller.store(None);
       if let Some(s) = self.scheduler.swap(None) {
         info!("[Embedding] Stopping scheduler");
         let _ = s.stop_tx.send(());
@@ -80,7 +73,7 @@ impl EmbedContext {
   }
 
   fn try_create_scheduler(&self) {
-    let ollama = match self.ollama.load_full() {
+    let ollama = match self.local_llm_controller.load_full() {
       Some(ollama) => ollama,
       None => {
         warn!("[Embedding] Ollama is not initialized, cannot create scheduler");

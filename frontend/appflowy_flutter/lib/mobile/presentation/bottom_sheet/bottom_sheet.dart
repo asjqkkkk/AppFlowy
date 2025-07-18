@@ -6,6 +6,7 @@ export 'bottom_sheet_view_item.dart';
 export 'bottom_sheet_view_item_body.dart';
 export 'bottom_sheet_view_page.dart';
 export 'default_mobile_action_pane.dart';
+export 'drag_handle.dart';
 export 'show_mobile_bottom_sheet.dart';
 export 'show_draggable_mobile_bottom_sheet.dart';
 export 'show_transition_bottom_sheet.dart';

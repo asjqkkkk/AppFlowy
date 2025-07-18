@@ -1,6 +1,5 @@
 import 'package:appflowy/mobile/presentation/base/mobile_view_page.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
-import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/tasks/app_widget.dart';
 import 'package:appflowy/workspace/application/command_palette/search_result_ext.dart';

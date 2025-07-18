@@ -126,7 +126,6 @@ pub fn insert_local_workspace(
   Ok(user_workspace)
 }
 
-#[instrument(level = "debug", skip(conn), err)]
 fn select_user_table_row(uid: i64, conn: &mut SqliteConnection) -> Result<UserTable, FlowyError> {
   let row = user_table::dsl::user_table
     .filter(user_table::id.eq(&uid.to_string()))

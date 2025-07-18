@@ -53,7 +53,7 @@ class ShareButton extends StatelessWidget {
               workspaceId: workspaceId,
             );
 
-            if (workspaceType != WorkspaceTypePB.LocalW) {
+            if (workspaceType != WorkspaceTypePB.Vault) {
               bloc.add(ShareTabEvent.initialize());
             }
 

@@ -59,7 +59,7 @@ class _ShareMenuButtonState extends State<ShareMenuButton> {
 
     final buttonText =
         userWorkspaceBloc.state.currentWorkspace?.workspaceType ==
-                WorkspaceTypePB.LocalW
+                WorkspaceTypePB.Vault
             ? LocaleKeys.shareAction_buttonTextLocal.tr()
             : LocaleKeys.shareAction_buttonText.tr();
 

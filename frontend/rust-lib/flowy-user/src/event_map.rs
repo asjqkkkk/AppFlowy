@@ -87,6 +87,7 @@ pub fn init(user_manager: Weak<UserManager>) -> AFPlugin {
     // Websocket
     .event(UserEvent::GetWSConnectState, get_ws_connect_state_handler)
     .event(UserEvent::StartWSConnect, start_ws_connect_handler)
+    .event(UserEvent::StartWSConnectIfNeed, start_ws_connect_if_need_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -286,6 +287,9 @@ pub enum UserEvent {
 
   #[event(output = "PersonalSubscriptionInfoPB")]
   GetPersonalSubscription = 70,
+
+  #[event()]
+  StartWSConnectIfNeed = 71,
 }
 
 #[async_trait]

@@ -278,7 +278,10 @@ class UserBackendService implements IUserBackendService {
   }
 
   static Future<FlowyResult<PersonalSubscriptionInfoPB, FlowyError>>
-      refreshPersonalSubscription() {
+      refreshPersonalSubscription({Duration? delay}) async {
+    if (delay != null) {
+      await Future.delayed(delay);
+    }
     return UserEventGetPersonalSubscription().send();
   }
 

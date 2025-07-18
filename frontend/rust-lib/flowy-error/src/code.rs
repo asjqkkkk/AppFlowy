@@ -419,6 +419,9 @@ pub enum ErrorCode {
 
   #[error("Feature not available")]
   FeatureNotAvailable = 143,
+
+  #[error("Read file error")]
+  ReadFile = 144,
 }
 
 impl ErrorCode {

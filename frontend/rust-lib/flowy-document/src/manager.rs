@@ -217,6 +217,10 @@ impl DocumentManager {
   pub async fn delete_document(&self, doc_id: &Uuid) -> FlowyResult<()> {
     let UserContext { uid, workspace_id } = self.get_user_context()?;
     if let Some(db) = self.user_service.collab_db(uid)?.upgrade() {
+      info!(
+        "delete document: {}, workspace_id: {}",
+        doc_id, workspace_id
+      );
       db.delete_doc(uid, &workspace_id.to_string(), &doc_id.to_string())
         .await?;
       // When deleting a document, we need to remove it from the cache.
@@ -376,9 +380,6 @@ impl DocumentManager {
             ))
             .await;
 
-          if err.is_invalid_data() {
-            self.delete_document(doc_id).await?;
-          }
           Err(err)
         },
       }

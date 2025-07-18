@@ -1,11 +1,11 @@
 import 'dart:math' as math;
 
-import 'package:appflowy/plugins/base/drag_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:sheet/route.dart';
 import 'package:sheet/sheet.dart';
 
+import 'drag_handle.dart';
 import 'show_mobile_bottom_sheet.dart';
 
 Future<T?> showTransitionMobileBottomSheet<T>(

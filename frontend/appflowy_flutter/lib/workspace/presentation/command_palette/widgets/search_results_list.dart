@@ -1,4 +1,3 @@
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/command_palette/search_result_list_bloc.dart';
@@ -6,7 +5,6 @@ import 'package:appflowy/workspace/presentation/command_palette/navigation_bloc_
 import 'package:appflowy/workspace/presentation/command_palette/widgets/search_ask_ai_entrance.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -102,9 +100,6 @@ class _SearchResultListState extends State<SearchResultList> {
   }
 
   Widget _buildResultsSection(BuildContext context, bool hidePreview) {
-    final workspaceState = context.read<UserWorkspaceBloc?>()?.state;
-    final showAskingAI =
-        workspaceState?.userProfile.workspaceType == WorkspaceTypePB.ServerW;
     if (widget.resultItems.isEmpty) return const SizedBox.shrink();
     List<SearchResultItem> resultItems = widget.resultItems;
     final hasCachedViews = widget.cachedViews.isNotEmpty;
@@ -131,7 +126,7 @@ class _SearchResultListState extends State<SearchResultList> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (showAskingAI) SearchAskAiEntrance(),
+                    SearchAskAiEntrance(),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisSize: MainAxisSize.min,

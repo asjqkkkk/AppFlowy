@@ -6,7 +6,7 @@ use crate::local_ai::chat::chains::conversation_chain::{
   ConversationalRetrieverChain, ConversationalRetrieverChainBuilder,
 };
 use crate::local_ai::chat::format_prompt::AFContextPrompt;
-use crate::local_ai::chat::llm::LLMOllama;
+use crate::local_ai::chat::llm::LocalLLMController;
 use crate::local_ai::chat::retriever::multi_source_retriever::MultipleSourceRetriever;
 use crate::local_ai::chat::retriever::{
   AFEmbedder, AFRetriever, EmbedFileProgress, RetrieverStore,
@@ -14,7 +14,7 @@ use crate::local_ai::chat::retriever::{
 use crate::local_ai::chat::summary_memory::SummaryMemory;
 use async_trait::async_trait;
 use flowy_ai_pub::cloud::{QuestionStreamValue, ResponseFormat, StreamAnswer};
-use flowy_ai_pub::entities::{RAG_IDS, SOURCE_ID, WORKSPACE_ID};
+use flowy_ai_pub::entities::{EmbeddingDimension, RAG_IDS, SOURCE_ID, WORKSPACE_ID};
 use flowy_ai_pub::persistence::{ChatLocalFileTable, upsert_chat_local_file};
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};
@@ -26,7 +26,6 @@ use langchain_rust::memory::SimpleMemory;
 use langchain_rust::prompt_args;
 use langchain_rust::schemas::{Document, Message};
 use langchain_rust::vectorstore::{VecStoreOptions, VectorStore};
-use ollama_rs::Ollama;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -41,8 +40,6 @@ pub type RetrieverOption = VecStoreOptions<Value>;
 pub struct LLMChat {
   store: Option<SqliteVectorStore>,
   chain: ConversationalRetrieverChain,
-  #[allow(dead_code)]
-  client: Arc<Ollama>,
   prompt: AFContextPrompt,
   info: LLMChatInfo,
   local_file_storage: Option<Arc<ChatLocalFileStorage>>,
@@ -51,7 +48,7 @@ pub struct LLMChat {
 impl LLMChat {
   pub fn new(
     info: LLMChatInfo,
-    client: Arc<Ollama>,
+    llm_controller: LocalLLMController,
     store: Option<SqliteVectorStore>,
     user_service: Option<Weak<dyn AIUserService>>,
     retriever_sources: Vec<Weak<dyn RetrieverStore>>,
@@ -60,13 +57,9 @@ impl LLMChat {
     let response_format = ResponseFormat::default();
     let formatter = create_formatter_prompt_with_format(&response_format, &info.rag_ids);
 
-    // update model when select
-
-    let llm = LLMOllama::new(&info.model, client.clone(), None, None);
-    let summary_llm = LLMOllama::new(&info.model, client.clone(), None, None);
     let memory = SummaryMemory::new(
       &info.chat_id,
-      summary_llm,
+      llm_controller.build_llm(None, None),
       info.summary.clone(),
       user_service.clone(),
     )
@@ -91,7 +84,7 @@ impl LLMChat {
 
     let builder = ConversationalRetrieverChainBuilder::new(
       info.workspace_id,
-      llm,
+      llm_controller.clone(),
       retriever,
       embedder,
       store.clone(),
@@ -103,7 +96,6 @@ impl LLMChat {
     Ok(Self {
       store,
       chain,
-      client,
       prompt: formatter,
       info,
       local_file_storage,
@@ -149,7 +141,7 @@ impl LLMChat {
   }
 
   pub fn set_chat_model(&mut self, model: &str) {
-    self.chain.ollama.set_model(model);
+    self.chain.set_model_name(model.to_string())
   }
 
   pub fn set_rag_ids(&mut self, rag_ids: Vec<String>) {
@@ -202,6 +194,7 @@ impl LLMChat {
   #[cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))]
   pub async fn get_all_embedded_documents(
     &self,
+    dim: EmbeddingDimension,
   ) -> FlowyResult<Vec<flowy_sqlite_vec::entities::SqliteEmbeddedDocument>> {
     let store = self
       .store
@@ -209,7 +202,7 @@ impl LLMChat {
       .ok_or_else(|| FlowyError::local_ai().with_context("VectorStore is not initialized"))?;
 
     store
-      .select_all_embedded_documents(&self.info.workspace_id.to_string(), &self.info.rag_ids)
+      .select_all_embedded_documents(&self.info.workspace_id.to_string(), &self.info.rag_ids, dim)
       .await
       .map_err(|err| {
         FlowyError::local_ai().with_context(format!("Failed to select embedded documents: {}", err))

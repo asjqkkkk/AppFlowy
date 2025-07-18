@@ -248,24 +248,9 @@ impl FolderManager {
       .open_folder(uid, *workspace_id, data_source, folder_notifier)
       .await;
 
-    // If opening the folder fails due to missing required data (indicated by a `FolderError::NoRequiredData`),
-    // the function logs an informational message and attempts to clear the folder data by deleting its
-    // document from the collaborative database. It then returns the encountered error.
     match result {
       Ok(folder) => Ok(folder),
-      Err(err) => {
-        info!(
-          "Clear the folder data and try to open the folder again due to: {}",
-          err
-        );
-
-        if let Some(db) = self.user.collab_db(uid).ok().and_then(|a| a.upgrade()) {
-          let _ = db
-            .delete_doc(uid, &workspace_id.to_string(), &workspace_id.to_string())
-            .await;
-        }
-        Err(err.into())
-      },
+      Err(err) => Err(err.into()),
     }
   }
 

@@ -15,7 +15,7 @@ use lib_infra::async_trait::async_trait;
 use std::pin::Pin;
 use std::sync::Arc;
 use tokio_stream::{self, Stream};
-use tracing::{trace, warn};
+use tracing::{debug, trace, warn};
 use uuid::Uuid;
 
 pub struct DocumentCloudSearchHandler {
@@ -119,13 +119,14 @@ impl SearchHandler for DocumentCloudSearchHandler {
       );
 
       if summary_input.is_empty() {
+        debug!("[Search] No valid search results to summarize");
         return;
       }
 
       // Generate and yield search summary.
+      debug!("[Search] Generating search summary for query: {}, input: {:?}", query, summary_input);
       match cloud_service.generate_search_summary(&workspace_id, query.clone(), summary_input).await {
         Ok(summary_result) => {
-          trace!("[Search] search summary: {:?}", summary_result);
           let summaries: Vec<SearchSummaryPB> = summary_result
             .summaries
             .into_iter()
@@ -145,6 +146,7 @@ impl SearchHandler for DocumentCloudSearchHandler {
             })
             .collect();
 
+          debug!("[Search] search summary: {:?}", summaries);
           let summary_result = RepeatedSearchSummaryPB { items: summaries };
           yield Ok(
             CreateSearchResultPBArgs::default()

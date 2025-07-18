@@ -27,8 +27,26 @@ impl UserManager {
             "Network is reachable, reconnecting workspace: {}",
             workspace_id
           );
-          c.controller.reconnect();
+          c.controller.reconnect_if_need();
         }
+      }
+    }
+  }
+
+  pub fn reconnect_if_needed(&self) {
+    if let Ok(workspace_id) = self.workspace_id() {
+      debug!(
+        "Reconnecting workspace:{} websocket if needed",
+        workspace_id
+      );
+      if let Some(c) = self.controller_by_wid.get(&workspace_id).map(|v| v.clone()) {
+        info!("Reconnecting workspace: {}", workspace_id);
+        c.controller.reconnect_if_need();
+      } else {
+        warn!(
+          "No controller found for workspace: {} when reconnect",
+          workspace_id
+        );
       }
     }
   }
@@ -153,7 +171,8 @@ impl UserManager {
     } else if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
       Ok(controller.connect_state())
     } else {
-      Err(FlowyError::internal().with_context("Connection not found"))
+      warn!("Connection not found for workspace: {}", workspace_id);
+      Ok(ConnectState::Disconnected { reason: None })
     }
   }
 
@@ -178,7 +197,7 @@ impl UserManager {
 
     if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
       info!(
-        "Start websocket connect state manually for workspace: {}",
+        "Start workspace:{} websocket connect manually",
         workspace_id
       );
       controller.connect_with_access_token(access_token).await?;

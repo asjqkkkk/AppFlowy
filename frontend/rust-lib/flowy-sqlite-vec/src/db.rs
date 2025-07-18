@@ -4,14 +4,14 @@ use crate::entities::{
 use crate::init_sqlite_vector_extension;
 use crate::migration::init_sqlite_with_migrations;
 use anyhow::{Context, Result};
-use flowy_ai_pub::entities::{EmbeddedChunk, SearchResult};
+use flowy_ai_pub::entities::{EmbeddedChunk, EmbeddingDimension, SearchResult};
 use r2d2::Pool;
 use r2d2_sqlite::SqliteConnectionManager;
 use rusqlite::{ToSql, params};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
-use tracing::{instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 use uuid::Uuid;
 use zerocopy::IntoBytes;
 
@@ -57,6 +57,7 @@ impl VectorSqliteDB {
   pub async fn select_collabs_fragment_ids(
     &self,
     object_ids: &[String],
+    dimension: EmbeddingDimension,
   ) -> Result<HashMap<Uuid, Vec<String>>> {
     if object_ids.is_empty() {
       return Ok(HashMap::new());
@@ -68,7 +69,8 @@ impl VectorSqliteDB {
       .join(", ");
 
     let sql = format!(
-      "SELECT fragment_id, object_id FROM af_collab_embeddings WHERE object_id IN ({})",
+      "SELECT fragment_id, object_id FROM {} WHERE object_id IN ({})",
+      dimension.table_name(),
       placeholders
     );
 
@@ -105,13 +107,23 @@ impl VectorSqliteDB {
     let tx = conn
       .transaction()
       .context("Starting delete_collab transaction")?;
-    tx.execute(
-      "DELETE FROM af_collab_embeddings
-               WHERE workspace_id = ?1
-                 AND object_id    = ?2",
-      rusqlite::params![workspace_id, object_id],
-    )
-    .context("Deleting collab embeddings")?;
+
+    // Delete from all dimension tables
+    for dimension in &[EmbeddingDimension::Dim768, EmbeddingDimension::Dim2560] {
+      tx.execute(
+        &format!(
+          "DELETE FROM {}
+                 WHERE workspace_id = ?1
+                   AND object_id    = ?2",
+          dimension.table_name()
+        ),
+        rusqlite::params![workspace_id, object_id],
+      )
+      .context(format!(
+        "Deleting collab embeddings from {}",
+        dimension.table_name()
+      ))?;
+    }
 
     tx.commit()
       .context("Committing delete_collab transaction")?;
@@ -123,6 +135,7 @@ impl VectorSqliteDB {
     workspace_id: &str,
     rag_ids: &[String],
     limit: usize,
+    dimension: EmbeddingDimension,
   ) -> Result<Vec<EmbeddedContent>> {
     let conn = self
       .pool
@@ -132,10 +145,12 @@ impl VectorSqliteDB {
     // Build SQL query based on whether rag_ids are provided
     let (sql, params) = if rag_ids.is_empty() {
       // No rag_ids provided, select all content for workspace
-      let sql =
-        "SELECT object_id, content FROM af_collab_embeddings WHERE workspace_id = ? LIMIT ?";
+      let sql = format!(
+        "SELECT object_id, content FROM {} WHERE workspace_id = ? LIMIT ?",
+        dimension.table_name()
+      );
       let params: Vec<&dyn ToSql> = vec![&workspace_id, &limit];
-      (sql.to_string(), params)
+      (sql, params)
     } else {
       // Filter by provided rag_ids
       let placeholders = std::iter::repeat("?")
@@ -144,7 +159,8 @@ impl VectorSqliteDB {
         .join(", ");
 
       let sql = format!(
-        "SELECT object_id, content FROM af_collab_embeddings WHERE workspace_id = ? AND object_id IN ({}) LIMIT ?",
+        "SELECT object_id, content FROM {} WHERE workspace_id = ? AND object_id IN ({}) LIMIT ?",
+        dimension.table_name(),
         placeholders
       );
 
@@ -171,6 +187,7 @@ impl VectorSqliteDB {
     &self,
     workspace_id: &str,
     rag_ids: &[String],
+    dimension: EmbeddingDimension,
   ) -> Result<Vec<SqliteEmbeddedDocument>> {
     let conn = self
       .pool
@@ -180,11 +197,14 @@ impl VectorSqliteDB {
     // Build SQL query based on whether rag_ids are provided
     let (sql, params) = if rag_ids.is_empty() {
       // No rag_ids provided, select all documents for workspace
-      let sql = "SELECT object_id, content, embedding 
-                FROM af_collab_embeddings 
-                WHERE workspace_id = ?";
+      let sql = format!(
+        "SELECT object_id, content, embedding 
+                FROM {} 
+                WHERE workspace_id = ?",
+        dimension.table_name()
+      );
       let params: Vec<&dyn ToSql> = vec![&workspace_id];
-      (sql.to_string(), params)
+      (sql, params)
     } else {
       // Filter by provided rag_ids
       let placeholders = std::iter::repeat("?")
@@ -194,8 +214,9 @@ impl VectorSqliteDB {
 
       let sql = format!(
         "SELECT object_id, content, embedding 
-         FROM af_collab_embeddings 
+         FROM {} 
          WHERE workspace_id = ? AND object_id IN ({})",
+        dimension.table_name(),
         placeholders
       );
 
@@ -260,16 +281,26 @@ impl VectorSqliteDB {
     workspace_id: &str,
     object_id: &str,
     fragments: Vec<EmbeddedChunk>,
+    dimension: EmbeddingDimension,
   ) -> Result<()> {
     if fragments.is_empty() {
       return Ok(());
     }
 
+    debug!(
+      "[VectorStore] Upserting {} fragments for {} in workspace:{} using dimension:{:?}",
+      fragments.len(),
+      object_id,
+      workspace_id,
+      dimension
+    );
+    let table_name = dimension.table_name();
     trace!(
-      "[VectorStore] workspace:{} upserting {} fragments for {}",
+      "[VectorStore] workspace:{} upserting {} fragments for {} in table {}",
       workspace_id,
       fragments.len(),
-      object_id
+      object_id,
+      table_name
     );
 
     let mut conn = self
@@ -282,12 +313,13 @@ impl VectorSqliteDB {
     let new_ids: Vec<&str> = fragments.iter().map(|f| f.fragment_id.as_str()).collect();
 
     // 2) Load existing IDs from the DB
-    let mut stmt = tx.prepare(
+    let mut stmt = tx.prepare(&format!(
       "SELECT fragment_id
-           FROM af_collab_embeddings
+           FROM {}
           WHERE workspace_id = ?1
             AND object_id    = ?2",
-    )?;
+      table_name
+    ))?;
     let existing_ids: HashSet<String> = stmt
       .query_map(params![workspace_id, object_id], |row| row.get(0))?
       .collect::<Result<_, _>>()?;
@@ -317,11 +349,11 @@ impl VectorSqliteDB {
         .collect::<Vec<_>>()
         .join(", ");
       let sql = format!(
-        "DELETE FROM af_collab_embeddings
+        "DELETE FROM {}
                WHERE workspace_id = ?1
                  AND object_id    = ?2
                  AND fragment_id IN ({})",
-        placeholders
+        table_name, placeholders
       );
       let mut params: Vec<&dyn ToSql> = Vec::with_capacity(2 + to_delete.len());
       params.push(&workspace_id);
@@ -347,13 +379,14 @@ impl VectorSqliteDB {
           .map(|f| f.fragment_id.as_str())
           .collect::<Vec<_>>()
       );
-      let mut insert = tx.prepare(
-        "INSERT INTO af_collab_embeddings
+      let mut insert = tx.prepare(&format!(
+        "INSERT INTO {}
                (workspace_id, object_id, fragment_id,
                 content_type, content, metadata,
                 fragment_index, embedder_type, embedding)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
-      )?;
+        table_name
+      ))?;
 
       for frag in to_insert {
         // skip if content missing
@@ -390,9 +423,10 @@ impl VectorSqliteDB {
     object_ids: &[String],
     query: &[f32],
     top_k: i32,
+    dimension: EmbeddingDimension,
   ) -> Result<Vec<SearchResult>> {
     self
-      .search_with_score(workspace_id, object_ids, query, top_k, 0.4)
+      .search_with_score(workspace_id, object_ids, query, top_k, 0.4, dimension)
       .await
   }
 
@@ -403,16 +437,17 @@ impl VectorSqliteDB {
     query: &[f32],
     top_k: i32,
     min_score: f32,
+    dimension: EmbeddingDimension,
   ) -> Result<Vec<SearchResult>> {
     // clamp min_score to [0,1]
     let min_score = min_score.clamp(0.0, 1.0);
     if object_ids.is_empty() {
       self
-        .search_without_object_ids(workspace_id, query, top_k, min_score)
+        .search_without_object_ids(workspace_id, query, top_k, min_score, dimension)
         .await
     } else {
       self
-        .search_with_object_ids(workspace_id, object_ids, query, top_k, min_score)
+        .search_with_object_ids(workspace_id, object_ids, query, top_k, min_score, dimension)
         .await
     }
   }
@@ -423,10 +458,13 @@ impl VectorSqliteDB {
     query: &[f32],
     top_k: i32,
     min_score: f32,
+    dimension: EmbeddingDimension,
   ) -> Result<Vec<SearchResult>> {
     trace!(
-      "[VectorStore] Searching workspace:{} score:{}",
-      workspace_id, min_score
+      "[VectorStore] Searching workspace:{} score:{} in table:{}",
+      workspace_id,
+      min_score,
+      dimension.table_name()
     );
     // distance = 1 - score, so we only want distance <= max_distance
     let max_distance = 1.0 - min_score;
@@ -438,22 +476,25 @@ impl VectorSqliteDB {
       .context("Failed to get connection from pool")?;
 
     // k-NN MATCH without object_id filter
-    let sql = "\
+    let sql = format!(
+      "\
           SELECT
             object_id,
             content,
             metadata,
             distance,
             (1.0 - distance) AS score
-          FROM af_collab_embeddings
+          FROM {}
           WHERE embedding MATCH ?
             AND k = ?
             AND workspace_id = ?
             AND distance <= ?
           ORDER BY distance ASC
-      ";
+      ",
+      dimension.table_name()
+    );
 
-    let mut stmt = conn.prepare(sql)?;
+    let mut stmt = conn.prepare(&sql)?;
     let mut rows = stmt.query(params![
       query_blob,   // MATCH
       top_k,        // number of neighbors
@@ -471,10 +512,14 @@ impl VectorSqliteDB {
     query: &[f32],
     top_k: i32,
     min_score: f32,
+    dimension: EmbeddingDimension,
   ) -> Result<Vec<SearchResult>> {
     trace!(
-      "[VectorStore] Searching workspace:{} with object_ids: {:?}, score:{}",
-      workspace_id, object_ids, min_score
+      "[VectorStore] Searching workspace:{} with object_ids: {:?}, score:{} in table:{}",
+      workspace_id,
+      object_ids,
+      min_score,
+      dimension.table_name()
     );
     // distance = 1 - score, so we only want distance <= max_distance
     let max_distance = 1.0 - min_score;
@@ -499,13 +544,14 @@ impl VectorSqliteDB {
         metadata,
         distance,
         (1.0 - distance) AS score
-      FROM af_collab_embeddings
+      FROM {}
       WHERE embedding MATCH ?
         AND k = ?
         AND workspace_id = ?
         AND object_id IN ({})
         AND distance <= ?
       ORDER BY distance ASC",
+      dimension.table_name(),
       placeholders
     );
 

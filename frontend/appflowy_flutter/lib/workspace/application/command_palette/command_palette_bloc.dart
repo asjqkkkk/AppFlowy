@@ -37,7 +37,7 @@ class CommandPaletteBloc
   }
 
   final _searchDebounce = Debounce(
-    duration: const Duration(milliseconds: 300),
+    duration: const Duration(milliseconds: 500),
   );
   final TrashService _trashService = TrashService();
   final TrashListener _trashListener = TrashListener();

@@ -36,22 +36,12 @@ class ColorItem extends StatelessWidget {
       size: const Size(82, 52),
       onTap: () {
         service.closeKeyboard();
-        editorState.updateSelectionWithReason(
-          editorState.selection,
-          reason: SelectionUpdateReason.uiEvent,
-          extraInfo: {
-            selectionExtraInfoDisableMobileToolbarKey: true,
-            selectionExtraInfoDisableFloatingToolbar: true,
-            selectionExtraInfoDoNotAttachTextService: true,
-          },
-        );
-        keepEditorFocusNotifier.increase();
         showTextAndBackgroundColorPicker(
           context,
           textColors: textColors,
           backgroundColors: backgroundColors,
           editorState: editorState,
-        ).then((_) => keepEditorFocusNotifier.decrease());
+        );
       },
       icon: Stack(
         alignment: Alignment.center,

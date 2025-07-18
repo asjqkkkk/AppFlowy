@@ -559,9 +559,13 @@ where
     &self,
   ) -> Result<Vec<PersonalSubscriptionStatus>, FlowyError> {
     let try_get_client = self.server.try_get_client();
-    let client = try_get_client?;
-    let status = client.get_all_personal_subscription_status().await?;
-    Ok(status)
+    if self.server.is_appflowy_hosted() {
+      let client = try_get_client?;
+      let status = client.get_all_personal_subscription_status().await?;
+      Ok(status)
+    } else {
+      Ok(vec![])
+    }
   }
 
   async fn get_workspace_plan(
