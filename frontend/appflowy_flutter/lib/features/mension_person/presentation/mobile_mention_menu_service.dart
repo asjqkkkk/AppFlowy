@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
@@ -59,10 +60,13 @@ class MobileMentionMenuService extends MentionMenuService {
       final sendNotification = await getIt<KeyValueStorage>()
               .getBool(KVKeys.atMenuSendNotification) ??
           false;
+      final editorHeight = editorState.renderBox?.size.height;
+      if (editorHeight == null) return;
       _show(
         MentionMenuBuilderInfo(
           builder: (service, ltrb) => _buildMentionMenu(ltrb, sendNotification),
-          menuSize: Size(screenSize.width - 40, 240),
+          menuSize:
+              Size(screenSize.width - 40, min(240.0, editorHeight / 2 - 10)),
         ),
       );
       completer.complete();
@@ -146,7 +150,7 @@ class MobileMentionMenuService extends MentionMenuService {
           dispose: (context, value) => value.dispose(),
           child: MentionMenu(
             width: screenSize.width - 40,
-            maxHeight: 240,
+            maxHeight: min(240.0, editorHeight / 2 - 10),
             sendNotification: sendNotification,
             builder: (context, child) {
               final mentionBloc = context.read<MentionBloc>();

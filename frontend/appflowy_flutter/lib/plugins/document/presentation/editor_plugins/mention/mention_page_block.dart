@@ -32,6 +32,7 @@ import 'package:appflowy_editor/appflowy_editor.dart'
         TextInsert,
         TextTransaction,
         paragraphNode;
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
@@ -423,12 +424,13 @@ class _MentionPageBlockContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = _getDisplayText(context, view, content);
+    final theme = AppFlowyTheme.of(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         ..._buildPrefixIcons(context, view, content, isChildPage),
-        const HSpace(4),
+        HSpace(theme.spacing.xs),
         Flexible(
           child: FlowyText(
             text,
@@ -450,7 +452,7 @@ class _MentionPageBlockContent extends StatelessWidget {
             decorationColor: AFThemeExtension.of(context).textColor,
           ),
         ],
-        const HSpace(4),
+        HSpace(theme.spacing.m),
       ],
     );
   }

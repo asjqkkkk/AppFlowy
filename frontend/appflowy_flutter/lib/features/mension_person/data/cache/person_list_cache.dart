@@ -19,6 +19,7 @@ class PersonListMemoryCache {
 
 class PersonListWithAccessMemoryCache {
   /// the key is [documentId]
+  final Map<String, bool> _requests = {};
   final Map<String, List<PersonWithAccess>> _cache = {};
   final Map<String, Set<ValueChanged<PersonListWithAccessAndResult>>>
       _callbacks = {};
@@ -31,10 +32,12 @@ class PersonListWithAccessMemoryCache {
     if (set.isEmpty) {
       set.add(callback);
       _callbacks[documentId] = set;
+      _requests[documentId] = true;
       ViewBackendService.getPageMentionablePersons(documentId).then((r) {
         final copySet = Set<ValueChanged<PersonListWithAccessAndResult>>.of(
           _callbacks[documentId] ?? {},
         );
+        _requests[documentId] = false;
         r.fold((s) {
           final persons = s.persons
               .map(
@@ -58,11 +61,17 @@ class PersonListWithAccessMemoryCache {
         });
       });
     } else {
+      final requesting = _requests[documentId] ?? false;
       set.add(callback);
       _callbacks[documentId] = set;
+      if (requesting) return;
       final persons = _cache[documentId] ?? [];
-      callback
-          .call(PersonListWithAccessAndResult(persons: persons, succeed: true));
+      callback.call(
+        PersonListWithAccessAndResult(
+          persons: persons,
+          succeed: persons.isNotEmpty,
+        ),
+      );
     }
   }
 

@@ -153,6 +153,10 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
     } else {
       richText = buildNormalPerson(context, person.name);
     }
+    richText = Padding(
+      padding: EdgeInsets.only(right: theme.spacing.m),
+      child: richText,
+    );
     return UniversalPlatform.isMobile
         ? GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -187,23 +191,20 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
               leadingDistribution: TextLeadingDistribution.even,
             ) ??
             theme.textStyle.body.standard(color: color);
-    return Padding(
-      padding: EdgeInsets.only(right: theme.spacing.xs),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '@',
-              style: style.copyWith(
-                color: theme.textColorScheme.tertiary,
-              ),
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '@',
+            style: style.copyWith(
+              color: theme.textColorScheme.tertiary,
             ),
-            TextSpan(
-              text: LocaleKeys.document_mentionMenu_deleted.tr(),
-              style: style,
-            ),
-          ],
-        ),
+          ),
+          TextSpan(
+            text: LocaleKeys.document_mentionMenu_deleted.tr(),
+            style: style,
+          ),
+        ],
       ),
     );
   }
@@ -216,23 +217,20 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
               leadingDistribution: TextLeadingDistribution.even,
             ) ??
             theme.textStyle.body.standard(color: color);
-    return Padding(
-      padding: EdgeInsets.only(right: theme.spacing.xs),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '@',
-              style: style.copyWith(
-                color: theme.textColorScheme.tertiary,
-              ),
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '@',
+            style: style.copyWith(
+              color: theme.textColorScheme.tertiary,
             ),
-            TextSpan(
-              text: LocaleKeys.invitation_errorModal_title.tr(),
-              style: style,
-            ),
-          ],
-        ),
+          ),
+          TextSpan(
+            text: LocaleKeys.invitation_errorModal_title.tr(),
+            style: style,
+          ),
+        ],
       ),
     );
   }
@@ -249,20 +247,17 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
               leadingDistribution: TextLeadingDistribution.even,
             ) ??
             theme.textStyle.body.standard(color: color);
-    return Padding(
-      padding: EdgeInsets.only(right: theme.spacing.xs),
-      child: RichText(
-        text: TextSpan(
-          children: [
-            TextSpan(
-              text: '@',
-              style: style.copyWith(
-                color: theme.textColorScheme.tertiary,
-              ),
+    return RichText(
+      text: TextSpan(
+        children: [
+          TextSpan(
+            text: '@',
+            style: style.copyWith(
+              color: theme.textColorScheme.tertiary,
             ),
-            TextSpan(text: name, style: style),
-          ],
-        ),
+          ),
+          TextSpan(text: name, style: style),
+        ],
       ),
     );
   }

@@ -16,6 +16,7 @@ import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/mobi
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/reminder_selector.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/reminder.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:fixnum/fixnum.dart';
@@ -175,7 +176,7 @@ class _MentionDateBlockState extends State<MentionDateBlock> {
           // when font size equals 14, the icon size is 16.0.
           // scale the icon size based on the font size.
           final iconSize = (widget.textStyle?.fontSize ?? 14.0) / 14.0 * 16.0;
-
+          final theme = AppFlowyTheme.of(context);
           return GestureDetector(
             onTapDown: (details) {
               _showDatePicker(
@@ -196,7 +197,7 @@ class _MentionDateBlockState extends State<MentionDateBlock> {
                         ? StrutStyle.fromTextStyle(textStyle)
                         : null,
                   ),
-                  const HSpace(4),
+                  HSpace(theme.spacing.xs),
                   FlowySvg(
                     _reminderId != null
                         ? FlowySvgs.reminder_clock_s
@@ -204,6 +205,7 @@ class _MentionDateBlockState extends State<MentionDateBlock> {
                     size: Size.square(iconSize),
                     color: textStyle?.color,
                   ),
+                  HSpace(theme.spacing.m),
                 ],
               ),
             ),

@@ -13,11 +13,13 @@ class PersonToolTip extends StatefulWidget {
     required this.child,
     required this.person,
     required this.isMyself,
+    required this.selected,
   });
 
   final Widget child;
   final Person person;
   final bool isMyself;
+  final bool selected;
 
   @override
   State<PersonToolTip> createState() => _PersonToolTipState();
@@ -32,6 +34,17 @@ class _PersonToolTipState extends State<PersonToolTip> {
   String get email => person.email;
   String get name => person.name;
   bool get isMyself => widget.isMyself;
+  bool get selected => widget.selected;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (selected) {
+        show();
+      }
+    });
+  }
 
   @override
   void dispose() {
@@ -43,48 +56,50 @@ class _PersonToolTipState extends State<PersonToolTip> {
   Widget build(BuildContext context) {
     return MouseRegion(
       key: globalKey,
-      onEnter: (e) {
-        show();
-      },
       onExit: (e) {
-        hide();
+        if (!selected) hide();
       },
       child: widget.child,
     );
   }
 
-  Widget buildTooltip(BuildContext context) {
+  Widget buildTooltip(BuildContext context, bool showAtLeft) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: 320,
       ),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: theme.surfaceColorScheme.inverse,
-          borderRadius: BorderRadius.circular(spacing.m),
-        ),
-        child: Padding(
-          padding:
-              EdgeInsets.symmetric(horizontal: spacing.m, vertical: spacing.l),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isMyself
-                    ? LocaleKeys.document_mentionMenu_you.tr()
-                    : LocaleKeys.document_mentionMenu_personItemTooltip
-                        .tr(args: [name]),
-                style: theme.textStyle.body
-                    .enhanced(color: theme.textColorScheme.onFill),
-              ),
-              Text(
-                email,
-                style: theme.textStyle.body
-                    .standard(color: theme.textColorScheme.secondary),
-              ),
-            ],
+      child: Align(
+        alignment: showAtLeft ? Alignment.centerRight : Alignment.centerLeft,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: theme.surfaceColorScheme.inverse,
+            borderRadius: BorderRadius.circular(spacing.m),
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: spacing.m,
+              vertical: spacing.l,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isMyself
+                      ? LocaleKeys.document_mentionMenu_you.tr()
+                      : LocaleKeys.document_mentionMenu_personItemTooltip
+                          .tr(args: [name]),
+                  style: theme.textStyle.body
+                      .enhanced(color: theme.textColorScheme.onFill),
+                ),
+                Text(
+                  email,
+                  style: theme.textStyle.body
+                      .standard(color: theme.textColorScheme.secondary),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -119,7 +134,11 @@ class _PersonToolTipState extends State<PersonToolTip> {
     overlayEntry?.remove();
     overlayEntry = OverlayEntry(
       builder: (context) {
-        return Positioned(left: left, top: top, child: buildTooltip(context));
+        return Positioned(
+          left: left,
+          top: top,
+          child: buildTooltip(context, overRight),
+        );
       },
     );
     Overlay.of(context).insert(overlayEntry!);

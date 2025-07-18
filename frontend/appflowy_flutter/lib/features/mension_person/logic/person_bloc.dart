@@ -16,6 +16,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
   }) : super(PersonState.initial()) {
     on<InitialEvent>(_onInitial);
     on<UpdatePersonEvent>(_onUpdatePerson);
+    on<UpdateStatusEvent>(_onUpdateStatusEvent);
   }
   final String documentId;
   final String personId;
@@ -44,6 +45,18 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
   ) async {
     emit(
       state.copyWith(personWithAccess: event.person, status: PersonStatus.idle),
+    );
+  }
+
+  Future<void> _onUpdateStatusEvent(
+    UpdateStatusEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    emit(
+      state.copyWith(
+        status: event.status,
+        getPersonFailedMesssage: event.errorMessage,
+      ),
     );
   }
 

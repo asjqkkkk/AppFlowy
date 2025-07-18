@@ -258,6 +258,9 @@ class _InviteMenuState extends State<InviteMenu> {
     final sendNotification =
         await getIt<KeyValueStorage>().getBool(KVKeys.atMenuSendNotification) ??
             false;
+    final editorHeight = serviceInfo.editorState.renderBox?.size.height;
+    if (editorHeight == null) return;
+    final menuHeight = editorHeight <= 700 ? 300.0 : 400.0;
     serviceInfo.onMenuReplace.call(
       MentionMenuBuilderInfo(
         builder: (service, lrbt) => service.buildMultiBlocProvider(
@@ -266,10 +269,11 @@ class _InviteMenuState extends State<InviteMenu> {
             child: MentionMenu(
               query: widget.query,
               sendNotification: sendNotification,
+              maxHeight: menuHeight,
             ),
           ),
         ),
-        menuSize: Size.square(400),
+        menuSize: Size(400, menuHeight),
       ),
     );
   }

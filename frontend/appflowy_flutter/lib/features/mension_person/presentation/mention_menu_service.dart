@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
@@ -76,7 +77,7 @@ class DesktopMentionMenuService extends MentionMenuService {
       _show(
         MentionMenuBuilderInfo(
           builder: (service, ltrb) => _buildMentionMenu(ltrb, sendNotification),
-          menuSize: Size.square(400),
+          menuSize: Size(400, 300),
         ),
       );
       completer.complete();
@@ -132,6 +133,9 @@ class DesktopMentionMenuService extends MentionMenuService {
 
   Widget _buildMentionMenu(LTRB ltrb, bool sendNotification) {
     final editorHeight = editorState.renderBox!.size.height;
+    final menuHeight = editorHeight <= 700 ? 300.0 : 400.0;
+    final top =
+        ltrb.top ?? (max(editorHeight - (ltrb.bottom ?? 0.0) - menuHeight, 0));
     return buildMultiBlocProvider(
       (_) => Provider(
         create: (_) => MentionMenuServiceInfo(
@@ -139,14 +143,17 @@ class DesktopMentionMenuService extends MentionMenuService {
           startCharAmount: startCharAmount,
           startOffset: editorState.selection?.endIndex ?? 0,
           editorState: editorState,
-          top: ltrb.top ?? (editorHeight - (ltrb.bottom ?? 0.0) - 400),
+          top: top,
           onMenuReplace: (info) {
             keepEditorFocusNotifier.increase();
             _show(info);
           },
         ),
         dispose: (context, value) => value.dispose(),
-        child: MentionMenu(sendNotification: sendNotification),
+        child: MentionMenu(
+          sendNotification: sendNotification,
+          maxHeight: menuHeight,
+        ),
       ),
     );
   }

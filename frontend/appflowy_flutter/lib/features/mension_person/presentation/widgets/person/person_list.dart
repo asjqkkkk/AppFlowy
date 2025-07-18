@@ -40,22 +40,16 @@ class PersonList extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: EdgeInsets.all(spacing.m),
-          child: AFMenuSection(
-            title: LocaleKeys.document_mentionMenu_people.tr(),
-            titleTrailing: SendNotificationToggle(),
-            children: List.generate(
-              items.length,
-              (index) => items[index].buildPersonItem(context),
-            ),
-          ),
+    return Padding(
+      padding: EdgeInsets.all(spacing.m),
+      child: AFMenuSection(
+        title: LocaleKeys.document_mentionMenu_people.tr(),
+        titleTrailing: SendNotificationToggle(),
+        children: List.generate(
+          items.length,
+          (index) => items[index].buildPersonItem(context),
         ),
-      ],
+      ),
     );
   }
 }
@@ -101,19 +95,22 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
     if (item is PersonMentionMenuItem) {
       final person = item.person;
       final isCurrentUser = person.email == userState?.email;
+      final selected =
+          state.selectedId == person.id && UniversalPlatform.isDesktop;
       return MentionMenuItenVisibilityDetector(
         id: person.id,
         child: PersonToolTip(
           isMyself: isCurrentUser,
+          selected: selected,
           person: person,
+          key: ValueKey('${person.id}-$selected'),
           child: AFTextMenuItem(
             leading: AFAvatar(
               url: person.avatarUrl,
               size: AFAvatarSize.s,
               name: person.name,
             ),
-            selected:
-                state.selectedId == person.id && UniversalPlatform.isDesktop,
+            selected: selected,
             title: person.name,
             subtitle: person.email,
             backgroundColor: context.mentionItemBGColor,
