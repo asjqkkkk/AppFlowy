@@ -15,6 +15,8 @@ final List<BannerData> defaultBanners = const [
 
 abstract class BannerData extends Equatable {
   const BannerData();
+
+  String get toUrl;
 }
 
 class EmptyBanner extends BannerData {
@@ -24,6 +26,9 @@ class EmptyBanner extends BannerData {
 
   @override
   List<Object?> get props => [];
+
+  @override
+  String get toUrl => '';
 }
 
 class ColorBanner extends BannerData {
@@ -33,6 +38,9 @@ class ColorBanner extends BannerData {
 
   @override
   List<Object?> get props => [color];
+
+  @override
+  String get toUrl => 'image://color-image?color=${color.toString()}';
 }
 
 class AssetImageBanner extends BannerData {
@@ -42,6 +50,9 @@ class AssetImageBanner extends BannerData {
 
   @override
   List<Object?> get props => [path];
+
+  @override
+  String get toUrl => 'image://asset-image?path=$path';
 }
 
 class NetworkImageBanner extends BannerData {
@@ -51,4 +62,7 @@ class NetworkImageBanner extends BannerData {
 
   @override
   List<Object?> get props => [url];
+
+  @override
+  String get toUrl => url;
 }

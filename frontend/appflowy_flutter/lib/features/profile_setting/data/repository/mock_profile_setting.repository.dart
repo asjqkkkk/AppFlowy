@@ -13,9 +13,9 @@ class MockProfileSettingRepository implements ProfileSettingRepository {
   }
 
   @override
-  Future<FlowyResult<String, FlowyError>> updateProfile(Profile profile) async {
+  Future<FlowyResult<void, FlowyError>> updateProfile(Profile profile) async {
     _mockProfile = profile;
-    return FlowyResult.success('Profile updated successfully');
+    return FlowyResult.success(null);
   }
 }
 

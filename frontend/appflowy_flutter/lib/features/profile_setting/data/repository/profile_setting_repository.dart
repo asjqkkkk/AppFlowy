@@ -5,5 +5,5 @@ import 'package:appflowy_result/appflowy_result.dart';
 abstract class ProfileSettingRepository {
   Future<FlowyResult<Profile, FlowyError>> getProfile(String userId);
 
-  Future<FlowyResult<String, FlowyError>> updateProfile(Profile profile);
+  Future<FlowyResult<void, FlowyError>> updateProfile(Profile profile);
 }

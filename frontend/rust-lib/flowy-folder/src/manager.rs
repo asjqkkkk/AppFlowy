@@ -3,9 +3,9 @@ use crate::entities::{
   AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, FolderSnapshotPB,
   MoveNestedViewParams, RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB,
   RepeatedViewIdPB, RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB,
-  UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB,
-  view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
-  view_pb_without_child_views_from_arc,
+  UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB,
+  WorkspaceMemberProfilePB, WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views,
+  view_pb_without_child_views, view_pb_without_child_views_from_arc,
 };
 use crate::manager_observer::{
   ChildViewChangeReason, notify_child_views_changed, notify_did_update_section_views,
@@ -20,6 +20,7 @@ use crate::view_operation::{
 };
 use arc_swap::ArcSwapOption;
 use client_api::entity::PublishInfo;
+use client_api::entity::WorkspaceMemberProfile;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
@@ -3020,6 +3021,27 @@ impl FolderManager {
       .collect();
     let combined_views = [views_with_permission, shared_views].concat();
     Ok(combined_views)
+  }
+
+  pub async fn update_workspace_member_profile(
+    &self,
+    profile: &WorkspaceMemberProfilePB,
+  ) -> FlowyResult<()> {
+    let workspace_id = self.user.workspace_id()?;
+    self
+      .cloud_service()?
+      .update_workspace_member_profile(
+        &workspace_id,
+        &WorkspaceMemberProfile {
+          name: profile.name.clone(),
+          avatar_url: profile.avatar_url.clone(),
+          cover_image_url: profile.cover_image_url.clone(),
+          description: profile.description.clone(),
+        },
+      )
+      .await?;
+
+    Ok(())
   }
 
   pub async fn get_other_private_view_ids_cached(

@@ -4,6 +4,7 @@ use client_api::entity::{
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
+use flowy_server_pub::WorkspaceMemberProfile;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
@@ -319,5 +320,17 @@ where
       .await
       .map_err(FlowyError::from)?;
     Ok(resp)
+  }
+
+  async fn update_workspace_member_profile(
+    &self,
+    workspace_id: &Uuid,
+    profile: &WorkspaceMemberProfile,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    try_get_client?
+      .update_workspace_member_profile(workspace_id, profile)
+      .await?;
+    Ok(())
   }
 }

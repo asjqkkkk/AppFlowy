@@ -657,3 +657,14 @@ pub(crate) async fn get_all_views_with_permission_handler(
   let views = folder.get_all_view_pbs_with_permission().await?;
   data_result_ok(RepeatedViewPB::from(views))
 }
+
+#[tracing::instrument(level = "info", skip(data, folder), err)]
+pub(crate) async fn update_workspace_member_profile_handler(
+  data: AFPluginData<WorkspaceMemberProfilePB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let profile = data.into_inner();
+  folder.update_workspace_member_profile(&profile).await?;
+  Ok(())
+}

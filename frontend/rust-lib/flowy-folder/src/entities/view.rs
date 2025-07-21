@@ -541,6 +541,17 @@ pub struct UpdateViewPayloadPB {
   pub extra: Option<String>,
 }
 
+#[derive(Default, ProtoBuf, Validate, Clone, Debug)]
+pub struct WorkspaceMemberProfilePB {
+  #[pb(index = 1)]
+  pub name: String,
+  #[pb(index = 2, one_of)]
+  pub avatar_url: Option<String>,
+  #[pb(index = 3, one_of)]
+  pub cover_image_url: Option<String>,
+  #[pb(index = 4, one_of)]
+  pub description: Option<String>,
+}
 #[derive(Clone, Debug)]
 pub struct UpdateViewParams {
   pub view_id: String,
