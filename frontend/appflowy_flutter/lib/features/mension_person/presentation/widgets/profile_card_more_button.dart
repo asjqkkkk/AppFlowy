@@ -1,6 +1,6 @@
+import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -122,64 +122,76 @@ class _Menu extends StatelessWidget {
   }
 
   List<Widget> buildMemberItems(Person person, BuildContext context) {
-    final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
-    final isMyself = userProfile?.email == person.email;
     return [
       context._buildItem(
-        title:
-            context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
-        onTap: () {},
-      ),
-      context._buildItem(
         title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
-        onTap: () {},
+        onTap: () => sendEmail(person),
       ),
-      if (isMyself)
-        context._buildItem(
-          title: context
-              ._title(LocaleKeys.document_mentionMenu_editInfomation.tr()),
-          onTap: () {},
-        ),
-      if (isMyself)
-        context._buildItem(
-          title: context
-              ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
-          onTap: () {},
-        ),
     ];
+    // final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
+    // final isMyself = userProfile?.email == person.email;
+    // return [
+    //   context._buildItem(
+    //     title:
+    //         context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
+    //     onTap: () {},
+    //   ),
+    //   context._buildItem(
+    //     title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
+    //     onTap: () => sendEmail(person),
+    //   ),
+    //   if (isMyself)
+    //     context._buildItem(
+    //       title: context
+    //           ._title(LocaleKeys.document_mentionMenu_editInfomation.tr()),
+    //       onTap: () {},
+    //     ),
+    //   if (isMyself)
+    //     context._buildItem(
+    //       title: context
+    //           ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
+    //       onTap: () {},
+    //     ),
+    // ];
   }
 
   List<Widget> buildGuestItems(Person person, BuildContext context) {
-    final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
-    final isMyself = userProfile?.email == person.email;
     return [
       context._buildItem(
-        title:
-            context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
-        onTap: () {},
-      ),
-      context._buildItem(
         title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
-        onTap: () {},
+        onTap: () => sendEmail(person),
       ),
-      context._buildItem(
-        title: context
-            ._title(LocaleKeys.document_mentionMenu_convertToAMenber.tr()),
-        onTap: () {},
-      ),
-      if (isMyself)
-        context._buildItem(
-          title: context
-              ._title(LocaleKeys.document_mentionMenu_editInfomation.tr()),
-          onTap: () {},
-        ),
-      if (isMyself)
-        context._buildItem(
-          title: context
-              ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
-          onTap: () {},
-        ),
     ];
+    // final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
+    // final isMyself = userProfile?.email == person.email;
+    // return [
+    //   context._buildItem(
+    //     title:
+    //         context._title(LocaleKeys.document_mentionMenu_shareProfile.tr()),
+    //     onTap: () {},
+    //   ),
+    //   context._buildItem(
+    //     title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
+    //     onTap: () => sendEmail(person),
+    //   ),
+    //   context._buildItem(
+    //     title: context
+    //         ._title(LocaleKeys.document_mentionMenu_convertToAMenber.tr()),
+    //     onTap: () {},
+    //   ),
+    //   if (isMyself)
+    //     context._buildItem(
+    //       title: context
+    //           ._title(LocaleKeys.document_mentionMenu_editInfomation.tr()),
+    //       onTap: () {},
+    //     ),
+    //   if (isMyself)
+    //     context._buildItem(
+    //       title: context
+    //           ._title(LocaleKeys.document_mentionMenu_changeCoverImage.tr()),
+    //       onTap: () {},
+    //     ),
+    // ];
   }
 
   List<Widget> buildContactItems(Person person, BuildContext context) {
@@ -214,6 +226,10 @@ class _Menu extends StatelessWidget {
           onTap: () {},
         ),
     ];
+  }
+
+  void sendEmail(Person person) {
+    afLaunchUrlString('mailto:${person.email}');
   }
 }
 

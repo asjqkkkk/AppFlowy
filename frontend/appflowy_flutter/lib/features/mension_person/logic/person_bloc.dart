@@ -1,5 +1,6 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'person_event.dart';
@@ -10,6 +11,7 @@ export 'person_state.dart';
 class PersonBloc extends Bloc<PersonEvent, PersonState> {
   PersonBloc({
     required this.documentId,
+    required this.nodeId,
     required this.personId,
     required this.workspaceId,
     required this.personListCache,
@@ -17,8 +19,10 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     on<InitialEvent>(_onInitial);
     on<UpdatePersonEvent>(_onUpdatePerson);
     on<UpdateStatusEvent>(_onUpdateStatusEvent);
+    on<NotifyPersonEvent>(_onNotifyPersonEvent);
   }
   final String documentId;
+  final String nodeId;
   final String personId;
   final String workspaceId;
   final PersonListWithAccessMemoryCache personListCache;
@@ -57,6 +61,18 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
         status: event.status,
         getPersonFailedMesssage: event.errorMessage,
       ),
+    );
+  }
+
+  Future<void> _onNotifyPersonEvent(
+    NotifyPersonEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    await ViewBackendService.updatePageMention(
+      viewId: documentId,
+      personId: personId,
+      requireNotification: true,
+      blockId: nodeId,
     );
   }
 

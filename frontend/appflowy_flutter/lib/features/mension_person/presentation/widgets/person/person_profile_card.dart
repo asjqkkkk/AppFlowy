@@ -5,18 +5,18 @@ import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_role_badge.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
-import 'package:appflowy/features/mension_person/presentation/widgets/profile_invite_button.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
+
+import 'default_profile_banner.dart';
 
 class PersonProfileCard extends StatefulWidget {
   const PersonProfileCard({
@@ -94,7 +94,6 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
       return context.buildDeletedPerson();
     }
 
-    final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
     return Stack(
       children: [
         Column(
@@ -105,8 +104,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
             SizedBox(
               width: 280,
               child: Padding(
-                padding:
-                    EdgeInsets.fromLTRB(xxl, hasCover ? 60 : xxl, xxl, xxl),
+                padding: EdgeInsets.fromLTRB(xxl, 60.0, xxl, xxl),
                 child: buildPersonInfo(context),
               ),
             ),
@@ -114,7 +112,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
         ),
         Positioned(
           left: xxl,
-          top: hasCover ? 38 : xxl,
+          top: 38.0,
           child: context.buildAvatar(),
         ),
       ],
@@ -122,20 +120,22 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   }
 
   Widget buildCover(BuildContext context) {
-    final personState = context.read<PersonBloc>().state;
-    final person = personState.personWithAccess.person,
-        url = person.coverImageUrl ?? '';
-    if (url.isEmpty) return VSpace(100);
-    final theme = AppFlowyTheme.of(context), spaceM = theme.spacing.m;
-    return Container(
-      width: 280,
-      height: 88,
-      padding: EdgeInsets.fromLTRB(spaceM, spaceM, spaceM, 0),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(theme.spacing.m),
-        child: CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
-      ),
-    );
+    /// TODO: replace it as banner widget after supporting profile setting
+    return DefaultAssetProfileBanner();
+    // final personState = context.read<PersonBloc>().state;
+    // final person = personState.personWithAccess.person,
+    //     url = person.coverImageUrl ?? '';
+    // if (url.isEmpty) return VSpace(100);
+    // final theme = AppFlowyTheme.of(context), spaceM = theme.spacing.m;
+    // return Container(
+    //   width: 280,
+    //   height: 88,
+    //   padding: EdgeInsets.fromLTRB(spaceM, spaceM, spaceM, 0),
+    //   child: ClipRRect(
+    //     borderRadius: BorderRadius.circular(theme.spacing.m),
+    //     child: CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
+    //   ),
+    // );
   }
 
   Widget buildPersonInfo(BuildContext context) {
@@ -303,9 +303,10 @@ extension PersonProfileCardWidgetExtension on BuildContext {
       );
     }
     if (!hasAccess) {
-      return ProfileInviteButton(
-        onTap: () {},
-      );
+      return const SizedBox.shrink();
+
+      /// TODO: replace it with invite button after supporting inviting
+      // return ProfileInviteButton(onTap: () {});
     }
     return FlowyTooltip(
       message: LocaleKeys.document_mentionMenu_notificationButtonTooltip.tr(),
@@ -320,7 +321,9 @@ extension PersonProfileCardWidgetExtension on BuildContext {
             color: theme.iconColorScheme.primary,
           );
         },
-        onTap: () {},
+        onTap: () {
+          personBloc.add(PersonEvent.notifyPerson());
+        },
       ),
     );
   }
@@ -332,7 +335,6 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         noAccess = !person.deleted &&
             !personState.access &&
             person.role != PersonRole.contact;
-    final coverImage = person.coverImageUrl ?? '';
     final isEmojiAvatar = url.isNotEmpty && !url.startsWith('http');
     final theme = AppFlowyTheme.of(this);
     const size = 90.0, radius = 41.0;
@@ -380,12 +382,10 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         color: theme.surfaceColorScheme.layer01,
         borderRadius: BorderRadius.circular(radius + 2),
       ),
-      child: coverImage.isNotEmpty
-          ? SizedBox.square(
-              dimension: size + 10,
-              child: Center(child: avatar),
-            )
-          : avatar,
+      child: SizedBox.square(
+        dimension: size + 10,
+        child: Center(child: avatar),
+      ),
     );
   }
 
@@ -465,16 +465,15 @@ extension PersonProfileCardWidgetExtension on BuildContext {
   Widget buildActions({required ProfileCardMoreButton moreButton}) {
     final state = read<PersonBloc>().state;
     if (!state.isIdle) return const SizedBox.shrink();
+    final theme = AppFlowyTheme.of(this);
 
     return Row(
       children: [
         PersonRoleBadge(person: state.person, access: state.access),
-
-        /// make these available in the next versions
-        // Spacer(),
-        // buildNotificationButton(),
-        // HSpace(theme.spacing.m),
-        // moreButton,
+        Spacer(),
+        buildNotificationButton(),
+        HSpace(theme.spacing.m),
+        moreButton,
       ],
     );
   }

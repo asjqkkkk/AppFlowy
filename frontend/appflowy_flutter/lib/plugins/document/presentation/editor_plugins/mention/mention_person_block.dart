@@ -68,6 +68,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
     return BlocProvider(
       create: (context) => PersonBloc(
         documentId: widget.pageId,
+        nodeId: widget.node.id,
         personId: widget.personId,
         workspaceId: workspaceId,
         personListCache: getIt<PersonListWithAccessMemoryCache>(),
@@ -107,8 +108,10 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                 0,
                 showAtBottom ? -triggerSize.height : triggerSize.height,
               ),
-              menuBuilder: (context, onEnter, onExit) => BlocProvider.value(
-                value: bloc,
+              menuBuilder: (context, onEnter, onExit) => MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(value: bloc),
+                ],
                 child: BlocBuilder<PersonBloc, PersonState>(
                   builder: (context, state) => PersonProfileCard(
                     triggerSize: triggerSize,

@@ -199,7 +199,7 @@ class MentionBlock extends StatelessWidget {
 
         if (personId == null || pageId == null) return const SizedBox.shrink();
         return MentionPersonBlock(
-          key: ValueKey(personId),
+          key: ValueKey('$personId-${node.id}'),
           editorState: editorState,
           personId: personId,
           pageId: pageId,

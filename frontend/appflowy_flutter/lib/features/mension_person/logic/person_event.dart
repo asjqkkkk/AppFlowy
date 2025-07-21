@@ -10,6 +10,8 @@ sealed class PersonEvent {
   const factory PersonEvent.updatePerson(PersonWithAccess person) =
       UpdatePersonEvent;
 
+  const factory PersonEvent.notifyPerson() = NotifyPersonEvent;
+
   const factory PersonEvent.updateStatusEvent({
     required PersonStatus status,
     String? errorMessage,
@@ -34,4 +36,8 @@ class UpdateStatusEvent implements PersonEvent {
 
   final PersonStatus status;
   final String? errorMessage;
+}
+
+class NotifyPersonEvent implements PersonEvent {
+  const NotifyPersonEvent();
 }

@@ -1,10 +1,10 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
+import 'package:appflowy/features/mension_person/presentation/widgets/person/default_profile_banner.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -48,9 +48,6 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
     final theme = AppFlowyTheme.of(context),
         spacing = theme.spacing,
         xl = spacing.xl;
-    final personState = context.read<PersonBloc>().state,
-        person = personState.person;
-    final hasCover = person.coverImageUrl?.isNotEmpty ?? false;
     final sizeWidth = MediaQuery.of(context).size.width;
     return Stack(
       children: [
@@ -62,37 +59,22 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
             SizedBox(
               width: sizeWidth - xl * 2,
               child: Padding(
-                padding: EdgeInsets.only(top: hasCover ? 64 : 0),
+                padding: EdgeInsets.fromLTRB(xl, 64, xl, 0),
                 child: buildPersonInfo(context),
               ),
             ),
           ],
         ),
         Positioned(
-          left: hasCover ? xl : 0,
-          top: hasCover ? 38 : 0,
+          left: xl,
+          top: 38,
           child: context.buildAvatar(),
         ),
       ],
     );
   }
 
-  Widget buildCover(BuildContext context) {
-    final personState = context.read<PersonBloc>().state;
-    final person = personState.person, url = person.coverImageUrl ?? '';
-    if (url.isEmpty) return VSpace(100);
-    final theme = AppFlowyTheme.of(context), xl = theme.spacing.xl;
-    final sizeWidth = MediaQuery.of(context).size.width;
-
-    return SizedBox(
-      width: sizeWidth - xl * 2,
-      height: 92,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(theme.spacing.m),
-        child: CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
-      ),
-    );
-  }
+  Widget buildCover(BuildContext context) => DefaultAssetProfileBanner();
 
   Widget buildPersonInfo(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
