@@ -2283,6 +2283,7 @@
       "you": "You",
       "deleted": "deleted",
       "personItemTooltip": "{} will be notified after enabling notifications.",
+      "personItemTooltipWithNotification": "{} will be notified upon mention.",
       "deletedAccount": "Deleted Account",
       "type": "Type",
       "member": "Member",

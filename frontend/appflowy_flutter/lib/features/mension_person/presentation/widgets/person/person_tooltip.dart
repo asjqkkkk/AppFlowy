@@ -12,12 +12,14 @@ class PersonToolTip extends StatefulWidget {
     super.key,
     required this.child,
     required this.person,
+    required this.sendNotification,
     required this.isMyself,
     required this.selected,
   });
 
   final Widget child;
   final Person person;
+  final bool sendNotification;
   final bool isMyself;
   final bool selected;
 
@@ -33,6 +35,7 @@ class _PersonToolTipState extends State<PersonToolTip> {
   Person get person => widget.person;
   String get email => person.email;
   String get name => person.name;
+  bool get sendNotification => widget.sendNotification;
   bool get isMyself => widget.isMyself;
   bool get selected => widget.selected;
 
@@ -65,6 +68,15 @@ class _PersonToolTipState extends State<PersonToolTip> {
 
   Widget buildTooltip(BuildContext context, bool showAtLeft) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    String tooltip =
+        LocaleKeys.document_mentionMenu_personItemTooltip.tr(args: [name]);
+    if (isMyself) {
+      tooltip = LocaleKeys.document_mentionMenu_you.tr();
+    } else if (sendNotification) {
+      tooltip = LocaleKeys
+          .document_mentionMenu_personItemTooltipWithNotification
+          .tr(args: [name]);
+    }
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: 320,
@@ -86,10 +98,7 @@ class _PersonToolTipState extends State<PersonToolTip> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  isMyself
-                      ? LocaleKeys.document_mentionMenu_you.tr()
-                      : LocaleKeys.document_mentionMenu_personItemTooltip
-                          .tr(args: [name]),
+                  tooltip,
                   style: theme.textStyle.body
                       .enhanced(color: theme.textColorScheme.onFill),
                 ),

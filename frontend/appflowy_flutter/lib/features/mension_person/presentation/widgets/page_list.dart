@@ -99,6 +99,7 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
               mentionState.selectedId == id && UniversalPlatform.isDesktop,
           title: LocaleKeys.inlineActions_createPage
               .tr(args: [mentionState.query]),
+          maxTitleLine: 1,
           leading: SizedBox.square(
             dimension: 24,
             child: Center(

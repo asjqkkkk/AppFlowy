@@ -103,6 +103,7 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
           isMyself: isCurrentUser,
           selected: selected,
           person: person,
+          sendNotification: state.sendNotification,
           key: ValueKey('${person.id}-$selected'),
           child: AFTextMenuItem(
             leading: AFAvatar(
