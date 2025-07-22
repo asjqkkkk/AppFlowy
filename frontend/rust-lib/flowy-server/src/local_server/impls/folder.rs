@@ -16,10 +16,10 @@ use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
 };
 use flowy_folder_pub::entities::PublishPayload;
-use flowy_server_pub::WorkspaceMemberProfile;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::{MentionablePerson, WorkspaceMemberProfile};
 use lib_infra::async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -215,6 +215,14 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     workspace_id: &Uuid,
     profile: &WorkspaceMemberProfile,
   ) -> Result<(), FlowyError> {
+    Err(FlowyError::local_version_not_support())
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
     Err(FlowyError::local_version_not_support())
   }
 }

@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:appflowy_backend/log.dart';
 import 'package:equatable/equatable.dart';
 
 final List<BannerData> defaultBanners = const [
@@ -17,6 +18,28 @@ abstract class BannerData extends Equatable {
   const BannerData();
 
   String get toUrl;
+
+  static BannerData fromUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return defaultBanners.first;
+    try {
+      if (uri.scheme == 'image') {
+        if (uri.host == 'color-image') {
+          final color = Color(int.parse(uri.queryParameters['color'] ?? ''));
+          return ColorBanner(color: color);
+        } else if (uri.host == 'asset-image') {
+          final path = uri.queryParameters['path'] ?? '';
+          return AssetImageBanner(path: path);
+        } else if (uri.host == 'network-image') {
+          final imageUrl = uri.queryParameters['url'] ?? '';
+          return NetworkImageBanner(url: imageUrl);
+        }
+      }
+    } catch (e) {
+      Log.error('Failed to parse banner URL: $url', e);
+    }
+    return defaultBanners.first;
+  }
 }
 
 class EmptyBanner extends BannerData {

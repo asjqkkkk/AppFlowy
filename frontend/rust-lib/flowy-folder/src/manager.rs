@@ -20,6 +20,8 @@ use crate::view_operation::{
 };
 use arc_swap::ArcSwapOption;
 use client_api::entity::PublishInfo;
+
+use client_api::entity::MentionablePerson;
 use client_api::entity::WorkspaceMemberProfile;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
@@ -3042,6 +3044,20 @@ impl FolderManager {
       .await?;
 
     Ok(())
+  }
+
+  pub async fn get_workspace_mentionable_person(
+    &self,
+    person_id: &str,
+  ) -> FlowyResult<MentionablePerson> {
+    let workspace_id = self.user.workspace_id()?;
+    let person_id_uuid = Uuid::from_str(person_id)?;
+    let resp = self
+      .cloud_service()?
+      .get_workspace_mentionable_person(&workspace_id, &person_id_uuid)
+      .await?;
+
+    Ok(resp)
   }
 
   pub async fn get_other_private_view_ids_cached(

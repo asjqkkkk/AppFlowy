@@ -434,4 +434,13 @@ class ViewBackendService {
   ) async {
     return FolderEventUpdateWorkspaceMemberProfile(profile).send();
   }
+
+  static Future<FlowyResult<MentionablePersonPB, FlowyError>>
+      getWorkspaceMentionablePerson(
+    String personId,
+  ) async {
+    return FolderEventGetWorkspaceMentionablePerson(
+      PersonIdPB(personId: personId),
+    ).send();
+  }
 }

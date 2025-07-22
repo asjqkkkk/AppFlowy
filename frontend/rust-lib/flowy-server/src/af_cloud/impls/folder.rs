@@ -4,10 +4,10 @@ use client_api::entity::{
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
-use flowy_server_pub::WorkspaceMemberProfile;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::{MentionablePerson, WorkspaceMemberProfile};
 use serde_json::to_vec;
 use std::path::PathBuf;
 use std::sync::Weak;
@@ -332,5 +332,17 @@ where
       .update_workspace_member_profile(workspace_id, profile)
       .await?;
     Ok(())
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_workspace_mentionable_person(workspace_id, person_id)
+      .await?;
+    Ok(resp)
   }
 }

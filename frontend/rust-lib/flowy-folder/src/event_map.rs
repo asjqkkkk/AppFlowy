@@ -65,6 +65,7 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::BatchPermissionCheck, batch_permission_check_handler)
     .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
     .event(FolderEvent::UpdateWorkspaceMemberProfile, update_workspace_member_profile_handler)
+    .event(FolderEvent::GetWorkspaceMentionablePerson, get_workspace_mentionable_person_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -270,4 +271,7 @@ pub enum FolderEvent {
 
   #[event(input = "WorkspaceMemberProfilePB")]
   UpdateWorkspaceMemberProfile = 66,
+
+  #[event(input = "PersonIdPB", output = "MentionablePersonPB")]
+  GetWorkspaceMentionablePerson = 67,
 }
