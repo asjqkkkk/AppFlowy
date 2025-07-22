@@ -273,7 +273,7 @@ ColorPickerConfig getBackgroundColorPickerConfig({
 }) {
   return isPro
       ? ColorPickerConfig(
-          title: LocaleKeys.document_toolbar_textColor.tr(),
+          title: LocaleKeys.document_toolbar_backgroundColor.tr(),
           maxColorLimit: 6,
           colorType: ColorType.background,
           key: 'doc_bg',
