@@ -3,6 +3,7 @@ import 'package:appflowy/features/mension_person/data/models/mention_menu_item.d
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'mention_event.dart';
@@ -60,65 +61,38 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     Query event,
     Emitter<MentionState> emit,
   ) async {
-    final query = event.text;
-    List<MentionMenuItem> dateAndReminders =
-        List.of(dateReminderMentionMenuItems);
-    if (query.isNotEmpty) {
-      dateAndReminders = dateAndReminders
-          .where((e) => e.id.toLowerCase().contains(query.toLowerCase()))
-          .toList();
-    }
-    final newItemMap = state.itemMap
-        .clearItems(MentionMenuType.dateAndReminder)
-        .addItems(dateAndReminders);
+    final query = event.text,
+        dateAndReminderItems = _getDateAndReminderItems(query),
+        personItems = _getPersonItems(
+          query,
+          personListCache.getPersons(workspaceId) ?? [],
+        ),
+        viewItems = _getPageItems(query, state.views);
+    final itemMap = state.itemMap
+        .clearItems(MentionMenuType.values)
+        .addItems([...dateAndReminderItems, ...personItems, ...viewItems]);
 
     emit(
       state.copyWith(
         query: query,
-        selectedId: newItemMap.items.first.id,
-        itemMap: newItemMap,
+        selectedId: itemMap.items.first.id,
+        itemMap: itemMap,
+        filterViews: _filterViews(query, state.views),
       ),
     );
-    add(MentionEvent.getPersons(workspaceId: workspaceId));
-    add(MentionEvent.updateViews(state.views));
   }
 
   Future<void> _onGetPersons(
     GetPersons event,
     Emitter<MentionState> emit,
   ) async {
-    List<Person> cachedPersons = personListCache.getPersons(workspaceId) ?? [];
-
-    if (state.query.isNotEmpty) {
-      final formatedQuery = state.query.toLowerCase();
-      cachedPersons = cachedPersons
-          .where(
-            (p) =>
-                p.name.toLowerCase().contains(formatedQuery) ||
-                p.email.toLowerCase().contains(formatedQuery),
-          )
-          .toList();
-
-      /// TODO : Don't forget to add [AddPersonMentionMenuItem] after backend supports it
-      // AddPersonMentionMenuItem addItem = AddPersonMentionMenuItem(query: query);
-    }
-
-    List<MentionMenuItem> personItems =
-        cachedPersons.map((p) => PersonMentionMenuItem(person: p)).toList();
-    if (personItems.length > 4) {
-      if (!state.showMorePersons) {
-        personItems = personItems.sublist(0, 4);
-        personItems.add(
-          MoreResultMentionMenuItem(
-            id: MoreResultMentionMenuItem.showMorePersonsId,
-            type: MentionMenuType.person,
-          ),
-        );
-      }
-    }
-    final newItemMap =
-        state.itemMap.clearItems(MentionMenuType.person).addItems(personItems);
+    final List<Person> cachedPersons =
+        personListCache.getPersons(workspaceId) ?? [];
+    final personItems = _getPersonItems(state.query, cachedPersons);
+    final newItemMap = state.itemMap
+        .clearItems([MentionMenuType.person]).addItems(personItems);
     emit(state.copyWith(persons: cachedPersons, itemMap: newItemMap));
+
     final persons = (await repository.getWorkspacePersons(
           workspaceId: event.workspaceId,
           query: state.query,
@@ -126,12 +100,10 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
             .toNullable() ??
         [];
 
-    if ((persons.isNotEmpty) && state.query.isEmpty) {
-      personItems =
-          persons.map((p) => PersonMentionMenuItem(person: p)).toList();
+    if (persons.isNotEmpty && state.query.isEmpty) {
+      final newPersonItems = _getPersonItems(state.query, persons);
       final newItemMap = state.itemMap
-          .clearItems(MentionMenuType.person)
-          .addItems(personItems);
+          .clearItems([MentionMenuType.person]).addItems(newPersonItems);
       emit(
         state.copyWith(
           persons: persons,
@@ -147,26 +119,17 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     UpdatePersonList event,
     Emitter<MentionState> emit,
   ) async {
-    List<MentionMenuItem> personItems =
-        event.persons.map((p) => PersonMentionMenuItem(person: p)).toList();
-    if (personItems.length > 4) {
-      if (!state.showMorePersons) {
-        personItems = personItems.sublist(0, 4);
-        personItems.add(
-          MoreResultMentionMenuItem(
-            id: MoreResultMentionMenuItem.showMorePersonsId,
-            type: MentionMenuType.person,
-          ),
-        );
-      }
-    }
-    final newItemMap =
-        state.itemMap.clearItems(MentionMenuType.person).addItems(personItems);
+    final List<MentionMenuItem> personItems =
+        _getPersonItems(state.query, event.persons);
+    final newItemMap = state.itemMap
+        .clearItems([MentionMenuType.person]).addItems(personItems);
     emit(
       state.copyWith(
         persons: event.persons,
         itemMap: newItemMap,
-        selectedId: newItemMap.items.first.id,
+        selectedId: state.showMorePersons
+            ? state.selectedId
+            : newItemMap.items.first.id,
       ),
     );
   }
@@ -175,40 +138,16 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     UpdateViews event,
     Emitter<MentionState> emit,
   ) async {
-    final List<MentionMenuItem> items = [];
+    final List<MentionMenuItem> items = _getPageItems(state.query, event.views);
     final query = state.query;
-    final views = event.views
-        .where(
-          (e) => e.nameOrDefault.toLowerCase().contains(query.toLowerCase()),
-        )
-        .toList();
-    if (views.length > 4) {
-      if (!state.showMorePage) {
-        items.addAll(
-          views.sublist(0, 4).map((e) => PageMentionMenuItem(view: e)),
-        );
-        items.add(
-          MoreResultMentionMenuItem(
-            id: MoreResultMentionMenuItem.showMorePagesId,
-            type: MentionMenuType.page,
-          ),
-        );
-      } else {
-        items.addAll(views.map((e) => PageMentionMenuItem(view: e)));
-      }
-    } else {
-      items.addAll(views.map((e) => PageMentionMenuItem(view: e)));
-    }
-    if (query.isNotEmpty) {
-      items.add(AddViewMenuItem(query: query));
-    }
     final newItems =
-        state.itemMap.clearItems(MentionMenuType.page).addItems(items);
+        state.itemMap.clearItems([MentionMenuType.page]).addItems(items);
     emit(
       state.copyWith(
         views: event.views,
-        filterViews: views,
-        selectedId: newItems.items.first.id,
+        filterViews: _filterViews(query, event.views),
+        selectedId:
+            state.showMorePage ? state.selectedId : newItems.items.first.id,
         itemMap: newItems,
       ),
     );
@@ -293,5 +232,83 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     Emitter<MentionState> emit,
   ) async {
     emit(state.copyWith(executedItem: event.item));
+  }
+
+  List<MentionMenuItem> _getPersonItems(String query, List<Person> persons) {
+    final List<MentionMenuItem> personItems = [];
+    personItems.addAll(persons.map((e) => PersonMentionMenuItem(person: e)));
+    final formatQuery = query.toLowerCase();
+    if (formatQuery.isNotEmpty) {
+      personItems.clear();
+      personItems.addAll(
+        persons
+            .where(
+              (e) =>
+                  e.name.toLowerCase().contains(formatQuery) ||
+                  e.email.toLowerCase().contains(formatQuery),
+            )
+            .map((e) => PersonMentionMenuItem(person: e)),
+      );
+    }
+    if (personItems.length > 4 && !state.showMorePersons) {
+      final newList = personItems.sublist(0, 4);
+      personItems.clear();
+      personItems.addAll(newList);
+      personItems.add(
+        MoreResultMentionMenuItem(
+          id: MoreResultMentionMenuItem.showMorePersonsId,
+          type: MentionMenuType.person,
+        ),
+      );
+    }
+
+    /// TODO : Don't forget to add [AddPersonMentionMenuItem] after backend supports it
+    // AddPersonMentionMenuItem addItem = AddPersonMentionMenuItem(query: query);
+    return personItems;
+  }
+
+  List<MentionMenuItem> _getPageItems(String query, List<ViewPB> views) {
+    final List<MentionMenuItem> pageItems = [];
+    pageItems.addAll(views.map((e) => PageMentionMenuItem(view: e)));
+    final formatQuery = query.toLowerCase();
+    if (formatQuery.isNotEmpty) {
+      pageItems.clear();
+      pageItems.addAll(
+        _filterViews(query, views).map((e) => PageMentionMenuItem(view: e)),
+      );
+    }
+    if (pageItems.length > 4 && !state.showMorePage) {
+      final newItems = pageItems.sublist(0, 4);
+      pageItems.clear();
+      pageItems.addAll(newItems);
+      pageItems.add(
+        MoreResultMentionMenuItem(
+          id: MoreResultMentionMenuItem.showMorePagesId,
+          type: MentionMenuType.page,
+        ),
+      );
+    }
+    if (query.isNotEmpty) {
+      pageItems.add(AddViewMenuItem(query: query));
+    }
+    return pageItems;
+  }
+
+  List<MentionMenuItem> _getDateAndReminderItems(String query) {
+    final formatQuery = query.toLowerCase();
+    if (formatQuery.isEmpty) {
+      return dateReminderMentionMenuItems;
+    }
+    return dateReminderMentionMenuItems
+        .where((e) => e.id.toLowerCase().contains(formatQuery))
+        .toList();
+  }
+
+  List<ViewPB> _filterViews(String query, List<ViewPB> views) {
+    final formatQuery = query.toLowerCase();
+    if (formatQuery.isEmpty) return views;
+    return views
+        .where((e) => e.nameOrDefault.toLowerCase().contains(formatQuery))
+        .toList();
   }
 }

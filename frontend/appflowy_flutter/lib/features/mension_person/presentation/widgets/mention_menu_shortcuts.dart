@@ -13,9 +13,11 @@ class MentionMenuShortcuts extends StatefulWidget {
     super.key,
     required this.child,
     required this.scrollController,
+    required this.initialSearchText,
   });
 
   final Widget child;
+  final String initialSearchText;
   final ScrollController scrollController;
   @override
   State<MentionMenuShortcuts> createState() => _MentionMenuShortcutsState();
@@ -24,6 +26,7 @@ class MentionMenuShortcuts extends StatefulWidget {
 class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
   final focusNode = FocusNode();
   int startOffset = 0;
+  late String _search = widget.initialSearchText;
 
   ScrollController get scrollController => widget.scrollController;
 
@@ -62,9 +65,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
     if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
       return KeyEventResult.ignored;
     }
-    final menuBloc = context.read<MentionBloc>(),
-        menuState = menuBloc.state,
-        queryText = menuState.query;
+    final menuBloc = context.read<MentionBloc>(), menuState = menuBloc.state;
     final mentionMenuServiceInfo = context.read<MentionMenuServiceInfo>();
     final editorState = mentionMenuServiceInfo.editorState,
         onDismiss = mentionMenuServiceInfo.onDismiss;
@@ -89,7 +90,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       editorState.updateSelectionWithReason(editorState.selection);
       onDismiss();
     } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
-      if (queryText.isEmpty) {
+      if (_search.isEmpty) {
         if (_canDeleteLastCharacter(context)) {
           editorState.deleteBackward();
         } else {
@@ -137,7 +138,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       final selection = editorState.selection;
       if (selection != null &&
           (selection.endIndex < startOffset ||
-              selection.endIndex > (startOffset + queryText.length))) {
+              selection.endIndex > (startOffset + _search.length))) {
         onDismiss();
       }
 
@@ -225,11 +226,10 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
     }
   }
 
-  void _insertCharacter(String character, BuildContext context) {
-    final menuBloc = context.read<MentionBloc>(), menuState = menuBloc.state;
+  void _insertCharacter(String character, BuildContext context) async {
     final mentionMenuServiceInfo = context.read<MentionMenuServiceInfo>();
     final editorState = mentionMenuServiceInfo.editorState;
-    editorState.insertTextAtCurrentSelection(character);
+    await editorState.insertTextAtCurrentSelection(character);
 
     final selection = editorState.selection;
     if (selection == null || !selection.isCollapsed) {
@@ -241,7 +241,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       return;
     }
 
-    final oldText = menuState.query;
+    final oldText = _search;
 
     final query = editorState
         .getTextInSelection(
@@ -252,7 +252,10 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
           ),
         )
         .join();
-    onQuery(context, query);
+    _search = query;
+    if (context.mounted) {
+      onQuery(context, query);
+    }
   }
 
   bool _canDeleteLastCharacter(BuildContext context) {
@@ -272,8 +275,6 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
   }
 
   void _deleteCharacterAtSelection(BuildContext context) {
-    final menuBloc = context.read<MentionBloc>(), menuState = menuBloc.state;
-
     final mentionMenuServiceInfo = context.read<MentionMenuServiceInfo>(),
         editorState = mentionMenuServiceInfo.editorState,
         selection = editorState.selection;
@@ -285,11 +286,12 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       return;
     }
 
-    final oldText = menuState.query;
+    final oldText = _search;
     final query = delta.toPlainText().substring(
           startOffset,
           startOffset - 1 + oldText.length,
         );
+    _search = query;
     onQuery(context, query);
   }
 

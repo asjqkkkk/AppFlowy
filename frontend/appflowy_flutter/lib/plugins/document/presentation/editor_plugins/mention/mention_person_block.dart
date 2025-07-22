@@ -73,22 +73,37 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         workspaceId: workspaceId,
         personListCache: getIt<PersonListWithAccessMemoryCache>(),
       )..add(PersonEvent.initial()),
-      child: BlocListener<PersonBloc, PersonState>(
-        listenWhen: (previous, current) =>
-            previous.getPersonFailedMesssage != current.getPersonFailedMesssage,
-        listener: (context, state) {
-          if (state.getPersonFailedMesssage.isNotEmpty) {
-            showToastNotification(
-              message: state.getPersonFailedMesssage,
-              type: ToastificationType.error,
-            );
-          }
-        },
-        child: BlocBuilder<PersonBloc, PersonState>(
-          key: key,
-          builder: (context, state) {
-            final bloc = context.read<PersonBloc>();
-            return HoverMenu(
+      child: BlocBuilder<PersonBloc, PersonState>(
+        key: key,
+        builder: (context, state) {
+          final bloc = context.read<PersonBloc>();
+          return MultiBlocListener(
+            listeners: [
+          BlocListener<PersonBloc, PersonState>(
+            listenWhen: (previous, current) =>
+                previous.getPersonFailedMesssage !=
+                current.getPersonFailedMesssage,
+            listener: (context, state) {
+              if (state.getPersonFailedMesssage.isNotEmpty) {
+                showToastNotification(
+                  message: state.getPersonFailedMesssage,
+                  type: ToastificationType.error,
+                );
+              }
+            },
+          ),
+          BlocListener<PersonBloc, PersonState>(
+            listenWhen: (previous, current) =>
+                previous.mentionTime != current.mentionTime,
+            listener: (context, state) {
+              showToastNotification(
+                message: LocaleKeys.document_mentionMenu_notifedTo
+                    .tr(args: [state.person.name]),
+              );
+            },
+          ),
+        ],
+            child: HoverMenu(
               key: ValueKey(
                 showAtBottom.hashCode &
                     positionY.hashCode &
@@ -122,9 +137,9 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                 ),
               ),
               child: buildPerson(context),
-            );
-          },
-        ),
+            ),
+          );
+        },
       ),
     );
   }

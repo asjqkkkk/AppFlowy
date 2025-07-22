@@ -19,7 +19,7 @@ use flowy_folder_pub::entities::PublishPayload;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
-use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess};
+use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate};
 use lib_infra::async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
@@ -227,11 +227,9 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
 
   async fn update_page_mention(
     &self,
-    person_id: &Uuid,
     workspace_id: &Uuid,
     view_id: &Uuid,
-    require_notification: &bool,
-    block_id: &Option<String>,
+    page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError> {
     Err(FlowyError::local_version_not_support())
   }

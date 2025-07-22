@@ -323,6 +323,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         },
         onTap: () {
           personBloc.add(PersonEvent.notifyPerson());
+          
         },
       ),
     );

@@ -124,7 +124,7 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
       return MoreResultsItem(
         num: persons.length - 4,
         onTap: () => bloc.add(MentionEvent.executeItem(this)),
-        id: persons[4].id,
+        id: item.id,
       );
     } else if (item is AddPersonMentionMenuItem) {
       return PersonListInviteItem();
@@ -139,12 +139,10 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
       await _onPersonSelected(item.person, context);
     } else if (item is MoreResultMentionMenuItem) {
       final mentionBloc = context.read<MentionBloc>();
-      final persons =
-          mentionBloc.state.itemMap.getItems(MentionMenuType.person);
-      final lastIndex = persons.indexWhere((e) => e.id == item.id);
+      final persons = mentionBloc.state.persons;
       mentionBloc.add(
         MentionEvent.showMorePersons(
-          UniversalPlatform.isMobile ? '' : persons[lastIndex].id,
+          UniversalPlatform.isMobile ? '' : persons[4].id,
         ),
       );
     }

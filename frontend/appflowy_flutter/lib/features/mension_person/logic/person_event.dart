@@ -12,6 +12,8 @@ sealed class PersonEvent {
 
   const factory PersonEvent.notifyPerson() = NotifyPersonEvent;
 
+  const factory PersonEvent.updateMentionTime() = UpdateMentionTimeEvent;
+
   const factory PersonEvent.updateStatusEvent({
     required PersonStatus status,
     String? errorMessage,
@@ -40,4 +42,8 @@ class UpdateStatusEvent implements PersonEvent {
 
 class NotifyPersonEvent implements PersonEvent {
   const NotifyPersonEvent();
+}
+
+class UpdateMentionTimeEvent implements PersonEvent {
+  const UpdateMentionTimeEvent();
 }

@@ -28,7 +28,7 @@ use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
-use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess};
+use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate};
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use flowy_user_pub::cloud::{
@@ -533,21 +533,13 @@ impl FolderCloudService for ServerProvider {
 
   async fn update_page_mention(
     &self,
-    person_id: &Uuid,
     workspace_id: &Uuid,
     view_id: &Uuid,
-    required_notification: &bool,
-    block_id: &Option<String>,
+    page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError> {
     self
       .get_folder_service()?
-      .update_page_mention(
-        person_id,
-        workspace_id,
-        view_id,
-        required_notification,
-        block_id,
-      )
+      .update_page_mention(workspace_id, view_id, page_mention)
       .await
   }
 }

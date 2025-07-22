@@ -82,6 +82,7 @@ class MentionMenu extends StatelessWidget {
                   ],
                   child: MentionMenuShortcuts(
                     scrollController: controller,
+                    initialSearchText: state.query,
                     child: buildMenu(context, controller),
                   ),
                 );

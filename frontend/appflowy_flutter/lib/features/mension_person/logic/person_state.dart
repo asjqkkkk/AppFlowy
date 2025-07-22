@@ -11,12 +11,14 @@ class PersonState {
     this.documentId = '',
     this.getPersonFailedMesssage = '',
     this.status = PersonStatus.loading,
+    this.mentionTime = 0,
   });
 
   final PersonWithAccess personWithAccess;
   final String documentId;
   final String getPersonFailedMesssage;
   final PersonStatus status;
+  final int mentionTime;
 
   bool get isLoading => status == PersonStatus.loading;
   bool get isIdle => status == PersonStatus.idle;
@@ -28,6 +30,7 @@ class PersonState {
     String? documentId,
     String? getPersonFailedMesssage,
     PersonStatus? status,
+    int? mentionTime,
   }) {
     return PersonState(
       personWithAccess: personWithAccess ?? this.personWithAccess,
@@ -35,6 +38,7 @@ class PersonState {
       getPersonFailedMesssage:
           getPersonFailedMesssage ?? this.getPersonFailedMesssage,
       status: status ?? this.status,
+      mentionTime: mentionTime ?? this.mentionTime,
     );
   }
 
@@ -46,7 +50,8 @@ class PersonState {
         other.personWithAccess == personWithAccess &&
         other.documentId == documentId &&
         other.getPersonFailedMesssage == getPersonFailedMesssage &&
-        other.status == status;
+        other.status == status &&
+        other.mentionTime == mentionTime;
   }
 
   @override
@@ -54,12 +59,13 @@ class PersonState {
     return personWithAccess.hashCode ^
         documentId.hashCode ^
         getPersonFailedMesssage.hashCode ^
-        status.hashCode;
+        status.hashCode ^
+        mentionTime.hashCode;
   }
 
   @override
   String toString() {
-    return 'PersonState(personWithAccess: $personWithAccess, documentId: $documentId, getPersonFailedMesssage: $getPersonFailedMesssage, status: $status)';
+    return 'PersonState(personWithAccess: $personWithAccess, documentId: $documentId, getPersonFailedMesssage: $getPersonFailedMesssage, status: $status, mentionTime: $mentionTime)';
   }
 }
 

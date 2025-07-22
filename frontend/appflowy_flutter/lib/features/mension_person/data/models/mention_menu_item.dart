@@ -103,9 +103,11 @@ class MentionItemMap {
     return MentionItemMap._(copyMap);
   }
 
-  MentionItemMap clearItems(MentionMenuType type) {
+  MentionItemMap clearItems(List<MentionMenuType> types) {
     final copyMap = Map.of(_map);
-    copyMap[type] = UnmodifiableListView([]);
+    for (final type in types) {
+      copyMap[type] = UnmodifiableListView([]);
+    }
     return MentionItemMap._(copyMap);
   }
 

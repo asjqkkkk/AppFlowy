@@ -285,6 +285,7 @@ class ViewBackendService {
 
   static Future<FlowyResult<void, FlowyError>> updatePageMention({
     required String viewId,
+    required String viewName,
     required String personId,
     String? blockId,
     required bool requireNotification,
@@ -294,6 +295,7 @@ class ViewBackendService {
     }
     final payload = PageMentionUpdateInfoPB.create()
       ..viewId = viewId
+      ..viewName = viewName
       ..personId = personId
       ..blockId = blockId ?? ''
       ..requireNotification = requireNotification;

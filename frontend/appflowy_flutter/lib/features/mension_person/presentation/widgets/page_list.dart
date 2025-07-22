@@ -85,11 +85,10 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
         ),
       );
     } else if (item is MoreResultMentionMenuItem) {
-      final pages = mentionState.itemMap.getItems(MentionMenuType.page);
       return MoreResultsItem(
         num: mentionState.filterViews.length - 4,
         onTap: () => mentionBloc.add(MentionEvent.executeItem(this)),
-        id: pages[4].id,
+        id: item.id,
       );
     } else if (item is AddViewMenuItem) {
       return MentionMenuItenVisibilityDetector(
@@ -171,13 +170,9 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
 
   void _showMore(BuildContext context) {
     final mentionBloc = context.read<MentionBloc>();
-    final pages = mentionBloc.state.itemMap.getItems(MentionMenuType.page);
-    final lastViewIndex = pages.indexWhere((e) => e.id == id);
-    if (lastViewIndex < 0) return;
+    final pages = mentionBloc.state.filterViews;
     mentionBloc.add(
-      MentionEvent.showMorePages(
-        UniversalPlatform.isMobile ? '' : pages[lastViewIndex - 1].id,
-      ),
+      MentionEvent.showMorePages(UniversalPlatform.isMobile ? '' : pages[4].id),
     );
   }
 }

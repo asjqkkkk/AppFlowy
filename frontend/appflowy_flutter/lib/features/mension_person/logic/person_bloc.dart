@@ -1,6 +1,8 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'person_event.dart';
@@ -20,6 +22,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     on<UpdatePersonEvent>(_onUpdatePerson);
     on<UpdateStatusEvent>(_onUpdateStatusEvent);
     on<NotifyPersonEvent>(_onNotifyPersonEvent);
+    on<UpdateMentionTimeEvent>(_onUpdateMentionTimeEvent);
   }
   final String documentId;
   final String nodeId;
@@ -68,12 +71,27 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     NotifyPersonEvent event,
     Emitter<PersonState> emit,
   ) async {
+    final viewResult = await ViewBackendService.getView(documentId);
+    final view = viewResult.toNullable();
+    if (view == null) {
+      Log.error('mention person with null view:$documentId');
+      return;
+    }
     await ViewBackendService.updatePageMention(
       viewId: documentId,
+      viewName: view.nameOrDefault,
       personId: personId,
       requireNotification: true,
       blockId: nodeId,
     );
+    add(PersonEvent.updateMentionTime());
+  }
+
+  Future<void> _onUpdateMentionTimeEvent(
+    UpdateMentionTimeEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    emit(state.copyWith(mentionTime: state.mentionTime + 1));
   }
 
   Future<void> onPersonList(PersonListWithAccessAndResult result) async {

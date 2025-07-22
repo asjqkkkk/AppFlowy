@@ -2,10 +2,11 @@ use crate::entities::icon::UpdateViewIconParams;
 use crate::entities::{
   AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, FolderSnapshotPB,
   GetMentionablePersonsResponsePB, GetMentionablePersonsWithAccessPB, MoveNestedViewParams,
-  RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewIdPB,
-  RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB,
-  ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views,
-  view_pb_with_child_views, view_pb_without_child_views, view_pb_without_child_views_from_arc,
+  PageMentionUpdateInfoPB, RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB,
+  RepeatedViewIdPB, RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB,
+  UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB,
+  view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
+  view_pb_without_child_views_from_arc,
 };
 use crate::manager_observer::{
   ChildViewChangeReason, notify_child_views_changed, notify_did_update_section_views,
@@ -3060,23 +3061,13 @@ impl FolderManager {
 
   pub async fn update_page_mention(
     &self,
-    person_id: &str,
-    view_id: &str,
-    require_notification: &bool,
-    block_id: &Option<String>,
+    page_mention: &PageMentionUpdateInfoPB,
   ) -> FlowyResult<()> {
     let workspace_id = self.user.workspace_id()?;
-    let uuid_view_id = Uuid::from_str(view_id)?;
-    let uuid_person_id = Uuid::from_str(person_id)?;
+    let view_id = Uuid::from_str(&page_mention.view_id)?;
     self
       .cloud_service()?
-      .update_page_mention(
-        &uuid_person_id,
-        &workspace_id,
-        &uuid_view_id,
-        &require_notification,
-        &block_id,
-      )
+      .update_page_mention(&workspace_id, &view_id, &page_mention.clone().into())
       .await?;
 
     Ok(())

@@ -3,7 +3,7 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::{
   AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
-  MentionablePersonWithLastMentionedTime,
+  MentionablePersonWithLastMentionedTime, PageMentionUpdate,
 };
 use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
@@ -1062,6 +1062,19 @@ pub struct PageMentionUpdateInfoPB {
   pub require_notification: bool,
   #[pb(index = 4, one_of)]
   pub block_id: Option<String>,
+  #[pb(index = 5)]
+  pub view_name: String,
+}
+
+impl From<PageMentionUpdateInfoPB> for PageMentionUpdate {
+  fn from(person: PageMentionUpdateInfoPB) -> Self {
+    PageMentionUpdate {
+      person_id: Uuid::from_str(&person.person_id).unwrap(),
+      require_notification: person.require_notification,
+      block_id: person.block_id.clone(),
+      view_name: person.view_name,
+    }
+  }
 }
 
 impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {

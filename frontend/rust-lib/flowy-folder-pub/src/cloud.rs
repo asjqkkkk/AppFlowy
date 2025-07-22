@@ -1,7 +1,7 @@
 use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::{
-  MentionablePersons, MentionablePersonsWithAccess, PublishInfo,
+  MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate, PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
@@ -136,11 +136,9 @@ pub trait FolderCloudService: Send + Sync + 'static {
   /// Update the mentionable persons in a page(with access)
   async fn update_page_mention(
     &self,
-    person_id: &Uuid,
     workspace_id: &Uuid,
     view_id: &Uuid,
-    require_notification: &bool,
-    block_id: &Option<String>,
+    page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError>;
 }
 

@@ -349,22 +349,13 @@ where
 
   async fn update_page_mention(
     &self,
-    person_id: &Uuid,
     workspace_id: &Uuid,
     view_id: &Uuid,
-    _require_notification: &bool,
-    block_id: &Option<String>,
+    page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError> {
     let try_get_client = self.inner.try_get_client();
     try_get_client?
-      .update_page_mention(
-        workspace_id,
-        view_id,
-        &PageMentionUpdate {
-          person_id: *person_id,
-          block_id: block_id.clone(),
-        },
-      )
+      .update_page_mention(workspace_id, view_id, page_mention)
       .await
       .map_err(FlowyError::from)?;
     Ok(())

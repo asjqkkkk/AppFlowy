@@ -1,6 +1,8 @@
 import 'package:appflowy/features/mension_person/data/models/invite.dart';
 
 import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 
@@ -9,7 +11,6 @@ import 'package:appflowy_result/appflowy_result.dart';
 import 'mention_repository.dart';
 
 class RustMentionRepository extends MentionRepository {
-
   @override
   Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
     required String workspaceId,
@@ -78,8 +79,15 @@ class RustMentionRepository extends MentionRepository {
     required bool requireNotification,
     String? blockId,
   }) async {
-     await ViewBackendService.updatePageMention(
+    final viewResult = await ViewBackendService.getView(documentId);
+    final view = viewResult.toNullable();
+    if (view == null) {
+      Log.error('mention person with null view:$documentId');
+      return;
+    }
+    await ViewBackendService.updatePageMention(
       viewId: documentId,
+      viewName: view.nameOrDefault,
       personId: personId,
       requireNotification: requireNotification,
       blockId: blockId,
