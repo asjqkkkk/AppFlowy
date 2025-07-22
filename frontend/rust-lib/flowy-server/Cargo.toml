@@ -52,8 +52,6 @@ workspace = true
 features = [
   "test_util",
   "enable_brotli",
-  # Uncomment the following line to enable verbose logging for sync
-  # "sync_verbose_log",
 ]
 
 [dev-dependencies]

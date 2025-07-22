@@ -83,5 +83,4 @@ openssl_vendored = ["flowy-sqlite/openssl_vendored"]
 verbose_log = [
   "flowy-document/verbose_log",
   "flowy-database2/verbose_log",
-  "client-api/sync_verbose_log",
 ]
