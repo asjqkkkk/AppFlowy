@@ -76,7 +76,7 @@ impl From<AppResponseError> for FlowyError {
       AppErrorCode::FreePlanGuestLimitExceeded => ErrorCode::FreePlanGuestLimitExceeded,
       AppErrorCode::InvalidGuest => ErrorCode::InvalidGuest,
       AppErrorCode::PaidPlanGuestLimitExceeded => ErrorCode::PaidPlanGuestLimitExceeded,
-      AppErrorCode::LimitExceeded => ErrorCode::LimitExceed,
+      AppErrorCode::CommercialError => ErrorCode::CommercialError,
     };
 
     FlowyError::new(code, error.message)

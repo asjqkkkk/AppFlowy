@@ -422,6 +422,9 @@ pub enum ErrorCode {
 
   #[error("Read file error")]
   ReadFile = 144,
+
+  #[error("Commercial error")]
+  CommercialError = 145,
 }
 
 impl ErrorCode {
