@@ -11,6 +11,7 @@ use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use flowy_ai::ai_manager::AIManager;
+use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
 use flowy_error::{FlowyError, FlowyResult};
@@ -564,6 +565,15 @@ impl AppLifeCycle for AppLifeCycleImpl {
   async fn on_cancel_personal_subscriptions(&self, plan: &PersonalPlan) {
     if let Some(ai_manager) = self.ai_manager.upgrade() {
       ai_manager.on_cancel_personal_subscriptions(plan).await;
+    }
+  }
+
+  async fn on_receive_workspace_notification(&self, notification: &WorkspaceNotification) {
+    if let Ok(folder) = self.folder_manager() {
+      let notification = notification.clone();
+      tokio::spawn(async move {
+        folder.handle_notification(notification).await;
+      });
     }
   }
 }

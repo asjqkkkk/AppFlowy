@@ -313,10 +313,7 @@ impl WorkspaceControllerLifeCycle {
       inactive_since: None,
       interceptors,
     };
-
-    if !matches!(this.workspace_type, WorkspaceType::Cloud) {
-      this.spawn_observe_workspace_notification();
-    }
+    this.spawn_observe_workspace_notification();
     this
   }
 
@@ -363,7 +360,6 @@ impl WorkspaceControllerLifeCycle {
   pub fn spawn_observe_workspace_notification(&self) {
     let weak_interceptors = self.interceptors.clone();
     let mut rx = self.controller.subscribe_notification();
-    let workspace_id = self.controller.workspace_id().to_string();
     tokio::spawn(async move {
       while let Ok(notification) = rx.recv().await {
         match weak_interceptors.upgrade() {
@@ -372,12 +368,12 @@ impl WorkspaceControllerLifeCycle {
             break;
           },
           Some(v) => {
-            send_notification(&workspace_id, UserNotification::ServerNotification)
-              .serde(&notification)
-              .send();
-
             if let Some(v) = v.load_full() {
-              v.notification.receive_notification(notification).await;
+              v.notification_handler
+                .handle_notification(notification)
+                .await;
+            } else {
+              debug!("Action interceptors is None, cannot handle notification");
             }
           },
         }

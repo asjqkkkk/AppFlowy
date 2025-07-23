@@ -19,11 +19,11 @@ use crate::view_operation::{
   FolderOperationHandler, FolderOperationHandlers, GatherEncodedCollab, ViewData, create_view,
 };
 use arc_swap::ArcSwapOption;
-use client_api::entity::PublishInfo;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::workspace_dto::PublishInfoView;
+use client_api::entity::{PublishInfo, WorkspaceNotification};
 use collab::core::collab::{DataSource, IndexContentReceiver};
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
@@ -120,6 +120,10 @@ impl FolderManager {
     };
 
     Ok(manager)
+  }
+
+  pub async fn handle_notification(&self, _notification: WorkspaceNotification) {
+    // TODO(Lucas): handle notification
   }
 
   pub fn client_id(&self) -> FlowyResult<ClientID> {

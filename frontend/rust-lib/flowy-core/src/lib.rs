@@ -302,7 +302,9 @@ impl AppFlowyCore {
       reminder: Box::new(ReminderActionInterceptorImpl {
         document_manager: Arc::downgrade(&document_manager),
       }),
-      notification: Box::new(NotificationInterceptorImpl),
+      notification_handler: Box::new(NotificationInterceptorImpl {
+        user_manager: Arc::downgrade(&user_manager),
+      }),
     };
     if let Err(err) = user_manager
       .init_with_callback(app_life_cycle, interceptor)

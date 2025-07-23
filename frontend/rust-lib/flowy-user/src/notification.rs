@@ -20,8 +20,7 @@ pub(crate) enum UserNotification {
   DidLoadUserAwareness = 7,
   DidUpdateReminder = 8,
   DidOpenWorkspace = 9,
-  ServerNotification = 10,
-  WebSocketConnectState = 11,
+  WebSocketConnectState = 10,
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

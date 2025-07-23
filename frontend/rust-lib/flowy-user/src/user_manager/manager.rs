@@ -4,6 +4,8 @@ use std::str::FromStr;
 
 use crate::entities::{AuthStateChangedPB, AuthStatePB, UserProfilePB, UserSettingPB};
 use crate::event_map::{AppLifeCycle, DefaultUserStatusCallback};
+use crate::migrations::anon_user_workspace::AnonUserWorkspaceTableMigration;
+use crate::migrations::doc_key_with_workspace::CollabDocKeyWithWorkspaceIdMigration;
 use crate::migrations::document_empty_content::HistoricalEmptyDocumentMigration;
 use crate::migrations::migration::{
   save_migration_record, UserDataMigration, UserLocalDataMigration, FIRST_TIME_INSTALL_VERSION,
@@ -12,16 +14,23 @@ use crate::migrations::workspace_trash_v1::WorkspaceTrashMapToSectionMigration;
 use crate::services::action_interceptor::ActionInterceptors;
 use crate::services::authenticate_user::AuthenticateUser;
 use crate::services::cloud_config::get_cloud_config;
+use crate::user_manager::manager_user_awareness::UserAwarenessLifeCycle;
+use crate::user_manager::manager_workspace_control::WorkspaceControllerLifeCycle;
+use crate::{errors::FlowyError, notification::*};
 use arc_swap::ArcSwapOption;
 use collab::lock::RwLock;
 use collab_plugins::CollabKVDB;
 use dashmap::DashMap;
+use flowy_server_pub::WorkspaceNotification;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::schema::user_table;
 use flowy_sqlite::ConnectionPool;
 use flowy_sqlite::{query_dsl::*, DBConnection, ExpressionMethods};
 use flowy_user_pub::cloud::UserServerProvider;
 use flowy_user_pub::entities::*;
+use flowy_user_pub::session::Session;
+use flowy_user_pub::sql::*;
+use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use flowy_user_pub::workspace_service::WorkspaceDataImporter;
 use lib_infra::box_any::BoxAny;
 use semver::Version;
@@ -31,15 +40,6 @@ use tokio_stream::wrappers::WatchStream;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, event, info, instrument, warn};
 use uuid::Uuid;
-
-use crate::migrations::anon_user_workspace::AnonUserWorkspaceTableMigration;
-use crate::migrations::doc_key_with_workspace::CollabDocKeyWithWorkspaceIdMigration;
-use crate::user_manager::manager_user_awareness::UserAwarenessLifeCycle;
-use crate::user_manager::manager_workspace_control::WorkspaceControllerLifeCycle;
-use crate::{errors::FlowyError, notification::*};
-use flowy_user_pub::session::Session;
-use flowy_user_pub::sql::*;
-use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 
 pub struct UserManager {
   pub(crate) cloud_service: Weak<dyn UserServerProvider>,
@@ -269,6 +269,23 @@ impl UserManager {
   #[cfg(debug_assertions)]
   pub fn get_collab_backup_list(&self, uid: i64) -> Vec<String> {
     self.authenticate_user.database.get_collab_backup_list(uid)
+  }
+
+  pub async fn handle_notification(&self, notification: &WorkspaceNotification) {
+    info!("workspace notification: {:?}", notification);
+    match notification {
+      WorkspaceNotification::UserProfileChange { .. } => {
+        let _ = self.refresh_user_profile().await;
+      },
+      WorkspaceNotification::ObjectAccessChanged { .. } => {},
+    }
+
+    self
+      .app_life_cycle
+      .read()
+      .await
+      .on_receive_workspace_notification(notification)
+      .await;
   }
 
   /// Performs a user sign-in, initializing user awareness and sending relevant notifications.
@@ -510,16 +527,11 @@ impl UserManager {
   }
 
   #[tracing::instrument(level = "trace", skip_all, err)]
-  pub async fn refresh_user_profile(
+  pub async fn refresh_user_profile_if_need(
     &self,
     old_user_profile: &UserProfile,
     workspace_id: &str,
   ) -> FlowyResult<()> {
-    // If the user is a local user, no need to refresh the user profile
-    if old_user_profile.workspace_type.is_vault() {
-      return Ok(());
-    }
-
     if !self.authenticate_user.should_load_user_profile() {
       return Ok(());
     }
@@ -566,6 +578,27 @@ impl UserManager {
         Err(err)
       },
     }
+  }
+
+  #[tracing::instrument(level = "trace", skip_all, err)]
+  pub async fn refresh_user_profile(&self) -> FlowyResult<()> {
+    let uid = self.user_id()?;
+    let workspace_id = self.workspace_id()?.to_string();
+    if let Ok(new_user_profile) = self
+      .cloud_service()?
+      .user_profile_service()?
+      .get_user_profile(uid, &workspace_id)
+      .await
+    {
+      let changeset = UserTableChangeset::from_user_profile(new_user_profile);
+      let _ = upsert_user_profile_change(
+        uid,
+        &workspace_id,
+        self.authenticate_user.database.get_connection(uid)?,
+        changeset,
+      );
+    }
+    Ok(())
   }
 
   #[instrument(level = "info", skip_all)]
@@ -762,11 +795,6 @@ pub fn upsert_user_profile_change(
   mut conn: DBConnection,
   changeset: UserTableChangeset,
 ) -> FlowyResult<()> {
-  event!(
-    tracing::Level::DEBUG,
-    "Update user profile with changeset: {:?}",
-    changeset
-  );
   update_user_profile(&mut conn, changeset)?;
   let user = select_user_profile(uid, workspace_id, &mut conn)?;
   send_notification(uid, UserNotification::DidUpdateUserProfile)

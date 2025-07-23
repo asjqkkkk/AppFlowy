@@ -104,7 +104,7 @@ pub async fn get_user_profile_handler(
   tokio::spawn(async move {
     if let Some(manager) = weak_manager.upgrade() {
       let _ = manager
-        .refresh_user_profile(&cloned_user_profile, &workspace_id)
+        .refresh_user_profile_if_need(&cloned_user_profile, &workspace_id)
         .await;
     }
   });
