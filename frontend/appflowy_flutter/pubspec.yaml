@@ -186,8 +186,8 @@ dependency_overrides:
 
   appflowy_editor:
     git:
-      url: https://github.com/AppFlowy-IO/appflowy-editor.git
-      ref: "470c4e7"
+      url: https://github.com/LucasXu0/appflowy-editor.git
+      ref: "b2b07cd94187126f394cfcdc3fc9e0e8d52cc80a"
 
   appflowy_editor_plugins:
     git:
