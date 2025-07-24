@@ -8,6 +8,9 @@ script:
   - mkdir -p AppDir/usr/share/icons/hicolor/scalable/apps
   - cp scripts/linux_distribution/packaging/appflowy.svg AppDir/usr/share/icons/hicolor/scalable/apps/
 
+  - mkdir -p "AppDir/prime"
+  - curl -L https://github.com/AppImage/AppImageKit/releases/download/continuous/obsolete-runtime-x86_64 -o "AppDir/prime/runtime-x86_64"
+
 AppDir:
   path: ./AppDir
   app_info:
