@@ -8,77 +8,66 @@ class AppFlowyBadgeColorScheme {
     required this.color1Thick1,
     required this.color1Thick2,
     required this.color1Thick3,
-    required this.color1Thick4,
     required this.color2Light1,
     required this.color2Light2,
     required this.color2Light3,
     required this.color2Thick1,
     required this.color2Thick2,
     required this.color2Thick3,
-    required this.color2Thick4,
     required this.color3Light1,
     required this.color3Light2,
     required this.color3Light3,
     required this.color3Thick1,
     required this.color3Thick2,
     required this.color3Thick3,
-    required this.color3Thick4,
     required this.color4Light1,
     required this.color4Light2,
     required this.color4Light3,
     required this.color4Thick1,
     required this.color4Thick2,
     required this.color4Thick3,
-    required this.color4Thick4,
     required this.color5Light1,
     required this.color5Light2,
     required this.color5Light3,
     required this.color5Thick1,
     required this.color5Thick2,
     required this.color5Thick3,
-    required this.color5Thick4,
     required this.color6Light1,
     required this.color6Light2,
     required this.color6Light3,
     required this.color6Thick1,
     required this.color6Thick2,
     required this.color6Thick3,
-    required this.color6Thick4,
     required this.color7Light1,
     required this.color7Light2,
     required this.color7Light3,
     required this.color7Thick1,
     required this.color7Thick2,
     required this.color7Thick3,
-    required this.color7Thick4,
     required this.color8Light1,
     required this.color8Light2,
     required this.color8Light3,
     required this.color8Thick1,
     required this.color8Thick2,
     required this.color8Thick3,
-    required this.color8Thick4,
     required this.color9Light1,
     required this.color9Light2,
     required this.color9Light3,
     required this.color9Thick1,
     required this.color9Thick2,
     required this.color9Thick3,
-    required this.color9Thick4,
     required this.color10Light1,
     required this.color10Light2,
     required this.color10Light3,
     required this.color10Thick1,
     required this.color10Thick2,
     required this.color10Thick3,
-    required this.color10Thick4,
     required this.color11Light1,
     required this.color11Light2,
     required this.color11Light3,
     required this.color11Thick1,
     required this.color11Thick2,
     required this.color11Thick3,
-    required this.color11Thick4,
     required this.color12Light1,
     required this.color12Light2,
     required this.color12Light3,
@@ -141,77 +130,66 @@ class AppFlowyBadgeColorScheme {
   final Color color1Thick1;
   final Color color1Thick2;
   final Color color1Thick3;
-  final Color color1Thick4;
   final Color color2Light1;
   final Color color2Light2;
   final Color color2Light3;
   final Color color2Thick1;
   final Color color2Thick2;
   final Color color2Thick3;
-  final Color color2Thick4;
   final Color color3Light1;
   final Color color3Light2;
   final Color color3Light3;
   final Color color3Thick1;
   final Color color3Thick2;
   final Color color3Thick3;
-  final Color color3Thick4;
   final Color color4Light1;
   final Color color4Light2;
   final Color color4Light3;
   final Color color4Thick1;
   final Color color4Thick2;
   final Color color4Thick3;
-  final Color color4Thick4;
   final Color color5Light1;
   final Color color5Light2;
   final Color color5Light3;
   final Color color5Thick1;
   final Color color5Thick2;
   final Color color5Thick3;
-  final Color color5Thick4;
   final Color color6Light1;
   final Color color6Light2;
   final Color color6Light3;
   final Color color6Thick1;
   final Color color6Thick2;
   final Color color6Thick3;
-  final Color color6Thick4;
   final Color color7Light1;
   final Color color7Light2;
   final Color color7Light3;
   final Color color7Thick1;
   final Color color7Thick2;
   final Color color7Thick3;
-  final Color color7Thick4;
   final Color color8Light1;
   final Color color8Light2;
   final Color color8Light3;
   final Color color8Thick1;
   final Color color8Thick2;
   final Color color8Thick3;
-  final Color color8Thick4;
   final Color color9Light1;
   final Color color9Light2;
   final Color color9Light3;
   final Color color9Thick1;
   final Color color9Thick2;
   final Color color9Thick3;
-  final Color color9Thick4;
   final Color color10Light1;
   final Color color10Light2;
   final Color color10Light3;
   final Color color10Thick1;
   final Color color10Thick2;
   final Color color10Thick3;
-  final Color color10Thick4;
   final Color color11Light1;
   final Color color11Light2;
   final Color color11Light3;
   final Color color11Thick1;
   final Color color11Thick2;
   final Color color11Thick3;
-  final Color color11Thick4;
   final Color color12Light1;
   final Color color12Light2;
   final Color color12Light3;
@@ -358,11 +336,6 @@ class AppFlowyBadgeColorScheme {
         other.color1Thick3,
         t,
       )!,
-      color1Thick4: Color.lerp(
-        color1Thick4,
-        other.color1Thick4,
-        t,
-      )!,
       color2Light1: Color.lerp(
         color2Light1,
         other.color2Light1,
@@ -391,11 +364,6 @@ class AppFlowyBadgeColorScheme {
       color2Thick3: Color.lerp(
         color2Thick3,
         other.color2Thick3,
-        t,
-      )!,
-      color2Thick4: Color.lerp(
-        color2Thick4,
-        other.color2Thick4,
         t,
       )!,
       color3Light1: Color.lerp(
@@ -428,11 +396,6 @@ class AppFlowyBadgeColorScheme {
         other.color3Thick3,
         t,
       )!,
-      color3Thick4: Color.lerp(
-        color3Thick4,
-        other.color3Thick4,
-        t,
-      )!,
       color4Light1: Color.lerp(
         color4Light1,
         other.color4Light1,
@@ -461,11 +424,6 @@ class AppFlowyBadgeColorScheme {
       color4Thick3: Color.lerp(
         color4Thick3,
         other.color4Thick3,
-        t,
-      )!,
-      color4Thick4: Color.lerp(
-        color4Thick4,
-        other.color4Thick4,
         t,
       )!,
       color5Light1: Color.lerp(
@@ -498,11 +456,6 @@ class AppFlowyBadgeColorScheme {
         other.color5Thick3,
         t,
       )!,
-      color5Thick4: Color.lerp(
-        color5Thick4,
-        other.color5Thick4,
-        t,
-      )!,
       color6Light1: Color.lerp(
         color6Light1,
         other.color6Light1,
@@ -531,11 +484,6 @@ class AppFlowyBadgeColorScheme {
       color6Thick3: Color.lerp(
         color6Thick3,
         other.color6Thick3,
-        t,
-      )!,
-      color6Thick4: Color.lerp(
-        color6Thick4,
-        other.color6Thick4,
         t,
       )!,
       color7Light1: Color.lerp(
@@ -568,11 +516,6 @@ class AppFlowyBadgeColorScheme {
         other.color7Thick3,
         t,
       )!,
-      color7Thick4: Color.lerp(
-        color7Thick4,
-        other.color7Thick4,
-        t,
-      )!,
       color8Light1: Color.lerp(
         color8Light1,
         other.color8Light1,
@@ -601,11 +544,6 @@ class AppFlowyBadgeColorScheme {
       color8Thick3: Color.lerp(
         color8Thick3,
         other.color8Thick3,
-        t,
-      )!,
-      color8Thick4: Color.lerp(
-        color8Thick4,
-        other.color8Thick4,
         t,
       )!,
       color9Light1: Color.lerp(
@@ -638,11 +576,6 @@ class AppFlowyBadgeColorScheme {
         other.color9Thick3,
         t,
       )!,
-      color9Thick4: Color.lerp(
-        color9Thick4,
-        other.color9Thick4,
-        t,
-      )!,
       color10Light1: Color.lerp(
         color10Light1,
         other.color10Light1,
@@ -673,11 +606,6 @@ class AppFlowyBadgeColorScheme {
         other.color10Thick3,
         t,
       )!,
-      color10Thick4: Color.lerp(
-        color10Thick4,
-        other.color10Thick4,
-        t,
-      )!,
       color11Light1: Color.lerp(
         color11Light1,
         other.color11Light1,
@@ -706,11 +634,6 @@ class AppFlowyBadgeColorScheme {
       color11Thick3: Color.lerp(
         color11Thick3,
         other.color11Thick3,
-        t,
-      )!,
-      color11Thick4: Color.lerp(
-        color11Thick4,
-        other.color11Thick4,
         t,
       )!,
       color12Light1: Color.lerp(
