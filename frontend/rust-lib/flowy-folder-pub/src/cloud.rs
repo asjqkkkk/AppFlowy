@@ -2,7 +2,7 @@ use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::{
   CreateImportTaskType, MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate,
-  PublishInfo, PublishInfo,
+  PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },

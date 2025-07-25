@@ -299,7 +299,7 @@ class ViewBackendService {
       ..personId = personId
       ..blockId = blockId ?? ''
       ..requireNotification = requireNotification;
-    return FolderEventUpdateuPageMention(payload).send();
+    return FolderEventUpdatePageMention(payload).send();
   }
 
   static Future<FlowyResult<ViewPB, FlowyError>> getView(

@@ -721,4 +721,5 @@ pub(crate) async fn import_workspace_handler(
   };
 
   folder.import_workspace(request).await?;
+  Ok(())
 }
