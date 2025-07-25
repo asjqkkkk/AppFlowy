@@ -1,11 +1,9 @@
-import 'package:appflowy_backend/protobuf/flowy-database2/row_entities.pb.dart';
-import 'package:flutter/material.dart';
-
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/media_cell_bloc.dart';
 import 'package:appflowy/plugins/database/widgets/media_file_type_ext.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_block_menu.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_upload_menu.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_util.dart';
@@ -17,12 +15,15 @@ import 'package:appflowy/workspace/presentation/widgets/image_viewer/image_provi
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_viewer.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/file_entities.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/media_entities.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-database2/row_entities.pb.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:protobuf/protobuf.dart';
 
 class MediaCellEditor extends StatefulWidget {
   const MediaCellEditor({super.key});
@@ -64,7 +65,15 @@ class _MediaCellEditorState extends State<MediaCellEditor> {
                     key: Key(state.files[index].id),
                     value: context.read<MediaCellBloc>(),
                     child: RenderMedia(
-                      file: state.files[index],
+                      file: state.files.map((e) {
+                        e.freeze();
+                        return e.rebuild(
+                          (update) => update.url = normalizeFileUrl(
+                            context,
+                            fileId: e.url,
+                          ),
+                        );
+                      }).toList()[index],
                       images: images,
                       index: index,
                       enableReordering: state.files.length > 1,

@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy_backend/log.dart';
@@ -76,25 +77,32 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
   // This is used to clear the retry count when the widget is disposed in case of the url is the same.
   String? retryTag;
 
+  late final String normalizedUrl;
+
   @override
   void initState() {
     super.initState();
 
-    assert(isURL(widget.url));
+    normalizedUrl = normalizeFileUrl(
+      context,
+      fileId: widget.url,
+    );
 
-    if (widget.url.isAppFlowyCloudUrl) {
+    assert(isURL(normalizedUrl));
+
+    if (normalizedUrl.isAppFlowyCloudUrl) {
       assert(
         widget.userProfilePB != null && widget.userProfilePB!.token.isNotEmpty,
       );
     }
 
-    retryTag = retryCounter.add(widget.url);
+    retryTag = retryCounter.add(normalizedUrl);
 
-    manager.getFileFromCache(widget.url).then((file) {
+    manager.getFileFromCache(normalizedUrl).then((file) {
       widget.onImageLoaded?.call(
         file != null &&
             file.file.path.isNotEmpty &&
-            file.originalUrl == widget.url,
+            file.originalUrl == normalizedUrl,
       );
     });
   }
@@ -106,7 +114,7 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
     if (retryTag != null) {
       retryCounter.clear(
         tag: retryTag!,
-        url: widget.url,
+        url: normalizedUrl,
         maxRetries: widget.maxRetries,
       );
     }
@@ -117,7 +125,7 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
     if (retryTag != null) {
       retryCounter.clear(
         tag: retryTag!,
-        url: widget.url,
+        url: normalizedUrl,
         maxRetries: widget.maxRetries,
       );
     }
@@ -130,12 +138,12 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
     return ListenableBuilder(
       listenable: retryCounter,
       builder: (context, child) {
-        final retryCount = retryCounter.getRetryCount(widget.url);
+        final retryCount = retryCounter.getRetryCount(normalizedUrl);
         return CachedNetworkImage(
-          key: ValueKey('${widget.url}_$retryCount'),
+          key: ValueKey('${normalizedUrl}_$retryCount'),
           cacheManager: manager,
           httpHeaders: _buildRequestHeader(),
-          imageUrl: widget.url,
+          imageUrl: normalizedUrl,
           fit: widget.fit,
           width: widget.width,
           height: widget.height,
@@ -147,7 +155,7 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
             );
 
             // clear the cache and retry
-            await manager.removeFile(widget.url);
+            await manager.removeFile(normalizedUrl);
             _retryLoadImage();
           },
         );
@@ -198,14 +206,14 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
   }
 
   void _retryLoadImage() {
-    final retryCount = retryCounter.getRetryCount(widget.url);
+    final retryCount = retryCounter.getRetryCount(normalizedUrl);
     if (retryCount < widget.maxRetries) {
       Future.delayed(widget.retryDuration, () {
         Log.debug(
-          'Retry load image: ${widget.url}, retry count: $retryCount',
+          'Retry load image: $normalizedUrl, retry count: $retryCount',
         );
         // Increment the retry count for the URL to trigger the image rebuild.
-        retryCounter.increment(widget.url);
+        retryCounter.increment(normalizedUrl);
       });
     }
   }

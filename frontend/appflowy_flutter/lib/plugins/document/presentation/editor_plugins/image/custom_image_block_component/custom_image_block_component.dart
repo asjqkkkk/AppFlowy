@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_option_tile.dart';
@@ -10,6 +11,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/image/cust
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_placeholder.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/resizeable_image.dart';
 import 'package:appflowy/shared/custom_image_cache_manager.dart';
+import 'package:appflowy/shared/patterns/file_type_patterns.dart';
 import 'package:appflowy/shared/permission/permission_checker.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
@@ -18,6 +20,7 @@ import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive
 import 'package:appflowy_editor/appflowy_editor.dart' hide ResizableImage;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:saver_gallery/saver_gallery.dart';
@@ -194,16 +197,26 @@ class CustomImageBlockComponentState extends State<CustomImageBlockComponent>
         onStateChange: (state) => imageStateNotifier.value = state,
         onDoubleTap: () => showDialog(
           context: context,
-          builder: (_) => InteractiveImageViewer(
-            userProfile: context.read<DocumentBloc>().state.userProfilePB,
-            imageProvider: AFBlockImageProvider(
-              images: [ImageBlockData(url: src, type: imageType)],
-              onDeleteImage: (_) async {
-                final transaction = editorState.transaction..deleteNode(node);
-                await editorState.apply(transaction);
-              },
-            ),
-          ),
+          builder: (_) {
+            final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+            return MultiBlocProvider(
+              providers: [
+                if (userWorkspaceBloc != null)
+                  BlocProvider.value(value: userWorkspaceBloc),
+              ],
+              child: InteractiveImageViewer(
+                userProfile: context.read<DocumentBloc>().state.userProfilePB,
+                imageProvider: AFBlockImageProvider(
+                  images: [ImageBlockData(url: src, type: imageType)],
+                  onDeleteImage: (_) async {
+                    final transaction = editorState.transaction
+                      ..deleteNode(node);
+                    await editorState.apply(transaction);
+                  },
+                ),
+              ),
+            );
+          },
         ),
         onResize: (width) {
           final transaction = editorState.transaction
@@ -411,11 +424,20 @@ class CustomImageBlockComponentState extends State<CustomImageBlockComponent>
       return false;
     }
 
-    if (!isURL(url) && !File(url).existsSync()) {
-      return false;
+    if (isURL(url)) {
+      return true;
     }
 
-    return true;
+    if (File(url).existsSync()) {
+      return true;
+    }
+
+    if (fileIdExtensionRegex.hasMatch(url) ||
+        filePathWithIdAndExtRegex.hasMatch(url)) {
+      return true;
+    }
+
+    return false;
   }
 
   Future<void> _saveImageToGallery(String url) async {

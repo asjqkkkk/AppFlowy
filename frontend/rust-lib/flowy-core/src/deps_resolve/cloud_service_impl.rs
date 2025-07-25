@@ -29,6 +29,7 @@ use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::CreateImportTaskType;
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use flowy_user_pub::cloud::{
@@ -475,8 +476,15 @@ impl FolderCloudService for ServerProvider {
       .await
   }
 
-  async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError> {
-    self.get_folder_service()?.import_zip(file_path).await
+  async fn import_zip(
+    &self,
+    file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .import_zip(file_path, task_type)
+      .await
   }
 
   async fn share_page_with_user(

@@ -1,10 +1,12 @@
 import 'dart:io';
 import 'dart:math';
 
+import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_block.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
@@ -66,6 +68,7 @@ class _ResizableImageState extends State<ResizableImage> {
   bool onFocus = false;
 
   UserProfilePB? _userProfilePB;
+  String? _baseUrl;
 
   @override
   void initState() {
@@ -75,6 +78,7 @@ class _ResizableImageState extends State<ResizableImage> {
 
     _userProfilePB = context.read<UserWorkspaceBloc?>()?.state.userProfile ??
         context.read<DocumentBloc>().state.userProfilePB;
+    getAppFlowyCloudUrl().then((value) => setState(() => _baseUrl = value));
   }
 
   @override
@@ -98,10 +102,11 @@ class _ResizableImageState extends State<ResizableImage> {
 
   Widget _buildResizableImage(BuildContext context) {
     Widget child;
-    final src = widget.src;
+    final src =
+        normalizeFileUrl(context, baseUrl: _baseUrl, fileId: widget.src);
     if (isURL(src)) {
       _cacheImage = FlowyNetworkImage(
-        url: widget.src,
+        url: src,
         width: imageWidth - moveDistance,
         userProfilePB: _userProfilePB,
         onImageLoaded: (isImageInCache) {

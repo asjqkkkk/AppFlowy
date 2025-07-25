@@ -27,3 +27,14 @@ final archiveExtensionRegex = RegExp(_archiveExtensionPattern);
 ///
 const _textExtensionPattern = r'\.(txt|md|html|css|js|json|xml|csv)$';
 final textExtensionRegex = RegExp(_textExtensionPattern);
+
+/// This pattern matches a file extension that is a fileId.ext.
+///
+const _fileIdExtensionPattern = r'^[A-Za-z0-9_\-=]+(\.[A-Za-z0-9]+)$';
+final fileIdExtensionRegex = RegExp(_fileIdExtensionPattern);
+
+/// This pattern matches a file path like workspaceId/objectId/fileId.ext,
+/// e.g. 6222e998-4b46-4a16-b053-e73d07ce0bd9/XGm9uMUMCo13zUfwnsr05oKKgLSvYjSZv671BoC2CJ0=.png
+const _filePathWithIdAndExtPattern =
+    r'^[A-Za-z0-9\-]+\/[A-Za-z0-9_\-=]+(\.[A-Za-z0-9]+)$';
+final filePathWithIdAndExtRegex = RegExp(_filePathWithIdAndExtPattern);

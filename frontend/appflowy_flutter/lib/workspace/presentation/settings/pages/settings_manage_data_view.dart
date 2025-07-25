@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/settings/settings.dart';
+import 'package:appflowy/features/workspace_import/presentation/workspace_import_dialog.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/appflowy_cache_manager.dart';
@@ -23,7 +24,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -115,21 +115,21 @@ class SettingsManageDataView extends StatelessWidget {
                         if (isCloudWorkspace) _DataPathActions(path: path),
                       ],
               ),
-              SettingsCategory(
-                title: LocaleKeys.settings_manageDataPage_importData_title.tr(),
-                tooltip:
-                    LocaleKeys.settings_manageDataPage_importData_tooltip.tr(),
-                children: const [_ImportDataField()],
-              ),
-              if (kDebugMode) ...[
+              if (isCloudWorkspace)
                 SettingsCategory(
-                  title: LocaleKeys.settings_files_exportData.tr(),
-                  children: const [
-                    SettingsExportFileWidget(),
-                    FixDataWidget(),
-                  ],
+                  title: 'Import your workspace',
+                  tooltip:
+                      'Import your workspace from AppFlowy workspace file (.zip)',
+                  children: const [_ImportDataField()],
                 ),
-              ],
+              SettingsCategory(
+                title: 'Backup your workspace',
+                tooltip:
+                    'Backup your workspace to AppFlowy workspace file (.zip)',
+                children: const [
+                  SettingsExportFileWidget(),
+                ],
+              ),
               SettingsCategory(
                 title: LocaleKeys.workspace_errorActions_exportLogFiles.tr(),
                 children: [
@@ -303,20 +303,11 @@ class _ImportDataFieldState extends State<_ImportDataField> {
         ),
         builder: (context, state) {
           return SingleSettingAction(
-            label:
-                LocaleKeys.settings_manageDataPage_importData_description.tr(),
+            label: 'Import your AppFlowy workspace file (.zip)',
             labelMaxLines: 2,
-            buttonLabel:
-                LocaleKeys.settings_manageDataPage_importData_action.tr(),
+            buttonLabel: 'Import',
             onPressed: () async {
-              final path = await getIt<FilePickerService>().getDirectoryPath();
-              if (path == null || !context.mounted) {
-                return;
-              }
-
-              context
-                  .read<SettingFileImportBloc>()
-                  .add(SettingFileImportEvent.importAppFlowyDataFolder(path));
+              await WorkspaceImportDialog.show(context);
             },
           );
         },

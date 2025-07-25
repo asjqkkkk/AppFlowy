@@ -1,11 +1,11 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:flowy_infra/size.dart';
+import 'package:flutter/material.dart';
 
 @visibleForTesting
 class ImageRender extends StatelessWidget {
@@ -24,14 +24,22 @@ class ImageRender extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final child = switch (image.type) {
-      CustomImageType.internal || CustomImageType.external => FlowyNetworkImage(
-          url: image.url,
-          userProfilePB: userProfile,
-          fit: fit,
-        ),
-      CustomImageType.local => Image.file(File(image.url), fit: fit),
-    };
+    final normalizedUrl = normalizeFileUrl(
+      context,
+      fileId: image.url,
+    );
+    Widget child;
+    if (image.type == CustomImageType.internal ||
+        image.type == CustomImageType.external ||
+        !File(image.url).existsSync()) {
+      child = FlowyNetworkImage(
+        url: normalizedUrl,
+        userProfilePB: userProfile,
+        fit: fit,
+      );
+    } else {
+      child = Image.file(File(image.url), fit: fit);
+    }
 
     return Container(
       clipBehavior: Clip.antiAlias,

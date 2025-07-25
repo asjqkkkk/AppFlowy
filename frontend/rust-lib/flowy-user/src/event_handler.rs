@@ -437,7 +437,6 @@ pub async fn get_all_workspace_handler(
   let user_workspaces = manager
     .get_all_user_workspaces(session.user_id, auth_provider)
     .await?;
-
   data_result_ok(RepeatedUserWorkspacePB::from(user_workspaces))
 }
 

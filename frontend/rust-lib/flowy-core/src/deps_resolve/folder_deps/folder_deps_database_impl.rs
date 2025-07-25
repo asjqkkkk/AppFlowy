@@ -130,7 +130,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
                     })
                     .collect::<Result<HashMap<_, _>, FlowyError>>()?;
 
-            let database_relations = database_metas
+            let database_relations = database_metas.clone()
                 .into_iter()
                 .filter_map(|meta| {
                     meta
@@ -162,6 +162,7 @@ impl FolderOperationHandler for DatabaseFolderOperation {
                 database_row_encoded_collabs,
                 database_row_document_encoded_collabs,
                 database_relations,
+                database_metas,
             }))
         })
             .await?
@@ -337,6 +338,14 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 
   fn name(&self) -> &str {
     "DatabaseFolderOperationHandler"
+  }
+
+  async fn get_collab_object_id(&self, view_id: &Uuid) -> Result<String, FlowyError> {
+    let database_manager = self.database_manager()?;
+    let database_id = database_manager
+      .get_database_id_with_view_id(view_id.to_string().as_str())
+      .await?;
+    Ok(database_id)
   }
 }
 

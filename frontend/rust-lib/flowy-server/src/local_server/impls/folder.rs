@@ -16,6 +16,7 @@ use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
 };
 use flowy_folder_pub::entities::PublishPayload;
+use flowy_server_pub::CreateImportTaskType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
@@ -175,7 +176,11 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     Err(FlowyError::local_version_not_support())
   }
 
-  async fn import_zip(&self, _file_path: &str) -> Result<(), FlowyError> {
+  async fn import_zip(
+    &self,
+    _file_path: &str,
+    _task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError> {
     Err(FlowyError::local_version_not_support())
   }
 

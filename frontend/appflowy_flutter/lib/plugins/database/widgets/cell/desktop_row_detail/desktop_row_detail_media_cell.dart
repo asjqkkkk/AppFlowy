@@ -1,4 +1,5 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/media_cell_bloc.dart';
@@ -12,6 +13,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_upload_menu.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_util.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy/util/xfile_ext.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
@@ -481,7 +483,11 @@ class _FilePreviewRenderState extends State<_FilePreviewRender> {
                 ? null
                 : () {
                     if (file.uploadType == FileUploadTypePB.LocalFile) {
-                      afLaunchUrlString(file.url);
+                      final normalizedUrl = normalizeFileUrl(
+                        context,
+                        fileId: file.url,
+                      );
+                      afLaunchUrlString(normalizedUrl);
                       return;
                     }
 
@@ -632,7 +638,11 @@ class _FileMenuState extends State<_FileMenu> {
         MediaMenuItem(
           onTap: () {
             widget.controller.close();
-            afLaunchUrlString(widget.file.url);
+            final normalizedUrl = normalizeFileUrl(
+              context,
+              fileId: widget.file.url,
+            );
+            afLaunchUrlString(normalizedUrl);
           },
           icon: FlowySvgs.open_in_browser_s,
           label: LocaleKeys.grid_media_openInBrowser.tr(),
@@ -724,26 +734,37 @@ class _FileMenuState extends State<_FileMenu> {
 
   void _showInteractiveViewer(BuildContext context) => showDialog(
         context: context,
-        builder: (_) => InteractiveImageViewer(
-          userProfile:
-              widget.parentContext.read<MediaCellBloc>().state.userProfile,
-          imageProvider: AFBlockImageProvider(
-            initialIndex: widget.index,
-            images: widget.images
-                .map(
-                  (e) => ImageBlockData(
-                    url: e.url,
-                    type: e.uploadType.toCustomImageType(),
-                  ),
-                )
-                .toList(),
-            onDeleteImage: (index) {
-              final deleteFile = widget.images[index];
-              widget.parentContext
-                  .read<MediaCellBloc>()
-                  .deleteFile(deleteFile.id);
-            },
-          ),
-        ),
+        builder: (_) {
+          final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+          return MultiBlocProvider(
+            providers: [
+              if (userWorkspaceBloc != null)
+                BlocProvider.value(
+                  value: userWorkspaceBloc,
+                ),
+            ],
+            child: InteractiveImageViewer(
+              userProfile:
+                  widget.parentContext.read<MediaCellBloc>().state.userProfile,
+              imageProvider: AFBlockImageProvider(
+                initialIndex: widget.index,
+                images: widget.images
+                    .map(
+                      (e) => ImageBlockData(
+                        url: e.url,
+                        type: e.uploadType.toCustomImageType(),
+                      ),
+                    )
+                    .toList(),
+                onDeleteImage: (index) {
+                  final deleteFile = widget.images[index];
+                  widget.parentContext
+                      .read<MediaCellBloc>()
+                      .deleteFile(deleteFile.id);
+                },
+              ),
+            ),
+          );
+        },
       );
 }

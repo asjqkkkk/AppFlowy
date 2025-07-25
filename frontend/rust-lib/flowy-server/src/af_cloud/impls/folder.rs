@@ -4,6 +4,7 @@ use client_api::entity::{
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
+use flowy_server_pub::CreateImportTaskType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
@@ -257,10 +258,17 @@ where
     Ok(namespace)
   }
 
-  async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError> {
+  async fn import_zip(
+    &self,
+    file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError> {
     let file_path = PathBuf::from(file_path);
     let client = self.inner.try_get_client()?;
-    let url = client.create_import(&file_path).await?.presigned_url;
+    let url = client
+      .create_import(&file_path, task_type)
+      .await?
+      .presigned_url;
     trace!(
       "Importing zip file: {} to url: {}",
       file_path.display(),

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace_import/workspace_import.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
@@ -110,10 +111,11 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
           child: _CreateWorkspaceButton(),
         ),
 
-        if (UniversalPlatform.isDesktop) ...[
+        if (UniversalPlatform.isDesktop &&
+            widget.currentWorkspace.workspaceType != WorkspaceTypePB.Vault) ...[
           const Padding(
             padding: EdgeInsets.only(left: 6.0, top: 6.0, right: 6.0),
-            child: _ImportNotionButton(),
+            child: _ImportWorkspaceButton(),
           ),
         ],
 
@@ -425,92 +427,6 @@ class _CreateWorkspaceButton extends StatelessWidget {
   }
 }
 
-class _ImportNotionButton extends StatelessWidget {
-  const _ImportNotionButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: FlowyButton(
-        key: importNotionButtonKey,
-        onTap: () {
-          _showImportNotionDialog(context);
-        },
-        margin: const EdgeInsets.symmetric(horizontal: 4.0),
-        text: Row(
-          children: [
-            _buildLeftIcon(context),
-            const HSpace(8.0),
-            FlowyText.regular(
-              LocaleKeys.workspace_importFromNotion.tr(),
-            ),
-          ],
-        ),
-        rightIcon: FlowyTooltip(
-          message: LocaleKeys.workspace_learnMore.tr(),
-          preferBelow: true,
-          child: FlowyIconButton(
-            icon: const FlowySvg(
-              FlowySvgs.information_s,
-            ),
-            onPressed: () {
-              afLaunchUrlString(
-                'https://docs.appflowy.io/docs/guides/import-from-notion',
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeftIcon(BuildContext context) {
-    return Container(
-      width: 36.0,
-      height: 36.0,
-      padding: const EdgeInsets.all(7.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0x01717171).withValues(alpha: 0.12),
-          width: 0.8,
-        ),
-      ),
-      child: const FlowySvg(FlowySvgs.add_workspace_s),
-    );
-  }
-
-  Future<void> _showImportNotionDialog(BuildContext context) async {
-    final result = await getIt<FilePickerService>().pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
-
-    if (result == null || result.files.isEmpty) {
-      return;
-    }
-
-    final path = result.files.first.path;
-    if (path == null) {
-      return;
-    }
-
-    if (context.mounted) {
-      PopoverContainer.of(context).closeAll();
-      await NavigatorCustomDialog(
-        hideCancelButton: true,
-        confirm: () {},
-        child: NotionImporter(
-          filePath: path,
-        ),
-      ).show(context);
-    } else {
-      Log.error('context is not mounted when showing import notion dialog');
-    }
-  }
-}
-
 @visibleForTesting
 class WorkspaceMoreButton extends StatelessWidget {
   const WorkspaceMoreButton({
@@ -550,5 +466,165 @@ class WorkspaceMoreButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ImportWorkspaceButton extends StatefulWidget {
+  const _ImportWorkspaceButton();
+
+  @override
+  State<_ImportWorkspaceButton> createState() => _ImportWorkspaceButtonState();
+}
+
+class _ImportWorkspaceButtonState extends State<_ImportWorkspaceButton> {
+  final AFPopoverController _popoverController = AFPopoverController();
+
+  @override
+  void dispose() {
+    _popoverController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    return AFPopover(
+      controller: _popoverController,
+      anchor: const AFAnchorAuto(
+        offset: Offset(128, 0),
+        targetAnchor: Alignment.topRight,
+      ),
+      padding: EdgeInsets.zero,
+      decoration: BoxDecoration(),
+      popover: (_) => _ImportMenu(controller: _popoverController),
+      child: SizedBox(
+        height: 44,
+        child: FlowyButton(
+          onTap: () => _popoverController.toggle(),
+          margin: const EdgeInsets.symmetric(horizontal: 4.0),
+          text: Row(
+            children: [
+              _buildLeftIcon(context),
+              const HSpace(8.0),
+              Text(
+                'Import workspace',
+                style: theme.textStyle.body.standard(
+                  color: theme.textColorScheme.primary,
+                ),
+              ),
+              const Spacer(),
+              FlowySvg(
+                FlowySvgs.arrow_right_s,
+                size: Size.square(16.0),
+                color: theme.iconColorScheme.tertiary,
+                blendMode: null,
+              ),
+              HSpace(theme.spacing.m),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeftIcon(BuildContext context) {
+    return Container(
+      width: 36.0,
+      height: 36.0,
+      padding: const EdgeInsets.all(7.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0x01717171).withValues(alpha: 0.12),
+          width: 0.8,
+        ),
+      ),
+      child: const FlowySvg(FlowySvgs.add_workspace_s),
+    );
+  }
+}
+
+class _ImportMenu extends StatelessWidget {
+  const _ImportMenu({
+    required this.controller,
+  });
+
+  final AFPopoverController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
+    return AFMenu(
+      width: 240,
+      children: [
+        AFMenuItem(
+          title: Text(
+            'Import from AppFlowy',
+            style: theme.textStyle.body.standard(
+              color: theme.textColorScheme.primary,
+            ),
+          ),
+          onTap: () async {
+            controller.hide();
+            await WorkspaceImportDialog.show(context);
+          },
+        ),
+        AFMenuItem(
+          title: Text(
+            LocaleKeys.workspace_importFromNotion.tr(),
+            style: theme.textStyle.body.standard(
+              color: theme.textColorScheme.primary,
+            ),
+          ),
+          trailing: (context, isHovering, disabled) => FlowyTooltip(
+            message: LocaleKeys.workspace_learnMore.tr(),
+            child: AFGhostButton.normal(
+              padding: EdgeInsets.all(theme.spacing.xs),
+              onTap: () => afLaunchUrlString(
+                'https://docs.appflowy.io/docs/guides/import-from-notion',
+              ),
+              builder: (context, isHovering, disabled) => const FlowySvg(
+                FlowySvgs.information_s,
+                size: Size.square(16.0),
+              ),
+            ),
+          ),
+          onTap: () {
+            controller.hide();
+            _showImportNotionDialog(context);
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showImportNotionDialog(BuildContext context) async {
+    final result = await getIt<FilePickerService>().pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    final path = result.files.first.path;
+    if (path == null) {
+      return;
+    }
+
+    if (context.mounted) {
+      PopoverContainer.of(context).closeAll();
+      await NavigatorCustomDialog(
+        hideCancelButton: true,
+        confirm: () {},
+        child: NotionImporter(
+          filePath: path,
+        ),
+      ).show(context);
+    } else {
+      Log.error('context is not mounted when showing import notion dialog');
+    }
   }
 }

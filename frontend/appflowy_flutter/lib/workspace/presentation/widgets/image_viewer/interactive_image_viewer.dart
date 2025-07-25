@@ -1,6 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/media_cell_editor.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
@@ -8,7 +6,9 @@ import 'package:appflowy/workspace/presentation/widgets/image_viewer/image_provi
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_toolbar.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/media_entities.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 const double _minScaleFactor = .5;
 const double _maxScaleFactor = 5;
@@ -222,19 +222,30 @@ void openInteractiveViewerFromFiles(
 }) =>
     showDialog(
       context: context,
-      builder: (_) => InteractiveImageViewer(
-        userProfile: userProfile,
-        imageProvider: AFBlockImageProvider(
-          initialIndex: initialIndex,
-          images: files
-              .map(
-                (f) => ImageBlockData(
-                  url: f.url,
-                  type: f.uploadType.toCustomImageType(),
-                ),
-              )
-              .toList(),
-          onDeleteImage: onDeleteImage,
-        ),
-      ),
+      builder: (_) {
+        final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+        return MultiBlocProvider(
+          providers: [
+            if (userWorkspaceBloc != null)
+              BlocProvider.value(
+                value: userWorkspaceBloc,
+              ),
+          ],
+          child: InteractiveImageViewer(
+            userProfile: userProfile,
+            imageProvider: AFBlockImageProvider(
+              initialIndex: initialIndex,
+              images: files
+                  .map(
+                    (f) => ImageBlockData(
+                      url: f.url,
+                      type: f.uploadType.toCustomImageType(),
+                    ),
+                  )
+                  .toList(),
+              onDeleteImage: onDeleteImage,
+            ),
+          ),
+        );
+      },
     );
