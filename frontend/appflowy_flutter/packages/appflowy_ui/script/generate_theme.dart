@@ -163,6 +163,8 @@ class AppFlowyDefaultTheme implements AppFlowyThemeBuilder {''');
       surfaceContainerColorScheme: surfaceContainerColorScheme,
       badgeColorScheme: badgeColorScheme,
       paletteColorScheme: paletteColorScheme,
+      commentColorScheme: commentColorScheme,
+      tagColorScheme: tagColorScheme,
       spacing: spacing,
       shadow: shadow,
     );
@@ -222,6 +224,8 @@ class AppFlowyDefaultTheme implements AppFlowyThemeBuilder {''');
       surfaceContainerColorScheme: surfaceContainerColorScheme,
       badgeColorScheme: badgeColorScheme,
       paletteColorScheme: paletteColorScheme,
+      commentColorScheme: commentColorScheme,
+      tagColorScheme: tagColorScheme,
       spacing: spacing,
       shadow: shadow,
     );

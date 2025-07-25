@@ -39,4 +39,11 @@ class ImportBackendService {
     }
     return FlowyResult.success(null);
   }
+
+  static Future<FlowyResult<void, FlowyError>> importAppFlowyWorkspace(
+    ImportZipPB value,
+  ) async {
+    final result = await FolderEventImportZipFile(value).send();
+    return result;
+  }
 }

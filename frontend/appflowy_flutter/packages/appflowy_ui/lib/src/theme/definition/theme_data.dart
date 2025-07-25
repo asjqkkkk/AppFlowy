@@ -22,6 +22,8 @@ class AppFlowyThemeData {
     required this.surfaceContainerColorScheme,
     required this.badgeColorScheme,
     required this.paletteColorScheme,
+    required this.commentColorScheme,
+    required this.tagColorScheme,
     required this.otherColorsColorScheme,
   });
 
@@ -52,6 +54,10 @@ class AppFlowyThemeData {
   final AppFlowyBadgeColorScheme badgeColorScheme;
 
   final AppFlowyPaletteColorScheme paletteColorScheme;
+
+  final AppFlowyCommentColorScheme commentColorScheme;
+
+  final AppFlowyTagColorScheme tagColorScheme;
 
   final AppFlowyOtherColorsColorScheme otherColorsColorScheme;
 
@@ -107,6 +113,14 @@ class AppFlowyThemeData {
       ),
       paletteColorScheme: begin.paletteColorScheme.lerp(
         end.paletteColorScheme,
+        t,
+      ),
+      commentColorScheme: begin.commentColorScheme.lerp(
+        end.commentColorScheme,
+        t,
+      ),
+      tagColorScheme: begin.tagColorScheme.lerp(
+        end.tagColorScheme,
         t,
       ),
     );

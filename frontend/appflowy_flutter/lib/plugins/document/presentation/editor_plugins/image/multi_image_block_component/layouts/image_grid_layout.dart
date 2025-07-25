@@ -1,5 +1,4 @@
-import 'package:flutter/material.dart';
-
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/multi_image_block_component/image_render.dart';
@@ -9,8 +8,9 @@ import 'package:appflowy/workspace/presentation/widgets/image_viewer/image_provi
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_viewer.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:collection/collection.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
-import 'package:provider/provider.dart';
 
 class ImageGridLayout extends ImageBlockMultiLayout {
   const ImageGridLayout({
@@ -39,34 +39,43 @@ class _ImageGridLayoutState extends State<ImageGridLayout> {
 
   void _openInteractiveViewer(BuildContext context, int index) => showDialog(
         context: context,
-        builder: (_) => InteractiveImageViewer(
-          userProfile: context.read<DocumentBloc>().state.userProfilePB,
-          imageProvider: AFBlockImageProvider(
-            images: widget.images,
-            initialIndex: index,
-            onDeleteImage: (index) async {
-              final transaction = widget.editorState.transaction;
-              final newImages = widget.images.toList();
-              newImages.removeAt(index);
+        builder: (_) {
+          final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+          return MultiBlocProvider(
+            providers: [
+              if (userWorkspaceBloc != null)
+                BlocProvider.value(value: userWorkspaceBloc),
+            ],
+            child: InteractiveImageViewer(
+              userProfile: context.read<DocumentBloc>().state.userProfilePB,
+              imageProvider: AFBlockImageProvider(
+                images: widget.images,
+                initialIndex: index,
+                onDeleteImage: (index) async {
+                  final transaction = widget.editorState.transaction;
+                  final newImages = widget.images.toList();
+                  newImages.removeAt(index);
 
-              if (newImages.isNotEmpty) {
-                transaction.updateNode(
-                  widget.node,
-                  {
-                    MultiImageBlockKeys.images:
-                        newImages.map((e) => e.toJson()).toList(),
-                    MultiImageBlockKeys.layout:
-                        widget.node.attributes[MultiImageBlockKeys.layout],
-                  },
-                );
-              } else {
-                transaction.deleteNode(widget.node);
-              }
+                  if (newImages.isNotEmpty) {
+                    transaction.updateNode(
+                      widget.node,
+                      {
+                        MultiImageBlockKeys.images:
+                            newImages.map((e) => e.toJson()).toList(),
+                        MultiImageBlockKeys.layout:
+                            widget.node.attributes[MultiImageBlockKeys.layout],
+                      },
+                    );
+                  } else {
+                    transaction.deleteNode(widget.node);
+                  }
 
-              await widget.editorState.apply(transaction);
-            },
-          ),
-        ),
+                  await widget.editorState.apply(transaction);
+                },
+              ),
+            ),
+          );
+        },
       );
 }
 

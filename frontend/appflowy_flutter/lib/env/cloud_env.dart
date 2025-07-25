@@ -156,6 +156,10 @@ AuthenticatorType currentCloudType() {
   return getIt<AppFlowyCloudSharedEnv>().authenticatorType;
 }
 
+String getAppFlowyCloudShareEnvBaseUrl() {
+  return getIt<AppFlowyCloudSharedEnv>().appflowyCloudConfig.base_url;
+}
+
 Future<void> _setAppFlowyCloudUrl(String? url) async {
   await getIt<KeyValueStorage>().set(KVKeys.kAppflowyCloudBaseURL, url ?? '');
 }

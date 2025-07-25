@@ -250,6 +250,10 @@ impl AppFlowyServer for AppFlowyCloudServer {
       Arc::downgrade(&self.logged_user),
     ))
   }
+
+  fn get_client(&self) -> Option<Arc<AFCloudClient>> {
+    Some(self.client.clone())
+  }
 }
 
 pub trait AFServer: Send + Sync + 'static {
@@ -285,32 +289,33 @@ impl AFServer for AFServerImpl {
   fn is_appflowy_hosted(&self) -> bool {
     match self.client.as_ref() {
       None => false,
-      Some(client) => {
-        let mut appflowy_hosted_urs =
-          vec!["appflowy.com", "beta.appflowy.cloud", "test.appflowy.cloud"];
-
-        if cfg!(debug_assertions) {
-          appflowy_hosted_urs.push("localhost");
-          appflowy_hosted_urs.push("127.0.0.1");
-        }
-
-        match Url::parse(&client.base_url) {
-          Ok(url) => {
-            if let Some(host) = url.host_str() {
-              let result = appflowy_hosted_urs.contains(&host);
-              debug!("is_appflowy_hosted: {}, base_url: {}", result, host);
-              result
-            } else {
-              error!("Could not get host from URL: {}", &client.base_url);
-              false
-            }
-          },
-          Err(e) => {
-            error!("Invalid base URL: {}, {:?}", &client.base_url, e);
-            false
-          },
-        }
-      },
+      Some(client) => is_appflowy_hosted(&client.base_url),
     }
+  }
+}
+
+fn is_appflowy_hosted(base_url: &str) -> bool {
+  let mut appflowy_hosted_urs = vec!["appflowy.com", "beta.appflowy.cloud", "test.appflowy.cloud"];
+
+  if cfg!(debug_assertions) {
+    appflowy_hosted_urs.push("localhost");
+    appflowy_hosted_urs.push("127.0.0.1");
+  }
+
+  match Url::parse(base_url) {
+    Ok(url) => {
+      if let Some(host) = url.host_str() {
+        let result = appflowy_hosted_urs.contains(&host);
+        debug!("is_appflowy_hosted: {}, base_url: {}", result, host);
+        result
+      } else {
+        error!("Could not get host from URL: {}", base_url);
+        false
+      }
+    },
+    Err(e) => {
+      error!("Invalid base URL: {}, {:?}", base_url, e);
+      false
+    },
   }
 }

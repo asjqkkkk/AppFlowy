@@ -27,6 +27,7 @@ class RecentViewsBloc extends Bloc<RecentViewsEvent, RecentViewsState> {
           initial: (e) async {
             _service.notifier.addListener(_onRecentViewsUpdated);
             add(const RecentViewsEvent.fetchRecentViews());
+            await _service.reset();
           },
           addRecentViews: (e) async {
             await _service.updateRecentViews(e.viewIds, true);

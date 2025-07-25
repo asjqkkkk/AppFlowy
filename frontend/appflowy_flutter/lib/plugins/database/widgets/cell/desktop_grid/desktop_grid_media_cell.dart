@@ -1,4 +1,5 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -10,6 +11,7 @@ import 'package:appflowy/plugins/database/widgets/cell_editor/mobile_media_cell_
 import 'package:appflowy/plugins/database/widgets/media_file_type_ext.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/image_provider.dart';
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_viewer.dart';
@@ -110,10 +112,21 @@ class GridMediaCellSkin extends IEditableMediaCellSkin {
         margin: EdgeInsets.zero,
         triggerActions: PopoverTriggerFlags.none,
         direction: PopoverDirection.bottomWithCenterAligned,
-        popupBuilder: (_) => BlocProvider.value(
-          value: context.read<MediaCellBloc>(),
-          child: const MediaCellEditor(),
-        ),
+        popupBuilder: (_) {
+          final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+          return MultiBlocProvider(
+            providers: [
+              BlocProvider.value(
+                value: context.read<MediaCellBloc>(),
+              ),
+              if (userWorkspaceBloc != null)
+                BlocProvider.value(
+                  value: userWorkspaceBloc,
+                ),
+            ],
+            child: const MediaCellEditor(),
+          );
+        },
         onClose: () => cellContainerNotifier.isFocus = false,
         child: child,
       );
@@ -157,8 +170,12 @@ class GridMediaCellSkin extends IEditableMediaCellSkin {
     MediaFilePB file,
     List<MediaFilePB> files,
   ) {
+    final normalizedUrl = normalizeFileUrl(
+      context,
+      fileId: file.url,
+    );
     if (file.fileType != MediaFileTypePB.Image) {
-      afLaunchUrlString(file.url, context: context);
+      afLaunchUrlString(normalizedUrl, context: context);
       return;
     }
 
@@ -168,24 +185,33 @@ class GridMediaCellSkin extends IEditableMediaCellSkin {
 
     showDialog(
       context: context,
-      builder: (_) => InteractiveImageViewer(
-        userProfile: context.read<MediaCellBloc>().state.userProfile,
-        imageProvider: AFBlockImageProvider(
-          initialIndex: index,
-          images: images
-              .map(
-                (e) => ImageBlockData(
-                  url: e.url,
-                  type: e.uploadType.toCustomImageType(),
-                ),
-              )
-              .toList(),
-          onDeleteImage: (index) {
-            final deleteFile = images[index];
-            context.read<MediaCellBloc>().deleteFile(deleteFile.id);
-          },
-        ),
-      ),
+      builder: (_) {
+        final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+        return MultiBlocProvider(
+          providers: [
+            if (userWorkspaceBloc != null)
+              BlocProvider.value(value: userWorkspaceBloc),
+          ],
+          child: InteractiveImageViewer(
+            userProfile: context.read<MediaCellBloc>().state.userProfile,
+            imageProvider: AFBlockImageProvider(
+              initialIndex: index,
+              images: images
+                  .map(
+                    (e) => ImageBlockData(
+                      url: e.url,
+                      type: e.uploadType.toCustomImageType(),
+                    ),
+                  )
+                  .toList(),
+              onDeleteImage: (index) {
+                final deleteFile = images[index];
+                context.read<MediaCellBloc>().deleteFile(deleteFile.id);
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 

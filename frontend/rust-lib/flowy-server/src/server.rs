@@ -1,6 +1,7 @@
 use flowy_search_pub::cloud::SearchCloudService;
 use std::sync::{Arc, Weak};
 
+use crate::af_cloud::AFCloudClient;
 use anyhow::Error;
 use arc_swap::ArcSwapOption;
 use collab::entity::EncodedCollab;
@@ -58,6 +59,7 @@ where
 /// for managing and accessing user data, folders, collaborative objects, and documents in a cloud environment.
 #[async_trait]
 pub trait AppFlowyServer: Send + Sync + 'static {
+  fn get_client(&self) -> Option<Arc<AFCloudClient>>;
   fn set_token(&self, _token: &str) -> Result<(), Error>;
   fn get_access_token(&self) -> Option<String>;
 

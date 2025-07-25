@@ -7,6 +7,7 @@ use collab_entity::CollabType;
 use flowy_ai_pub::cloud::search_dto::{
   SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
 };
+use flowy_ai_pub::cloud::server_info_dto::ServerInfo;
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
   CreateCollabParams, CreatedChatMessage, MessageCursor, ModelList, QueryCollab,
@@ -29,6 +30,7 @@ use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
 use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate};
+use flowy_server_pub::CreateImportTaskType;
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use flowy_user_pub::cloud::{
@@ -230,6 +232,17 @@ impl UserServerProvider for ServerProvider {
   fn set_encrypt_secret(&self, secret: String) {
     tracing::info!("🔑Set encrypt secret");
     self.encryption.set_secret(secret);
+  }
+
+  async fn sync_server_info(&self, uid: i64) -> Result<ServerInfo, FlowyError> {
+    info!("Sync server info for user: {}", uid);
+    let client = self
+      .get_server()?
+      .get_client()
+      .ok_or_else(|| FlowyError::internal().with_context("client not initialized"))?;
+
+    let info = client.get_server_info().await?;
+    Ok(info)
   }
 
   /// Returns the [UserWorkspaceService] base on the current [AuthProvider].
@@ -464,8 +477,15 @@ impl FolderCloudService for ServerProvider {
       .await
   }
 
-  async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError> {
-    self.get_folder_service()?.import_zip(file_path).await
+  async fn import_zip(
+    &self,
+    file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .import_zip(file_path, task_type)
+      .await
   }
 
   async fn share_page_with_user(

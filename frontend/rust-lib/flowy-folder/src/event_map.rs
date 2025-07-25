@@ -66,7 +66,9 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
     .event(FolderEvent::GetWorkspaceMentionablePersons, get_workspace_mentionable_persons_handler)
     .event(FolderEvent::GetPageMentionablePersons, get_page_mentionable_persons_handler)
-    .event(FolderEvent::UpdateuPageMention, update_page_mention_handler)
+    .event(FolderEvent::UpdatePageMention, update_page_mention_handler)
+    .event(FolderEvent::ExportWorkspace, export_workspace_handler)
+    .event(FolderEvent::ImportWorkspace, import_workspace_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -277,5 +279,11 @@ pub enum FolderEvent {
   GetPageMentionablePersons = 67,
 
   #[event(input = "PageMentionUpdateInfoPB")]
-  UpdateuPageMention = 68,
+  UpdatePageMention = 68,
+
+  #[event(input = "ExportWorkspaceRequestPB")]
+  ExportWorkspace = 150,
+
+  #[event(input = "ImportWorkspaceRequestPB")]
+  ImportWorkspace = 151,
 }

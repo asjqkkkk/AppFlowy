@@ -3647,5 +3647,41 @@
     "fileTypeCannotBeDisplayed": "This file type cannot be displayed",
     "openExternallyNotImplemented": "Opening file externally is not yet implemented",
     "openExternally": "Open Externally"
+  },
+  "workspaceImport": {
+    "dialogTitle": "Import workspace from AppFlowy",
+    "uploadZipFiles": "Upload .zip files",
+    "dragDropInstruction": "Drag & drop Zip files or click to ",
+    "uploadButtonText": "Upload",
+    "fileSizeLimitExceeded": "File size limit exceeded",
+    "fileSizeLimitExceededMessage": "The uploaded file ({}) exceeds the {} limit. Please compress it before trying again.",
+    "invalidFileFormat": "Invalid file format",
+    "invalidFileFormatMessage": "The contents of ({}) don't match the workspace format. Please make sure you've selected the correct workspace ZIP file.",
+    "description": "Go to Settings to export the workspace and upload the file here. The imported file will be turned into a new workspace. ",
+    "learnMore": "Learn more",
+    "uploadingFile": "Uploading file...",
+    "pleaseDoNotQuit": "Please do not quit the app",
+    "importInProgress": "Import in progress",
+    "importConfirmationEmailMessage": "We will send a confirmation email once the import is complete.",
+    "unknownFile": "Unknown file",
+    "sizeLimit200MB": "200MB",
+    "errors": {
+      "fileSizeExceedsMaximum": "File size exceeds the maximum allowed limit",
+      "invalidFileFormat": "Invalid file format",
+      "fileNotExist": "File does not exist",
+      "fileIsEmpty": "File is empty",
+      "failedToImportWorkspace": "Failed to import workspace",
+      "unknownError": "An unknown error occurred",
+      "failedToPickFile": "Failed to pick file: {}",
+      "failedToValidateFile": "Failed to validate file: {}"
+    },
+    "fileSize": {
+      "units": {
+        "bytes": "B",
+        "kilobytes": "KB",
+        "megabytes": "MB",
+        "gigabytes": "GB"
+      }
+    }
   }
 }

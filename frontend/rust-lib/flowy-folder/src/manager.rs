@@ -1,13 +1,15 @@
 use crate::entities::icon::UpdateViewIconParams;
 use crate::entities::{
-  AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, FolderSnapshotPB,
-  GetMentionablePersonsResponsePB, GetMentionablePersonsWithAccessPB, MoveNestedViewParams,
-  PageMentionUpdateInfoPB, RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB,
-  RepeatedViewIdPB, RepeatedViewPB, SharedUserPB, SharedViewPB, SharedViewSectionPB,
-  UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB, WorkspacePB,
-  view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
-  view_pb_without_child_views_from_arc,
+  AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, ExportRequest,
+  FolderSnapshotPB, GetMentionablePersonsResponsePB, GetMentionablePersonsWithAccessPB,
+  MoveNestedViewParams, PageMentionUpdateInfoPB, RepeatedSharedUserPB,
+  RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewIdPB, RepeatedViewPB, SharedUserPB,
+  SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB,
+  WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views,
+  view_pb_without_child_views, view_pb_without_child_views_from_arc,
 };
+use crate::export_workspace::exporter::WorkspaceExporter;
+use crate::import_workspace::types::{FolderWorkspaceImporter, ImportRequest};
 use crate::manager_observer::{
   ChildViewChangeReason, notify_child_views_changed, notify_did_update_section_views,
   notify_did_update_workspace, notify_parent_view_did_change,
@@ -20,11 +22,11 @@ use crate::view_operation::{
   FolderOperationHandler, FolderOperationHandlers, GatherEncodedCollab, ViewData, create_view,
 };
 use arc_swap::ArcSwapOption;
-use client_api::entity::PublishInfo;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::workspace_dto::PublishInfoView;
+use client_api::entity::{CreateImportTaskType, PublishInfo, WorkspaceNotification};
 use collab::core::collab::{DataSource, IndexContentReceiver};
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
@@ -123,6 +125,10 @@ impl FolderManager {
     Ok(manager)
   }
 
+  pub async fn handle_notification(&self, _notification: WorkspaceNotification) {
+    // TODO(Lucas): handle notification
+  }
+
   pub fn client_id(&self) -> FlowyResult<ClientID> {
     let workspace_id = self.user.workspace_id()?;
     Ok(self.user.collab_client_id(&workspace_id))
@@ -193,6 +199,15 @@ impl FolderManager {
       .gather_publish_encode_collab(&self.user, view_id)
       .await?;
     Ok(encoded_collab)
+  }
+
+  pub async fn get_collab_object_id(
+    &self,
+    view_id: &Uuid,
+    layout: &ViewLayout,
+  ) -> Result<String, FlowyError> {
+    let handler = self.get_handler(layout)?;
+    handler.get_collab_object_id(view_id).await
   }
 
   /// Return a list of views of the current workspace.
@@ -589,6 +604,55 @@ impl FolderManager {
         .create_view_with_view_data(user_id, params.clone())
         .await?;
     }
+
+    let index = params.index;
+    let section = params.section.clone().unwrap_or(ViewSectionPB::Public);
+    let is_private = section == ViewSectionPB::Private;
+    let view = create_view(self.user.user_id()?, params, view_layout);
+    if let Some(lock) = self.mutex_folder.load_full() {
+      let mut folder = lock.write().await;
+      folder.insert_view(view.clone(), index, user_id);
+      if is_private {
+        folder.add_private_view_ids(vec![view.id.clone()], user_id);
+      }
+      if notify_workspace_update {
+        notify_did_update_workspace(&workspace_id, &folder, user_id);
+      }
+    }
+
+    Ok(view)
+  }
+
+  /// Creates a view using provided exported collab data.
+  /// This function is designed to work with collab data obtained from export operations.
+  #[instrument(level = "debug", skip_all, err)]
+  pub async fn create_view_with_collab_data(
+    &self,
+    params: CreateViewParams,
+    _collab_data: Vec<u8>,
+    notify_workspace_update: bool,
+  ) -> FlowyResult<View> {
+    let workspace_id = self.user.workspace_id()?;
+    let view_layout: ViewLayout = params.layout.clone().into();
+    let handler = self.get_handler(&view_layout)?;
+    let user_id = self.user.user_id()?;
+
+    self
+      .check_user_permission(
+        &params.parent_view_id.to_string(),
+        AFAccessLevelPB::FullAccess,
+      )
+      .await?;
+
+    info!(
+      "{} create view with collab data {:#?}",
+      handler.name(),
+      params
+    );
+
+    // handler
+    //   .import_from_bytes(user_id, &params.view_id, &params.name, collab_data)
+    //   .await?;
 
     let index = params.index;
     let section = params.section.clone().unwrap_or(ViewSectionPB::Public);
@@ -2378,8 +2442,15 @@ impl FolderManager {
     Ok(view)
   }
 
-  pub(crate) async fn import_zip_file(&self, zip_file_path: &str) -> FlowyResult<()> {
-    self.cloud_service()?.import_zip(zip_file_path).await?;
+  pub(crate) async fn import_zip_file(
+    &self,
+    zip_file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> FlowyResult<()> {
+    self
+      .cloud_service()?
+      .import_zip(zip_file_path, task_type)
+      .await?;
     Ok(())
   }
 
@@ -2614,7 +2685,7 @@ impl FolderManager {
   }
 
   /// Filter the views that are in the trash and belong to the other private sections.
-  fn get_view_ids_should_be_filtered(folder: &Folder, uid: i64) -> Vec<String> {
+  pub(crate) fn get_view_ids_should_be_filtered(folder: &Folder, uid: i64) -> Vec<String> {
     let trash_ids = Self::get_all_trash_ids(folder, uid);
     let other_private_view_ids = Self::get_other_private_view_ids(folder, uid);
     [trash_ids, other_private_view_ids].concat()
@@ -3071,6 +3142,20 @@ impl FolderManager {
       .await?;
 
     Ok(())
+  }
+
+  /// Export the entire workspace to a specified output path.
+  #[tracing::instrument(level = "debug", skip(self), err)]
+  pub async fn export_workspace(&self, request: ExportRequest) -> FlowyResult<()> {
+    let exporter = WorkspaceExporter::new(self);
+    exporter.export_workspace(request).await
+  }
+
+  /// Import the entire workspace from a specified input path.
+  #[tracing::instrument(level = "debug", skip(self), err)]
+  pub async fn import_workspace(&self, request: ImportRequest) -> FlowyResult<String> {
+    let importer = FolderWorkspaceImporter::new(self);
+    importer.import_workspace(request).await
   }
 
   pub async fn get_other_private_view_ids_cached(

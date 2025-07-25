@@ -138,11 +138,11 @@
         {
             "name": "AF-desktop: Debug Rust",
             "type": "lldb",
-            "request": "attach",
-            "pid": "${command:pickMyProcess}"
+            // "request": "attach",
+            // "pid": "${command:pickMyProcess}"
             // To launch the application directly, use the following configuration:
-            // "request": "launch",
-            // "program": "[YOUR_APPLICATION_PATH]",
+            "request": "launch",
+            "program": "/Users/lucas.xu/Desktop/AppFlowy-Premium/frontend/appflowy_flutter/build/macos/Build/Products/Debug/AppFlowy.app",
         },
     ]
 }

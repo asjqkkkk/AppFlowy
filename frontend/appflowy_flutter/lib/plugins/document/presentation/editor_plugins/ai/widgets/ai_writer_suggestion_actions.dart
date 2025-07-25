@@ -34,7 +34,13 @@ class SuggestionActionBar extends StatelessWidget {
   List<SuggestionAction> _getSuggestedActions() {
     if (hasSelection) {
       return switch (currentCommand) {
-        AiWriterCommand.userQuestion || AiWriterCommand.continueWriting => [
+        AiWriterCommand.userQuestion => [
+            SuggestionAction.keep,
+            SuggestionAction.discard,
+            SuggestionAction.insertBelow,
+            SuggestionAction.rewrite,
+          ],
+        AiWriterCommand.continueWriting => [
             SuggestionAction.keep,
             SuggestionAction.discard,
             SuggestionAction.rewrite,

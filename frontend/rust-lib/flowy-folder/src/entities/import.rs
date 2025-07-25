@@ -1,6 +1,7 @@
 use crate::entities::ViewLayoutPB;
 use crate::entities::parser::empty_str::NotEmptyStr;
 use crate::share::{ImportData, ImportItem, ImportParams, ImportType};
+use client_api::entity::CreateImportTaskType;
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::FlowyError;
 use lib_infra::validator_fn::required_not_empty_str;
@@ -122,4 +123,28 @@ pub struct ImportZipPB {
   #[pb(index = 1)]
   #[validate(custom(function = "required_not_empty_str"))]
   pub file_path: String,
+
+  #[pb(index = 2)]
+  pub task_type: ImportTaskTypePB,
+}
+
+#[derive(Clone, Debug, ProtoBuf_Enum)]
+pub enum ImportTaskTypePB {
+  Notion = 0,
+  AppFlowyWorkspace = 1,
+}
+
+impl From<ImportTaskTypePB> for CreateImportTaskType {
+  fn from(pb: ImportTaskTypePB) -> Self {
+    match pb {
+      ImportTaskTypePB::Notion => CreateImportTaskType::Notion,
+      ImportTaskTypePB::AppFlowyWorkspace => CreateImportTaskType::Workspace,
+    }
+  }
+}
+
+impl Default for ImportTaskTypePB {
+  fn default() -> Self {
+    Self::Notion
+  }
 }

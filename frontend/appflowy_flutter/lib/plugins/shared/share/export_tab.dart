@@ -5,7 +5,7 @@ import 'package:appflowy/plugins/shared/share/share_bloc.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
-import 'package:appflowy/workspace/application/export/document_exporter.dart';
+import 'package:appflowy/features/export/data/repositories/document_exporter.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';

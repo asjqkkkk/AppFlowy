@@ -81,4 +81,8 @@ impl FolderOperationHandler for ChatFolderOperation {
   ) -> Result<(), FlowyError> {
     Err(FlowyError::not_support().with_context("import file from path"))
   }
+
+  async fn get_collab_object_id(&self, _view_id: &Uuid) -> Result<String, FlowyError> {
+    Err(FlowyError::not_support().with_context("get collab object id"))
+  }
 }

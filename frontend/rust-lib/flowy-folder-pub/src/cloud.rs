@@ -1,7 +1,8 @@
 use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::{
-  MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate, PublishInfo,
+  CreateImportTaskType, MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate,
+  PublishInfo, PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
@@ -92,7 +93,11 @@ pub trait FolderCloudService: Send + Sync + 'static {
 
   async fn get_publish_namespace(&self, workspace_id: &Uuid) -> Result<String, FlowyError>;
 
-  async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError>;
+  async fn import_zip(
+    &self,
+    file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError>;
 
   /// Share a page with a user (member or guest)
   async fn share_page_with_user(

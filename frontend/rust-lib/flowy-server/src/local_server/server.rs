@@ -1,3 +1,4 @@
+use crate::af_cloud::AFCloudClient;
 use crate::af_cloud::define::LoggedUser;
 use crate::local_server::impls::{
   LocalChatServiceImpl, LocalSearchServiceImpl, LocalServerDatabaseCloudServiceImpl,
@@ -54,6 +55,10 @@ impl LocalServer {
 
 #[async_trait]
 impl AppFlowyServer for LocalServer {
+  fn get_client(&self) -> Option<Arc<AFCloudClient>> {
+    None
+  }
+
   fn set_token(&self, _token: &str) -> Result<(), Error> {
     Ok(())
   }

@@ -23,7 +23,7 @@ import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../image_render.dart';
 
@@ -266,40 +266,49 @@ class _ImageBrowserLayoutState extends State<ImageBrowserLayout> {
 
   void _openInteractiveViewer(BuildContext context, [int? index]) => showDialog(
         context: context,
-        builder: (_) => InteractiveImageViewer(
-          userProfile: _userProfile,
-          imageProvider: AFBlockImageProvider(
-            images: widget.images,
-            initialIndex: index ?? widget.indexNotifier.value,
-            onDeleteImage: (index) async {
-              final transaction = widget.editorState.transaction;
-              final newImages = widget.images.toList();
-              newImages.removeAt(index);
+        builder: (_) {
+          final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+          return MultiBlocProvider(
+            providers: [
+              if (userWorkspaceBloc != null)
+                BlocProvider.value(value: userWorkspaceBloc),
+            ],
+            child: InteractiveImageViewer(
+              userProfile: _userProfile,
+              imageProvider: AFBlockImageProvider(
+                images: widget.images,
+                initialIndex: index ?? widget.indexNotifier.value,
+                onDeleteImage: (index) async {
+                  final transaction = widget.editorState.transaction;
+                  final newImages = widget.images.toList();
+                  newImages.removeAt(index);
 
-              widget.onIndexChanged(
-                widget.indexNotifier.value > 0
-                    ? widget.indexNotifier.value - 1
-                    : 0,
-              );
+                  widget.onIndexChanged(
+                    widget.indexNotifier.value > 0
+                        ? widget.indexNotifier.value - 1
+                        : 0,
+                  );
 
-              if (newImages.isNotEmpty) {
-                transaction.updateNode(
-                  widget.node,
-                  {
-                    MultiImageBlockKeys.images:
-                        newImages.map((e) => e.toJson()).toList(),
-                    MultiImageBlockKeys.layout:
-                        widget.node.attributes[MultiImageBlockKeys.layout],
-                  },
-                );
-              } else {
-                transaction.deleteNode(widget.node);
-              }
+                  if (newImages.isNotEmpty) {
+                    transaction.updateNode(
+                      widget.node,
+                      {
+                        MultiImageBlockKeys.images:
+                            newImages.map((e) => e.toJson()).toList(),
+                        MultiImageBlockKeys.layout:
+                            widget.node.attributes[MultiImageBlockKeys.layout],
+                      },
+                    );
+                  } else {
+                    transaction.deleteNode(widget.node);
+                  }
 
-              await widget.editorState.apply(transaction);
-            },
-          ),
-        ),
+                  await widget.editorState.apply(transaction);
+                },
+              ),
+            ),
+          );
+        },
       );
 
   Future<void> insertLocalImages(List<String?> urls) async {

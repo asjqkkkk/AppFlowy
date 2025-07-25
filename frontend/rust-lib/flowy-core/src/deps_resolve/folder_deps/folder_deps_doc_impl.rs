@@ -202,4 +202,8 @@ impl FolderOperationHandler for DocumentFolderOperation {
       .await?;
     Ok(())
   }
+
+  async fn get_collab_object_id(&self, view_id: &Uuid) -> Result<String, FlowyError> {
+    Ok(view_id.to_string())
+  }
 }

@@ -17,11 +17,11 @@ pub trait ReminderActionInterceptor: Send + Sync + 'static {
 }
 
 #[async_trait]
-pub trait NotificationInterceptor: Send + Sync + 'static {
-  async fn receive_notification(&self, notification: WorkspaceNotification);
+pub trait NotificationHandler: Send + Sync + 'static {
+  async fn handle_notification(&self, notification: WorkspaceNotification);
 }
 
 pub struct ActionInterceptors {
   pub reminder: Box<dyn ReminderActionInterceptor>,
-  pub notification: Box<dyn NotificationInterceptor>,
+  pub notification_handler: Box<dyn NotificationHandler>,
 }

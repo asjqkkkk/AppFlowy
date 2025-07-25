@@ -7,6 +7,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::entities::*;
+use crate::import_workspace::types::ImportRequest;
 use crate::manager::FolderManager;
 use crate::share::ImportParams;
 
@@ -17,14 +18,6 @@ fn upgrade_folder(
     .upgrade()
     .ok_or(FlowyError::internal().with_context("The folder manager is already dropped"))?;
   Ok(folder)
-}
-
-#[tracing::instrument(level = "debug", skip_all, err)]
-pub(crate) async fn get_all_workspace_handler(
-  _data: AFPluginData<CreateWorkspacePayloadPB>,
-  _folder: AFPluginState<Weak<FolderManager>>,
-) -> DataResult<RepeatedWorkspacePB, FlowyError> {
-  todo!()
 }
 
 #[tracing::instrument(level = "debug", skip(folder), err)]
@@ -383,7 +376,8 @@ pub(crate) async fn import_zip_file_handler(
 ) -> Result<(), FlowyError> {
   let folder = upgrade_folder(folder)?;
   let data = data.try_into_inner()?;
-  folder.import_zip_file(&data.file_path).await?;
+  let task_type = data.task_type.into();
+  folder.import_zip_file(&data.file_path, task_type).await?;
   Ok(())
 }
 
@@ -687,4 +681,44 @@ pub(crate) async fn update_page_mention_handler(
   let info = &data.into_inner();
   folder.update_page_mention(&info).await?;
   Ok(())
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn export_workspace_handler(
+  data: AFPluginData<ExportWorkspaceRequestPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let payload = data.into_inner();
+
+  let workspace_id = Uuid::from_str(&payload.workspace_id).map_err(|e| {
+    FlowyError::invalid_data().with_context(format!("Invalid workspace ID format: {}", e))
+  })?;
+
+  folder
+    .export_workspace(ExportRequest {
+      workspace_id,
+      output_path: payload.output_path,
+    })
+    .await
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn import_workspace_handler(
+  data: AFPluginData<ImportWorkspaceRequestPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let payload = data.into_inner();
+
+  let request = ImportRequest {
+    archive_path: payload.archive_path,
+    new_workspace_name: if payload.new_workspace_name.is_empty() {
+      None
+    } else {
+      Some(payload.new_workspace_name)
+    },
+  };
+
+  folder.import_workspace(request).await?;
 }

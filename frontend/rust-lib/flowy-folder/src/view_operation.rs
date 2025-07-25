@@ -1,6 +1,7 @@
 use async_trait::async_trait;
 use bytes::Bytes;
 use collab::entity::EncodedCollab;
+use collab_database::workspace_database::DatabaseMeta;
 use collab_entity::CollabType;
 pub use collab_folder::View;
 use collab_folder::ViewLayout;
@@ -31,6 +32,7 @@ pub struct DatabaseEncodedCollab {
   pub database_row_encoded_collabs: HashMap<String, EncodedCollab>,
   pub database_row_document_encoded_collabs: HashMap<String, EncodedCollab>,
   pub database_relations: HashMap<String, String>,
+  pub database_metas: Vec<DatabaseMeta>,
 }
 
 pub type ImportedData = (String, CollabType);
@@ -130,6 +132,11 @@ pub trait FolderOperationHandler: Send + Sync {
   async fn did_update_view(&self, _old: &View, _new: &View) -> Result<(), FlowyError> {
     Ok(())
   }
+
+  /// Get object id
+  /// document: same as the view id
+  /// database: it's not the view id, it's the database id
+  async fn get_collab_object_id(&self, view_id: &Uuid) -> Result<String, FlowyError>;
 }
 
 pub type FolderOperationHandlers =
