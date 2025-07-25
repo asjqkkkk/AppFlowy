@@ -7,6 +7,7 @@ use collab_entity::CollabType;
 use flowy_ai_pub::cloud::search_dto::{
   SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
 };
+use flowy_ai_pub::cloud::server_info_dto::ServerInfo;
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
   CreateCollabParams, CreatedChatMessage, MessageCursor, ModelList, QueryCollab,
@@ -229,6 +230,17 @@ impl UserServerProvider for ServerProvider {
   fn set_encrypt_secret(&self, secret: String) {
     tracing::info!("🔑Set encrypt secret");
     self.encryption.set_secret(secret);
+  }
+
+  async fn sync_server_info(&self, uid: i64) -> Result<ServerInfo, FlowyError> {
+    info!("Sync server info for user: {}", uid);
+    let client = self
+      .get_server()?
+      .get_client()
+      .ok_or_else(|| FlowyError::internal().with_context("client not initialized"))?;
+
+    let info = client.get_server_info().await?;
+    Ok(info)
   }
 
   /// Returns the [UserWorkspaceService] base on the current [AuthProvider].

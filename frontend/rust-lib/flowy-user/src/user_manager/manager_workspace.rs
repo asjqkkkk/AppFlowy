@@ -186,7 +186,7 @@ impl UserManager {
     cloud_service.set_auth_provider(&auth_provider)?;
 
     let controller =
-      self.init_workspace_controller_if_need(workspace_id, &workspace_type, &cloud_service)?;
+      self.init_workspace_controller_if_need(uid, workspace_id, &workspace_type, &cloud_service)?;
     let profile = self
       .get_user_profile_from_disk(uid, &opened_workspace_id)
       .await?;
