@@ -56,9 +56,7 @@ class SettingsManageDataView extends StatelessWidget {
           }
         },
         builder: (context, state) {
-          // final _ = state.userDataLocation?.isCustom ?? false;
-          final isCloudWorkspace =
-              workspace.workspaceType == WorkspaceTypePB.ServerW;
+          final isCustom = state.userDataLocation?.isCustom ?? false;
           final path = state.userDataLocation?.path;
 
           return SettingsBody(
@@ -71,7 +69,7 @@ class SettingsManageDataView extends StatelessWidget {
                 tooltip:
                     LocaleKeys.settings_manageDataPage_dataStorage_tooltip.tr(),
                 actions: [
-                  if (isCloudWorkspace)
+                  if (isCustom)
                     SettingAction(
                       tooltip: LocaleKeys
                           .settings_manageDataPage_dataStorage_actions_resetTooltip
@@ -106,14 +104,12 @@ class SettingsManageDataView extends StatelessWidget {
                       },
                     ),
                 ],
-                children: path == null
-                    ? [
-                        const CircularProgressIndicator(),
-                      ]
-                    : [
-                        _CurrentPath(path: path),
-                        if (isCloudWorkspace) _DataPathActions(path: path),
-                      ],
+                children: [
+                  if (path == null)
+                    const CircularProgressIndicator()
+                  else
+                    _CurrentPath(path: path),
+                ],
               ),
               if (isCloudWorkspace)
                 SettingsCategory(
@@ -439,29 +435,6 @@ class _CurrentPathState extends State<_CurrentPath> {
         if (mounted) {
           setState(() => showCopyMessage = false);
         }
-      },
-    );
-  }
-}
-
-class _DataPathActions extends StatelessWidget {
-  const _DataPathActions({required this.path});
-
-  final String path;
-
-  @override
-  Widget build(BuildContext context) {
-    return AFFilledTextButton.primary(
-      text: LocaleKeys.settings_manageDataPage_dataStorage_actions_change.tr(),
-      onTap: () async {
-        final path = await getIt<FilePickerService>().getDirectoryPath();
-        if (!context.mounted || path == null || path == path) {
-          return;
-        }
-
-        context
-            .read<DataLocationBloc>()
-            .add(DataLocationEvent.setCustomPath(path));
       },
     );
   }
