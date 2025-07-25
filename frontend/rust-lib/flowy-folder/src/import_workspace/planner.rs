@@ -10,7 +10,7 @@ use super::types::{
 };
 use collab_importer::workspace::entities::WorkspaceRelationMap;
 
-impl<'a> FolderWorkspaceImporter<'a> {
+impl FolderWorkspaceImporter<'_> {
   pub async fn generate_import_plan(
     &self,
     _metadata: serde_json::Value,
@@ -29,7 +29,10 @@ impl<'a> FolderWorkspaceImporter<'a> {
     let mut id_mapping = FolderIdMapping::new();
 
     id_mapping.add_workspace_mapping(
-      relation_map.workspace_id.parse().unwrap_or_else(|_| Uuid::new_v4()),
+      relation_map
+        .workspace_id
+        .parse()
+        .unwrap_or_else(|_| Uuid::new_v4()),
       new_workspace_id,
     );
 
@@ -78,7 +81,10 @@ impl<'a> FolderWorkspaceImporter<'a> {
 
     for (view_id, view_metadata) in &relation_map.views {
       if let Some(parent_id) = &view_metadata.parent_id {
-        dependency_graph.get_mut(parent_id).unwrap().push(view_id.clone());
+        dependency_graph
+          .get_mut(parent_id)
+          .unwrap()
+          .push(view_id.clone());
         *in_degree.get_mut(view_id).unwrap() += 1;
       }
 

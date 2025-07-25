@@ -8,7 +8,7 @@ use flowy_error::{FlowyError, FlowyResult};
 
 use super::types::FolderWorkspaceImporter;
 
-impl<'a> FolderWorkspaceImporter<'a> {
+impl FolderWorkspaceImporter<'_> {
   /// Unzip the archive to a temporary directory
   pub async fn extract_archive(&self, archive_path: &str) -> FlowyResult<String> {
     // todo: this path should be configurable

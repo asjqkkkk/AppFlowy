@@ -5,7 +5,7 @@ use flowy_error::{FlowyError, FlowyResult};
 use super::types::FolderWorkspaceImporter;
 use collab_importer::workspace::entities::WorkspaceRelationMap;
 
-impl<'a> FolderWorkspaceImporter<'a> {
+impl FolderWorkspaceImporter<'_> {
   pub async fn parse_metadata(&self, temp_dir: &str) -> FlowyResult<serde_json::Value> {
     let metadata_path = format!("{}/metadata.json", temp_dir);
 

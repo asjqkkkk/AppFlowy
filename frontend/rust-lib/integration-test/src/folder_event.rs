@@ -447,7 +447,10 @@ impl EventIntegrationTest {
       .parse::<RepeatedViewPB>()
   }
 
-  pub async fn import_workspace(&self, data: ImportWorkspaceRequestPB) -> ImportWorkspaceResponsePB {
+  pub async fn import_workspace(
+    &self,
+    data: ImportWorkspaceRequestPB,
+  ) -> ImportWorkspaceResponsePB {
     EventBuilder::new(self.clone())
       .event(FolderEvent::ImportWorkspace)
       .payload(data)

@@ -11,11 +11,11 @@ impl<'a> FolderWorkspaceImporter<'a> {
   ///
   /// 1. we need to unzip the archive
   /// 2. build the import plan
-  ///   2.1 parse the metadata
-  ///   2.2 parse the relation map
+  ///    2.1 parse the metadata
+  ///    2.2 parse the relation map
   /// 3. execute the import plan
-  ///   3.1 create the workspace
-  ///   3.2 create the views in order. The order is very important because some views may depend on other views.
+  ///    3.1 create the workspace
+  ///    3.2 create the views in order. The order is very important because some views may depend on other views.
   /// 4. cleanup the temp dir
   pub async fn import_workspace(&self, request: ImportRequest) -> FlowyResult<String> {
     let temp_dir = self.extract_archive(&request.archive_path).await?;

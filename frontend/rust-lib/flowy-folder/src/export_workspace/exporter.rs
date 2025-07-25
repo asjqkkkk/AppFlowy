@@ -31,6 +31,8 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{error, info, instrument};
 use uuid::Uuid;
+
+type CollabDataExtractResult = (HashMap<String, Vec<u8>>, HashMap<String, String>);
 pub struct WorkspaceExporter<'a> {
   folder_manager: &'a FolderManager,
 }
@@ -143,6 +145,7 @@ impl<'a> WorkspaceExporter<'a> {
     Ok(all_views)
   }
 
+  #[allow(clippy::only_used_in_recursion)]
   fn collect_view_hierarchy(
     &self,
     folder: &collab_folder::Folder,
@@ -316,14 +319,12 @@ impl<'a> WorkspaceExporter<'a> {
   ) -> FlowyResult<Vec<ViewDependency>> {
     let mut dependencies = Vec::new();
 
-    if !view.parent_view_id.is_empty() {
-      if all_views.iter().any(|v| v.id == view.parent_view_id) {
-        dependencies.push(ViewDependency {
-          source_view_id: view.parent_view_id.clone(),
-          target_view_id: view.id.clone(),
-          dependency_type: DependencyType::DocumentReference,
-        });
-      }
+    if !view.parent_view_id.is_empty() && all_views.iter().any(|v| v.id == view.parent_view_id) {
+      dependencies.push(ViewDependency {
+        source_view_id: view.parent_view_id.clone(),
+        target_view_id: view.id.clone(),
+        dependency_type: DependencyType::DocumentReference,
+      });
     }
 
     info!(
@@ -354,7 +355,7 @@ impl<'a> WorkspaceExporter<'a> {
   pub async fn extract_collab_data(
     &self,
     relation_map: &mut WorkspaceRelationMap,
-  ) -> FlowyResult<(HashMap<String, Vec<u8>>, HashMap<String, String>)> {
+  ) -> FlowyResult<CollabDataExtractResult> {
     let mut collab_data = HashMap::new();
     let mut doc_state_to_json = HashMap::new();
 
