@@ -173,6 +173,7 @@ impl ServerProvider {
     self.set_tanvity_state(tanvity_state).await;
   }
 
+  #[cfg(debug_assertions)]
   pub fn subscribe_ws_state(&self) -> Option<BoxStream<'static, ConnectState>> {
     let workspace = self.logged_workspace.load_full()?;
     workspace.subscribe_ws_state().ok()

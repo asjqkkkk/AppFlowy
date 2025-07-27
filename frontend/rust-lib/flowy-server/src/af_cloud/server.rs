@@ -61,6 +61,9 @@ impl AppFlowyCloudServer {
       warn!("Device ID is empty, generating a new one");
       device_id = Uuid::new_v4().to_string();
     }
+    let cache_dir = logged_user.http_cache_dir();
+    info!("Using HTTP cache directory: {}", cache_dir.display());
+
     let api_client = AFCloudClient::new(
       &config.base_url,
       &config.ws_base_url,
@@ -70,6 +73,7 @@ impl AppFlowyCloudServer {
         .with_compression_buffer_size(10240)
         .with_compression_quality(8),
       &client_version.to_string(),
+      cache_dir,
     );
     let enable_sync = Arc::new(AtomicBool::new(enable_sync));
     let network_reachable = Arc::new(AtomicBool::new(true));
