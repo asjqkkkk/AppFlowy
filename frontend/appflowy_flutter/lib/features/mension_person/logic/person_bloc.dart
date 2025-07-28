@@ -1,8 +1,10 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
+import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'person_event.dart';
@@ -13,58 +15,60 @@ export 'person_state.dart';
 class PersonBloc extends Bloc<PersonEvent, PersonState> {
   PersonBloc({
     required this.documentId,
-    required this.nodeId,
-    required this.personId,
     required this.workspaceId,
     required this.personListCache,
+    required this.repository,
   }) : super(PersonState.initial()) {
     on<InitialEvent>(_onInitial);
-    on<UpdatePersonEvent>(_onUpdatePerson);
-    on<UpdateStatusEvent>(_onUpdateStatusEvent);
     on<NotifyPersonEvent>(_onNotifyPersonEvent);
-    on<UpdateMentionTimeEvent>(_onUpdateMentionTimeEvent);
   }
   final String documentId;
-  final String nodeId;
-  final String personId;
   final String workspaceId;
-  final PersonListWithAccessMemoryCache personListCache;
-
-  @override
-  Future<void> close() async {
-    personListCache.removePersonListWithAcessFetchedCallback(
-      documentId,
-      onPersonList,
-    );
-    await super.close();
-  }
+  final PersonListMemoryCache personListCache;
+  final MentionRepository repository;
 
   Future<void> _onInitial(
     InitialEvent event,
     Emitter<PersonState> emit,
   ) async {
-    personListCache.onPersonListWithAcessFetched(documentId, onPersonList);
-  }
+    final localPersons = personListCache.getPersons(workspaceId) ?? [];
+    if (localPersons.isNotEmpty) {
+      emit(state.copyWith(persons: localPersons, status: PersonStatus.idle));
+    }
+    final documentUsersResult = await FolderEventGetSharedUsers(
+      GetSharedUsersPayloadPB(viewId: documentId),
+    ).send();
 
-  Future<void> _onUpdatePerson(
-    UpdatePersonEvent event,
-    Emitter<PersonState> emit,
-  ) async {
-    emit(
-      state.copyWith(personWithAccess: event.person, status: PersonStatus.idle),
+    final users = documentUsersResult.fold(
+      (users) => users.items,
+      (error) => <SharedUserPB>[],
     );
-  }
+    final availableEmails = users.map((user) => user.email).toList();
 
-  Future<void> _onUpdateStatusEvent(
-    UpdateStatusEvent event,
-    Emitter<PersonState> emit,
-  ) async {
-    emit(
-      state.copyWith(
-        status: event.status,
-        getPersonFailedMesssage: event.errorMessage,
-      ),
+    final personsResult = await repository.getWorkspacePersons(
+      workspaceId: workspaceId,
+      query: '',
     );
+    if (!isClosed) {
+      personsResult.fold((s) {
+        emit(
+          state.copyWith(
+            persons: s,
+            availableEmails: availableEmails,
+            status: PersonStatus.idle,
+          ),
+        );
+        personListCache.updatePersonList(workspaceId, s);
+      }, (e) {
+        Log.error('Failed to fetch persons: $e');
+        emit(
+          state.copyWith(
+            status: PersonStatus.error,
+            availableEmails: availableEmails,
+          ),
+        );
+      });
+    }
   }
 
   Future<void> _onNotifyPersonEvent(
@@ -77,42 +81,37 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
       Log.error('mention person with null view:$documentId');
       return;
     }
-    await ViewBackendService.updatePageMention(
+    final result = await ViewBackendService.updatePageMention(
       viewId: documentId,
       viewName: view.nameOrDefault,
-      personId: personId,
+      personId: event.person.id,
       requireNotification: true,
-      blockId: nodeId,
+      blockId: event.blockId,
     );
-    add(PersonEvent.updateMentionTime());
-  }
-
-  Future<void> _onUpdateMentionTimeEvent(
-    UpdateMentionTimeEvent event,
-    Emitter<PersonState> emit,
-  ) async {
-    emit(state.copyWith(mentionTime: state.mentionTime + 1));
-  }
-
-  Future<void> onPersonList(PersonListWithAccessAndResult result) async {
-    if (isClosed) return;
-    if (!result.succeed) {
-      add(PersonEvent.updateStatusEvent(status: PersonStatus.error));
-      return;
-    }
-    final localPerson =
-        result.persons.where((p) => p.person.id == personId).firstOrNull;
-    if (localPerson != null) {
-      add(PersonEvent.updatePerson(localPerson));
-    } else {
-      add(
-        PersonEvent.updatePerson(
-          PersonWithAccess(
-            person: Person.empty().copyWith(deleted: true),
-            access: false,
+    result.fold((s) {
+      personListCache.movePersonToTop(workspaceId, event.person.id);
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            mentionedSucceedPerson: PersonWithNotifyTimes(
+              person: event.person,
+              notifyTimes: (state.mentionedSucceedPerson?.notifyTimes ?? 0) + 1,
+            ),
           ),
-        ),
-      );
-    }
+        );
+      }
+    }, (e) {
+      if (!isClosed) {
+        emit(
+          state.copyWith(
+            mentionedErrorPerson: PersonWithNotifyTimes(
+              person: event.person,
+              notifyTimes: (state.mentionedErrorPerson?.notifyTimes ?? 0) + 1,
+            ),
+          ),
+        );
+      }
+      Log.error('Failed to notify person: $e');
+    });
   }
 }

@@ -15,6 +15,16 @@ class PersonListMemoryCache {
     if (persons == null) return null;
     return List.of(persons);
   }
+
+  void movePersonToTop(String workspaceId, String personId) {
+    final persons = _cache[workspaceId];
+    if (persons == null) return;
+    final index = persons.indexWhere((e) => e.id == personId);
+    if (index == -1) return;
+    final person = persons.removeAt(index);
+    persons.insert(0, person);
+    _cache[workspaceId] = persons;
+  }
 }
 
 class PersonListWithAccessMemoryCache {

@@ -1,14 +1,12 @@
-import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
+import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/hover_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/mobile/mobile_person_profile_card.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
-import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
+
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -51,6 +49,10 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   bool showAtBottom = false;
   RenderBox? get box => key.currentContext?.findRenderObject() as RenderBox?;
 
+  String get personId => widget.personId;
+  String get pageId => widget.pageId;
+  String? get blockId => widget.blockId;
+
   @override
   void initState() {
     super.initState();
@@ -59,98 +61,60 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
 
   @override
   Widget build(BuildContext context) {
-    final workspaceId = context
-            .read<UserWorkspaceBloc?>()
-            ?.state
-            .currentWorkspace
-            ?.workspaceId ??
-        '';
-    return BlocProvider(
-      create: (context) => PersonBloc(
-        documentId: widget.pageId,
-        nodeId: widget.node.id,
-        personId: widget.personId,
-        workspaceId: workspaceId,
-        personListCache: getIt<PersonListWithAccessMemoryCache>(),
-      )..add(PersonEvent.initial()),
-      child: BlocBuilder<PersonBloc, PersonState>(
-        key: key,
-        builder: (context, state) {
-          final bloc = context.read<PersonBloc>();
-          return MultiBlocListener(
-            listeners: [
-          BlocListener<PersonBloc, PersonState>(
-            listenWhen: (previous, current) =>
-                previous.getPersonFailedMesssage !=
-                current.getPersonFailedMesssage,
-            listener: (context, state) {
-              if (state.getPersonFailedMesssage.isNotEmpty) {
-                showToastNotification(
-                  message: state.getPersonFailedMesssage,
-                  type: ToastificationType.error,
-                );
-              }
-            },
+    return BlocBuilder<PersonBloc, PersonState>(
+      key: key,
+      builder: (context, state) {
+        final bloc = context.read<PersonBloc>();
+        return HoverMenu(
+          key: ValueKey(
+            showAtBottom.hashCode & positionY.hashCode & triggerSize.hashCode,
           ),
-          BlocListener<PersonBloc, PersonState>(
-            listenWhen: (previous, current) =>
-                previous.mentionTime != current.mentionTime,
-            listener: (context, state) {
-              showToastNotification(
-                message: LocaleKeys.document_mentionMenu_notifedTo
-                    .tr(args: [state.person.name]),
-              );
-            },
+          enable: UniversalPlatform.isDesktop,
+          menuConstraints: BoxConstraints(
+            maxHeight: 420,
+            maxWidth: 280,
+            minWidth: 280,
           ),
-        ],
-            child: HoverMenu(
-              key: ValueKey(
-                showAtBottom.hashCode &
-                    positionY.hashCode &
-                    triggerSize.hashCode,
-              ),
-              enable: UniversalPlatform.isDesktop,
-              menuConstraints: BoxConstraints(
-                maxHeight: 420,
-                maxWidth: 280,
-                minWidth: 280,
-              ),
-              triggerSize: triggerSize,
-              direction: showAtBottom
-                  ? PopoverDirection.bottomWithLeftAligned
-                  : PopoverDirection.topWithLeftAligned,
-              offset: Offset(
-                0,
-                showAtBottom ? -triggerSize.height : triggerSize.height,
-              ),
-              menuBuilder: (context, onEnter, onExit) => MultiBlocProvider(
-                providers: [
-                  BlocProvider.value(value: bloc),
-                ],
-                child: BlocBuilder<PersonBloc, PersonState>(
-                  builder: (context, state) => PersonProfileCard(
-                    triggerSize: triggerSize,
-                    showAtBottom: showAtBottom,
-                    onEnter: onEnter,
-                    onExit: onExit,
-                  ),
+          triggerSize: triggerSize,
+          direction: showAtBottom
+              ? PopoverDirection.bottomWithLeftAligned
+              : PopoverDirection.topWithLeftAligned,
+          offset: Offset(
+            0,
+            showAtBottom ? -triggerSize.height : triggerSize.height,
+          ),
+          menuBuilder: (context, onEnter, onExit) => MultiBlocProvider(
+            providers: [
+              BlocProvider.value(value: bloc),
+            ],
+            child: BlocBuilder<PersonBloc, PersonState>(
+              builder: (context, state) => PersonProfileCard(
+                person: bloc.state.persons.firstWhere(
+                  (e) => e.id == personId,
+                  orElse: () =>
+                      Person.empty().copyWith(id: personId, deleted: true),
                 ),
+                triggerSize: triggerSize,
+                showAtBottom: showAtBottom,
+                onEnter: onEnter,
+                onExit: onExit,
               ),
-              child: buildPerson(context),
             ),
-          );
-        },
-      ),
+          ),
+          child: buildPerson(context),
+        );
+      },
     );
   }
 
   Widget buildPerson(BuildContext context) {
     final bloc = context.read<PersonBloc>(), state = bloc.state;
-    final person = state.person;
+    final person = state.persons.firstWhere(
+      (p) => p.id == personId,
+      orElse: () => Person.empty().copyWith(id: personId, deleted: true),
+    );
     final theme = AppFlowyTheme.of(context);
-    final color = state.access
-        ? theme.textColorScheme.secondary
-        : theme.textColorScheme.tertiary;
+    final color = theme.textColorScheme.secondary;
     final style = widget.textStyle?.copyWith(
           color: color,
           leadingDistribution: TextLeadingDistribution.even,
@@ -192,7 +156,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                 backgroundColor: theme.surfaceColorScheme.primary,
                 builder: (_) => BlocProvider.value(
                   value: bloc,
-                  child: MobilePersonProfileCard(),
+                  child: MobilePersonProfileCard(person: person),
                 ),
               );
             },
@@ -254,12 +218,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   }
 
   Widget buildNormalPerson(BuildContext context, String name) {
-    final bloc = context.read<PersonBloc>(),
-        state = bloc.state,
-        theme = AppFlowyTheme.of(context),
-        color = state.access
-            ? theme.textColorScheme.secondary
-            : theme.textColorScheme.tertiary,
+    final theme = AppFlowyTheme.of(context),
+        color = theme.textColorScheme.secondary,
         style = widget.textStyle?.copyWith(
               color: color,
               leadingDistribution: TextLeadingDistribution.even,

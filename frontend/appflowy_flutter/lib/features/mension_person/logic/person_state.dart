@@ -1,72 +1,59 @@
 import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:equatable/equatable.dart';
 
 class PersonState {
-  factory PersonState.initial() => PersonState(
-        personWithAccess:
-            PersonWithAccess(person: Person.empty(), access: false),
-      );
+  factory PersonState.initial() => PersonState();
 
   const PersonState({
-    required this.personWithAccess,
-    this.documentId = '',
-    this.getPersonFailedMesssage = '',
+    this.persons = const [],
+    this.availableEmails = const [],
     this.status = PersonStatus.loading,
-    this.mentionTime = 0,
+    this.mentionedErrorPerson,
+    this.mentionedSucceedPerson,
   });
 
-  final PersonWithAccess personWithAccess;
-  final String documentId;
-  final String getPersonFailedMesssage;
+  final List<Person> persons;
+  final List<String> availableEmails;
   final PersonStatus status;
-  final int mentionTime;
+  final PersonWithNotifyTimes? mentionedErrorPerson;
+  final PersonWithNotifyTimes? mentionedSucceedPerson;
 
   bool get isLoading => status == PersonStatus.loading;
   bool get isIdle => status == PersonStatus.idle;
-  Person get person => personWithAccess.person;
-  bool get access => personWithAccess.access;
+
+  bool hasAccess(String email) => availableEmails.contains(email);
 
   PersonState copyWith({
-    PersonWithAccess? personWithAccess,
-    String? documentId,
-    String? getPersonFailedMesssage,
+    List<Person>? persons,
+    List<String>? availableEmails,
     PersonStatus? status,
-    int? mentionTime,
+    PersonWithNotifyTimes? mentionedErrorPerson,
+    PersonWithNotifyTimes? mentionedSucceedPerson,
   }) {
     return PersonState(
-      personWithAccess: personWithAccess ?? this.personWithAccess,
-      documentId: documentId ?? this.documentId,
-      getPersonFailedMesssage:
-          getPersonFailedMesssage ?? this.getPersonFailedMesssage,
+      persons: persons ?? this.persons,
+      availableEmails: availableEmails ?? this.availableEmails,
       status: status ?? this.status,
-      mentionTime: mentionTime ?? this.mentionTime,
+      mentionedErrorPerson: mentionedErrorPerson ?? this.mentionedErrorPerson,
+      mentionedSucceedPerson:
+          mentionedSucceedPerson ?? this.mentionedSucceedPerson,
     );
-  }
-
-  @override
-  bool operator ==(Object other) {
-    if (identical(this, other)) return true;
-
-    return other is PersonState &&
-        other.personWithAccess == personWithAccess &&
-        other.documentId == documentId &&
-        other.getPersonFailedMesssage == getPersonFailedMesssage &&
-        other.status == status &&
-        other.mentionTime == mentionTime;
-  }
-
-  @override
-  int get hashCode {
-    return personWithAccess.hashCode ^
-        documentId.hashCode ^
-        getPersonFailedMesssage.hashCode ^
-        status.hashCode ^
-        mentionTime.hashCode;
-  }
-
-  @override
-  String toString() {
-    return 'PersonState(personWithAccess: $personWithAccess, documentId: $documentId, getPersonFailedMesssage: $getPersonFailedMesssage, status: $status, mentionTime: $mentionTime)';
   }
 }
 
 enum PersonStatus { loading, idle, error }
+
+class PersonWithNotifyTimes extends Equatable {
+  const PersonWithNotifyTimes({
+    required this.person,
+    required this.notifyTimes,
+  });
+
+  final Person person;
+  final int notifyTimes;
+
+  String get name => person.name;
+
+  @override
+  List<Object?> get props => [person, notifyTimes];
+}

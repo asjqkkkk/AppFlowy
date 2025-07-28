@@ -10,7 +10,10 @@ sealed class PersonEvent {
   const factory PersonEvent.updatePerson(PersonWithAccess person) =
       UpdatePersonEvent;
 
-  const factory PersonEvent.notifyPerson() = NotifyPersonEvent;
+  const factory PersonEvent.notifyPerson({
+    String? blockId,
+    required Person person,
+  }) = NotifyPersonEvent;
 
   const factory PersonEvent.updateMentionTime() = UpdateMentionTimeEvent;
 
@@ -41,7 +44,12 @@ class UpdateStatusEvent implements PersonEvent {
 }
 
 class NotifyPersonEvent implements PersonEvent {
-  const NotifyPersonEvent();
+  const NotifyPersonEvent({
+    this.blockId,
+    required this.person,
+  });
+  final String? blockId;
+  final Person person;
 }
 
 class UpdateMentionTimeEvent implements PersonEvent {

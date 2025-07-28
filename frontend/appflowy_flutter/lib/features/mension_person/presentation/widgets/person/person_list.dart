@@ -105,7 +105,7 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
           selected: selected,
           person: person,
           sendNotification: state.sendNotification,
-          key: ValueKey('${person.id}-$selected'),
+          key: ValueKey(person.id),
           child: AFTextMenuItem(
             leading: AFAvatar(
               url: person.avatarUrl,

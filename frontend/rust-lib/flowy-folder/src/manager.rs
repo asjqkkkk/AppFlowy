@@ -3136,12 +3136,15 @@ impl FolderManager {
   ) -> FlowyResult<()> {
     let workspace_id = self.user.workspace_id()?;
     let view_id = Uuid::from_str(&page_mention.view_id)?;
-    self
+
+    match self
       .cloud_service()?
       .update_page_mention(&workspace_id, &view_id, &page_mention.clone().into())
-      .await?;
-
-    Ok(())
+      .await
+    {
+      Ok(_) => Ok(()),
+      Err(err) => Err(err),
+    }
   }
 
   /// Export the entire workspace to a specified output path.

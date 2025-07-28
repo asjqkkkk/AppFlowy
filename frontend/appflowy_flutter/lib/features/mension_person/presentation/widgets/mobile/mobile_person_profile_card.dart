@@ -11,7 +11,14 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 class MobilePersonProfileCard extends StatefulWidget {
-  const MobilePersonProfileCard({super.key});
+  const MobilePersonProfileCard({
+    super.key,
+    required this.person,
+    this.blockId,
+  });
+
+  final Person person;
+  final String? blockId;
 
   @override
   State<MobilePersonProfileCard> createState() =>
@@ -20,6 +27,8 @@ class MobilePersonProfileCard extends StatefulWidget {
 
 class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
   final popoverController = PopoverController();
+
+  Person get person => widget.person;
 
   @override
   void dispose() {
@@ -34,7 +43,7 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
 
   Widget buildCard(BuildContext context) {
     final personState = context.read<PersonBloc>().state,
-        person = personState.person;
+        person = widget.person;
     if (personState.isLoading) {
       return Center(child: CircularProgressIndicator.adaptive());
     }
@@ -66,9 +75,9 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
               ],
             ),
             Positioned(
-              left: UniversalPlatform.isMobile ? 36 : xl,
+              left: UniversalPlatform.isMobile ? 20 : xl,
               top: 38,
-              child: context.buildAvatar(),
+              child: context.buildAvatar(person),
             ),
           ],
         ),
@@ -85,23 +94,27 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        context.buildPersonName(),
-        context.buildPersonEmail(),
-        context.buildPersonDescription(),
+        context.buildPersonName(person),
+        context.buildPersonEmail(person),
+        context.buildPersonDescription(person),
         VSpace(theme.spacing.xxl),
         context.buildActions(
-          moreButton:
-              ProfileCardMoreButton(popoverController: popoverController),
+          moreButton: ProfileCardMoreButton(
+            popoverController: popoverController,
+            person: person,
+          ),
+          person: person,
+          blockId: widget.blockId,
         ),
       ],
     );
   }
 
   Widget buildEmail(BuildContext context) {
-    final person = context.read<PersonBloc>().state.personWithAccess;
+    final person = widget.person;
     final theme = AppFlowyTheme.of(context);
     return Text(
-      person.person.email,
+      person.email,
       style:
           theme.textStyle.body.standard(color: theme.textColorScheme.secondary),
       maxLines: 1,

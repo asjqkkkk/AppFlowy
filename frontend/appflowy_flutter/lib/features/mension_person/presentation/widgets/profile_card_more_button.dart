@@ -18,11 +18,13 @@ class ProfileCardMoreButton extends StatelessWidget {
     this.onEnter,
     this.onExit,
     required this.popoverController,
+    required this.person,
   });
 
   final PointerEnterEventListener? onEnter;
   final PointerExitEventListener? onExit;
   final PopoverController popoverController;
+  final Person person;
 
   @override
   Widget build(BuildContext context) {
@@ -46,7 +48,7 @@ class ProfileCardMoreButton extends StatelessWidget {
           builder: (ctx, state) => MouseRegion(
             onEnter: onEnter,
             onExit: onExit,
-            child: _Menu(),
+            child: _Menu(person),
           ),
         ),
       ),
@@ -86,12 +88,13 @@ class ProfileCardMoreButton extends StatelessWidget {
 }
 
 class _Menu extends StatelessWidget {
-  const _Menu();
+  const _Menu(this.person);
+
+  final Person person;
 
   @override
   Widget build(BuildContext context) {
-    final personBloc = context.read<PersonBloc>(),
-        person = personBloc.state.person;
+    final personBloc = context.read<PersonBloc>();
     if (!personBloc.state.isIdle) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(context);
     final role = person.role;

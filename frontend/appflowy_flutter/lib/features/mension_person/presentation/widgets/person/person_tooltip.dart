@@ -50,6 +50,21 @@ class _PersonToolTipState extends State<PersonToolTip> {
   }
 
   @override
+  void didUpdateWidget(covariant PersonToolTip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.selected != selected) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (selected) {
+          show();
+        } else {
+          hide();
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     hide();
     super.dispose();

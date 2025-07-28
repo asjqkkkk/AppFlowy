@@ -23,12 +23,16 @@ class PersonProfileCard extends StatefulWidget {
     super.key,
     required this.triggerSize,
     required this.showAtBottom,
+    required this.person,
+    this.blockId,
     this.onEnter,
     this.onExit,
   });
 
   final Size triggerSize;
   final bool showAtBottom;
+  final Person person;
+  final String? blockId;
   final PointerEnterEventListener? onEnter;
   final PointerExitEventListener? onExit;
 
@@ -38,6 +42,8 @@ class PersonProfileCard extends StatefulWidget {
 
 class _PersonProfileCardState extends State<PersonProfileCard> {
   final popoverController = PopoverController();
+
+  Person get person => widget.person;
 
   @override
   void dispose() {
@@ -87,8 +93,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 
   Widget buildCard(BuildContext context) {
     final theme = AppFlowyTheme.of(context), xxl = theme.spacing.xxl;
-    final personState = context.read<PersonBloc>().state,
-        person = personState.personWithAccess.person;
+    final personState = context.read<PersonBloc>().state;
     if (!personState.isIdle) return const SizedBox.shrink();
     if (person.deleted) {
       return context.buildDeletedPerson();
@@ -113,7 +118,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
         Positioned(
           left: xxl,
           top: 38.0,
-          child: context.buildAvatar(),
+          child: context.buildAvatar(person),
         ),
       ],
     );
@@ -150,9 +155,9 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        context.buildPersonName(),
-        context.buildPersonEmail(),
-        context.buildPersonDescription(),
+        context.buildPersonName(person),
+        context.buildPersonEmail(person),
+        context.buildPersonDescription(person),
         VSpace(theme.spacing.xxl),
         buildActions(context),
       ],
@@ -160,7 +165,6 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   }
 
   Widget buildEmail(BuildContext context) {
-    final person = context.read<PersonBloc>().state.personWithAccess.person;
     final theme = AppFlowyTheme.of(context);
     return Text(
       person.email,
@@ -172,7 +176,10 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   }
 
   Widget buildActions(BuildContext context) => context.buildActions(
+        person: person,
+        blockId: widget.blockId,
         moreButton: ProfileCardMoreButton(
+          person: person,
           onEnter: widget.onEnter,
           onExit: widget.onExit,
           popoverController: popoverController,
@@ -198,10 +205,9 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 }
 
 extension PersonProfileCardWidgetExtension on BuildContext {
-  Widget buildPersonName() {
-    final person = read<PersonBloc>().state.person;
+  Widget buildPersonName(Person person) {
     final theme = AppFlowyTheme.of(this);
-    final suffixIcon = buildSuffixIcon();
+    final suffixIcon = buildSuffixIcon(person);
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -222,9 +228,8 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget buildPersonEmail() {
-    final person = read<PersonBloc>().state.person,
-        theme = AppFlowyTheme.of(this);
+  Widget buildPersonEmail(Person person) {
+    final theme = AppFlowyTheme.of(this);
     return Text(
       person.email,
       style: theme.textStyle.body.standard(
@@ -237,9 +242,8 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget buildPersonDescription() {
-    final person = read<PersonBloc>().state.person,
-        description = person.description;
+  Widget buildPersonDescription(Person person) {
+    final description = person.description;
     if (description?.isEmpty ?? true) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(this);
     return Container(
@@ -265,10 +269,8 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget? buildSuffixIcon() {
-    final personState = read<PersonBloc>().state,
-        person = personState.person,
-        theme = AppFlowyTheme.of(this);
+  Widget? buildSuffixIcon(Person person) {
+    final theme = AppFlowyTheme.of(this);
     if (person.isEmpty) return null;
     if (person.role == PersonRole.contact) {
       return FlowySvg(
@@ -281,13 +283,11 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     return null;
   }
 
-  Widget buildNotificationButton() {
+  Widget buildNotificationButton(Person person, String? blockId) {
     final theme = AppFlowyTheme.of(this);
-    final personBloc = read<PersonBloc>(),
-        personState = personBloc.state,
-        person = personState.person;
+    final personBloc = read<PersonBloc>();
     if (person.isEmpty || person.deleted) return const SizedBox.shrink();
-    final hasAccess = personState.access,
+    final hasAccess = personBloc.state.hasAccess(person.email),
         isContact = person.role == PersonRole.contact;
     if (isContact) {
       return FlowyTooltip(
@@ -327,19 +327,18 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           );
         },
         onTap: () {
-          personBloc.add(PersonEvent.notifyPerson());
+          personBloc
+              .add(PersonEvent.notifyPerson(blockId: blockId, person: person));
         },
       ),
     );
   }
 
-  Widget buildAvatar() {
-    final personState = read<PersonBloc>().state;
-    final person = personState.person,
-        url = person.avatarUrl ?? '',
-        noAccess = !person.deleted &&
-            !personState.access &&
-            person.role != PersonRole.contact;
+  Widget buildAvatar(Person person) {
+    final hasAccess = read<PersonBloc>().state.hasAccess(person.email);
+    final url = person.avatarUrl ?? '',
+        noAccess =
+            !person.deleted && !hasAccess && person.role != PersonRole.contact;
     final isEmojiAvatar = url.isNotEmpty && !url.startsWith('http');
     final theme = AppFlowyTheme.of(this);
     const size = 90.0, radius = 41.0;
@@ -471,16 +470,20 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget buildActions({required ProfileCardMoreButton moreButton}) {
+  Widget buildActions({
+    required ProfileCardMoreButton moreButton,
+    required Person person,
+    String? blockId,
+  }) {
     final state = read<PersonBloc>().state;
     if (!state.isIdle) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(this);
 
     return Row(
       children: [
-        PersonRoleBadge(person: state.person, access: state.access),
+        PersonRoleBadge(person: person, access: state.hasAccess(person.email)),
         Spacer(),
-        buildNotificationButton(),
+        buildNotificationButton(person, blockId),
         HSpace(theme.spacing.m),
         moreButton,
       ],

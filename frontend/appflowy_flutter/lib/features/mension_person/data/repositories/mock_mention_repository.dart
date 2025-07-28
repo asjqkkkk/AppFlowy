@@ -55,12 +55,14 @@ class MockMentionRepository extends MentionRepository {
   }
 
   @override
-  Future<void> mentionPerson({
+  Future<FlowyResult<void, FlowyError>> mentionPerson({
     required String documentId,
     required String personId,
     required bool requireNotification,
     String? blockId,
-  }) async {}
+  }) async {
+    return FlowySuccess(null);
+  }
 }
 
 class _MockState {

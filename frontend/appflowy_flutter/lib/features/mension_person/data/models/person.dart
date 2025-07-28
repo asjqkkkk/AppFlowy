@@ -1,8 +1,9 @@
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/widgets.dart';
 
-class Person {
-  Person({
+class Person extends Equatable {
+  const Person({
     required this.id,
     required this.name,
     required this.email,
@@ -14,7 +15,7 @@ class Person {
     this.deleted = false,
   });
 
-  Person.empty()
+  const Person.empty()
       : id = '',
         name = '',
         email = '',
@@ -84,6 +85,19 @@ class Person {
       deleted: deleted ?? this.deleted,
     );
   }
+
+  @override
+  List<Object?> get props => [
+        id,
+        name,
+        email,
+        role,
+        avatarUrl,
+        coverImageUrl,
+        description,
+        invited,
+        deleted,
+      ];
 }
 
 enum PersonRole {

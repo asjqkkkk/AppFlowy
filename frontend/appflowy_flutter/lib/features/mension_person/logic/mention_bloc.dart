@@ -3,6 +3,7 @@ import 'package:appflowy/features/mension_person/data/models/mention_menu_item.d
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -219,12 +220,17 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     MentionPerson event,
     Emitter<MentionState> emit,
   ) async {
-    await repository.mentionPerson(
+    final result = await repository.mentionPerson(
       documentId: event.documentId,
       blockId: event.blockId,
       personId: event.personId,
       requireNotification: state.sendNotification,
     );
+    result.fold((s) {
+      personListCache.movePersonToTop(workspaceId, event.personId);
+    }, (e) {
+      Log.error('Failed to mention person: ${e.msg}');
+    });
   }
 
   Future<void> _onItemExecuted(

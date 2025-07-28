@@ -22,7 +22,7 @@ abstract class MentionRepository {
   });
 
   /// mention a person
-  Future<void> mentionPerson({
+  Future<FlowyResult<void, FlowyError>> mentionPerson({
     required String documentId,
     required String personId,
     required bool requireNotification,
