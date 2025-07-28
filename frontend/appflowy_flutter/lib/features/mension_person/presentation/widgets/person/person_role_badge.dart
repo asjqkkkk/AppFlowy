@@ -111,11 +111,11 @@ class PersonRoleBadge extends StatelessWidget {
       case PersonRole.member:
         return isLight
             ? theme.badgeColorScheme.color15Thick2
-            : theme.badgeColorScheme.color15Thick1;
+            : theme.badgeColorScheme.color15Light1;
       case PersonRole.guest:
         return isLight
             ? theme.badgeColorScheme.color3Thick2
-            : theme.badgeColorScheme.color3Thick1;
+            : theme.badgeColorScheme.color3Light1;
       case PersonRole.contact:
         return theme.textColorScheme.tertiary;
     }

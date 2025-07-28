@@ -62,6 +62,7 @@ class MentionBlockKeys {
   static const reminderId = 'reminder_id'; // ReminderID
   static const reminderOption = 'reminder_option';
   static const personId = 'person_id';
+  static const personName = 'person_name';
 
   static const mentionChar = '\$';
 
@@ -99,6 +100,7 @@ class MentionBlockKeys {
 
   static Map<String, dynamic> buildMentionPersonAttributes({
     required String personId,
+    required String personName,
     required String pageId,
     String? blockId,
   }) {
@@ -106,6 +108,7 @@ class MentionBlockKeys {
       MentionBlockKeys.mention: {
         MentionBlockKeys.type: MentionType.person.name,
         MentionBlockKeys.personId: personId,
+        MentionBlockKeys.personName: personName,
         MentionBlockKeys.pageId: pageId,
         if (blockId != null) MentionBlockKeys.blockId: blockId,
       },

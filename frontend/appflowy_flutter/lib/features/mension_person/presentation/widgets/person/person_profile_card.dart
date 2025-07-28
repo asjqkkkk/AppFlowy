@@ -120,8 +120,13 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   }
 
   Widget buildCover(BuildContext context) {
+    final theme = AppFlowyTheme.of(context), m = theme.spacing.m;
+
     /// TODO: replace it as banner widget after supporting profile setting
-    return DefaultAssetProfileBanner();
+    return Container(
+      padding: EdgeInsets.fromLTRB(m, m, m, 0),
+      child: DefaultAssetProfileBanner(),
+    );
     // final personState = context.read<PersonBloc>().state;
     // final person = personState.personWithAccess.person,
     //     url = person.coverImageUrl ?? '';
@@ -323,7 +328,6 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         },
         onTap: () {
           personBloc.add(PersonEvent.notifyPerson());
-          
         },
       ),
     );
@@ -345,6 +349,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         url: url,
         radius: radius,
         name: person.name,
+        size: AFAvatarSize.xl,
         backgroundColor:
             (url.isNotEmpty && !isEmojiAvatar) ? Colors.transparent : null,
       ),
@@ -393,7 +398,8 @@ extension PersonProfileCardWidgetExtension on BuildContext {
   Widget buildDeletedPerson() {
     final theme = AppFlowyTheme.of(this),
         spacing = theme.spacing,
-        m = spacing.m;
+        m = spacing.m,
+        xl = spacing.xl;
     const size = 100.0, radius = 43.0;
     return ClipRRect(
       borderRadius: BorderRadius.circular(theme.spacing.l),
@@ -404,10 +410,12 @@ extension PersonProfileCardWidgetExtension on BuildContext {
             mainAxisSize: MainAxisSize.min,
             children: [
               Padding(
-                padding: EdgeInsets.fromLTRB(m, m, m, 0),
+                padding: UniversalPlatform.isMobile
+                    ? EdgeInsets.fromLTRB(xl, 0, xl, 0)
+                    : EdgeInsets.fromLTRB(m, m, m, 0),
                 child: Container(
                   width: UniversalPlatform.isMobile ? double.infinity : 264,
-                  height: 80,
+                  height: UniversalPlatform.isMobile ? 92 : 80,
                   decoration: BoxDecoration(
                     color: theme.badgeColorScheme.color20Light1,
                     borderRadius: BorderRadius.circular(theme.spacing.m),
@@ -428,7 +436,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
             ],
           ),
           Positioned(
-            left: 20,
+            left: UniversalPlatform.isMobile ? 36 : 20,
             top: 38,
             child: Container(
               width: size,

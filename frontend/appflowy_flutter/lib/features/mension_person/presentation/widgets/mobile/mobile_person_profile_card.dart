@@ -8,6 +8,7 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class MobilePersonProfileCard extends StatefulWidget {
   const MobilePersonProfileCard({super.key});
@@ -49,28 +50,29 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
         spacing = theme.spacing,
         xl = spacing.xl;
     final sizeWidth = MediaQuery.of(context).size.width;
-    return Stack(
-      children: [
-        Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
+    return SizedBox(
+      width: sizeWidth,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(xl, 0, xl, 0),
+        child: Stack(
           children: [
-            buildCover(context),
-            SizedBox(
-              width: sizeWidth - xl * 2,
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(xl, 64, xl, 0),
-                child: buildPersonInfo(context),
-              ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                buildCover(context),
+                VSpace(64),
+                buildPersonInfo(context),
+              ],
+            ),
+            Positioned(
+              left: UniversalPlatform.isMobile ? 36 : xl,
+              top: 38,
+              child: context.buildAvatar(),
             ),
           ],
         ),
-        Positioned(
-          left: xl,
-          top: 38,
-          child: context.buildAvatar(),
-        ),
-      ],
+      ),
     );
   }
 

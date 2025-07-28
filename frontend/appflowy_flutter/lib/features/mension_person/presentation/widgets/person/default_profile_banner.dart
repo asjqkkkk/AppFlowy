@@ -7,11 +7,10 @@ class DefaultAssetProfileBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AppFlowyTheme.of(context), spacingM = theme.spacing.m;
-    return Container(
-      width: UniversalPlatform.isMobile ? double.infinity : 264,
-      height: 80,
-      margin: EdgeInsets.fromLTRB(spacingM, spacingM, spacingM, 0),
+    final theme = AppFlowyTheme.of(context);
+    return SizedBox(
+      width: double.infinity,
+      height: UniversalPlatform.isMobile ? 92 : 80,
       child: ClipRRect(
         borderRadius: BorderRadius.circular(theme.spacing.m),
         child: Image.asset(

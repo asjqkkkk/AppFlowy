@@ -77,6 +77,7 @@ extension PersonListEditorStateExtension on EditorState {
         MentionBlockKeys.mentionChar,
         attributes: MentionBlockKeys.buildMentionPersonAttributes(
           personId: person.id,
+          personName: person.name,
           pageId: pageId,
           blockId: node.id,
         ),
