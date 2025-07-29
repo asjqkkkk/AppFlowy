@@ -2,6 +2,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_block.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_page_block.dart';
+import 'package:appflowy/plugins/inline_actions/inline_actions_command.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_result.dart';
 import 'package:appflowy/plugins/inline_actions/service_handler.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
@@ -11,6 +12,7 @@ import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class InlineChildPageService extends InlineActionsDelegate {
   InlineChildPageService({required this.currentViewId});
@@ -20,6 +22,23 @@ class InlineChildPageService extends InlineActionsDelegate {
   @override
   Future<InlineActionsResult> search(String? search) async {
     final List<InlineActionsMenuItem> results = [];
+    if (UniversalPlatform.isMobile) {
+      final mentionPerson = LocaleKeys.document_mentionMenu_mentionAPerson.tr();
+      if (mentionPerson.toLowerCase().contains(search?.toLowerCase() ?? '')) {
+        results.add(
+          InlineActionsMenuItem(
+            label: mentionPerson,
+            iconBuilder: (_) => const FlowySvg(FlowySvgs.mention_invite_user_m),
+            onSelected: (context, editorState, service, replacement) =>
+                editorState.mentionPerson(
+              currentViewId,
+              replacement,
+              search ?? '',
+            ),
+          ),
+        );
+      }
+    }
     if (search != null && search.isNotEmpty) {
       results.add(
         InlineActionsMenuItem(
@@ -90,5 +109,31 @@ extension InlineChildPageEditorStateExtension on EditorState {
       );
 
     await apply(transaction);
+  }
+
+  Future<void> mentionPerson(
+    String currentViewId,
+    (int, int) replacement,
+    String search,
+  ) async {
+    final selection = this.selection;
+    if (selection == null || !selection.isCollapsed) return;
+    final node = getNodeAtPath(selection.start.path);
+    final delta = node?.delta;
+    if (node == null || delta == null) {
+      return;
+    }
+
+    await deleteSelection(
+      selection.copyWith(
+        start: selection.end.copyWith(
+          offset: selection.endIndex - search.length - 1,
+        ),
+      ),
+    );
+
+    final context = service.scrollServiceKey.currentContext;
+    if (context == null || !context.mounted) return;
+    await inlineActionsCommandHandler(this, context);
   }
 }
