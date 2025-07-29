@@ -1,8 +1,10 @@
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
-import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:visibility_detector/visibility_detector.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
+
+import 'mention_menu_scroller.dart';
 
 class MentionMenuItenVisibilityDetector extends StatelessWidget {
   const MentionMenuItenVisibilityDetector({
@@ -16,25 +18,17 @@ class MentionMenuItenVisibilityDetector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final renderBox = context.findRenderObject();
-    final menuServiceInfo = context.read<MentionMenuServiceInfo>();
-    if (renderBox is RenderBox) {
-      menuServiceInfo.addItemHeightGetter(
-        id,
-        () => renderBox.localToGlobal(Offset.zero).dy,
-      );
-    }
-    final bloc = context.read<MentionBloc>();
-    return MouseRegion(
-      onEnter: (e) => bloc.add(MentionEvent.selectItem(id)),
-      child: VisibilityDetector(
-        key: ValueKey(id),
+    final bloc = context.read<MentionBloc>(),
+        theme = AppFlowyTheme.of(context),
+        controllerProvider = context.read<AutoScrollControllerProvider>();
+    final index = bloc.state.itemMap.items.indexWhere((e) => e.id == id);
+    return AutoScrollTag(
+      key: ValueKey(index),
+      index: index,
+      controller: controllerProvider.controller,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: theme.spacing.m),
         child: child,
-        onVisibilityChanged: (info) {
-          if (info.visibleFraction == 0.0) {
-            menuServiceInfo.removeItemHeightGetter(id);
-          }
-        },
       ),
     );
   }

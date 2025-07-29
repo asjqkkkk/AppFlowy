@@ -147,7 +147,6 @@ class MobileMentionMenuService extends MentionMenuService {
               _show(info);
             },
           ),
-          dispose: (context, value) => value.dispose(),
           child: MentionMenu(
             width: screenSize.width - 40,
             maxHeight: min(240.0, editorHeight / 2 - 10),

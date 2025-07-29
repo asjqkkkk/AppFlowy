@@ -1,10 +1,10 @@
-import 'dart:math';
 import 'package:appflowy/features/mension_person/data/models/mention_menu_item.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 import '../mention_menu_service.dart';
 
@@ -18,7 +18,7 @@ class MentionMenuShortcuts extends StatefulWidget {
 
   final Widget child;
   final String initialSearchText;
-  final ScrollController scrollController;
+  final AutoScrollController scrollController;
   @override
   State<MentionMenuShortcuts> createState() => _MentionMenuShortcutsState();
 }
@@ -28,7 +28,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
   int startOffset = 0;
   late String _search = widget.initialSearchText;
 
-  ScrollController get scrollController => widget.scrollController;
+  AutoScrollController get scrollController => widget.scrollController;
 
   @override
   void initState() {
@@ -212,18 +212,10 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       scrollController.jumpTo(0);
       return;
     }
-
-    final menuInfo = context.read<MentionMenuServiceInfo>();
-    final toId = items[to].id, isTopArea = menuInfo.isTopArea(toId);
-
-    final currentPosition = scrollController.position.pixels;
-    if (isTopArea && from > to) {
-      scrollController.jumpTo(max(0, currentPosition - 50));
-    } else if (!isTopArea && from < to) {
-      scrollController.jumpTo(
-        min(currentPosition + 50, scrollController.position.maxScrollExtent),
-      );
-    }
+    scrollController.scrollToIndex(
+      to,
+      preferPosition: AutoScrollPosition.middle,
+    );
   }
 
   void _insertCharacter(String character, BuildContext context) async {

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:scroll_to_index/scroll_to_index.dart';
 
 class MentionMenuScroller extends StatefulWidget {
   const MentionMenuScroller({super.key, required this.builder});
@@ -10,7 +12,7 @@ class MentionMenuScroller extends StatefulWidget {
 }
 
 class _MentionMenuScrollerState extends State<MentionMenuScroller> {
-  final controller = ScrollController();
+  final controller = AutoScrollController();
 
   @override
   void dispose() {
@@ -20,11 +22,20 @@ class _MentionMenuScrollerState extends State<MentionMenuScroller> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.builder.call(context, controller);
+    return Provider.value(
+      value: AutoScrollControllerProvider(controller),
+      child: widget.builder.call(context, controller),
+    );
   }
 }
 
 typedef MentionMenuScrollerBuilder = Widget Function(
   BuildContext context,
-  ScrollController controller,
+  AutoScrollController controller,
 );
+
+class AutoScrollControllerProvider {
+  AutoScrollControllerProvider(this.controller);
+
+  final AutoScrollController controller;
+}

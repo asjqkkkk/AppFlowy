@@ -8,7 +8,6 @@ import 'package:appflowy/features/mension_person/data/models/mention_menu_item.d
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/workspace/application/recent/recent_views_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/command_palette/widgets/search_icon.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -19,48 +18,6 @@ import 'package:universal_platform/universal_platform.dart';
 
 import 'item_visibility_detector.dart';
 import 'more_results_item.dart';
-
-class PageList extends StatelessWidget {
-  const PageList({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final mentionBloc = context.read<MentionBloc>();
-
-    return BlocProvider(
-      create: (context) =>
-          RecentViewsBloc()..add(const RecentViewsEvent.initial()),
-      child: BlocBuilder<RecentViewsBloc, RecentViewsState>(
-        builder: (context, recentViewState) {
-          return BlocListener<RecentViewsBloc, RecentViewsState>(
-            listener: (context, state) => mentionBloc.add(
-              MentionEvent.updateViews(
-                state.views.map((e) => e.item).toList(),
-              ),
-            ),
-            child: BlocBuilder<MentionBloc, MentionState>(
-              builder: (context, state) {
-                final theme = AppFlowyTheme.of(context);
-                final pages = state.itemMap.getItems(MentionMenuType.page);
-                if (pages.isEmpty) return const SizedBox.shrink();
-                return Padding(
-                  padding: EdgeInsets.all(theme.spacing.m),
-                  child: AFMenuSection(
-                    title: LocaleKeys.document_mentionMenu_pages.tr(),
-                    children: List.generate(
-                      pages.length,
-                      (index) => pages[index].buildPageItem(context),
-                    ),
-                  ),
-                );
-              },
-            ),
-          );
-        },
-      ),
-    );
-  }
-}
 
 extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
   Widget buildPageItem(BuildContext context) {

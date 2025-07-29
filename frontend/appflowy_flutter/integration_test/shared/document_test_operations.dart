@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
-import 'package:appflowy/features/mension_person/presentation/widgets/page_list.dart';
+import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/view_page/app_bar_buttons.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_mobile_quick_action_button.dart';
@@ -229,8 +229,10 @@ class EditorOperations {
   ///
   /// Must call [showAtMenu] first.
   Future<void> tapAtMenuItemWithName(String name) async {
-    final pageList = find.byType(PageList);
-    final atMenuItem = find.descendant(of: pageList, matching: find.text(name));
+    final atMenuItem = find.descendant(
+      of: find.byType(MentionMenu),
+      matching: find.text(name),
+    );
     await tester.tapButton(atMenuItem);
   }
 

@@ -149,7 +149,6 @@ class DesktopMentionMenuService extends MentionMenuService {
             _show(info);
           },
         ),
-        dispose: (context, value) => value.dispose(),
         child: MentionMenu(
           sendNotification: sendNotification,
           maxHeight: menuHeight,
@@ -203,26 +202,7 @@ class MentionMenuServiceInfo {
   final int startOffset;
   final EditorState editorState;
   final double top;
-  final Map<String, ValueGetter<double>> _itemYMap = {};
   final ValueChanged<MentionMenuBuilderInfo> onMenuReplace;
-
-  void addItemHeightGetter(String id, ValueGetter<double> yGetter) {
-    _itemYMap[id] = yGetter;
-  }
-
-  void removeItemHeightGetter(String id) => _itemYMap.remove(id);
-
-  void dispose() {
-    _itemYMap.clear();
-  }
-
-  double? getItemPositionY(String id) => _itemYMap[id]?.call();
-
-  bool isTopArea(String id) {
-    final itemY = getItemPositionY(id);
-    if (itemY == null) return false;
-    return itemY <= top + 200;
-  }
 
   TextRange textRange(String queryText) => TextRange(
         start: startOffset - startCharAmount,

@@ -74,6 +74,9 @@ class _PersonToolTipState extends State<PersonToolTip> {
   Widget build(BuildContext context) {
     return MouseRegion(
       key: globalKey,
+      onEnter: (e) {
+        show();
+      },
       onExit: (e) {
         if (!selected) hide();
       },
