@@ -495,7 +495,7 @@ impl UserManager {
           },
         };
 
-        // sync + diff
+        // sync + diff with conflict resolution
         let workspace_type = WorkspaceType::from(&auth_copy);
         match sync_user_workspaces_with_diff(uid, workspace_type, &new_ws, &mut conn) {
           Ok(changes) if !changes.is_empty() => {

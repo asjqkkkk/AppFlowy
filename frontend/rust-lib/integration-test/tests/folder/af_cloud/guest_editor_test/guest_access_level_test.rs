@@ -21,6 +21,7 @@ async fn guest_cannot_invite_another_guest_test() {
   let guest1 = EventIntegrationTest::new().await;
   let guest1_email = guest1.af_cloud_sign_up().await.email;
 
+  tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
   let guest2 = EventIntegrationTest::new().await;
   let guest2_email = guest2.af_cloud_sign_up().await.email;
 

@@ -18,7 +18,6 @@ import 'package:appflowy/workspace/application/command_palette/command_palette_b
 import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
 import 'package:appflowy/workspace/application/favorite/prelude.dart';
 import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
-import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/sidebar/billing/sidebar_plan_bloc.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
@@ -109,9 +108,6 @@ class HomeSideBar extends StatelessWidget {
                   ),
                 );
           }
-
-          // Re-initialize workspace-specific services
-          getIt<CachedRecentService>().reset();
         },
         // Rebuild the whole sidebar when the current workspace changes
         buildWhen: (previous, current) =>

@@ -8,7 +8,6 @@ import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/expand_views.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_listener.dart';
-import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/view/view_listener.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/log.dart';
@@ -180,10 +179,6 @@ class ViewBloc extends Bloc<ViewEvent, ViewState> {
                   successOrFailure: FlowyResult.failure(error),
                 ),
               ),
-            );
-            await getIt<CachedRecentService>().updateRecentViews(
-              [view.id],
-              false,
             );
           },
           duplicate: (e) async {

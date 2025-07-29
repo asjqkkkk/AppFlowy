@@ -286,23 +286,21 @@ pub(crate) async fn read_recent_views_handler(
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<RepeatedRecentViewPB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let recent_items = folder.get_my_recent_sections().await;
-  let start = data.start;
-  let limit = data.limit;
-  let ids = recent_items
+  let recent_views = folder
+    .get_recent_views(Some(data.limit as u32), Some(data.start as u32))
+    .await?;
+  let view_ids = recent_views
     .iter()
-    .rev()  // the most recent view is at the end of the list
-    .map(|item| item.id.clone())
-    .skip(start as usize)
-    .take(limit as usize)
+    .map(|item| item.view_id.clone())
     .collect::<Vec<_>>();
-  let views = folder.get_view_pbs_without_children(ids).await?;
+
+  let views = folder.get_view_pbs_without_children(view_ids).await?;
   let items = views
     .into_iter()
-    .zip(recent_items.into_iter().rev())
+    .zip(recent_views.into_iter())
     .map(|(view, item)| SectionViewPB {
       item: view,
-      timestamp: item.timestamp,
+      timestamp: item.view_at.and_utc().timestamp(),
     })
     .collect::<Vec<_>>();
   data_result_ok(RepeatedRecentViewPB { items })

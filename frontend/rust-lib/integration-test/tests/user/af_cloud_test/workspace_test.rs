@@ -144,6 +144,8 @@ async fn af_cloud_workspace_current_view_test() {
   dbg!(&latest_view);
   assert_eq!(latest_view.id, view.id);
 
+  // make sure the recent view request is sent before dropping the test
+  tokio::time::sleep(std::time::Duration::from_secs(5)).await;
   drop(test);
 
   // simulate reopen the app
@@ -153,15 +155,22 @@ async fn af_cloud_workspace_current_view_test() {
   assert_eq!(latest_view.name, "my shared document");
   drop(test_2);
 
-  // wait for ten seconds for sync
-  tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
   // simulate login to see the latest view
   let test_3 = EventIntegrationTest::new().await;
   test_3.af_cloud_sign_up_with_email(&profile.email).await;
-  let latest_view = test_3.get_latest_workspace().await.latest_view.unwrap();
-  dbg!(&latest_view);
-  assert_eq!(latest_view.name, "my shared document");
+  let get_until = async {
+    loop {
+      let latest_view = test_3.get_latest_workspace().await.latest_view.unwrap();
+      if latest_view.name == "my shared document" {
+        break;
+      }
+      tokio::time::sleep(Duration::from_secs(3)).await;
+    }
+  };
+
+  tokio::time::timeout(Duration::from_secs(10), get_until)
+    .await
+    .unwrap();
 }
 
 #[tokio::test]

@@ -1,5 +1,6 @@
 use crate::entities::PublishPayload;
 pub use anyhow::Error;
+use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
   CreateImportTaskType, PublishInfo,
   guest_dto::{
@@ -123,6 +124,25 @@ pub trait FolderCloudService: Send + Sync + 'static {
 
   /// Get the shared views of a workspace
   async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError>;
+
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError>;
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError>;
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError>;
 }
 
 #[derive(Debug)]

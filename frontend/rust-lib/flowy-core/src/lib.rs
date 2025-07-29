@@ -94,7 +94,6 @@ impl AppFlowyCore {
     runtime: Arc<AFPluginRuntime>,
     stream_log_sender: Option<Arc<dyn StreamLogSender>>,
   ) -> Self {
-    dbg!(&config);
     let platform = OperatingSystem::from(&config.platform);
 
     #[allow(clippy::if_same_then_else)]

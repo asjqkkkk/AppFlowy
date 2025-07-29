@@ -12,7 +12,6 @@ import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
 import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
-import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/errors/workspace_failed_screen.dart';
@@ -172,7 +171,7 @@ class _HomePageState extends State<_HomePage> {
           previous.currentWorkspace?.workspaceId !=
           current.currentWorkspace?.workspaceId,
       listener: (context, state) {
-        getIt<CachedRecentService>().reset();
+        // Reset recent srvice for the new workspace
         mCurrentWorkspace.value = state.currentWorkspace;
         if (FeatureFlag.search.isOn) {
           // Notify command palette that workspace has changed

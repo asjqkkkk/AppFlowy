@@ -110,6 +110,15 @@ diesel::table! {
 }
 
 diesel::table! {
+    user_recent_view (view_id, uid, workspace_id) {
+        view_id -> Text,
+        view_at -> Timestamp,
+        uid -> BigInt,
+        workspace_id -> Text,
+    }
+}
+
+diesel::table! {
     user_table (id) {
         id -> Text,
         name -> Text,
@@ -132,6 +141,7 @@ diesel::table! {
         member_count -> BigInt,
         role -> Nullable<Integer>,
         workspace_type -> Integer,
+        updated_at -> BigInt,
     }
 }
 
@@ -194,6 +204,7 @@ diesel::allow_tables_to_appear_in_same_query!(
   upload_file_part,
   upload_file_table,
   user_data_migration_records,
+  user_recent_view,
   user_table,
   user_workspace_table,
   workspace_members_table,

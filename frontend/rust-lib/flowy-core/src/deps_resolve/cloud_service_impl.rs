@@ -29,6 +29,7 @@ use flowy_server_pub::af_cloud_config::AFCloudConfiguration;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::workspace_dto::RecentViewItem;
 use flowy_server_pub::CreateImportTaskType;
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
@@ -526,6 +527,40 @@ impl FolderCloudService for ServerProvider {
     self
       .get_folder_service()?
       .get_shared_views(workspace_id)
+      .await
+  }
+
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError> {
+    self
+      .get_folder_service()?
+      .get_recent_views(workspace_id, limit, offset)
+      .await
+  }
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .add_recent_views(workspace_id, view_ids)
+      .await
+  }
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .delete_recent_views(workspace_id, view_ids)
       .await
   }
 }

@@ -3,6 +3,7 @@
 use crate::EmbeddingWriter;
 use crate::af_cloud::define::LoggedUser;
 use crate::local_server::util::default_encode_collab_for_collab_type;
+use chrono::Utc;
 use client_api::entity::PublishInfo;
 use client_api::entity::workspace_dto::PublishInfoView;
 use collab::core::collab::CollabOptions;
@@ -11,11 +12,15 @@ use collab::preclude::Collab;
 use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use flowy_ai_pub::cloud::workspace_dto::RecentViewItem;
 use flowy_error::FlowyError;
 use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
 };
 use flowy_folder_pub::entities::PublishPayload;
+use flowy_folder_pub::sql::recent_view_sql::{
+  delete_user_recent_views, select_user_recent_views, upsert_user_recent_views,
+};
 use flowy_server_pub::CreateImportTaskType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
@@ -212,5 +217,63 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
 
   async fn get_shared_views(&self, _workspace_id: &Uuid) -> Result<SharedViews, FlowyError> {
     Err(FlowyError::local_version_not_support())
+  }
+
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError> {
+    let uid = self.logged_user.user_id()?;
+    let db = self.logged_user.get_sqlite_db(uid)?;
+    let views = select_user_recent_views(
+      db,
+      uid,
+      &workspace_id.to_string(),
+      Some(limit),
+      Some(offset),
+    )?;
+    Ok(
+      views
+        .into_iter()
+        .flat_map(|v| {
+          let object_id = Uuid::parse_str(&v.view_id).ok()?;
+          Some(RecentViewItem {
+            object_id,
+            viewed_at: v.view_at.and_utc(),
+          })
+        })
+        .collect(),
+    )
+  }
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    let uid = self.logged_user.user_id()?;
+    let mut db = self.logged_user.get_sqlite_db(uid)?;
+    let items = view_ids
+      .into_iter()
+      .map(|id| RecentViewItem {
+        object_id: id,
+        viewed_at: Utc::now(),
+      })
+      .collect::<Vec<_>>();
+    upsert_user_recent_views(&mut db, uid, &workspace_id.to_string(), items)?;
+    Ok(())
+  }
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    let uid = self.logged_user.user_id()?;
+    let mut db = self.logged_user.get_sqlite_db(uid)?;
+    delete_user_recent_views(&mut db, uid, &workspace_id.to_string(), view_ids)?;
+    Ok(())
   }
 }

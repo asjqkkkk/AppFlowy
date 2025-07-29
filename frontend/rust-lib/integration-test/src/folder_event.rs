@@ -601,7 +601,7 @@ impl EventIntegrationTest {
       .parse::<RepeatedSharedUserPB>();
 
     // wait for 1 second to make sure the cache is refreshed
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     // fetch from cloud
     EventBuilder::new(self.clone())
