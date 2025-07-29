@@ -21,6 +21,7 @@ import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -135,8 +136,15 @@ class SettingsManageDataView extends StatelessWidget {
                     label:
                         LocaleKeys.workspace_errorActions_exportLogFiles.tr(),
                     buttonLabel: LocaleKeys.settings_files_export.tr(),
-                    onPressed: () {
-                      shareLogFiles(context);
+                    onPressed: () async {
+                      final customPath =
+                          await getIt<FilePickerService>().getDirectoryPath();
+                      if (customPath != null && context.mounted) {
+                        await shareLogFiles(
+                          context,
+                          customExportPath: customPath,
+                        );
+                      }
                     },
                   ),
                 ],

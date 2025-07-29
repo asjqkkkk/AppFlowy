@@ -121,7 +121,7 @@ impl<'a> WorkspaceExporter<'a> {
 
     let root_views = folder.get_views_belong_to(&workspace_id.to_string(), uid);
     for view in root_views {
-      if !view_ids_should_be_filtered.contains(&view.id) {
+      if !view_ids_should_be_filtered.contains(&view.id) && view.layout != ViewLayout::Chat {
         self.collect_view_hierarchy(
           &folder,
           &view,
@@ -164,7 +164,9 @@ impl<'a> WorkspaceExporter<'a> {
 
     let child_views = folder.get_views_belong_to(&view.id, uid);
     for child_view in child_views {
-      if !view_ids_should_be_filtered.contains(&child_view.id) {
+      if !view_ids_should_be_filtered.contains(&child_view.id)
+        && child_view.layout != ViewLayout::Chat
+      {
         self.collect_view_hierarchy(
           folder,
           &child_view,
@@ -239,6 +241,13 @@ impl<'a> WorkspaceExporter<'a> {
     for view in views {
       let view_metadata = self.extract_view_metadata(view).await?;
       relation_map.views.insert(view.id.clone(), view_metadata);
+    }
+
+    let view_ids: HashSet<String> = relation_map.views.keys().cloned().collect();
+    for view_metadata in relation_map.views.values_mut() {
+      view_metadata
+        .children
+        .retain(|child_id| view_ids.contains(child_id));
     }
 
     for view in views {

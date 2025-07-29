@@ -54,6 +54,7 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -68,7 +69,7 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
                   _getUserInfo(),
                   fontSize: 12.0,
                   overflow: TextOverflow.ellipsis,
-                  color: Theme.of(context).hintColor,
+                  color: theme.textColorScheme.secondary,
                 ),
               ),
               const HSpace(4.0),
@@ -181,7 +182,7 @@ class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
           //  cause the popover dismiss intermediately when click the right icon.
           // so using the stack to put the right icon on the flowy button.
           return SizedBox(
-            height: 44,
+            height: 50,
             child: MouseRegion(
               onEnter: (_) => isHovered.value = true,
               onExit: (_) => isHovered.value = false,
@@ -290,6 +291,11 @@ class _WorkspaceInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     final memberCount = workspace.memberCount.toInt();
+    final memberCountText = memberCount == 0
+        ? ''
+        : LocaleKeys.settings_appearance_members_membersCount.plural(
+            memberCount,
+          );
 
     return FlowyButton(
       onTap: () => _openWorkspace(context),
@@ -313,7 +319,7 @@ class _WorkspaceInfo extends StatelessWidget {
                         preferBelow: true,
                         child: Text(
                           workspace.name,
-                          style: theme.textStyle.body.enhanced(
+                          style: theme.textStyle.body.standard(
                             color: theme.textColorScheme.primary,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -333,16 +339,11 @@ class _WorkspaceInfo extends StatelessWidget {
                 if (workspace.role != AFRolePB.Guest &&
                     workspace.workspaceType == WorkspaceTypePB.ServerW)
                   // workspace members count
-                  FlowyText.regular(
-                    memberCount == 0
-                        ? ''
-                        : LocaleKeys.settings_appearance_members_membersCount
-                            .plural(
-                            memberCount,
-                          ),
-                    fontSize: 10.0,
-                    figmaLineHeight: 12.0,
-                    color: Theme.of(context).hintColor,
+                  Text(
+                    memberCountText,
+                    style: theme.textStyle.caption.standard(
+                      color: theme.textColorScheme.secondary,
+                    ),
                   ),
                 if (workspace.workspaceType == WorkspaceTypePB.Vault)
                   FlowyText.regular(
@@ -388,6 +389,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return SizedBox(
       height: 44,
       child: FlowyButton(
@@ -401,8 +403,11 @@ class _CreateWorkspaceButton extends StatelessWidget {
           children: [
             _buildLeftIcon(context),
             const HSpace(8.0),
-            FlowyText.regular(
+            Text(
               LocaleKeys.workspace_create.tr(),
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -477,11 +482,11 @@ class _ImportWorkspaceButton extends StatefulWidget {
 }
 
 class _ImportWorkspaceButtonState extends State<_ImportWorkspaceButton> {
-  final AFPopoverController _popoverController = AFPopoverController();
+  final AFPopoverController popoverController = AFPopoverController();
 
   @override
   void dispose() {
-    _popoverController.dispose();
+    popoverController.dispose();
     super.dispose();
   }
 
@@ -489,25 +494,25 @@ class _ImportWorkspaceButtonState extends State<_ImportWorkspaceButton> {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     return AFPopover(
-      controller: _popoverController,
+      controller: popoverController,
       anchor: const AFAnchorAuto(
         offset: Offset(128, 0),
         targetAnchor: Alignment.topRight,
       ),
       padding: EdgeInsets.zero,
       decoration: BoxDecoration(),
-      popover: (_) => _ImportMenu(controller: _popoverController),
+      popover: (_) => _ImportMenu(controller: popoverController),
       child: SizedBox(
         height: 44,
         child: FlowyButton(
-          onTap: () => _popoverController.toggle(),
+          onTap: () => popoverController.toggle(),
           margin: const EdgeInsets.symmetric(horizontal: 4.0),
           text: Row(
             children: [
               _buildLeftIcon(context),
               const HSpace(8.0),
               Text(
-                'Import workspace',
+                LocaleKeys.workspace_importWorkspace.tr(),
                 style: theme.textStyle.body.standard(
                   color: theme.textColorScheme.primary,
                 ),
@@ -517,7 +522,6 @@ class _ImportWorkspaceButtonState extends State<_ImportWorkspaceButton> {
                 FlowySvgs.arrow_right_s,
                 size: Size.square(16.0),
                 color: theme.iconColorScheme.tertiary,
-                blendMode: null,
               ),
               HSpace(theme.spacing.m),
             ],
@@ -560,13 +564,14 @@ class _ImportMenu extends StatelessWidget {
       children: [
         AFMenuItem(
           title: Text(
-            'Import from AppFlowy',
+            LocaleKeys.workspace_importFromAppFlowy.tr(),
             style: theme.textStyle.body.standard(
               color: theme.textColorScheme.primary,
             ),
           ),
           onTap: () async {
             controller.hide();
+            PopoverContainer.of(context).closeAll();
             await WorkspaceImportDialog.show(context);
           },
         ),
