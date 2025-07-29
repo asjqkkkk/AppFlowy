@@ -123,12 +123,16 @@ class MentionBlock extends StatelessWidget {
     required this.node,
     required this.index,
     required this.textStyle,
+    this.hasCustomTextColor = false,
+    this.hasCustomBackgroundColor = false,
   });
 
   final Map<String, dynamic> mention;
   final Node node;
   final int index;
   final TextStyle? textStyle;
+  final bool hasCustomTextColor;
+  final bool hasCustomBackgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +214,8 @@ class MentionBlock extends StatelessWidget {
           node: node,
           textStyle: textStyle,
           index: index,
+          hasCustomBackgroundColor: hasCustomBackgroundColor,
+          hasCustomTextColor: hasCustomTextColor,
         );
     }
   }

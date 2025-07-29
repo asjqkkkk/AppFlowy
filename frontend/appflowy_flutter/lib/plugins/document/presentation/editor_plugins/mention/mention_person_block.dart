@@ -26,6 +26,8 @@ class MentionPersonBlock extends StatefulWidget {
     required this.node,
     required this.textStyle,
     required this.index,
+    required this.hasCustomTextColor,
+    required this.hasCustomBackgroundColor,
   });
 
   final EditorState editorState;
@@ -34,6 +36,8 @@ class MentionPersonBlock extends StatefulWidget {
   final String? blockId;
   final Node node;
   final TextStyle? textStyle;
+  final bool hasCustomTextColor;
+  final bool hasCustomBackgroundColor;
 
   // Used to update the block
   final int index;
@@ -52,6 +56,9 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   String get personId => widget.personId;
   String get pageId => widget.pageId;
   String? get blockId => widget.blockId;
+
+  bool get hasCustomTextColor => widget.hasCustomTextColor;
+  bool get hasCustomBackgroundColor => widget.hasCustomBackgroundColor;
 
   @override
   void initState() {
@@ -135,10 +142,6 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
     } else {
       richText = buildNormalPerson(context, person.name);
     }
-    richText = Padding(
-      padding: EdgeInsets.only(right: theme.spacing.m),
-      child: richText,
-    );
     return UniversalPlatform.isMobile
         ? GestureDetector(
             behavior: HitTestBehavior.opaque,
@@ -167,10 +170,11 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
 
   Widget buildDeletedPerson(BuildContext context) {
     final theme = AppFlowyTheme.of(context),
-        color = theme.textColorScheme.tertiary,
+        color = hasCustomTextColor ? null : theme.textColorScheme.tertiary,
         style = widget.textStyle?.copyWith(
               color: color,
               leadingDistribution: TextLeadingDistribution.even,
+              backgroundColor: Colors.transparent,
             ) ??
             theme.textStyle.body.standard(color: color);
     return RichText(
@@ -180,12 +184,10 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         children: [
           TextSpan(
             text: '@',
-            style: style.copyWith(
-              color: theme.textColorScheme.tertiary,
-            ),
+            style: style.copyWith(color: color),
           ),
           TextSpan(
-            text: LocaleKeys.document_mentionMenu_deleted.tr(),
+            text: '${LocaleKeys.document_mentionMenu_deleted.tr()} ',
             style: style,
           ),
         ],
@@ -208,12 +210,10 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         children: [
           TextSpan(
             text: '@',
-            style: style.copyWith(
-              color: theme.textColorScheme.tertiary,
-            ),
+            style: style.copyWith(color: color),
           ),
           TextSpan(
-            text: LocaleKeys.invitation_errorModal_title.tr(),
+            text: '${LocaleKeys.invitation_errorModal_title.tr()} ',
             style: style,
           ),
         ],
@@ -223,10 +223,11 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
 
   Widget buildNormalPerson(BuildContext context, String name) {
     final theme = AppFlowyTheme.of(context),
-        color = theme.textColorScheme.secondary,
+        color = hasCustomTextColor ? null : theme.textColorScheme.secondary,
         style = widget.textStyle?.copyWith(
               color: color,
               leadingDistribution: TextLeadingDistribution.even,
+              backgroundColor: Colors.transparent,
             ) ??
             theme.textStyle.body.standard(color: color);
     return RichText(
@@ -237,10 +238,10 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
           TextSpan(
             text: '@',
             style: style.copyWith(
-              color: theme.textColorScheme.tertiary,
+              color: hasCustomTextColor ? null : theme.textColorScheme.tertiary,
             ),
           ),
-          TextSpan(text: name, style: style),
+          TextSpan(text: '$name ', style: style),
         ],
       ),
     );

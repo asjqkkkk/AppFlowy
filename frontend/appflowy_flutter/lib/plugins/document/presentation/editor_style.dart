@@ -432,6 +432,10 @@ class EditorStyleCustomizer {
               _ => MentionBlockKeys.mention,
             },
           ),
+          hasCustomTextColor:
+              attributes[AppFlowyRichTextTokenKeys.textColor] != null,
+          hasCustomBackgroundColor:
+              attributes[AppFlowyRichTextTokenKeys.backgroundColor] != null,
           node: node,
           index: index,
           mention: mention,
