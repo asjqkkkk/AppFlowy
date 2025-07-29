@@ -963,6 +963,8 @@ impl From<SharedViewDetails> for RepeatedSharedUserPB {
 pub struct GetSharedUsersPayloadPB {
   #[pb(index = 1)]
   pub view_id: String,
+  #[pb(index = 2)]
+  pub is_fetch_from_cloud: bool,
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]

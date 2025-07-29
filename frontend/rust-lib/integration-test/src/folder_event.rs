@@ -447,7 +447,10 @@ impl EventIntegrationTest {
       .parse::<RepeatedViewPB>()
   }
 
-  pub async fn import_workspace(&self, data: ImportWorkspaceRequestPB) -> ImportWorkspaceResponsePB {
+  pub async fn import_workspace(
+    &self,
+    data: ImportWorkspaceRequestPB,
+  ) -> ImportWorkspaceResponsePB {
     EventBuilder::new(self.clone())
       .event(FolderEvent::ImportWorkspace)
       .payload(data)
@@ -592,6 +595,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
         view_id: view_id.to_string(),
+        is_fetch_from_cloud: true,
       })
       .async_send()
       .await
@@ -605,6 +609,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
         view_id: view_id.to_string(),
+        is_fetch_from_cloud: true,
       })
       .async_send()
       .await

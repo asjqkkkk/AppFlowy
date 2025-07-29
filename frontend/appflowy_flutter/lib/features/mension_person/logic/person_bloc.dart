@@ -36,7 +36,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
       emit(state.copyWith(persons: localPersons, status: PersonStatus.idle));
     }
     final documentUsersResult = await FolderEventGetSharedUsers(
-      GetSharedUsersPayloadPB(viewId: documentId),
+      GetSharedUsersPayloadPB(viewId: documentId, isFetchFromCloud: false),
     ).send();
 
     final users = documentUsersResult.fold(
