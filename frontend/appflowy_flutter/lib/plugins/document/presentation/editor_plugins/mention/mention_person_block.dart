@@ -174,6 +174,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
             ) ??
             theme.textStyle.body.standard(color: color);
     return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
         children: [
           TextSpan(
@@ -200,6 +202,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
             ) ??
             theme.textStyle.body.standard(color: color);
     return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
         children: [
           TextSpan(
@@ -226,6 +230,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
             ) ??
             theme.textStyle.body.standard(color: color);
     return RichText(
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
       text: TextSpan(
         children: [
           TextSpan(
