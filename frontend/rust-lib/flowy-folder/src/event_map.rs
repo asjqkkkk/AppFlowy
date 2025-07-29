@@ -21,7 +21,7 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::UpdateView, update_view_handler)
     .event(FolderEvent::DeleteView, delete_view_handler)
     .event(FolderEvent::DuplicateView, duplicate_view_handler)
-    .event(FolderEvent::SetLatestView, set_latest_view_handler)
+    .event(FolderEvent::OpenView, open_view_handler)
     .event(FolderEvent::CloseView, close_view_handler)
     .event(FolderEvent::MoveView, move_view_handler)
     .event(FolderEvent::MoveNestedView, move_nested_view_handler)
@@ -129,7 +129,7 @@ pub enum FolderEvent {
 
   /// Set the current visiting view
   #[event(input = "ViewIdPB")]
-  SetLatestView = 21,
+  OpenView = 21,
 
   /// Move the view or app to another place
   #[event(input = "MoveViewPayloadPB")]

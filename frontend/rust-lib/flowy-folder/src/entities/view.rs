@@ -2,13 +2,13 @@ use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::{AFAccessLevel, AFRole};
-use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
+use collab_folder::{View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
 use flowy_folder_pub::cloud::gen_view_id;
 use flowy_folder_pub::sql::workspace_shared_user_sql::WorkspaceSharedUserTable;
 use lib_infra::validator_fn::required_not_empty_str;
-use std::collections::HashMap;
+use serde_json::Value;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::Debug;
@@ -321,30 +321,27 @@ pub struct CreateViewPayloadPB {
   #[pb(index = 5)]
   pub initial_data: Vec<u8>,
 
-  #[pb(index = 6)]
-  pub meta: HashMap<String, String>,
-
   // Mark the view as current view after creation.
-  #[pb(index = 7)]
+  #[pb(index = 6)]
   pub set_as_current: bool,
 
   // The index of the view in the parent view.
   // If the index is None or the index is out of range, the view will be appended to the end of the parent view.
-  #[pb(index = 8, one_of)]
+  #[pb(index = 7, one_of)]
   pub index: Option<u32>,
 
   // The section of the view.
   // Only the view in public section will be shown in the shared workspace view list.
   // The view in private section will only be shown in the user's private view list.
-  #[pb(index = 9, one_of)]
+  #[pb(index = 8, one_of)]
   pub section: Option<ViewSectionPB>,
 
-  #[pb(index = 10, one_of)]
+  #[pb(index = 9, one_of)]
   pub view_id: Option<String>,
 
   // The extra data of the view.
   // Refer to the extra field in the collab
-  #[pb(index = 11, one_of)]
+  #[pb(index = 10, one_of)]
   pub extra: Option<String>,
 }
 
@@ -381,7 +378,6 @@ pub struct CreateViewParams {
   pub layout: ViewLayoutPB,
   pub view_id: Uuid,
   pub initial_data: ViewData,
-  pub meta: HashMap<String, String>,
   // Mark the view as current view after creation.
   pub set_as_current: bool,
   // The index of the view in the parent view.
@@ -397,9 +393,9 @@ pub struct CreateViewParams {
 
 impl Debug for CreateViewParams {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let space_info = match &self.extra {
+    let extra = match &self.extra {
       None => None,
-      Some(extra) => serde_json::from_str::<SpaceInfo>(extra).ok(),
+      Some(extra) => serde_json::from_str::<Value>(extra).ok(),
     };
     f.debug_struct("CreateViewParams")
       .field("parent_view_id", &self.parent_view_id)
@@ -407,12 +403,11 @@ impl Debug for CreateViewParams {
       .field("layout", &self.layout)
       .field("view_id", &self.view_id)
       .field("initial_data", &self.initial_data)
-      .field("meta", &self.meta)
       .field("set_as_current", &self.set_as_current)
       .field("index", &self.index)
       .field("section", &self.section)
       .field("icon", &self.icon)
-      .field("extra", &space_info)
+      .field("extra", &extra)
       .finish()
   }
 }
@@ -430,13 +425,17 @@ impl TryInto<CreateViewParams> for CreateViewPayloadPB {
       .and_then(|v| Uuid::parse_str(&v).ok())
       .unwrap_or_else(gen_view_id);
 
+    let initial_data = if self.initial_data.is_empty() {
+      ViewData::Empty
+    } else {
+      ViewData::Data(self.initial_data.into())
+    };
     Ok(CreateViewParams {
       parent_view_id,
       name,
       layout: self.layout,
       view_id,
-      initial_data: ViewData::Data(self.initial_data.into()),
-      meta: self.meta,
+      initial_data,
       set_as_current: self.set_as_current,
       index: self.index,
       section: self.section,
@@ -452,14 +451,18 @@ impl TryInto<CreateViewParams> for CreateOrphanViewPayloadPB {
   fn try_into(self) -> Result<CreateViewParams, Self::Error> {
     let name = ViewName::parse(self.name)?.0;
     let view_id = Uuid::parse_str(&self.view_id).map_err(|_| ErrorCode::InvalidParams)?;
+    let initial_data = if self.initial_data.is_empty() {
+      ViewData::Empty
+    } else {
+      ViewData::Data(self.initial_data.into())
+    };
 
     Ok(CreateViewParams {
       parent_view_id: view_id,
       name,
       layout: self.layout,
       view_id,
-      initial_data: ViewData::Data(self.initial_data.into()),
-      meta: Default::default(),
+      initial_data,
       set_as_current: false,
       index: None,
       section: None,

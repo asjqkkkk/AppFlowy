@@ -629,21 +629,7 @@ impl FolderManager {
       .await?;
 
     info!("{} create view {:#?}", handler.name(), params);
-    if params.meta.is_empty() && params.initial_data.is_empty() {
-      handler
-        .create_default_view(
-          user_id,
-          &params.parent_view_id,
-          &params.view_id,
-          &params.name,
-          view_layout.clone(),
-        )
-        .await?;
-    } else {
-      handler
-        .create_view_with_view_data(user_id, params.clone())
-        .await?;
-    }
+    handler.create_view(user_id, params.clone()).await?;
 
     let index = params.index;
     let section = params.section.clone().unwrap_or(ViewSectionPB::Public);
@@ -723,15 +709,7 @@ impl FolderManager {
     let view_layout: ViewLayout = params.layout.clone().into();
     let handler = self.get_handler(&view_layout)?;
     let user_id = self.user.user_id()?;
-    handler
-      .create_default_view(
-        user_id,
-        &params.parent_view_id,
-        &params.view_id,
-        &params.name,
-        view_layout.clone(),
-      )
-      .await?;
+    handler.create_view(user_id, params.clone()).await?;
 
     let view = create_view(user_id, params, view_layout);
     if let Some(lock) = self.mutex_folder.load_full() {
@@ -1569,7 +1547,6 @@ impl FolderManager {
         layout: view.layout.clone().into(),
         initial_data: ViewData::DuplicateData(view_data),
         view_id: gen_view_id(),
-        meta: Default::default(),
         set_as_current: is_source_view && open_after_duplicated,
         index,
         section: Some(section),
@@ -1611,7 +1588,7 @@ impl FolderManager {
   }
 
   #[tracing::instrument(level = "trace", skip(self), err)]
-  pub(crate) async fn set_current_view(&self, view_id: String) -> Result<(), FlowyError> {
+  pub(crate) async fn open_view(&self, view_id: String) -> Result<(), FlowyError> {
     if let Err(err) = self.add_recent_views(vec![view_id.clone()]).await {
       error!("Failed to add recent view: {:?}", err);
     }
@@ -2569,7 +2546,6 @@ impl FolderManager {
       layout: import_data.view_layout.clone().into(),
       initial_data: ViewData::Empty,
       view_id,
-      meta: Default::default(),
       set_as_current: false,
       index: None,
       section: None,

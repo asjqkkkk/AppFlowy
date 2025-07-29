@@ -148,7 +148,7 @@ class _MobileHomePageState extends State<MobileHomePage> {
     if (id == null || id.isEmpty) {
       return;
     }
-    await FolderEventSetLatestView(ViewIdPB(value: id)).send();
+    await FolderEventOpenView(ViewIdPB(value: id)).send();
   }
 }
 

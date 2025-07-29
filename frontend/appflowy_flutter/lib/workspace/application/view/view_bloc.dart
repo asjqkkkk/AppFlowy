@@ -224,7 +224,6 @@ class ViewBloc extends Bloc<ViewEvent, ViewState> {
               parentViewId: view.id,
               name: e.name,
               layoutType: e.layoutType,
-              ext: {},
               openAfterCreate: e.openAfterCreated,
               section: e.section,
             );

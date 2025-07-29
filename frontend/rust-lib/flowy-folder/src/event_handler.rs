@@ -81,7 +81,7 @@ pub(crate) async fn create_view_handler(
   let set_as_current = params.set_as_current;
   let view = folder.create_view_with_params(params, true).await?;
   if set_as_current {
-    let _ = folder.set_current_view(view.id.clone()).await;
+    let _ = folder.open_view(view.id.clone()).await;
   }
   data_result_ok(view_pb_without_child_views(view))
 }
@@ -95,7 +95,7 @@ pub(crate) async fn create_orphan_view_handler(
   let set_as_current = params.set_as_current;
   let view = folder.create_orphan_view_with_params(params).await?;
   if set_as_current {
-    let _ = folder.set_current_view(view.id.clone()).await;
+    let _ = folder.open_view(view.id.clone()).await;
   }
   data_result_ok(view_pb_without_child_views(view))
 }
@@ -206,13 +206,13 @@ pub(crate) async fn update_recent_views_handler(
   Ok(())
 }
 
-pub(crate) async fn set_latest_view_handler(
+pub(crate) async fn open_view_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> Result<(), FlowyError> {
   let folder = upgrade_folder(folder)?;
   let view_id: ViewIdPB = data.into_inner();
-  let _ = folder.set_current_view(view_id.value.clone()).await;
+  let _ = folder.open_view(view_id.value.clone()).await;
   Ok(())
 }
 

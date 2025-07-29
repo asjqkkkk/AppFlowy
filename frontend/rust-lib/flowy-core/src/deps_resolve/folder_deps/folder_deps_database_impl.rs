@@ -176,12 +176,13 @@ impl FolderOperationHandler for DatabaseFolderOperation {
   /// Create a database view with duplicated data.
   /// If the ext contains the {"database_id": "xx"}, then it will link
   /// to the existing database.
-  async fn create_view_with_view_data(
-    &self,
-    _user_id: i64,
-    params: CreateViewParams,
-  ) -> Result<(), FlowyError> {
-    match CreateDatabaseExtParams::from_map(params.meta.clone()) {
+  async fn create_view(&self, _user_id: i64, params: CreateViewParams) -> Result<(), FlowyError> {
+    let extra = params
+      .extra
+      .and_then(|extra| serde_json::from_str::<CreateDatabaseExtra>(&extra).ok());
+    let view_layout: ViewLayout = params.layout.clone().into();
+
+    match extra {
       None => match params.initial_data {
         ViewData::DuplicateData(data) => {
           let duplicated_view_id =
@@ -199,9 +200,27 @@ impl FolderOperationHandler for DatabaseFolderOperation {
             .await?;
           Ok(())
         },
-        ViewData::Empty => Ok(()),
+        ViewData::Empty => {
+          let data = match view_layout {
+            ViewLayout::Grid => make_default_grid(params.view_id, &params.name),
+            ViewLayout::Board => make_default_board(params.view_id, &params.name),
+            ViewLayout::Calendar => make_default_calendar(params.view_id, &params.name),
+            ViewLayout::Document | ViewLayout::Chat => {
+              return Err(
+                FlowyError::internal()
+                  .with_context(format!("Can't handle {:?} layout type", view_layout)),
+              );
+            },
+          };
+
+          self
+            .database_manager()?
+            .create_database_with_data(data)
+            .await?;
+          Ok(())
+        },
       },
-      Some(database_params) => {
+      Some(database_extra) => {
         let layout = match params.layout {
           ViewLayoutPB::Board => DatabaseLayoutPB::Board,
           ViewLayoutPB::Calendar => DatabaseLayoutPB::Calendar,
@@ -220,52 +239,12 @@ impl FolderOperationHandler for DatabaseFolderOperation {
           .create_linked_view(
             name,
             layout.into(),
-            database_params.database_id,
+            database_extra.database_id,
             database_view_id,
             database_parent_view_id,
           )
           .await?;
         Ok(())
-      },
-    }
-  }
-
-  /// Create a database view with build-in data.
-  /// If the ext contains the {"database_id": "xx"}, then it will link to
-  /// the existing database. The data of the database will be shared within
-  /// these references views.
-  async fn create_default_view(
-    &self,
-    user_id: i64,
-    parent_view_id: &Uuid,
-    view_id: &Uuid,
-    name: &str,
-    layout: ViewLayout,
-  ) -> Result<(), FlowyError> {
-    let name = name.to_string();
-    let view_id = view_id.to_string();
-    let data = match layout {
-      ViewLayout::Grid => make_default_grid(&view_id, &name),
-      ViewLayout::Board => make_default_board(&view_id, &name),
-      ViewLayout::Calendar => make_default_calendar(&view_id, &name),
-      ViewLayout::Document | ViewLayout::Chat => {
-        return Err(
-          FlowyError::internal().with_context(format!("Can't handle {:?} layout type", layout)),
-        );
-      },
-    };
-    let result = self
-      .database_manager()?
-      .create_database_with_data(data)
-      .await;
-    match result {
-      Ok(_) => Ok(()),
-      Err(err) => {
-        if err.is_already_exists() {
-          Ok(())
-        } else {
-          Err(err)
-        }
       },
     }
   }
@@ -350,13 +329,6 @@ impl FolderOperationHandler for DatabaseFolderOperation {
 }
 
 #[derive(Debug, serde::Deserialize)]
-struct CreateDatabaseExtParams {
+struct CreateDatabaseExtra {
   database_id: String,
-}
-
-impl CreateDatabaseExtParams {
-  pub fn from_map(map: HashMap<String, String>) -> Option<Self> {
-    let value = serde_json::to_value(map).ok()?;
-    serde_json::from_value::<Self>(value).ok()
-  }
 }

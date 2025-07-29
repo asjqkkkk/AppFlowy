@@ -14,7 +14,7 @@ use crate::services::field::{FieldBuilder, TypeOptionHandlerCache};
 use crate::services::field_settings::default_field_settings_for_fields;
 use crate::services::setting::{BoardLayoutSetting, CalendarLayoutSetting};
 
-pub fn make_default_grid(view_id: &str, name: &str) -> CreateDatabaseParams {
+pub fn make_default_grid<T: ToString>(view_id: T, name: &str) -> CreateDatabaseParams {
   let database_id = gen_database_id();
   let timestamp = timestamp();
 
@@ -60,7 +60,7 @@ pub fn make_default_grid(view_id: &str, name: &str) -> CreateDatabaseParams {
   }
 }
 
-pub fn make_default_board(view_id: &str, name: &str) -> CreateDatabaseParams {
+pub fn make_default_board<T: ToString>(view_id: T, name: &str) -> CreateDatabaseParams {
   let database_id = gen_database_id();
   let timestamp = timestamp();
 
@@ -137,7 +137,7 @@ pub fn make_default_board(view_id: &str, name: &str) -> CreateDatabaseParams {
   }
 }
 
-pub fn make_default_calendar(view_id: &str, name: &str) -> CreateDatabaseParams {
+pub fn make_default_calendar<T: ToString>(view_id: T, name: &str) -> CreateDatabaseParams {
   let database_id = gen_database_id();
   let timestamp = timestamp();
 

@@ -52,7 +52,7 @@ void main() {
     final _ = DocumentBloc(documentId: latestView.id)
       ..add(const DocumentEvent.initial());
 
-    await FolderEventSetLatestView(ViewIdPB(value: latestView.id)).send();
+    await FolderEventOpenView(ViewIdPB(value: latestView.id)).send();
     await blocResponseFuture();
 
     final actual = homeBloc.state.workspaceSetting.latestView.id;

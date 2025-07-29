@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::read;
 use uuid::Uuid;
 
@@ -21,9 +20,7 @@ impl FolderWorkspaceImporter<'_> {
     let workspace_id = workspace_metadata.workspace_id.to_string();
 
     import_context.track_created_resource(FolderCreatedResource::Workspace(workspace_id.clone()));
-
     // we should create a new workspace here
-
     Ok(workspace_id)
   }
 
@@ -128,7 +125,6 @@ impl FolderWorkspaceImporter<'_> {
       layout,
       view_id,
       initial_data,
-      meta: HashMap::new(),
       set_as_current: false,
       index: None,
       section: Some(ViewSectionPB::Public),
