@@ -55,8 +55,8 @@ extension DateReminderItemExtension on MentionMenuItem {
     if (node == null || delta == null) return;
     final range = mentionInfo.textRange(query);
 
-    _onDismiss(mentionInfo);
     await editorState.insertDateReference(date, range.start, range.end);
+    _onDismiss(mentionInfo);
   }
 
   Future<void> _onReminderInsert(
@@ -75,7 +75,6 @@ extension DateReminderItemExtension on MentionMenuItem {
     if (node == null || delta == null) return;
 
     final range = mentionInfo.textRange(query);
-    _onDismiss(mentionInfo);
     await editorState.insertReminderReference(
       context,
       date,
@@ -83,9 +82,10 @@ extension DateReminderItemExtension on MentionMenuItem {
       range.end,
       includeTime: includeTime,
     );
+    _onDismiss(mentionInfo);
   }
 
   void _onDismiss(MentionMenuServiceInfo info) {
-    info.onDismiss.call();
+    info.onDismiss.call(info.editorState.selection);
   }
 }

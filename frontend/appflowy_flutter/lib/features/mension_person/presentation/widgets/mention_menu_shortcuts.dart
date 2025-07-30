@@ -85,13 +85,13 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       if (item != null) {
         menuBloc.add(ExecuteItem(item));
       } else {
-        onDismiss();
+        onDismiss(null);
       }
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.escape) {
       // Workaround to bring focus back to editor
       editorState.updateSelectionWithReason(editorState.selection);
-      onDismiss();
+      onDismiss(null);
     } else if (event.logicalKey == LogicalKeyboardKey.backspace) {
       if (_search.isEmpty) {
         if (_canDeleteLastCharacter(context)) {
@@ -102,7 +102,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
             editorState.transaction..afterSelection = editorState.selection,
           );
         }
-        onDismiss();
+        onDismiss(null);
       } else {
         // widget.onSelectionUpdate();
         editorState.deleteBackward();
@@ -142,7 +142,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
       if (selection != null &&
           (selection.endIndex < startOffset ||
               selection.endIndex > (startOffset + _search.length))) {
-        onDismiss();
+        onDismiss(null);
       }
 
       /// Workaround: When using the move cursor methods, it seems the

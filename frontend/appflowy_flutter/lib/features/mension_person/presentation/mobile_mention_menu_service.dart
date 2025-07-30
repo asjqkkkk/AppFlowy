@@ -137,7 +137,7 @@ class MobileMentionMenuService extends MentionMenuService {
         final screenSize = MediaQuery.of(context).size;
         return Provider(
           create: (_) => MentionMenuServiceInfo(
-            onDismiss: dismiss,
+            onDismiss: (s) => dismiss(),
             startCharAmount: startCharAmount,
             startOffset: startOffset,
             editorState: editorState,

@@ -210,7 +210,7 @@ class _ContactDetailMenuState extends State<ContactDetailMenu> {
 
   void onDismiss() {
     final mentionInfo = context.read<MentionMenuServiceInfo?>();
-    mentionInfo?.onDismiss.call();
+    mentionInfo?.onDismiss.call(null);
   }
 
   void updateInfo(InviteInfo newInfo) {

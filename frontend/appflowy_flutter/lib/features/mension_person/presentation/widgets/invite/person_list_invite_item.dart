@@ -105,14 +105,14 @@ extension PersonInviteEditorStateExtension on EditorState {
       info: inviteInfo,
     );
     await result.fold((person) async {
-      mentionBloc.add(
-        MentionEvent.mentionPerson(
-          documentId: documentBloc.documentId,
-          personId: person.id,
-          blockId: node.id,
-        ),
-      );
-      serviceInfo.onDismiss.call();
+      // mentionBloc.add(
+      //   MentionEvent.mentionPerson(
+      //     documentId: documentBloc.documentId,
+      //     personId: person.id,
+      //     blockId: node.id,
+      //   ),
+      // );
+
       await insertPerson(
         person,
         documentBloc.documentId,
@@ -120,6 +120,7 @@ extension PersonInviteEditorStateExtension on EditorState {
         mentionState.sendNotification,
         mSelection,
       );
+      serviceInfo.onDismiss.call(this.selection);
       final isContact = person.role == PersonRole.contact;
       if (isContact) {
         showToastNotification(

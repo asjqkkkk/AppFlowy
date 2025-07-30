@@ -98,8 +98,8 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
     if (node == null || delta == null) return;
 
     final range = mentionInfo.textRange(query);
-    mentionInfo.onDismiss.call();
     await editorState.insertPageLinkRef(view, (range.start, range.end));
+    mentionInfo.onDismiss.call(null);
   }
 
   Future<void> _onPageCreate(BuildContext context) async {
@@ -117,12 +117,12 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
     if (node == null || delta == null) return;
 
     final range = mentionInfo.textRange(query);
-    mentionInfo.onDismiss.call();
     await editorState.insertChildPage(
       documentBloc.documentId,
       (range.start, range.end),
       query,
     );
+    mentionInfo.onDismiss.call(editorState.selection);
   }
 
   void _showMore(BuildContext context) {

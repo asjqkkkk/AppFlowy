@@ -135,7 +135,6 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
       ),
     );
     final range = mentionInfo.textRange(query);
-    mentionInfo.onDismiss.call();
     await editorState.insertPerson(
       person,
       documentBloc.documentId,
@@ -143,5 +142,6 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
       mentionState.sendNotification,
       selection,
     );
+    mentionInfo.onDismiss.call(editorState.selection);
   }
 }

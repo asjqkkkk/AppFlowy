@@ -324,7 +324,7 @@ class _InviteMenuState extends State<InviteMenu> {
     emailFocusNode.unfocus();
     menuFocusNode.unfocus();
     final mentionInfo = context.read<MentionMenuServiceInfo?>();
-    mentionInfo?.onDismiss.call();
+    mentionInfo?.onDismiss.call(null);
   }
 
   KeyEventResult onFocusKeyEvent(FocusNode node, KeyEvent key) {

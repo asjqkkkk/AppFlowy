@@ -56,21 +56,27 @@ class DesktopMentionMenuService extends MentionMenuService {
   @override
   void dismiss() {
     if (_menuEntry != null) {
-      final selection = editorState.selection;
       editorState.service.keyboardService?.enable();
       editorState.service.scrollService?.disable();
       keepEditorFocusNotifier.decrease();
-      if (selection != null) {
-        editorState.updateSelectionWithReason(
-          selection,
-          reason: SelectionUpdateReason.uiEvent,
-        );
-      }
+
       super.dismiss();
     }
-
     _menuEntry?.remove();
     _menuEntry = null;
+  }
+
+  void dismissByOtherMenu(Selection? selection) {
+    final newSelection = selection ?? editorState.selection;
+    dismiss();
+    if (newSelection != null) {
+      editorState.selection = null;
+      editorState.service.keyboardService?.closeKeyboard();
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        editorState.service.keyboardService?.enableKeyBoard(newSelection);
+        editorState.selection = newSelection;
+      });
+    }
   }
 
   @override
@@ -144,7 +150,7 @@ class DesktopMentionMenuService extends MentionMenuService {
     return buildMultiBlocProvider(
       (_) => Provider(
         create: (_) => MentionMenuServiceInfo(
-          onDismiss: dismiss,
+          onDismiss: (s) => dismissByOtherMenu(s),
           startCharAmount: startCharAmount,
           startOffset: editorState.selection?.endIndex ?? 0,
           editorState: editorState,
@@ -202,7 +208,7 @@ class MentionMenuServiceInfo {
     required this.onMenuReplace,
   });
 
-  final VoidCallback onDismiss;
+  final ValueChanged<Selection?> onDismiss;
   final int startCharAmount;
   final int startOffset;
   final EditorState editorState;

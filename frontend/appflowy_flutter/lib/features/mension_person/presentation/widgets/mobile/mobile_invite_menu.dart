@@ -53,7 +53,7 @@ void showMobileInviteMenu(BuildContext context) {
       ),
     ),
   );
-  serviceInfo.onDismiss.call();
+  serviceInfo.onDismiss.call(null);
 }
 
 class MobileInviteMenu extends StatefulWidget {
