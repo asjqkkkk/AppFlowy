@@ -75,7 +75,8 @@ class _ExportWidget extends StatelessWidget {
       child: SingleSettingAction(
         label: LocaleKeys.settings_files_backupWorkspaceLabel.tr(),
         labelMaxLines: 2,
-        buttonLabel: LocaleKeys.settings_files_backupButtonLabel.tr(),
+        buttonLabel:
+            LocaleKeys.workspaceImport_settings_backupWorkspace_buttonText.tr(),
         onPressed: workspaceType == WorkspaceTypePB.Vault
             ? () => _onExportPressed(context)
             : () => showToastNotification(

@@ -6,6 +6,7 @@ import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/features/workspace_import/workspace_import.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
@@ -562,19 +563,20 @@ class _ImportMenu extends StatelessWidget {
     return AFMenu(
       width: 240,
       children: [
-        AFMenuItem(
-          title: Text(
-            LocaleKeys.workspace_importFromAppFlowy.tr(),
-            style: theme.textStyle.body.standard(
-              color: theme.textColorScheme.primary,
+        if (FeatureFlag.exportImport.isOn)
+          AFMenuItem(
+            title: Text(
+              LocaleKeys.workspace_importFromAppFlowy.tr(),
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
             ),
+            onTap: () async {
+              controller.hide();
+              PopoverContainer.of(context).closeAll();
+              await WorkspaceImportDialog.show(context);
+            },
           ),
-          onTap: () async {
-            controller.hide();
-            PopoverContainer.of(context).closeAll();
-            await WorkspaceImportDialog.show(context);
-          },
-        ),
         AFMenuItem(
           title: Text(
             LocaleKeys.workspace_importFromNotion.tr(),

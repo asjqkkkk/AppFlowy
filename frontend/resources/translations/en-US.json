@@ -3632,6 +3632,18 @@
         "megabytes": "MB",
         "gigabytes": "GB"
       }
+    },
+    "settings": {
+      "importWorkspace": {
+        "title": "Import your workspace",
+        "tooltip": "Import your workspace from AppFlowy workspace file (.zip)",
+        "buttonText": "Import"
+      },
+      "backupWorkspace": {
+        "title": "Backup your workspace",
+        "tooltip": "Backup your workspace to AppFlowy workspace file (.zip)",
+        "buttonText": "Backup"
+      }
     }
   }
 }
