@@ -120,5 +120,6 @@ pub fn make_test_calendar() -> DatabaseData {
     views: vec![view],
     fields,
     rows,
+    row_metas: Default::default(),
   }
 }

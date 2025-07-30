@@ -133,17 +133,32 @@ impl FolderManager {
 
   pub async fn handle_notification(&self, notification: WorkspaceNotification) {
     debug!("folder handle workspace notification: {:?}", notification);
-    if let WorkspaceNotification::SectionChanged { data } = notification {
-      if let Err(err) = match data {
-        SectionChangedBody::AddRecentViews { items } => {
-          self.handle_recent_section_notification(items, vec![]).await
-        },
-        SectionChangedBody::RemoveRecentViews { ids } => {
-          self.handle_recent_section_notification(vec![], ids).await
-        },
-      } {
-        error!("Failed to handle outline changed notification: {:?}", err);
-      }
+    match notification {
+      WorkspaceNotification::SectionChanged { data } => {
+        if let Err(err) = match data {
+          SectionChangedBody::AddRecentViews { items } => {
+            self.handle_recent_section_notification(items, vec![]).await
+          },
+          SectionChangedBody::RemoveRecentViews { ids } => {
+            self.handle_recent_section_notification(vec![], ids).await
+          },
+        } {
+          error!("Failed to handle outline changed notification: {:?}", err);
+        }
+      },
+      WorkspaceNotification::ShareViewsChanged { view_id, emails } => {
+        info!(
+          "handle share views changed notification: view_id: {:?}, emails: {:?}",
+          view_id, emails
+        );
+        if let Err(err) = self.handle_share_views_changed_notification().await {
+          error!(
+            "Failed to handle shared view changed notification: {:?}",
+            err
+          );
+        }
+      },
+      _ => {},
     }
   }
 
@@ -163,6 +178,11 @@ impl FolderManager {
     delete_user_recent_views(&mut db, uid, &workspace_id, removed_ids)?;
 
     self.send_update_recent_views_notification().await;
+    Ok(())
+  }
+
+  async fn handle_share_views_changed_notification(&self) -> FlowyResult<()> {
+    let _ = self.get_shared_pages(true).await?;
     Ok(())
   }
 
