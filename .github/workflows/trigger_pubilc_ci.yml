@@ -1,14 +1,11 @@
 name: Trigger Public Repository CI
 
 on:
-  pull_request_target:
+  pull_request:
     types: [opened, synchronize, reopened]
+    branches: [main, develop, release/*]
   push:
     branches: [main, develop, release/*]
-
-permissions:
-  contents: read
-  pull-requests: read
 
 jobs:
   trigger-public-ci:
@@ -22,11 +19,8 @@ jobs:
           event-type: private-repo-webhook
           client-payload: |
             {
-              "event_type": "${{ github.event_name == 'pull_request_target' && 'pr_opened' || 'push' }}",
+              "event_type": "${{ github.event_name == 'pull_request' && 'pr_opened' || 'push' }}",
               "pr_number": "${{ github.event.number }}",
               "pr_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}",
-              "pr_repo": "${{ github.event.pull_request.head.repo.full_name || github.repository }}",
-              "pr_sha": "${{ github.event.pull_request.head.sha || github.sha }}",
-              "is_fork": "${{ github.event.pull_request.head.repo.full_name != github.repository }}",
               "workflows": "rust,flutter,ios"
             }
