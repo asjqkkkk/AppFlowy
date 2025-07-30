@@ -28,7 +28,6 @@ impl FolderManager {
       initial_data
     );
     let _ = self.folder_ready_notifier.send_replace(false);
-
     if let Some(old_folder) = self.mutex_folder.swap(None) {
       let old_folder = old_folder.read().await;
       old_folder.close();

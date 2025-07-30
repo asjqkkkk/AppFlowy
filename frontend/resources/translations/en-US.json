@@ -128,6 +128,8 @@
     "workspaceNameFallback": "My Workspace",
     "workspaceNameWithUserName": "{}'s Workspace",
     "importFromNotion": "Import from Notion",
+    "importWorkspace": "Import workspace",
+    "importFromAppFlowy": "Import from AppFlowy",
     "learnMore": "Learn more",
     "reset": "Reset workspace",
     "renameWorkspace": "Rename workspace",
@@ -1490,6 +1492,11 @@
       "recoverLocationTooltips": "Reset to @:appName's default data directory",
       "exportFileSuccess": "Export file successfully!",
       "exportFileFail": "Export file failed!",
+      "backupWorkspaceLabel": "Backup your workspace to AppFlowy workspace file (.zip)",
+      "backupButtonLabel": "Backup",
+      "cloudWorkspaceNotSupported": "Cloud workspace is not supported yet (coming soon)",
+      "backingUpWorkspace": "Backing up workspace...",
+      "doNotQuitApp": "Please do not quit the app",
       "export": "Export",
       "clearCache": "Clear cache",
       "clearCacheDesc": "If you encounter issues with images not loading or fonts not displaying correctly, try clearing your cache. This action will not remove your user data.",
@@ -3654,7 +3661,7 @@
     "dragDropInstruction": "Drag & drop Zip files or click to ",
     "uploadButtonText": "Upload",
     "fileSizeLimitExceeded": "File size limit exceeded",
-    "fileSizeLimitExceededMessage": "The uploaded file ({}) exceeds the {} limit. Please compress it before trying again.",
+    "fileSizeLimitExceededMessage": "The uploaded file ({}) exceeds the {} limit.",
     "invalidFileFormat": "Invalid file format",
     "invalidFileFormatMessage": "The contents of ({}) don't match the workspace format. Please make sure you've selected the correct workspace ZIP file.",
     "description": "Go to Settings to export the workspace and upload the file here. The imported file will be turned into a new workspace. ",
@@ -3681,6 +3688,18 @@
         "kilobytes": "KB",
         "megabytes": "MB",
         "gigabytes": "GB"
+      }
+    },
+    "settings": {
+      "importWorkspace": {
+        "title": "Import your workspace",
+        "tooltip": "Import your workspace from AppFlowy workspace file (.zip)",
+        "buttonText": "Import"
+      },
+      "backupWorkspace": {
+        "title": "Backup your workspace",
+        "tooltip": "Backup your workspace to AppFlowy workspace file (.zip)",
+        "buttonText": "Backup"
       }
     }
   }

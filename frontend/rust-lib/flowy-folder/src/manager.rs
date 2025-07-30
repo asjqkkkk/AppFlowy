@@ -3,10 +3,10 @@ use crate::entities::{
   AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, ExportRequest,
   FolderSnapshotPB, GetMentionablePersonsResponsePB, GetMentionablePersonsWithAccessPB,
   MoveNestedViewParams, PageMentionUpdateInfoPB, RepeatedSharedUserPB,
-  RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewIdPB, RepeatedViewPB, SharedUserPB,
-  SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB,
-  WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views,
-  view_pb_without_child_views, view_pb_without_child_views_from_arc,
+  RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewPB, SharedUserPB, SharedViewPB,
+  SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB, ViewSectionPB, WorkspaceLatestPB,
+  WorkspacePB, view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
+  view_pb_without_child_views_from_arc,
 };
 use crate::export_workspace::exporter::WorkspaceExporter;
 use crate::import_workspace::types::{FolderWorkspaceImporter, ImportRequest};
@@ -25,25 +25,32 @@ use arc_swap::ArcSwapOption;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
-use client_api::entity::workspace_dto::PublishInfoView;
-use client_api::entity::{CreateImportTaskType, PublishInfo, WorkspaceNotification};
-use collab::core::collab::{DataSource, IndexContentReceiver};
+use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
+use client_api::entity::{
+  CreateImportTaskType, PublishInfo, SectionChangedBody, WorkspaceNotification,
+};
+use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
 use collab_folder::folder_diff::FolderViewChange;
 use collab_folder::hierarchy_builder::{ParentChildViews, ViewExtraBuilder};
 use collab_folder::{
   Folder, FolderData, FolderNotify, Section, SectionItem, SpacePermission, TrashInfo, View,
-  ViewLayout, ViewUpdate, Workspace,
+  ViewChange, ViewLayout, ViewUpdate, Workspace,
 };
 use flowy_user_pub::workspace_collab::CollabKVDB;
 
+use chrono::Utc;
 use collab::preclude::ClientID;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use flowy_folder_pub::cloud::{FolderCloudService, gen_view_id};
 use flowy_folder_pub::entities::{
   PublishDatabaseData, PublishDatabasePayload, PublishDocumentPayload, PublishPayload,
   PublishViewInfo, PublishViewMeta, PublishViewMetaData,
+};
+use flowy_folder_pub::sql::recent_view_sql::{
+  UserRecentViewTable, delete_user_recent_views, select_latest_recent_view,
+  select_user_recent_views, upsert_user_recent_views,
 };
 use flowy_folder_pub::sql::workspace_shared_user_sql::{
   WorkspaceSharedUserTable, delete_workspace_shared_user, replace_all_workspace_shared_users,
@@ -125,8 +132,59 @@ impl FolderManager {
     Ok(manager)
   }
 
-  pub async fn handle_notification(&self, _notification: WorkspaceNotification) {
-    // TODO(Lucas): handle notification
+  pub async fn handle_notification(&self, notification: WorkspaceNotification) {
+    debug!("folder handle workspace notification: {:?}", notification);
+    match notification {
+      WorkspaceNotification::SectionChanged { data } => {
+        if let Err(err) = match data {
+          SectionChangedBody::AddRecentViews { items } => {
+            self.handle_recent_section_notification(items, vec![]).await
+          },
+          SectionChangedBody::RemoveRecentViews { ids } => {
+            self.handle_recent_section_notification(vec![], ids).await
+          },
+        } {
+          error!("Failed to handle outline changed notification: {:?}", err);
+        }
+      },
+      WorkspaceNotification::ShareViewsChanged { view_id, emails } => {
+        info!(
+          "handle share views changed notification: view_id: {:?}, emails: {:?}",
+          view_id, emails
+        );
+        if let Err(err) = self.handle_share_views_changed_notification().await {
+          error!(
+            "Failed to handle shared view changed notification: {:?}",
+            err
+          );
+        }
+      },
+      _ => {},
+    }
+  }
+
+  async fn handle_recent_section_notification(
+    &self,
+    inserted_items: Vec<RecentViewItem>,
+    removed_ids: Vec<Uuid>,
+  ) -> FlowyResult<()> {
+    if inserted_items.is_empty() && removed_ids.is_empty() {
+      return Ok(());
+    }
+
+    let uid = self.user.user_id()?;
+    let workspace_id = self.user.workspace_id()?.to_string();
+    let mut db = self.user.sqlite_connection(uid)?;
+    upsert_user_recent_views(&mut db, uid, &workspace_id, inserted_items)?;
+    delete_user_recent_views(&mut db, uid, &workspace_id, removed_ids)?;
+
+    self.send_update_recent_views_notification().await;
+    Ok(())
+  }
+
+  async fn handle_share_views_changed_notification(&self) -> FlowyResult<()> {
+    let _ = self.get_shared_pages(true).await?;
+    Ok(())
   }
 
   pub fn client_id(&self) -> FlowyResult<ClientID> {
@@ -323,18 +381,27 @@ impl FolderManager {
   pub async fn initialize_after_open_workspace(
     &self,
     uid: i64,
+    workspace_id: &Uuid,
     data_source: FolderInitDataSource,
   ) -> FlowyResult<()> {
-    self.initialize_after_sign_in(uid, data_source).await
+    self.initialize_after_sign_in(uid, data_source).await?;
+    self.sync_recent_views_in_background(*workspace_id, uid, 30, 0);
+    Ok(())
   }
 
-  pub async fn subscribe_folder_change_rx(&self) -> FlowyResult<IndexContentReceiver> {
+  pub async fn subscribe_folder_change_rx(
+    &self,
+  ) -> FlowyResult<tokio::sync::broadcast::Receiver<ViewChange>> {
     let folder = self
       .mutex_folder
       .load_full()
       .ok_or_else(folder_not_init_error)?;
     let read_guard = folder.read().await;
-    Ok(read_guard.subscribe_index_content())
+    read_guard
+      .body
+      .subscribe_view_changes()
+      .await
+      .ok_or_else(|| FlowyError::internal().with_context("Notify not set"))
   }
 
   pub async fn consumer_recent_workspace_changes(&self) -> FlowyResult<Vec<FolderViewChange>> {
@@ -589,21 +656,7 @@ impl FolderManager {
       .await?;
 
     info!("{} create view {:#?}", handler.name(), params);
-    if params.meta.is_empty() && params.initial_data.is_empty() {
-      handler
-        .create_default_view(
-          user_id,
-          &params.parent_view_id,
-          &params.view_id,
-          &params.name,
-          view_layout.clone(),
-        )
-        .await?;
-    } else {
-      handler
-        .create_view_with_view_data(user_id, params.clone())
-        .await?;
-    }
+    handler.create_view(user_id, params.clone()).await?;
 
     let index = params.index;
     let section = params.section.clone().unwrap_or(ViewSectionPB::Public);
@@ -683,15 +736,7 @@ impl FolderManager {
     let view_layout: ViewLayout = params.layout.clone().into();
     let handler = self.get_handler(&view_layout)?;
     let user_id = self.user.user_id()?;
-    handler
-      .create_default_view(
-        user_id,
-        &params.parent_view_id,
-        &params.view_id,
-        &params.name,
-        view_layout.clone(),
-      )
-      .await?;
+    handler.create_view(user_id, params.clone()).await?;
 
     let view = create_view(user_id, params, view_layout);
     if let Some(lock) = self.mutex_folder.load_full() {
@@ -1529,7 +1574,6 @@ impl FolderManager {
         layout: view.layout.clone().into(),
         initial_data: ViewData::DuplicateData(view_data),
         view_id: gen_view_id(),
-        meta: Default::default(),
         set_as_current: is_source_view && open_after_duplicated,
         index,
         section: Some(section),
@@ -1571,24 +1615,14 @@ impl FolderManager {
   }
 
   #[tracing::instrument(level = "trace", skip(self), err)]
-  pub(crate) async fn set_current_view(&self, view_id: String) -> Result<(), FlowyError> {
-    let uid = self.user.user_id()?;
-    if let Some(lock) = self.mutex_folder.load_full() {
-      let mut folder = lock.write().await;
-      if let Some(current_view_id) = folder.get_current_view(uid) {
-        if current_view_id != view_id {
-          info!("Set current view: {}", view_id);
-          folder.set_current_view(view_id.clone(), uid);
-          folder.add_recent_view_ids(vec![view_id.clone()], uid);
-        }
-      }
-    } else {
-      return Err(FlowyError::record_not_found());
+  pub(crate) async fn open_view(&self, view_id: String) -> Result<(), FlowyError> {
+    if let Err(err) = self.add_recent_views(vec![view_id.clone()]).await {
+      error!("Failed to add recent view: {:?}", err);
     }
 
-    let view = self.get_current_view().await;
-    if let Some(view) = &view {
-      let view_layout: ViewLayout = view.layout.clone().into();
+    let view = self.get_view(&view_id).await;
+    if let Ok(view) = view {
+      let view_layout: ViewLayout = view.layout.clone();
       if let Some(handle) = self.operation_handlers.get(&view_layout) {
         info!("Open view: {}-{}", view.name, view.id);
         let view_id = Uuid::from_str(&view.id)?;
@@ -1598,37 +1632,43 @@ impl FolderManager {
       }
     }
 
-    let workspace_id = self.user.workspace_id()?;
-    let setting = WorkspaceLatestPB {
-      workspace_id: workspace_id.to_string(),
-      latest_view: view,
-    };
-    folder_notification_builder(workspace_id, FolderNotification::DidUpdateWorkspaceSetting)
-      .payload(setting)
-      .send();
     Ok(())
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn get_current_view(&self) -> Option<ViewPB> {
     let uid = self.user.user_id().ok()?;
-    let view_id = {
+    let db = self.user.sqlite_connection(uid).ok()?;
+    let workspace_id = self.user.workspace_id().ok()?.to_string();
+
+    let mut recent_view_id = match select_latest_recent_view(db, uid, &workspace_id) {
+      Ok(value) => value.map(|v| v.view_id),
+      Err(_) => None,
+    };
+
+    // If there is no recent view, we will try to get the current view from the folder.
+    if recent_view_id.is_none() {
+      if let Ok(workspace_id) = self.user.workspace_id() {
+        self.sync_recent_views_in_background(workspace_id, uid, 30, 0);
+      }
+
       let lock = self.mutex_folder.load_full()?;
       let folder = lock.read().await;
-      let view = folder.get_current_view(uid)?;
+      let view_id = folder.get_current_view(uid)?;
+      recent_view_id = Some(view_id);
       drop(folder);
-      view
-    };
-    match self.get_view_pb(&view_id).await {
-      Ok(view) => {
-        debug!("Current view: {}", view.id);
-        Some(view)
-      },
-      Err(err) => {
-        error!("Get current view error: {:?}", err);
-        None
-      },
     }
+
+    let current = self.get_view_pb(&recent_view_id?).await.ok()?;
+    Some(current)
+  }
+
+  #[cfg(debug_assertions)]
+  pub fn get_disk_recent_views(&self) -> FlowyResult<Vec<UserRecentViewTable>> {
+    let uid = self.user.user_id()?;
+    let db = self.user.sqlite_connection(uid)?;
+    let workspace_id = self.user.workspace_id()?;
+    select_user_recent_views(db, uid, &workspace_id.to_string(), Some(100), Some(0))
   }
 
   /// Toggles the favorite status of a view identified by `view_id`If the view is not a favorite, it will be added to the favorites list; otherwise, it will be removed from the list.
@@ -1657,11 +1697,28 @@ impl FolderManager {
   /// Add the view to the recent view list / history.
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn add_recent_views(&self, view_ids: Vec<String>) -> FlowyResult<()> {
+    let ids = view_ids
+      .into_iter()
+      .flat_map(|s| Uuid::parse_str(&s).ok())
+      .collect::<Vec<_>>();
+
+    // save to disk
     let uid = self.user.user_id()?;
-    if let Some(lock) = self.mutex_folder.load_full() {
-      let mut folder = lock.write().await;
-      folder.add_recent_view_ids(view_ids, uid);
-    }
+    let workspace_id = self.user.workspace_id()?;
+    let mut db = self.user.sqlite_connection(uid)?;
+    let items = ids
+      .clone()
+      .into_iter()
+      .map(|id| RecentViewItem {
+        object_id: id,
+        viewed_at: Utc::now(),
+      })
+      .collect();
+    let _ = upsert_user_recent_views(&mut db, uid, &workspace_id.to_string(), items);
+
+    // save to cloud
+    let cloud_service = self.cloud_service()?;
+    cloud_service.add_recent_views(&workspace_id, ids).await?;
     self.send_update_recent_views_notification().await;
     Ok(())
   }
@@ -1670,15 +1727,24 @@ impl FolderManager {
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn remove_recent_views(&self, view_ids: Vec<String>) -> FlowyResult<()> {
     let uid = self.user.user_id()?;
-    if let Some(lock) = self.mutex_folder.load_full() {
-      let mut folder = lock.write().await;
-      folder.delete_recent_view_ids(view_ids, uid);
-    }
+    let workspace_id = self.user.workspace_id()?;
+    let mut db = self.user.sqlite_connection(uid)?;
+    let _ = delete_user_recent_views(&mut db, uid, &workspace_id.to_string(), view_ids.clone());
+
+    let view_ids = view_ids
+      .into_iter()
+      .flat_map(|s| Uuid::parse_str(&s).ok())
+      .collect::<Vec<_>>();
+    let cloud_service = self.cloud_service()?;
+    let _ = cloud_service
+      .delete_recent_views(&workspace_id, view_ids)
+      .await;
     self.send_update_recent_views_notification().await;
     Ok(())
   }
 
   /// Share the page with a user (member or guest).
+  #[instrument(level = "debug", skip(self), err)]
   pub async fn share_page_with_user(
     &self,
     params: ShareViewWithGuestRequest,
@@ -2268,12 +2334,13 @@ impl FolderManager {
   }
 
   async fn send_update_recent_views_notification(&self) {
-    let recent_views = self.get_my_recent_sections().await;
-    folder_notification_builder("recent_views", FolderNotification::DidUpdateRecentViews)
-      .payload(RepeatedViewIdPB {
-        items: recent_views.into_iter().map(|item| item.id).collect(),
-      })
+    if let Ok(workspace_id) = self.user.workspace_id() {
+      folder_notification_builder(
+        workspace_id.to_string(),
+        FolderNotification::DidUpdateRecentViews,
+      )
       .send();
+    }
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
@@ -2297,8 +2364,99 @@ impl FolderManager {
   }
 
   #[tracing::instrument(level = "debug", skip(self))]
-  pub(crate) async fn get_my_recent_sections(&self) -> Vec<SectionItem> {
-    self.get_sections(Section::Recent).await
+  pub(crate) async fn get_recent_views(
+    &self,
+    limit: Option<u32>,
+    offset: Option<u32>,
+  ) -> FlowyResult<Vec<UserRecentViewTable>> {
+    let uid = self.user.user_id()?;
+    let workspace_id = self.user.workspace_id()?;
+    let limit = limit.unwrap_or(30);
+    let offset = offset.unwrap_or(0);
+
+    let db = self.user.sqlite_connection(uid)?;
+    let local_views = select_user_recent_views(
+      db,
+      uid,
+      &workspace_id.to_string(),
+      Some(limit),
+      Some(offset),
+    )
+    .ok();
+    match local_views {
+      Some(views) => {
+        self.sync_recent_views_in_background(workspace_id, uid, limit, offset);
+        Ok(views)
+      },
+      None => {
+        self
+          .fetch_and_save_recent_views(workspace_id, uid, limit, offset, true)
+          .await
+      },
+    }
+  }
+
+  /// Sync recent views from cloud in the background
+  fn sync_recent_views_in_background(&self, workspace_id: Uuid, uid: i64, limit: u32, offset: u32) {
+    let user = self.user.clone();
+    let cloud_service = self.cloud_service.clone();
+    debug!(
+      "Syncing recent views for user {} in workspace {}, limit: {}, offset: {}",
+      uid, workspace_id, limit, offset
+    );
+    tokio::spawn(async move {
+      if let Some(cloud_service) = cloud_service.upgrade() {
+        match cloud_service
+          .get_recent_views(&workspace_id, limit, offset)
+          .await
+        {
+          Ok(recent_views) => {
+            // Save to local database
+            if let Ok(mut db) = user.sqlite_connection(uid) {
+              let _ = upsert_user_recent_views(
+                &mut db,
+                uid,
+                &workspace_id.to_string(),
+                recent_views.clone(),
+              );
+            }
+          },
+          Err(err) => {
+            error!(
+              "Failed to sync recent views for user {} in workspace {}: {:?}",
+              uid, workspace_id, err
+            );
+          },
+        }
+      }
+    });
+  }
+
+  /// Fetch recent views from cloud and save to local database
+  pub(crate) async fn fetch_and_save_recent_views(
+    &self,
+    workspace_id: Uuid,
+    uid: i64,
+    limit: u32,
+    offset: u32,
+    notify: bool,
+  ) -> FlowyResult<Vec<UserRecentViewTable>> {
+    let cloud_service = self.cloud_service()?;
+    let recent_items = cloud_service
+      .get_recent_views(&workspace_id, limit, offset)
+      .await?;
+
+    let mut db = self.user.sqlite_connection(uid)?;
+    let recent_views =
+      upsert_user_recent_views(&mut db, uid, &workspace_id.to_string(), recent_items)?;
+    debug!(
+      "Fetched recent views for user {} in workspace {}: {:?}",
+      uid, workspace_id, recent_views
+    );
+    if notify {
+      self.send_update_recent_views_notification().await;
+    }
+    Ok(recent_views)
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
@@ -2423,7 +2581,6 @@ impl FolderManager {
       layout: import_data.view_layout.clone().into(),
       initial_data: ViewData::Empty,
       view_id,
-      meta: Default::default(),
       set_as_current: false,
       index: None,
       section: None,
@@ -2621,7 +2778,6 @@ impl FolderManager {
         let folder = lock.read().await;
         let views = match section_type {
           Section::Favorite => folder.get_my_favorite_sections(uid),
-          Section::Recent => folder.get_my_recent_sections(uid),
           _ => vec![],
         };
 

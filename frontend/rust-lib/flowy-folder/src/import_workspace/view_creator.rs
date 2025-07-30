@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fs::read;
 use uuid::Uuid;
 
@@ -11,7 +10,7 @@ use super::types::{
 use crate::entities::{CreateViewParams, ViewLayoutPB, ViewSectionPB};
 use crate::view_operation::ViewData;
 
-impl<'a> FolderWorkspaceImporter<'a> {
+impl FolderWorkspaceImporter<'_> {
   // todo: this function is incorrect, it doesn't create a new workspace. it use the current workspace instead.
   pub async fn create_workspace(
     &self,
@@ -21,9 +20,7 @@ impl<'a> FolderWorkspaceImporter<'a> {
     let workspace_id = workspace_metadata.workspace_id.to_string();
 
     import_context.track_created_resource(FolderCreatedResource::Workspace(workspace_id.clone()));
-
     // we should create a new workspace here
-
     Ok(workspace_id)
   }
 
@@ -85,7 +82,7 @@ impl<'a> FolderWorkspaceImporter<'a> {
   pub async fn create_view_with_data(
     &self,
     view_item: &FolderViewImportItem,
-    collab_data: &Vec<u8>,
+    collab_data: &[u8],
     import_plan: &FolderImportPlan,
   ) -> FlowyResult<String> {
     let parent_view_id = if let Some(original_parent_id) = &view_item.view_metadata.parent_id {
@@ -95,7 +92,7 @@ impl<'a> FolderWorkspaceImporter<'a> {
         .ok_or_else(|| FlowyError::internal().with_context("Missing parent ID mapping"))?;
 
       // debug code: remove it later
-      if mapped_id == original_parent_id.to_string() {
+      if mapped_id == *original_parent_id {
         self.folder_manager.user.workspace_id()?
       } else {
         Uuid::parse_str(&mapped_id)
@@ -116,7 +113,7 @@ impl<'a> FolderWorkspaceImporter<'a> {
       collab_folder::ViewLayout::Chat => ViewLayoutPB::Chat,
     };
 
-    let _collab_bytes = collab_data.clone();
+    let _collab_bytes = collab_data.to_owned();
 
     // fixme: get the initial data from the collab data.
     let initial_data = ViewData::Empty;
@@ -128,7 +125,6 @@ impl<'a> FolderWorkspaceImporter<'a> {
       layout,
       view_id,
       initial_data,
-      meta: HashMap::new(),
       set_as_current: false,
       index: None,
       section: Some(ViewSectionPB::Public),

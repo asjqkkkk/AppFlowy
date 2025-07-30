@@ -157,14 +157,14 @@ class WorkspaceExportDialog extends StatelessWidget {
                       const HSpace(8),
                       workspaceType == WorkspaceTypePB.Vault
                           ? AFFilledTextButton.primary(
-                              text: LocaleKeys.settings_files_export.tr(),
+                              text: 'Backup',
                               onTap: () => _onExportPressed(context),
                             )
                           : FlowyTooltip(
                               message:
                                   'Cloud workspace is not supported yet (coming soon)',
                               child: AFFilledTextButton.disabled(
-                                text: LocaleKeys.settings_files_export.tr(),
+                                text: 'Backup',
                               ),
                             ),
                     ],

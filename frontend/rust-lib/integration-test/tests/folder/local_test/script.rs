@@ -263,7 +263,6 @@ pub async fn create_view(
     thumbnail: None,
     layout: layout.into(),
     initial_data: vec![],
-    meta: Default::default(),
     set_as_current: true,
     index: None,
     section: None,

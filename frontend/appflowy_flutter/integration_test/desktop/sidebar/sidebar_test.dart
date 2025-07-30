@@ -19,6 +19,7 @@ void main() {
     testWidgets('create a new page', (tester) async {
       await tester.initializeAppFlowy();
       await tester.tapAnonymousSignInButton();
+      await tester.expectToSeeHomePageWithGetStartedPage();
 
       // create a new page
       await tester.tapNewPageButton();

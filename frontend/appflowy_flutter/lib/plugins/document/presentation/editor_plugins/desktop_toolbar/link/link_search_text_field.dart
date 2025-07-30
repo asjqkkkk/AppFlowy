@@ -5,7 +5,6 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/list_extension.dart';
-import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
@@ -312,8 +311,7 @@ class LinkSearchTextField {
   }
 
   Future<void> searchRecentViews() async {
-    final recentService = getIt<CachedRecentService>();
-    final sectionViews = await recentService.recentViews();
+    final sectionViews = await readRecentViews();
     final views = sectionViews
         .unique((e) => e.item.id)
         .map((e) => e.item)

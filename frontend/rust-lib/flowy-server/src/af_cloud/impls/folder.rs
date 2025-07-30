@@ -1,4 +1,4 @@
-use client_api::entity::workspace_dto::PublishInfoView;
+use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CollabParams, PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams,
 };
@@ -15,6 +15,7 @@ use std::sync::Weak;
 use tracing::{instrument, trace};
 use uuid::Uuid;
 
+use flowy_ai_pub::cloud::workspace_dto::AddRecentPagesParams;
 use flowy_error::FlowyError;
 use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
@@ -364,6 +365,55 @@ where
     let try_get_client = self.inner.try_get_client();
     try_get_client?
       .update_page_mention(workspace_id, view_id, page_mention)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(())
+  }
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_workspace_recent_with_pagination(workspace_id, Some(limit), Some(offset))
+      .await?;
+    Ok(
+      resp
+        .views
+        .into_iter()
+        .map(|v| RecentViewItem {
+          object_id: v.view.view_id,
+          viewed_at: v.last_viewed_at,
+        })
+        .collect(),
+    )
+  }
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let params = AddRecentPagesParams {
+      recent_view_ids: view_ids,
+    };
+    try_get_client?
+      .add_recent_pages(*workspace_id, &params)
+      .await?;
+    Ok(())
+  }
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    try_get_client?
+      .remove_recent_pages(*workspace_id, view_ids)
       .await
       .map_err(FlowyError::from)?;
     Ok(())

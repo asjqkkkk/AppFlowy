@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::env::temp_dir;
 use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
@@ -630,6 +631,8 @@ async fn get_admin_client(client: &Arc<AFCloudClient>) -> FlowyResult<Client> {
     std::env::var("GOTRUE_ADMIN_EMAIL").unwrap_or_else(|_| "admin@example.com".to_string());
   let admin_password =
     std::env::var("GOTRUE_ADMIN_PASSWORD").unwrap_or_else(|_| "password".to_string());
+
+  let http_cache_dir = temp_dir().join("appflowy_http_cache");
   let admin_client = client_api::Client::new(
     client.base_url(),
     client.ws_addr(),
@@ -637,6 +640,7 @@ async fn get_admin_client(client: &Arc<AFCloudClient>) -> FlowyResult<Client> {
     &client.device_id,
     ClientConfiguration::default(),
     &client.client_version.to_string(),
+    http_cache_dir,
   );
   // When multiple admin_client instances attempt to sign in concurrently, multiple admin user
   // creation transaction will be created, but only the first attempt will succeed due to the

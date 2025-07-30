@@ -15,7 +15,7 @@ pub struct ImportRequest {
   pub new_workspace_name: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct FolderIdMapping {
   pub workspace_id_map: HashMap<String, String>,
   pub view_id_map: HashMap<String, String>,
@@ -61,10 +61,7 @@ pub enum FolderCreatedResource {
 
 impl FolderIdMapping {
   pub fn new() -> Self {
-    Self {
-      workspace_id_map: HashMap::new(),
-      view_id_map: HashMap::new(),
-    }
+    Self::default()
   }
 
   pub fn add_workspace_mapping(&mut self, original_id: Uuid, new_id: Uuid) {

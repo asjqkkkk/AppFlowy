@@ -639,6 +639,7 @@ pub async fn rename_workspace_handler(
     icon: None,
     role: None,
     member_count: None,
+    updated_at: Some(chrono::Utc::now().timestamp()),
   };
   manager
     .patch_workspace(&workspace_id, changeset, params.workspace_type.into())
@@ -660,6 +661,7 @@ pub async fn change_workspace_icon_handler(
     icon: Some(params.new_icon),
     role: None,
     member_count: None,
+    updated_at: Some(chrono::Utc::now().timestamp()),
   };
   manager
     .patch_workspace(&workspace_id, changeset, params.workspace_type.into())

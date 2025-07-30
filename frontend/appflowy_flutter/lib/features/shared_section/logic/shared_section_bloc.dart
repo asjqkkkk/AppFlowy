@@ -17,7 +17,7 @@ class SharedSectionBloc extends Bloc<SharedSectionEvent, SharedSectionState> {
     required this.repository,
     required this.workspaceId,
     this.enablePolling = false,
-    this.pollingIntervalSeconds = 30,
+    this.pollingIntervalSeconds = 600, // 10 minutes
   }) : super(SharedSectionState.initial()) {
     on<SharedSectionInitEvent>(_onInit);
     on<SharedSectionRefreshEvent>(_onRefresh);

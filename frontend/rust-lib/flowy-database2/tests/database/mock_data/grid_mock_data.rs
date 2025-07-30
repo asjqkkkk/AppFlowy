@@ -320,6 +320,7 @@ pub fn make_test_grid() -> DatabaseData {
     views: vec![view],
     fields,
     rows,
+    row_metas: Default::default(),
   }
 }
 
@@ -405,5 +406,6 @@ pub fn make_no_date_test_grid() -> DatabaseData {
     views: vec![view],
     fields,
     rows,
+    row_metas: Default::default(),
   }
 }

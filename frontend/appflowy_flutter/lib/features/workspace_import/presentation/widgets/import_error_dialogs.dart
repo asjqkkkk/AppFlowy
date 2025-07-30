@@ -73,7 +73,11 @@ class InvalidFileFormatDialog extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
 
     return AFModal(
-      constraints: BoxConstraints.tight(const Size(400, 182)),
+      constraints: const BoxConstraints(
+        minWidth: 400,
+        maxWidth: 400,
+        minHeight: 182,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
