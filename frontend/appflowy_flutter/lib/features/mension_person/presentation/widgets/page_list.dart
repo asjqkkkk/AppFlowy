@@ -16,7 +16,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
-import 'item_visibility_detector.dart';
+import 'item_auto_scroll_tag.dart';
 import 'more_results_item.dart';
 
 extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
@@ -27,7 +27,7 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
         item = this;
     if (item is PageMentionMenuItem) {
       final view = item.view;
-      return MentionMenuItenVisibilityDetector(
+      return MentionMenuItemAutoScrollTag(
         id: view.id,
         child: AFTextMenuItem(
           selected:
@@ -48,7 +48,7 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
         id: item.id,
       );
     } else if (item is AddViewMenuItem) {
-      return MentionMenuItenVisibilityDetector(
+      return MentionMenuItemAutoScrollTag(
         id: id,
         child: AFTextMenuItem(
           selected:

@@ -269,7 +269,9 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     }
 
     /// TODO : Don't forget to add [AddPersonMentionMenuItem] after backend supports it
-    // AddPersonMentionMenuItem addItem = AddPersonMentionMenuItem(query: query);
+    // if (query.isNotEmpty) {
+    //   personItems.add(AddPersonMentionMenuItem(query: query));
+    // }
     return personItems;
   }
 

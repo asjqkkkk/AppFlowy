@@ -2,7 +2,7 @@ import 'package:appflowy/features/mension_person/data/models/models.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
-import 'package:appflowy/features/mension_person/presentation/widgets/item_visibility_detector.dart';
+import 'package:appflowy/features/mension_person/presentation/widgets/item_auto_scroll_tag.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_list.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -35,7 +35,7 @@ class PersonListInviteItem extends StatelessWidget {
       },
       listenWhen: (previous, current) =>
           previous.executedItem?.id != current.executedItem?.id,
-      child: MentionMenuItenVisibilityDetector(
+      child: MentionMenuItemAutoScrollTag(
         id: id,
         child: AFTextMenuItem(
           selected: state.selectedId == id,

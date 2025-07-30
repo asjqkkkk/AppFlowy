@@ -15,8 +15,9 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
+import 'mention_menu_service.dart';
 import 'widgets/date_reminder_list.dart';
-import 'widgets/item_visibility_detector.dart';
+import 'widgets/item_auto_scroll_tag.dart';
 import 'widgets/mention_menu_scroller.dart';
 import 'widgets/mention_menu_shortcuts.dart';
 import 'widgets/page_list.dart';
@@ -48,6 +49,8 @@ class MentionMenu extends StatelessWidget {
     final workspaceId =
         context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceId ??
             '';
+    final mentionInfo = context.read<MentionMenuServiceInfo>();
+
     return GestureDetector(
       /// avoid the menu being dismissed when tapping inside it
       onTap: () {},
@@ -109,6 +112,7 @@ class MentionMenu extends StatelessWidget {
                       child: MentionMenuShortcuts(
                         scrollController: controller,
                         initialSearchText: state.query,
+                        editorState: mentionInfo.editorState,
                         child: buildMenu(context, controller),
                       ),
                     );
@@ -154,11 +158,11 @@ class MentionMenu extends StatelessWidget {
             child: ListView(
               controller: controller,
               padding: EdgeInsets.zero,
+              shrinkWrap: true,
               physics: const ClampingScrollPhysics(),
               children: [
                 ..._buildPersonList(context),
-                if (hasPersons && (hasPages || hasDateOrReminders))
-                  AFDivider(),
+                if (hasPersons && (hasPages || hasDateOrReminders)) AFDivider(),
                 ..._buildPageList(context),
                 if (hasDateOrReminders && hasPages) AFDivider(),
                 ..._buildDateAndReminders(context),
@@ -237,7 +241,7 @@ class MentionMenu extends StatelessWidget {
       ),
       ...List.generate(items.length, (index) {
         final item = items[index];
-        return MentionMenuItenVisibilityDetector(
+        return MentionMenuItemAutoScrollTag(
           id: item.id,
           child: AFTextMenuItem(
             title: item.id,

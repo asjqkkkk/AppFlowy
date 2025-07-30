@@ -56,9 +56,16 @@ class DesktopMentionMenuService extends MentionMenuService {
   @override
   void dismiss() {
     if (_menuEntry != null) {
+      final selection = editorState.selection;
       editorState.service.keyboardService?.enable();
-      editorState.service.scrollService?.enable();
+      editorState.service.scrollService?.disable();
       keepEditorFocusNotifier.decrease();
+      if (selection != null) {
+        editorState.updateSelectionWithReason(
+          selection,
+          reason: SelectionUpdateReason.uiEvent,
+        );
+      }
       super.dismiss();
     }
 
@@ -123,12 +130,10 @@ class DesktopMentionMenuService extends MentionMenuService {
       ),
     );
 
-    Overlay.of(context).insert(_menuEntry!);
-
     final editorService = editorState.service;
-
     editorService.keyboardService?.disable(showCursor: true);
-    editorService.scrollService?.disable();
+    Overlay.of(context).insert(_menuEntry!);
+    editorService.keyboardService?.enable();
   }
 
   Widget _buildMentionMenu(LTRB ltrb, bool sendNotification) {

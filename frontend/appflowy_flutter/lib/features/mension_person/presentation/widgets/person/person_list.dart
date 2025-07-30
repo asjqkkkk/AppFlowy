@@ -12,7 +12,7 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 import '../invite/person_list_invite_item.dart';
-import '../item_visibility_detector.dart';
+import '../item_auto_scroll_tag.dart';
 import '../more_results_item.dart';
 import 'person_tooltip.dart';
 
@@ -60,7 +60,7 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
       final isCurrentUser = person.email == userState?.email;
       final selected =
           state.selectedId == person.id && UniversalPlatform.isDesktop;
-      return MentionMenuItenVisibilityDetector(
+      return MentionMenuItemAutoScrollTag(
         id: person.id,
         child: PersonToolTip(
           isMyself: isCurrentUser,

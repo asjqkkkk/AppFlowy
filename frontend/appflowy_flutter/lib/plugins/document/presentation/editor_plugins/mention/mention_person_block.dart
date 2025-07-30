@@ -76,6 +76,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
           key: ValueKey(
             showAtBottom.hashCode & positionY.hashCode & triggerSize.hashCode,
           ),
+          editorState: widget.editorState,
           enable: UniversalPlatform.isDesktop,
           menuConstraints: BoxConstraints(
             maxHeight: 420,

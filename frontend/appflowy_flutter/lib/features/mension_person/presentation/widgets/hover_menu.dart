@@ -16,6 +16,7 @@ class HoverMenu extends StatefulWidget {
     required this.triggerSize,
     required this.child,
     required this.menuBuilder,
+    required this.editorState,
     this.delayToShow = const Duration(milliseconds: 50),
     this.delayToHide = const Duration(milliseconds: 300),
     this.direction = PopoverDirection.topWithLeftAligned,
@@ -36,6 +37,7 @@ class HoverMenu extends StatefulWidget {
   final PointerEnterEventListener? onEnter;
   final PointerExitEventListener? onExit;
   final bool enable;
+  final EditorState editorState;
 
   @override
   State<HoverMenu> createState() => _HoverMenuState();
@@ -49,8 +51,19 @@ class _HoverMenuState extends State<HoverMenu> {
   BoxConstraints get menuConstraints => widget.menuConstraints;
   Size get triggerSize => widget.triggerSize;
 
+  EditorState get editorState => widget.editorState;
+
+  late Selection? _selection = editorState.selection;
+
+  @override
+  void initState() {
+    super.initState();
+    editorState.selectionNotifier.addListener(onSelectionChanged);
+  }
+
   @override
   void dispose() {
+    editorState.selectionNotifier.removeListener(onSelectionChanged);
     controller.close();
     isHoverMenuShowing = false;
     super.dispose();
@@ -136,5 +149,18 @@ class _HoverMenuState extends State<HoverMenu> {
       controller.close();
       isHoverMenuShowing = false;
     });
+  }
+
+  void onSelectionChanged() {
+    final selection = editorState.selection;
+    if (selection == null) return;
+    if (_selection != selection) {
+      _selection = selection;
+      if (isHoverMenuShowing) {
+        isHoverMenuShowing = false;
+        isHovering = false;
+        controller.close();
+      }
+    }
   }
 }

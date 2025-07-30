@@ -7,7 +7,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import 'item_visibility_detector.dart';
+import 'item_auto_scroll_tag.dart';
 
 class MoreResultsItem extends StatelessWidget {
   const MoreResultsItem({
@@ -26,7 +26,7 @@ class MoreResultsItem extends StatelessWidget {
     final state = context.read<MentionBloc>().state;
 
     final theme = AppFlowyTheme.of(context);
-    return MentionMenuItenVisibilityDetector(
+    return MentionMenuItemAutoScrollTag(
       id: id,
       child: AFTextMenuItem(
         selected: state.selectedId == id,

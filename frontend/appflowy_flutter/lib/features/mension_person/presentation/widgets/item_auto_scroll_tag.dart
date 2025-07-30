@@ -6,8 +6,8 @@ import 'package:scroll_to_index/scroll_to_index.dart';
 
 import 'mention_menu_scroller.dart';
 
-class MentionMenuItenVisibilityDetector extends StatelessWidget {
-  const MentionMenuItenVisibilityDetector({
+class MentionMenuItemAutoScrollTag extends StatelessWidget {
+  const MentionMenuItemAutoScrollTag({
     super.key,
     required this.id,
     required this.child,

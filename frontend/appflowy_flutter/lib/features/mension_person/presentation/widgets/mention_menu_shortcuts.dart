@@ -1,5 +1,6 @@
 import 'package:appflowy/features/mension_person/data/models/mention_menu_item.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
+import 'package:appflowy/features/mension_person/presentation/menu_extension.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -14,11 +15,13 @@ class MentionMenuShortcuts extends StatefulWidget {
     required this.child,
     required this.scrollController,
     required this.initialSearchText,
+    required this.editorState,
   });
 
   final Widget child;
   final String initialSearchText;
   final AutoScrollController scrollController;
+  final EditorState editorState;
   @override
   State<MentionMenuShortcuts> createState() => _MentionMenuShortcutsState();
 }
@@ -29,21 +32,21 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
   late String _search = widget.initialSearchText;
 
   AutoScrollController get scrollController => widget.scrollController;
+  EditorState get editorState => widget.editorState;
+  late Selection? _selection = editorState.selection;
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      focusNode.requestFocus();
-      final mentionMenuServiceInfo = context.read<MentionMenuServiceInfo?>();
-      startOffset =
-          mentionMenuServiceInfo?.editorState.selection?.endIndex ?? 0;
-    });
+    startOffset = editorState.selection?.endIndex ?? 0;
+    focusNode.makeSureHasFocus(() => !mounted);
+    editorState.selectionNotifier.addListener(onSelectionChanged);
   }
 
   @override
   void dispose() {
+    editorState.selectionNotifier.removeListener(onSelectionChanged);
+
     focusNode.dispose();
     super.dispose();
   }
@@ -289,4 +292,15 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
 
   void onQuery(BuildContext context, String text) =>
       context.read<MentionBloc>().add(MentionEvent.query(text));
+
+  void onSelectionChanged() {
+    final selection = editorState.selection;
+    if (selection == null) return;
+    if (_selection != selection) {
+      _selection = selection;
+      editorState.service.keyboardService?.disable();
+      editorState.service.scrollService?.enable();
+      focusNode.makeSureHasFocus(() => !mounted);
+    }
+  }
 }
