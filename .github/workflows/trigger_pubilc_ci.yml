@@ -27,5 +27,6 @@ jobs:
               "pr_ref": "${{ github.event.pull_request.head.ref || github.ref_name }}",
               "pr_repo": "${{ github.event.pull_request.head.repo.full_name || github.repository }}",
               "pr_sha": "${{ github.event.pull_request.head.sha || github.sha }}",
+              "is_fork": "${{ github.event.pull_request.head.repo.full_name != github.repository }}",
               "workflows": "rust,flutter,ios"
             }
