@@ -150,6 +150,12 @@ async fn af_cloud_workspace_current_view_test() {
 
   // simulate reopen the app
   let test_2 = EventIntegrationTest::new_with_config(config).await;
+  let all_workspace_views = test_2.get_all_workspace_views().await;
+  dbg!(&all_workspace_views);
+
+  let disk_recent_view = test_2.folder_manager.get_disk_recent_views().unwrap();
+  dbg!(&disk_recent_view);
+
   let latest_view = test_2.get_latest_workspace().await.latest_view.unwrap();
   dbg!(&latest_view);
   assert_eq!(latest_view.name, "my shared document");

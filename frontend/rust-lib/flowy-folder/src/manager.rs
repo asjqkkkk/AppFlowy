@@ -28,14 +28,14 @@ use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CreateImportTaskType, PublishInfo, SectionChangedBody, WorkspaceNotification,
 };
-use collab::core::collab::{DataSource, IndexContentReceiver};
+use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
 use collab_folder::folder_diff::FolderViewChange;
 use collab_folder::hierarchy_builder::{ParentChildViews, ViewExtraBuilder};
 use collab_folder::{
   Folder, FolderData, FolderNotify, Section, SectionItem, SpacePermission, TrashInfo, View,
-  ViewLayout, ViewUpdate, Workspace,
+  ViewChange, ViewLayout, ViewUpdate, Workspace,
 };
 use flowy_user_pub::workspace_collab::CollabKVDB;
 
@@ -388,13 +388,19 @@ impl FolderManager {
     Ok(())
   }
 
-  pub async fn subscribe_folder_change_rx(&self) -> FlowyResult<IndexContentReceiver> {
+  pub async fn subscribe_folder_change_rx(
+    &self,
+  ) -> FlowyResult<tokio::sync::broadcast::Receiver<ViewChange>> {
     let folder = self
       .mutex_folder
       .load_full()
       .ok_or_else(folder_not_init_error)?;
     let read_guard = folder.read().await;
-    Ok(read_guard.subscribe_index_content())
+    read_guard
+      .body
+      .subscribe_view_changes()
+      .await
+      .ok_or_else(|| FlowyError::internal().with_context("Notify not set"))
   }
 
   pub async fn consumer_recent_workspace_changes(&self) -> FlowyResult<Vec<FolderViewChange>> {
@@ -1654,6 +1660,14 @@ impl FolderManager {
 
     let current = self.get_view_pb(&recent_view_id?).await.ok()?;
     Some(current)
+  }
+
+  #[cfg(debug_assertions)]
+  pub fn get_disk_recent_views(&self) -> FlowyResult<Vec<UserRecentViewTable>> {
+    let uid = self.user.user_id()?;
+    let db = self.user.sqlite_connection(uid)?;
+    let workspace_id = self.user.workspace_id()?;
+    select_user_recent_views(db, uid, &workspace_id.to_string(), Some(100), Some(0))
   }
 
   /// Toggles the favorite status of a view identified by `view_id`If the view is not a favorite, it will be added to the favorites list; otherwise, it will be removed from the list.

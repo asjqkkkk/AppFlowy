@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
-use collab::core::collab::IndexContentReceiver;
-use collab_folder::{View, ViewIcon, ViewLayout};
+use collab_folder::{View, ViewChange, ViewIcon, ViewLayout};
 use lib_infra::async_trait::async_trait;
 use uuid::Uuid;
 
@@ -27,7 +26,7 @@ impl ViewObserveData {
 
 #[async_trait]
 pub trait FolderViewObserver: Send + Sync {
-  async fn set_observer_rx(&self, rx: IndexContentReceiver);
+  async fn set_observer_rx(&self, rx: tokio::sync::broadcast::Receiver<ViewChange>);
 }
 
 #[derive(Default, Debug, Clone)]
