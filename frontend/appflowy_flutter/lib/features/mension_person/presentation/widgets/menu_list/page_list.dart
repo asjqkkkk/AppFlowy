@@ -16,8 +16,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
-import 'item_auto_scroll_tag.dart';
-import 'more_results_item.dart';
+import '../item_auto_scroll_tag.dart';
+import '../more_results_item.dart';
 
 extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
   Widget buildPageItem(BuildContext context) {

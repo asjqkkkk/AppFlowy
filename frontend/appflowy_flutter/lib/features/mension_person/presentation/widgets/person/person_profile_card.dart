@@ -17,6 +17,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 import 'default_profile_banner.dart';
+import 'svg_path_avatar.dart';
 
 class PersonProfileCard extends StatefulWidget {
   const PersonProfileCard({
@@ -344,13 +345,15 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     const size = 90.0, radius = 41.0;
     Widget avatar = SizedBox.square(
       dimension: size,
-      child: AFAvatar(
-        url: url,
-        radius: radius,
-        name: person.name,
-        size: AFAvatarSize.xl,
-        backgroundColor:
-            (url.isNotEmpty && !isEmojiAvatar) ? Colors.transparent : null,
+      child: PathWidgetMask(
+        child: AFAvatar(
+          url: url,
+          radius: 0,
+          name: person.name,
+          size: AFAvatarSize.xl,
+          backgroundColor:
+              (url.isNotEmpty && !isEmojiAvatar) ? Colors.transparent : null,
+        ),
       ),
     );
     if (noAccess) {
@@ -382,14 +385,14 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         ),
       );
     }
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.surfaceColorScheme.layer01,
-        borderRadius: BorderRadius.circular(radius + 2),
-      ),
-      child: SizedBox.square(
-        dimension: size + 10,
-        child: Center(child: avatar),
+    return PathWidgetMask(
+      path: avatarContainerPath,
+      child: DecoratedBox(
+        decoration: BoxDecoration(color: theme.surfaceColorScheme.layer01),
+        child: SizedBox.square(
+          dimension: size + 10,
+          child: Center(child: avatar),
+        ),
       ),
     );
   }

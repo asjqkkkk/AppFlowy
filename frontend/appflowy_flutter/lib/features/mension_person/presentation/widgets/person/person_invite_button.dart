@@ -6,8 +6,8 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:universal_platform/universal_platform.dart';
 
-class ProfileInviteButton extends StatelessWidget {
-  const ProfileInviteButton({
+class PersonInviteButton extends StatelessWidget {
+  const PersonInviteButton({
     super.key,
     required this.onTap,
   });

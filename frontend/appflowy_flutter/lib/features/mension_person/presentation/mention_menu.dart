@@ -16,11 +16,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 import 'mention_menu_service.dart';
-import 'widgets/date_reminder_list.dart';
+import 'widgets/menu_list/date_reminder_list.dart';
 import 'widgets/item_auto_scroll_tag.dart';
 import 'widgets/mention_menu_scroller.dart';
 import 'widgets/mention_menu_shortcuts.dart';
-import 'widgets/page_list.dart';
+import 'widgets/menu_list/page_list.dart';
 import 'widgets/person/person_list.dart';
 import 'widgets/person/person_send_notification_toggle.dart';
 
