@@ -276,12 +276,8 @@ impl UserManager {
   }
 
   pub async fn handle_notification(&self, notification: &WorkspaceNotification) {
-    info!("workspace notification: {:?}", notification);
-    match notification {
-      WorkspaceNotification::UserProfileChange { .. } => {
-        let _ = self.refresh_user_profile().await;
-      },
-      WorkspaceNotification::ObjectAccessChanged { .. } => {},
+    if let WorkspaceNotification::UserProfileChange { .. } = notification {
+      let _ = self.refresh_user_profile().await;
     }
 
     self

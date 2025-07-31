@@ -38,7 +38,9 @@ extension MobileRouter on BuildContext {
 
     // set the current view before pushing the new view
     getIt<MenuSharedState>().latestOpenView = view;
-    unawaited(getIt<CachedRecentService>().updateRecentViews([view.id], true));
+
+    // Update recent views for the current workspace
+    unawaited(updateRecentViews([view.id], true));
     final queryParameters = view.queryParameters(arguments);
 
     if (view.layout == ViewLayoutPB.Document) {

@@ -10,17 +10,34 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 
-Future<void> shareLogFiles(BuildContext? context) async {
+Future<void> shareLogFiles(
+  BuildContext? context, {
+  String? customExportPath,
+}) async {
   final dir = await getApplicationSupportDirectory();
   final zipEncoder = ZipEncoder();
 
-  final archiveLogFiles = dir
+  final archiveLogFiles = <ArchiveFile>[];
+
+  final logDirectories = dir
       .listSync(recursive: true)
-      .where((e) => p.basename(e.path).startsWith('log.'))
-      .map((e) {
-    final bytes = File(e.path).readAsBytesSync();
-    return ArchiveFile(p.basename(e.path), bytes.length, bytes);
-  });
+      .where((e) => e is File && p.basename(e.path).startsWith('log.'))
+      .map((e) => p.dirname(e.path))
+      .toSet();
+
+  for (final logDir in logDirectories) {
+    final relativePath = p.relative(logDir, from: dir.path);
+    final logFiles = Directory(logDir)
+        .listSync()
+        .where((e) => e is File && p.basename(e.path).startsWith('log.'))
+        .cast<File>();
+
+    for (final logFile in logFiles) {
+      final bytes = logFile.readAsBytesSync();
+      final archivePath = p.join(relativePath, p.basename(logFile.path));
+      archiveLogFiles.add(ArchiveFile(archivePath, bytes.length, bytes));
+    }
+  }
 
   if (archiveLogFiles.isEmpty) {
     if (context != null && context.mounted) {
@@ -51,7 +68,8 @@ Future<void> shareLogFiles(BuildContext? context) async {
   // create a zipped appflowy logs file
   try {
     final tempDirectory = await getTemporaryDirectory();
-    final path = Platform.isAndroid ? tempDirectory.path : dir.path;
+    final path = customExportPath ??
+        (Platform.isAndroid ? tempDirectory.path : dir.path);
     final zipFile =
         await File(p.join(path, 'appflowy_logs.zip')).writeAsBytes(zip);
 
@@ -65,7 +83,13 @@ Future<void> shareLogFiles(BuildContext? context) async {
       await zipFile.delete();
     } else {
       // open the directory
-      await afLaunchUri(zipFile.uri);
+      await afLaunchUrlString(path);
+
+      if (context != null && context.mounted) {
+        showToastNotification(
+          message: 'Exported log files successfully',
+        );
+      }
     }
   } catch (e) {
     if (context != null && context.mounted) {

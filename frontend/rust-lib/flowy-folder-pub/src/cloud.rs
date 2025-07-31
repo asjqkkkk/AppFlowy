@@ -1,5 +1,6 @@
 use crate::entities::PublishPayload;
 pub use anyhow::Error;
+use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
   CreateImportTaskType, MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate,
   PublishInfo,
@@ -144,6 +145,25 @@ pub trait FolderCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     view_id: &Uuid,
     page_mention: &PageMentionUpdate,
+  ) -> Result<(), FlowyError>;
+
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError>;
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError>;
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
   ) -> Result<(), FlowyError>;
 }
 

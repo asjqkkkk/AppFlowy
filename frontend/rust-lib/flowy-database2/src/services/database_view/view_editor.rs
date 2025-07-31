@@ -259,6 +259,7 @@ impl DatabaseViewEditor {
       row_position: params.row_position.try_into()?,
       created_at: timestamp,
       modified_at: timestamp,
+      row_meta: None,
     };
 
     // fill in cells from the frontend

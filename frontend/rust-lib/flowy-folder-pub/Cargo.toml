@@ -19,6 +19,7 @@ flowy-error.workspace = true
 flowy-sqlite = { workspace = true }
 diesel = { workspace = true }
 chrono = { workspace = true }
+log = "0.4.27"
 
 [dev-dependencies]
 tokio.workspace = true

@@ -1,5 +1,4 @@
 use bytes::Bytes;
-use collab_folder::ViewLayout;
 use flowy_ai::ai_manager::AIManager;
 use flowy_error::FlowyError;
 use flowy_folder::entities::CreateViewParams;
@@ -39,26 +38,12 @@ impl FolderOperationHandler for ChatFolderOperation {
     Err(FlowyError::not_support().with_context("Duplicate view"))
   }
 
-  async fn create_view_with_view_data(
-    &self,
-    _user_id: i64,
-    _params: CreateViewParams,
-  ) -> Result<(), FlowyError> {
-    Err(FlowyError::not_support().with_context("Can't create view"))
-  }
-
-  async fn create_default_view(
-    &self,
-    user_id: i64,
-    parent_view_id: &Uuid,
-    view_id: &Uuid,
-    _name: &str,
-    _layout: ViewLayout,
-  ) -> Result<(), FlowyError> {
+  async fn create_view(&self, user_id: i64, params: CreateViewParams) -> Result<(), FlowyError> {
     self
       .ai_manager()?
-      .create_chat(&user_id, parent_view_id, view_id)
+      .create_chat(&user_id, &params.parent_view_id, &params.view_id)
       .await?;
+
     Ok(())
   }
 

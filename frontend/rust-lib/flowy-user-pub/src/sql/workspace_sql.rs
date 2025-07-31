@@ -6,7 +6,7 @@ use flowy_sqlite::schema::user_workspace_table;
 use flowy_sqlite::schema::user_workspace_table::dsl;
 use flowy_sqlite::{ExpressionMethods, RunQueryDsl, SqliteConnection, prelude::*};
 use std::collections::{HashMap, HashSet};
-use tracing::{info, warn};
+use tracing::{info, trace, warn};
 
 #[derive(Clone, Default, Queryable, Identifiable, Insertable)]
 #[diesel(table_name = user_workspace_table)]
@@ -20,6 +20,7 @@ pub struct UserWorkspaceTable {
   pub member_count: i64,
   pub role: Option<i32>,
   pub workspace_type: i32,
+  pub updated_at: i64,
 }
 
 #[derive(AsChangeset, Identifiable, Default, Debug)]
@@ -30,11 +31,16 @@ pub struct UserWorkspaceChangeset {
   pub icon: Option<String>,
   pub role: Option<i32>,
   pub member_count: Option<i64>,
+  pub updated_at: Option<i64>,
 }
 
 impl UserWorkspaceChangeset {
   pub fn has_changes(&self) -> bool {
-    self.name.is_some() || self.icon.is_some() || self.role.is_some() || self.member_count.is_some()
+    self.name.is_some()
+      || self.icon.is_some()
+      || self.role.is_some()
+      || self.member_count.is_some()
+      || self.updated_at.is_some()
   }
   pub fn from_version(old: &UserWorkspace, new: &UserWorkspace) -> Self {
     let mut changeset = Self {
@@ -43,6 +49,7 @@ impl UserWorkspaceChangeset {
       icon: None,
       role: None,
       member_count: None,
+      updated_at: None,
     };
 
     if old.name != new.name {
@@ -56,6 +63,10 @@ impl UserWorkspaceChangeset {
     }
     if old.member_count != new.member_count {
       changeset.member_count = Some(new.member_count);
+    }
+    // Always update the updated_at timestamp when there are changes
+    if changeset.has_changes() {
+      changeset.updated_at = Some(chrono::Utc::now().timestamp());
     }
 
     changeset
@@ -85,6 +96,7 @@ impl UserWorkspaceTable {
       member_count: workspace.member_count,
       role: workspace.role.map(|v| v as i32),
       workspace_type: workspace_type as i32,
+      updated_at: chrono::Utc::now().timestamp(),
     })
   }
 }
@@ -125,9 +137,13 @@ pub fn update_user_workspace(
   mut conn: DBConnection,
   changeset: UserWorkspaceChangeset,
 ) -> Result<(), FlowyError> {
+  // Always update the updated_at timestamp when making local changes
+  let mut updated_changeset = changeset;
+  updated_changeset.updated_at = Some(chrono::Utc::now().timestamp());
+
   diesel::update(user_workspace_table::dsl::user_workspace_table)
-    .filter(user_workspace_table::id.eq(changeset.id.clone()))
-    .set(changeset)
+    .filter(user_workspace_table::id.eq(updated_changeset.id.clone()))
+    .set(updated_changeset)
     .execute(&mut conn)?;
 
   Ok(())
@@ -196,7 +212,10 @@ pub fn upsert_user_workspace(
   user_workspace: UserWorkspace,
   conn: &mut SqliteConnection,
 ) -> Result<usize, FlowyError> {
-  let row = UserWorkspaceTable::from_workspace(uid_val, &user_workspace, workspace_type)?;
+  let mut row = UserWorkspaceTable::from_workspace(uid_val, &user_workspace, workspace_type)?;
+  // Ensure updated_at is set to current timestamp for upserts
+  row.updated_at = chrono::Utc::now().timestamp();
+
   let n = insert_into(user_workspace_table::table)
     .values(row.clone())
     .on_conflict(user_workspace_table::id)
@@ -209,6 +228,7 @@ pub fn upsert_user_workspace(
       user_workspace_table::icon.eq(row.icon),
       user_workspace_table::member_count.eq(row.member_count),
       user_workspace_table::role.eq(row.role),
+      user_workspace_table::updated_at.eq(row.updated_at),
     ))
     .execute(conn)?;
 
@@ -259,12 +279,25 @@ pub fn sync_user_workspaces_with_diff(
         },
 
         Some(old) => {
-          let changes = UserWorkspaceChangeset::from_version(&UserWorkspace::from(old), uw);
-          if changes.has_changes() {
-            diesel::update(dsl::user_workspace_table.find(&uw.id))
-              .set(&changes)
-              .execute(conn)?;
-            diffs.push(WorkspaceChange::Updated(uw.id.clone()));
+          // Check if remote data is newer than local data using updated_at timestamp
+          let remote_updated_at = uw.created_at.timestamp(); // Use created_at as proxy for remote updated_at
+          let local_updated_at = old.updated_at;
+
+          // Only update if remote data is newer (has a more recent timestamp)
+          if remote_updated_at > local_updated_at {
+            let changes = UserWorkspaceChangeset::from_version(&UserWorkspace::from(old), uw);
+            if changes.has_changes() {
+              diesel::update(dsl::user_workspace_table.find(&uw.id))
+                .set(&changes)
+                .execute(conn)?;
+              diffs.push(WorkspaceChange::Updated(uw.id.clone()));
+            }
+          } else {
+            // Remote data is older or same age, skip update to preserve local changes
+            trace!(
+              "Skipping update for workspace {}: remote timestamp {} <= local timestamp {}",
+              uw.id, remote_updated_at, local_updated_at
+            );
           }
         },
       }

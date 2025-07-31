@@ -54,12 +54,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Document,
       initial_data: vec![],
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)
@@ -80,12 +79,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Document,
       initial_data: vec![],
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)
@@ -107,12 +105,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Document,
       initial_data,
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     let view = EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)

@@ -7,6 +7,7 @@ import 'package:appflowy/features/workspace_import/presentation/widgets/import_e
 import 'package:appflowy/features/workspace_import/presentation/widgets/import_header.dart';
 import 'package:appflowy/features/workspace_import/presentation/widgets/unified_progress_dialog.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/plugins/document/presentation/editor_drop_manager.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
@@ -19,15 +20,21 @@ class WorkspaceImportDialog extends StatefulWidget {
   });
 
   static Future<void> show(BuildContext context) async {
-    await showDialog(
-      context: context,
-      builder: (dialogContext) => BlocProvider(
-        create: (context) => WorkspaceImportDialogBloc(
-          importRepository: RustWorkspaceImportRepositoryImpl(),
-        )..add(const WorkspaceImportDialogInitialized()),
-        child: const WorkspaceImportDialog(),
-      ),
-    );
+    enableDocumentDragNotifier.value = false;
+
+    try {
+      await showDialog(
+        context: context,
+        builder: (dialogContext) => BlocProvider(
+          create: (context) => WorkspaceImportDialogBloc(
+            importRepository: RustWorkspaceImportRepositoryImpl(),
+          )..add(const WorkspaceImportDialogInitialized()),
+          child: const WorkspaceImportDialog(),
+        ),
+      );
+    } finally {
+      enableDocumentDragNotifier.value = true;
+    }
   }
 
   @override

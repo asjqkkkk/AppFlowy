@@ -16,12 +16,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Chat,
       initial_data: vec![],
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)

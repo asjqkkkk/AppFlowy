@@ -18,7 +18,8 @@ class ImportDropzone extends StatefulWidget {
 }
 
 class _ImportDropzoneState extends State<ImportDropzone> {
-  bool _isDragging = false;
+  bool isDragging = false;
+  bool isHovering = false;
 
   @override
   Widget build(BuildContext context) {
@@ -27,15 +28,22 @@ class _ImportDropzoneState extends State<ImportDropzone> {
     return BlocConsumer<WorkspaceImportDialogBloc, WorkspaceImportDialogState>(
       listener: (context, state) {
         if (state.status == WorkspaceImportDialogStatus.dragOver) {
-          setState(() => _isDragging = true);
+          setState(() => isDragging = true);
         } else {
-          setState(() => _isDragging = false);
+          setState(() => isDragging = false);
         }
       },
       builder: (context, state) {
         final isDragOver =
-            _isDragging || state.status == WorkspaceImportDialogStatus.dragOver;
+            isDragging || state.status == WorkspaceImportDialogStatus.dragOver;
         final isLoading = state.isLoading;
+
+        Color color = isDragOver
+            ? theme.fillColorScheme.themeSelect
+            : theme.surfaceColorScheme.layer01;
+        if (isHovering) {
+          color = theme.fillColorScheme.contentHover;
+        }
 
         return Padding(
           padding: EdgeInsets.only(
@@ -73,9 +81,7 @@ class _ImportDropzoneState extends State<ImportDropzone> {
               child: Container(
                 height: 170,
                 decoration: BoxDecoration(
-                  color: isDragOver
-                      ? theme.fillColorScheme.themeSelect
-                      : theme.surfaceColorScheme.layer01,
+                  color: color,
                   borderRadius: BorderRadius.circular(theme.borderRadius.l),
                 ),
                 child: Stack(
@@ -109,6 +115,8 @@ class _ImportDropzoneState extends State<ImportDropzone> {
     final theme = AppFlowyTheme.of(context);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
+      onEnter: (_) => setState(() => isHovering = true),
+      onExit: (_) => setState(() => isHovering = false),
       child: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,

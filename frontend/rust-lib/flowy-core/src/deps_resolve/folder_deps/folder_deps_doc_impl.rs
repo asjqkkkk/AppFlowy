@@ -3,7 +3,6 @@ use bytes::Bytes;
 use collab_document::importer::md_importer::MDImporter;
 use collab_entity::CollabType;
 use collab_folder::hierarchy_builder::NestedViewBuilder;
-use collab_folder::ViewLayout;
 use flowy_document::entities::DocumentDataPB;
 use flowy_document::manager::DocumentManager;
 use flowy_document::parser::json::parser::JsonToDocumentParser;
@@ -121,11 +120,7 @@ impl FolderOperationHandler for DocumentFolderOperation {
   }
 
   #[instrument(level = "debug", skip_all)]
-  async fn create_view_with_view_data(
-    &self,
-    user_id: i64,
-    params: CreateViewParams,
-  ) -> Result<(), FlowyError> {
+  async fn create_view(&self, user_id: i64, params: CreateViewParams) -> Result<(), FlowyError> {
     debug_assert_eq!(params.layout, ViewLayoutPB::Document);
     let data = match params.initial_data {
       ViewData::DuplicateData(data) => Some(DocumentDataPB::try_from(data)?),
@@ -137,33 +132,6 @@ impl FolderOperationHandler for DocumentFolderOperation {
       .create_document(user_id, &params.view_id, data.map(|d| d.into()))
       .await?;
     Ok(())
-  }
-
-  /// Create a view with built-in data.
-  #[instrument(level = "debug", skip(self))]
-  async fn create_default_view(
-    &self,
-    user_id: i64,
-    _parent_view_id: &Uuid,
-    view_id: &Uuid,
-    _name: &str,
-    layout: ViewLayout,
-  ) -> Result<(), FlowyError> {
-    debug_assert_eq!(layout, ViewLayout::Document);
-    match self
-      .document_manager()?
-      .create_document(user_id, view_id, None)
-      .await
-    {
-      Ok(_) => Ok(()),
-      Err(err) => {
-        if err.is_already_exists() {
-          Ok(())
-        } else {
-          Err(err)
-        }
-      },
-    }
   }
 
   async fn import_from_bytes(

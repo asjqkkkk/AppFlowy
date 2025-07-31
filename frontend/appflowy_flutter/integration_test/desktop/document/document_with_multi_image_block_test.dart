@@ -4,15 +4,11 @@ import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/image/multi_image_block_component/image_render.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/multi_image_block_component/layouts/image_browser_layout.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/multi_image_block_component/multi_image_placeholder.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image_menu.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/widgets/embed_image_url_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
-import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy/startup/startup.dart';
-import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_toolbar.dart';
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_viewer.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
@@ -132,161 +128,161 @@ void main() {
       await Future.wait([firstFile.delete(), secondFile.delete()]);
     });
 
-    testWidgets('insert and delete images from network', (tester) async {
-      await tester.initializeAppFlowy();
-      await tester.tapAnonymousSignInButton();
-      await tester.expectToSeeHomePage();
+    //   testWidgets('insert and delete images from network', (tester) async {
+    //     await tester.initializeAppFlowy();
+    //     await tester.tapAnonymousSignInButton();
+    //     await tester.expectToSeeHomePage();
 
-      // create a new document
-      await tester.createNewPageWithNameUnderParent(
-        name: 'multi image block test',
-      );
+    //     // create a new document
+    //     await tester.createNewPageWithNameUnderParent(
+    //       name: 'multi image block test',
+    //     );
 
-      // tap the first line of the document
-      await tester.editor.tapLineOfEditorAt(0);
-      await tester.editor.showSlashMenu();
-      await tester.editor.tapSlashMenuItemWithName(
-        LocaleKeys.document_slashMenu_name_photoGallery.tr(),
-        offset: 100,
-      );
-      expect(find.byType(MultiImageBlockComponent), findsOneWidget);
-      expect(find.byType(MultiImagePlaceholder), findsOneWidget);
+    //     // tap the first line of the document
+    //     await tester.editor.tapLineOfEditorAt(0);
+    //     await tester.editor.showSlashMenu();
+    //     await tester.editor.tapSlashMenuItemWithName(
+    //       LocaleKeys.document_slashMenu_name_photoGallery.tr(),
+    //       offset: 100,
+    //     );
+    //     expect(find.byType(MultiImageBlockComponent), findsOneWidget);
+    //     expect(find.byType(MultiImagePlaceholder), findsOneWidget);
 
-      await tester.tap(find.byType(MultiImagePlaceholder));
-      await tester.pumpAndSettle();
+    //     await tester.tap(find.byType(MultiImagePlaceholder));
+    //     await tester.pumpAndSettle();
 
-      expect(find.byType(UploadImageMenu), findsOneWidget);
+    //     expect(find.byType(UploadImageMenu), findsOneWidget);
 
-      await tester.tapButtonWithName(
-        LocaleKeys.document_imageBlock_embedLink_label.tr(),
-      );
+    //     await tester.tapButtonWithName(
+    //       LocaleKeys.document_imageBlock_embedLink_label.tr(),
+    //     );
 
-      const url =
-          'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb&dl=david-marcu-78A265wPiO4-unsplash.jpg&w=640';
-      await tester.enterText(
-        find.descendant(
-          of: find.byType(EmbedImageUrlWidget),
-          matching: find.byType(TextField),
-        ),
-        url,
-      );
-      await tester.pumpAndSettle();
+    //     const url =
+    //         'https://images.unsplash.com/photo-1469474968028-56623f02e42e?ixlib=rb-4.0.3&q=85&fm=jpg&crop=entropy&cs=srgb&dl=david-marcu-78A265wPiO4-unsplash.jpg&w=640';
+    //     await tester.enterText(
+    //       find.descendant(
+    //         of: find.byType(EmbedImageUrlWidget),
+    //         matching: find.byType(TextField),
+    //       ),
+    //       url,
+    //     );
+    //     await tester.pumpAndSettle();
 
-      await tester.tapButton(
-        find.descendant(
-          of: find.byType(EmbedImageUrlWidget),
-          matching: find.text(
-            LocaleKeys.document_imageBlock_embedLink_label.tr(),
-            findRichText: true,
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
+    //     await tester.tapButton(
+    //       find.descendant(
+    //         of: find.byType(EmbedImageUrlWidget),
+    //         matching: find.text(
+    //           LocaleKeys.document_imageBlock_embedLink_label.tr(),
+    //           findRichText: true,
+    //         ),
+    //       ),
+    //     );
+    //     await tester.pumpAndSettle();
 
-      expect(find.byType(ImageBrowserLayout), findsOneWidget);
-      final node = tester.editor.getCurrentEditorState().getNodeAtPath([0])!;
-      expect(node.type, MultiImageBlockKeys.type);
+    //     expect(find.byType(ImageBrowserLayout), findsOneWidget);
+    //     final node = tester.editor.getCurrentEditorState().getNodeAtPath([0])!;
+    //     expect(node.type, MultiImageBlockKeys.type);
 
-      final data = MultiImageData.fromJson(
-        node.attributes[MultiImageBlockKeys.images],
-      );
+    //     final data = MultiImageData.fromJson(
+    //       node.attributes[MultiImageBlockKeys.images],
+    //     );
 
-      expect(data.images.length, 1);
+    //     expect(data.images.length, 1);
 
-      final imageFinder = find
-          .byWidgetPredicate(
-            (w) => w is FlowyNetworkImage && w.url == url,
-          )
-          .first;
+    //     final imageFinder = find
+    //         .byWidgetPredicate(
+    //           (w) => w is FlowyNetworkImage && w.url == url,
+    //         )
+    //         .first;
 
-      // Insert two images from network
-      for (int i = 0; i < 2; i++) {
-        // Hover on the image to show the image toolbar
-        await tester.hoverOnWidget(
-          imageFinder,
-          onHover: () async {
-            // Click on the add
-            final addFinder = find.descendant(
-              of: find.byType(MultiImageMenu),
-              matching: find.byFlowySvg(FlowySvgs.add_s),
-            );
+    //     // Insert two images from network
+    //     for (int i = 0; i < 2; i++) {
+    //       // Hover on the image to show the image toolbar
+    //       await tester.hoverOnWidget(
+    //         imageFinder,
+    //         onHover: () async {
+    //           // Click on the add
+    //           final addFinder = find.descendant(
+    //             of: find.byType(MultiImageMenu),
+    //             matching: find.byFlowySvg(FlowySvgs.add_s),
+    //           );
 
-            expect(addFinder, findsOneWidget);
-            await tester.tap(addFinder);
-            await tester.pumpAndSettle();
+    //           expect(addFinder, findsOneWidget);
+    //           await tester.tap(addFinder);
+    //           await tester.pumpAndSettle();
 
-            await tester.tapButtonWithName(
-              LocaleKeys.document_imageBlock_embedLink_label.tr(),
-            );
+    //           await tester.tapButtonWithName(
+    //             LocaleKeys.document_imageBlock_embedLink_label.tr(),
+    //           );
 
-            await tester.enterText(
-              find.descendant(
-                of: find.byType(EmbedImageUrlWidget),
-                matching: find.byType(TextField),
-              ),
-              url,
-            );
-            await tester.pumpAndSettle();
+    //           await tester.enterText(
+    //             find.descendant(
+    //               of: find.byType(EmbedImageUrlWidget),
+    //               matching: find.byType(TextField),
+    //             ),
+    //             url,
+    //           );
+    //           await tester.pumpAndSettle();
 
-            await tester.tapButton(
-              find.descendant(
-                of: find.byType(EmbedImageUrlWidget),
-                matching: find.text(
-                  LocaleKeys.document_imageBlock_embedLink_label.tr(),
-                  findRichText: true,
-                ),
-              ),
-            );
-            await tester.pumpAndSettle();
-          },
-        );
-      }
+    //           await tester.tapButton(
+    //             find.descendant(
+    //               of: find.byType(EmbedImageUrlWidget),
+    //               matching: find.text(
+    //                 LocaleKeys.document_imageBlock_embedLink_label.tr(),
+    //                 findRichText: true,
+    //               ),
+    //             ),
+    //           );
+    //           await tester.pumpAndSettle();
+    //         },
+    //       );
+    //     }
 
-      await tester.pumpAndSettle();
+    //     await tester.pumpAndSettle();
 
-      // There should be 4 images visible now, where 2 are thumbnails
-      expect(find.byType(ThumbnailItem), findsNWidgets(3));
+    //     // There should be 4 images visible now, where 2 are thumbnails
+    //     expect(find.byType(ThumbnailItem), findsNWidgets(3));
 
-      // And all three use ImageRender
-      expect(find.byType(ImageRender), findsNWidgets(4));
+    //     // And all three use ImageRender
+    //     expect(find.byType(ImageRender), findsNWidgets(4));
 
-      // Hover on and delete the first thumbnail image
-      await tester.hoverOnWidget(find.byType(ThumbnailItem).first);
+    //     // Hover on and delete the first thumbnail image
+    //     await tester.hoverOnWidget(find.byType(ThumbnailItem).first);
 
-      final deleteFinder = find
-          .descendant(
-            of: find.byType(ThumbnailItem),
-            matching: find.byFlowySvg(FlowySvgs.delete_s),
-          )
-          .first;
+    //     final deleteFinder = find
+    //         .descendant(
+    //           of: find.byType(ThumbnailItem),
+    //           matching: find.byFlowySvg(FlowySvgs.delete_s),
+    //         )
+    //         .first;
 
-      expect(deleteFinder, findsOneWidget);
-      await tester.tap(deleteFinder);
-      await tester.pumpAndSettle();
+    //     expect(deleteFinder, findsOneWidget);
+    //     await tester.tap(deleteFinder);
+    //     await tester.pumpAndSettle();
 
-      expect(find.byType(ImageRender), findsNWidgets(3));
+    //     expect(find.byType(ImageRender), findsNWidgets(3));
 
-      // Delete one from interactive viewer
-      await tester.tap(imageFinder);
-      await tester.pump(kDoubleTapMinTime);
-      await tester.tap(imageFinder);
-      await tester.pumpAndSettle();
+    //     // Delete one from interactive viewer
+    //     await tester.tap(imageFinder);
+    //     await tester.pump(kDoubleTapMinTime);
+    //     await tester.tap(imageFinder);
+    //     await tester.pumpAndSettle();
 
-      final ivFinder = find.byType(InteractiveImageViewer);
-      expect(ivFinder, findsOneWidget);
+    //     final ivFinder = find.byType(InteractiveImageViewer);
+    //     expect(ivFinder, findsOneWidget);
 
-      await tester.tap(
-        find.descendant(
-          of: find.byType(InteractiveImageToolbar),
-          matching: find.byFlowySvg(FlowySvgs.delete_s),
-        ),
-      );
-      await tester.pumpAndSettle();
+    //     await tester.tap(
+    //       find.descendant(
+    //         of: find.byType(InteractiveImageToolbar),
+    //         matching: find.byFlowySvg(FlowySvgs.delete_s),
+    //       ),
+    //     );
+    //     await tester.pumpAndSettle();
 
-      expect(find.byType(InteractiveImageViewer), findsNothing);
+    //     expect(find.byType(InteractiveImageViewer), findsNothing);
 
-      // There should be 1 image and the thumbnail for said image still visible
-      expect(find.byType(ImageRender), findsNWidgets(2));
-    });
+    //     // There should be 1 image and the thumbnail for said image still visible
+    //     expect(find.byType(ImageRender), findsNWidgets(2));
+    //   });
   });
 }

@@ -124,6 +124,6 @@ class _RecentViewsState extends State<_RecentViews> {
   void _onRefresh() {
     context
         .read<RecentViewsBloc>()
-        .add(const RecentViewsEvent.resetRecentViews());
+        .add(const RecentViewsEvent.fetchRecentViews());
   }
 }

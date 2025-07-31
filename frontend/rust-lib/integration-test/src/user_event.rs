@@ -1,11 +1,12 @@
+use bytes::Bytes;
+use flowy_folder::entities::{RepeatedViewPB, WorkspacePB};
+use protobuf::ProtobufError;
+use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
-
-use bytes::Bytes;
-use flowy_folder::entities::{RepeatedViewPB, WorkspacePB};
-use protobuf::ProtobufError;
+use std::time::Duration;
 use tokio::sync::broadcast::{channel, Sender};
 use uuid::Uuid;
 
@@ -33,7 +34,6 @@ impl EventIntegrationTest {
     &self,
     operation: F,
     max_retries: u32,
-    delay: tokio::time::Duration,
     should_retry: impl Fn(&FlowyError) -> bool,
     operation_name: &str,
   ) -> FlowyResult<T>
@@ -58,7 +58,8 @@ impl EventIntegrationTest {
               attempt + 1,
               max_retries
             );
-            tokio::time::sleep(delay).await;
+            let duration = random_sleep_duration(1, 8);
+            tokio::time::sleep(duration).await;
           } else if should_retry(&err) {
             // Exhausted all retries for retryable error
             return Err(FlowyError::new(
@@ -100,31 +101,7 @@ impl EventIntegrationTest {
       .retry_operation(
         operation,
         10,
-        tokio::time::Duration::from_secs(5),
         |err| err.code == ErrorCode::RetryLater,
-        operation_name,
-      )
-      .await
-  }
-
-  pub async fn retry_with_config<T, F, Fut>(
-    &self,
-    operation: F,
-    max_retries: u32,
-    delay_ms: u64,
-    retry_codes: &[ErrorCode],
-    operation_name: &str,
-  ) -> FlowyResult<T>
-  where
-    F: Fn() -> Fut,
-    Fut: std::future::Future<Output = FlowyResult<T>>,
-  {
-    self
-      .retry_operation(
-        operation,
-        max_retries,
-        tokio::time::Duration::from_millis(delay_ms),
-        |err| retry_codes.contains(&err.code),
         operation_name,
       )
       .await
@@ -145,7 +122,6 @@ impl EventIntegrationTest {
       .retry_operation(
         operation,
         5,
-        tokio::time::Duration::from_millis(1000),
         |err| {
           matches!(
             err.code,
@@ -217,6 +193,8 @@ impl EventIntegrationTest {
   }
 
   pub async fn af_cloud_sign_up(&self) -> UserProfilePB {
+    let duration = random_sleep_duration(1, 10);
+    tokio::time::sleep(duration).await;
     let email = unique_email();
     self.af_cloud_sign_up_with_email(&email).await
   }
@@ -594,4 +572,10 @@ pub async fn user_localhost_af_cloud_with_nginx() {
   std::env::set_var("af_cloud_test_ws_url", "ws://localhost/ws/v2");
   std::env::set_var("af_cloud_test_gotrue_url", "http://localhost/gotrue");
   use_localhost_af_cloud().await
+}
+
+fn random_sleep_duration(min_secs: u64, max_secs: u64) -> Duration {
+  let mut rng = rand::thread_rng();
+  let sleep_secs = rng.gen_range(min_secs..=max_secs);
+  Duration::from_secs(sleep_secs)
 }

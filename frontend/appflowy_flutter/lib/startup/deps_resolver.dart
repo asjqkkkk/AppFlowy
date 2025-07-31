@@ -21,7 +21,6 @@ import 'package:appflowy/user/presentation/router.dart';
 import 'package:appflowy/workspace/application/action_navigation/action_navigation_bloc.dart';
 import 'package:appflowy/workspace/application/edit_panel/edit_panel_bloc.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
-import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
 import 'package:appflowy/workspace/application/settings/appearance/desktop_appearance.dart';
 import 'package:appflowy/workspace/application/settings/appearance/mobile_appearance.dart';
@@ -133,7 +132,6 @@ void _resolveUserDeps(GetIt getIt, IntegrationMode mode) {
   getIt.registerFactory<EditPanelBloc>(() => EditPanelBloc());
   getIt.registerFactory<SplashBloc>(() => SplashBloc());
   getIt.registerLazySingleton<NetworkListener>(() => NetworkListener());
-  getIt.registerLazySingleton<CachedRecentService>(() => CachedRecentService());
   getIt.registerLazySingleton<ViewAncestorCache>(() => ViewAncestorCache());
   getIt.registerLazySingleton<PersonListMemoryCache>(
     () => PersonListMemoryCache(),

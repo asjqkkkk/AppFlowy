@@ -31,6 +31,8 @@ use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{error, info, instrument};
 use uuid::Uuid;
+
+type CollabDataExtractResult = (HashMap<String, Vec<u8>>, HashMap<String, String>);
 pub struct WorkspaceExporter<'a> {
   folder_manager: &'a FolderManager,
 }
@@ -119,7 +121,7 @@ impl<'a> WorkspaceExporter<'a> {
 
     let root_views = folder.get_views_belong_to(&workspace_id.to_string(), uid);
     for view in root_views {
-      if !view_ids_should_be_filtered.contains(&view.id) {
+      if !view_ids_should_be_filtered.contains(&view.id) && view.layout != ViewLayout::Chat {
         self.collect_view_hierarchy(
           &folder,
           &view,
@@ -143,6 +145,7 @@ impl<'a> WorkspaceExporter<'a> {
     Ok(all_views)
   }
 
+  #[allow(clippy::only_used_in_recursion)]
   fn collect_view_hierarchy(
     &self,
     folder: &collab_folder::Folder,
@@ -161,7 +164,9 @@ impl<'a> WorkspaceExporter<'a> {
 
     let child_views = folder.get_views_belong_to(&view.id, uid);
     for child_view in child_views {
-      if !view_ids_should_be_filtered.contains(&child_view.id) {
+      if !view_ids_should_be_filtered.contains(&child_view.id)
+        && child_view.layout != ViewLayout::Chat
+      {
         self.collect_view_hierarchy(
           folder,
           &child_view,
@@ -236,6 +241,13 @@ impl<'a> WorkspaceExporter<'a> {
     for view in views {
       let view_metadata = self.extract_view_metadata(view).await?;
       relation_map.views.insert(view.id.clone(), view_metadata);
+    }
+
+    let view_ids: HashSet<String> = relation_map.views.keys().cloned().collect();
+    for view_metadata in relation_map.views.values_mut() {
+      view_metadata
+        .children
+        .retain(|child_id| view_ids.contains(child_id));
     }
 
     for view in views {
@@ -316,14 +328,12 @@ impl<'a> WorkspaceExporter<'a> {
   ) -> FlowyResult<Vec<ViewDependency>> {
     let mut dependencies = Vec::new();
 
-    if !view.parent_view_id.is_empty() {
-      if all_views.iter().any(|v| v.id == view.parent_view_id) {
-        dependencies.push(ViewDependency {
-          source_view_id: view.parent_view_id.clone(),
-          target_view_id: view.id.clone(),
-          dependency_type: DependencyType::DocumentReference,
-        });
-      }
+    if !view.parent_view_id.is_empty() && all_views.iter().any(|v| v.id == view.parent_view_id) {
+      dependencies.push(ViewDependency {
+        source_view_id: view.parent_view_id.clone(),
+        target_view_id: view.id.clone(),
+        dependency_type: DependencyType::DocumentReference,
+      });
     }
 
     info!(
@@ -354,7 +364,7 @@ impl<'a> WorkspaceExporter<'a> {
   pub async fn extract_collab_data(
     &self,
     relation_map: &mut WorkspaceRelationMap,
-  ) -> FlowyResult<(HashMap<String, Vec<u8>>, HashMap<String, String>)> {
+  ) -> FlowyResult<CollabDataExtractResult> {
     let mut collab_data = HashMap::new();
     let mut doc_state_to_json = HashMap::new();
 
