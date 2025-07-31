@@ -55,11 +55,13 @@ sealed class UserWorkspaceEvent {
     required String workspaceId,
     required String icon,
     required WorkspaceTypePB workspaceType,
+    bool sendRequest = true,
   }) =>
       WorkspaceEventUpdateWorkspaceIcon(
         workspaceId: workspaceId,
         icon: icon,
         workspaceType: workspaceType,
+        sendRequest: sendRequest,
       );
 
   factory UserWorkspaceEvent.leaveWorkspace({
@@ -170,11 +172,13 @@ class WorkspaceEventUpdateWorkspaceIcon extends UserWorkspaceEvent {
     required this.workspaceId,
     required this.icon,
     required this.workspaceType,
+    this.sendRequest = true,
   });
 
   final String workspaceId;
   final String icon;
   final WorkspaceTypePB workspaceType;
+  final bool sendRequest;
 }
 
 /// Leaves a workspace.

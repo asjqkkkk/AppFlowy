@@ -81,6 +81,19 @@ class SettingsWorkspaceView extends StatelessWidget {
                 );
             Navigator.of(context).pop();
           }
+          if (state.newIcon != null) {
+            context.read<UserWorkspaceBloc>().add(
+                  WorkspaceEventUpdateWorkspaceIcon(
+                    workspaceId: state.workspace!.workspaceId,
+                    icon: state.newIcon!,
+                    workspaceType: state.workspace!.workspaceType,
+                    sendRequest: false,
+                  ),
+                );
+            context
+                .read<WorkspaceSettingsBloc>()
+                .add(const WorkspaceSettingsEvent.clearNewIcon());
+          }
         },
         builder: (context, state) {
           return SettingsBody(
@@ -375,9 +388,11 @@ class _WorkspaceIconSetting extends StatelessWidget {
       figmaLineHeight: 26.0,
       borderRadius: 18.0,
       isEditable: true,
-      onSelected: (r) => context
-          .read<WorkspaceSettingsBloc>()
-          .add(WorkspaceSettingsEvent.updateWorkspaceIcon(r.emoji)),
+      onSelected: (r) {
+        context
+            .read<WorkspaceSettingsBloc>()
+            .add(WorkspaceSettingsEvent.updateWorkspaceIcon(r.emoji));
+      },
     );
 
     if (!enableEdit) {
