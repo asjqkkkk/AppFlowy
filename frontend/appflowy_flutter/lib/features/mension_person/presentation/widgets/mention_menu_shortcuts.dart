@@ -33,20 +33,16 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
 
   AutoScrollController get scrollController => widget.scrollController;
   EditorState get editorState => widget.editorState;
-  late Selection? _selection = editorState.selection;
 
   @override
   void initState() {
     super.initState();
     startOffset = editorState.selection?.endIndex ?? 0;
     focusNode.makeSureHasFocus(() => !mounted);
-    editorState.selectionNotifier.addListener(onSelectionChanged);
   }
 
   @override
   void dispose() {
-    editorState.selectionNotifier.removeListener(onSelectionChanged);
-
     focusNode.dispose();
     super.dispose();
   }
@@ -292,15 +288,4 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
 
   void onQuery(BuildContext context, String text) =>
       context.read<MentionBloc>().add(MentionEvent.query(text));
-
-  void onSelectionChanged() {
-    final selection = editorState.selection;
-    if (selection == null) return;
-    if (_selection != selection) {
-      _selection = selection;
-      editorState.service.keyboardService?.disable();
-      editorState.service.scrollService?.enable();
-      focusNode.makeSureHasFocus(() => !mounted);
-    }
-  }
 }

@@ -149,7 +149,7 @@ class _PersonToolTipState extends State<PersonToolTip> {
         horizontalPadding = 2;
     final overRight = widgetOffset.dx + widgetSize.width + tooltipWidth >
             editorOffset.dx + editorSize.width,
-        overLeft = widgetOffset.dx - tooltipWidth < editorOffset.dx;
+        overLeft = widgetOffset.dx - tooltipWidth < 0;
     double left = widgetOffset.dx + widgetSize.width + horizontalPadding,
         top = widgetOffset.dy;
     if (overRight && overLeft) {

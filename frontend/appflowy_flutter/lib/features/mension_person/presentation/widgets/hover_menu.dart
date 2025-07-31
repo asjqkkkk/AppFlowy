@@ -47,6 +47,7 @@ class _HoverMenuState extends State<HoverMenu> {
   final controller = PopoverController();
   bool isHoverMenuShowing = false;
   bool isHovering = false;
+  bool enableHovering = true;
 
   BoxConstraints get menuConstraints => widget.menuConstraints;
   Size get triggerSize => widget.triggerSize;
@@ -71,7 +72,7 @@ class _HoverMenuState extends State<HoverMenu> {
 
   @override
   Widget build(BuildContext context) {
-    return widget.enable
+    return widget.enable && enableHovering
         ? buildHoverMouseRegion(
             buildPopover(),
             cursor: SystemMouseCursors.click,
@@ -160,6 +161,16 @@ class _HoverMenuState extends State<HoverMenu> {
         isHoverMenuShowing = false;
         isHovering = false;
         controller.close();
+        setState(() {
+          enableHovering = false;
+        });
+        Future.delayed(Duration(seconds: 1), () {
+          if (mounted) {
+            setState(() {
+              enableHovering = true;
+            });
+          }
+        });
       }
     }
   }
