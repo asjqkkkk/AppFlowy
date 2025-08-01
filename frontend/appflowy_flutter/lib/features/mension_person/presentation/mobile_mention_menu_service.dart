@@ -37,6 +37,7 @@ class MobileMentionMenuService extends MentionMenuService {
   final int startCharAmount;
 
   OverlayEntry? _menuEntry;
+  ValueNotifier<LTRB> _positionNotifier = ValueNotifier(LTRB());
 
   @override
   void dismiss() {
@@ -44,6 +45,9 @@ class MobileMentionMenuService extends MentionMenuService {
       editorState.service.keyboardService?.enable();
       editorState.service.scrollService?.enable();
       keepEditorFocusNotifier.decrease();
+      editorState
+          .removeScrollViewScrolledListener(_checkPositionAfterScrolling);
+      _positionNotifier.dispose();
       super.dismiss();
     }
 
@@ -56,7 +60,6 @@ class MobileMentionMenuService extends MentionMenuService {
     await super.show();
     final completer = Completer<void>();
     WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
-      final screenSize = MediaQuery.of(context).size;
       final sendNotification = await getIt<KeyValueStorage>()
               .getBool(KVKeys.atMenuSendNotification) ??
           false;
@@ -65,10 +68,10 @@ class MobileMentionMenuService extends MentionMenuService {
       _show(
         MentionMenuBuilderInfo(
           builder: (service, ltrb) => _buildMentionMenu(ltrb, sendNotification),
-          menuSize:
-              Size(screenSize.width - 40, min(240.0, editorHeight / 2 - 10)),
+          menuSize: _menuSize,
         ),
       );
+      editorState.addScrollViewScrolledListener(_checkPositionAfterScrolling);
       completer.complete();
     });
     return completer.future;
@@ -86,6 +89,7 @@ class MobileMentionMenuService extends MentionMenuService {
     );
     if (menuPosition == null) return;
     final ltrb = menuPosition.ltrb;
+    _positionNotifier = ValueNotifier(ltrb);
 
     final editorSize = editorState.renderBox!.size;
     _menuEntry = OverlayEntry(
@@ -104,14 +108,19 @@ class MobileMentionMenuService extends MentionMenuService {
               onTap: dismiss,
               child: Stack(
                 children: [
-                  Positioned(
-                    left: 20,
-                    right: 20,
-                    top: ltrb.top,
-                    bottom: ltrb.bottom == null
-                        ? null
-                        : (diffHeight + ltrb.bottom!),
-                    child: builderInfo.builder.call(this, ltrb),
+                  ValueListenableBuilder(
+                    valueListenable: _positionNotifier,
+                    builder: (context, ltrb, _) {
+                      return Positioned(
+                        left: 20,
+                        right: 20,
+                        top: ltrb.top,
+                        bottom: ltrb.bottom == null
+                            ? null
+                            : (diffHeight + ltrb.bottom!),
+                        child: builderInfo.builder.call(this, ltrb),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -181,5 +190,34 @@ class MobileMentionMenuService extends MentionMenuService {
         builder: (context, __) => builder.call(context),
       ),
     );
+  }
+
+  /// the workaround for: editor auto scrolling that will cause wrong position
+  /// of slash menu
+  void _checkPositionAfterScrolling() {
+    MenuPosition? getPosition() => editorState.calculateMenuOffset(
+          menuSize: _menuSize,
+          menuOffset: Offset.zero,
+        );
+    final ltrb = getPosition()?.ltrb;
+
+    if (ltrb == null) return;
+    if (ltrb == _positionNotifier.value) {
+      Future.delayed(const Duration(milliseconds: 100)).then((_) {
+        final ltrb = getPosition()?.ltrb;
+        if (ltrb == null) return;
+        if (ltrb != _positionNotifier.value) {
+          _positionNotifier.value = ltrb;
+        }
+      });
+    } else {
+      _positionNotifier.value = ltrb;
+    }
+  }
+
+  Size get _menuSize {
+    final screenSize = MediaQuery.of(context).size;
+    final editorHeight = editorState.renderBox?.size.height ?? 0.0;
+    return Size(screenSize.width - 40, min(240.0, editorHeight / 2 - 10));
   }
 }

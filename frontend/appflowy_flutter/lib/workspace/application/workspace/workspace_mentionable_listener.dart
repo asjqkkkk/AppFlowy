@@ -76,10 +76,10 @@ class WorkspaceMentionableListener {
   }
 
   Future<void> stop() async {
-    await _listener?.stop();
     _mentionablePersonsNotifier?.dispose();
-    _mentionablePersonsNotifier = null;
     _mentionablePersonNotifier?.dispose();
+    _mentionablePersonsNotifier = null;
     _mentionablePersonNotifier = null;
+    await _listener?.stop();
   }
 }

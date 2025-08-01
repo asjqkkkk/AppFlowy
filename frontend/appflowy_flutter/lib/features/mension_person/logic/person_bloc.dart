@@ -163,7 +163,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
   void onMentionablePersonsChanged(MentionablePersonsNotifyValue v) {
     v.fold((v) {
       final persons = v.map((e) => Person.fromProto(e)).toList();
-      add(PersonEvent.updatePersons(persons));
+      if (!isClosed) add(PersonEvent.updatePersons(persons));
     }, (e) {
       Log.error('Failed to notify mentionable persons: $e');
     });
@@ -171,7 +171,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
 
   void onMentionablePersonChanged(MentionablePersonNotifyValue v) {
     v.fold((v) {
-      add(PersonEvent.updatePerson(Person.fromProto(v)));
+      if (!isClosed) add(PersonEvent.updatePerson(Person.fromProto(v)));
     }, (e) {
       Log.error('Failed to notify mentionable person: $e');
     });
