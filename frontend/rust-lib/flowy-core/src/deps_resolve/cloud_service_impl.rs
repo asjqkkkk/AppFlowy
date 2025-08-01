@@ -10,7 +10,7 @@ use flowy_ai_pub::cloud::search_dto::{
 use flowy_ai_pub::cloud::server_info_dto::ServerInfo;
 use flowy_ai_pub::cloud::{
   AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  CreateCollabParams, CreatedChatMessage, MessageCursor, ModelList, QueryCollab,
+  CreateCollabParams, CreatedChatMessage, MentionablePerson, MessageCursor, ModelList, QueryCollab,
   RepeatedChatMessage, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
 };
 use flowy_database_pub::cloud::{
@@ -538,6 +538,16 @@ impl FolderCloudService for ServerProvider {
     self
       .get_folder_service()?
       .get_workspace_mentionable_persons(workspace_id)
+      .await
+  }
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    self
+      .get_folder_service()?
+      .get_workspace_mentionable_person(workspace_id, person_id)
       .await
   }
 

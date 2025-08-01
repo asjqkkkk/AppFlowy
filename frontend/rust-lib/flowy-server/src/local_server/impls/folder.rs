@@ -12,6 +12,7 @@ use collab::preclude::Collab;
 use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
+use flowy_ai_pub::cloud::MentionablePerson;
 use flowy_ai_pub::cloud::workspace_dto::RecentViewItem;
 use flowy_error::FlowyError;
 use flowy_folder_pub::cloud::{
@@ -224,6 +225,14 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     &self,
     workspace_id: &Uuid,
   ) -> Result<MentionablePersons, FlowyError> {
+    Err(FlowyError::local_version_not_support())
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
     Err(FlowyError::local_version_not_support())
   }
 

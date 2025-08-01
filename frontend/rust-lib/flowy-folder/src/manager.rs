@@ -46,7 +46,7 @@ use flowy_folder_pub::entities::{
   PublishViewInfo, PublishViewMeta, PublishViewMetaData,
 };
 use flowy_folder_pub::sql::mentionable_person_sql::{
-  delete_workspace_mentionable_person, insert_mentionable_persons_from_entities,
+  delete_workspace_all_mentionable_persons, insert_mentionable_persons_from_entities,
   select_all_mentionable_persons,
 };
 use flowy_folder_pub::sql::recent_view_sql::{
@@ -2409,7 +2409,7 @@ impl FolderManager {
             tokio::spawn(tokio::task::spawn_blocking(move || {
               if let Ok(mut db) = user.sqlite_connection(uid) {
                 if let Err(err) = db.immediate_transaction(|conn| {
-                  delete_workspace_mentionable_person(conn, &cloned_workspace_id.to_string())?;
+                  delete_workspace_all_mentionable_persons(conn, &cloned_workspace_id.to_string())?;
                   insert_mentionable_persons_from_entities(conn, cloned_workspace_id, persons)?;
                   Ok::<_, FlowyError>(())
                 }) {

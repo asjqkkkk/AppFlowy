@@ -3,10 +3,13 @@ use crate::manager::FolderManager;
 use crate::notification::{FolderNotification, folder_notification_builder};
 use chrono::{DateTime, Utc};
 use client_api::entity::workspace_dto::RecentViewItem;
-use client_api::entity::{AFRole, SectionChangedBody, WorkspaceNotification};
+use client_api::entity::{
+  AFRole, MentionablePersonType, SectionChangedBody, WorkspaceNotification,
+};
 use flowy_error::FlowyResult;
 use flowy_folder_pub::sql::mentionable_person_sql::{
-  select_mentionable_person, update_last_mentioned_at, update_mentionable_person,
+  MentionablePersonTable, delete_workspace_mentionable_person, select_mentionable_person,
+  update_last_mentioned_at, update_role, upsert_mentionable_person,
 };
 use flowy_folder_pub::sql::recent_view_sql::{delete_user_recent_views, upsert_user_recent_views};
 use tracing::{debug, info};
@@ -47,8 +50,41 @@ impl FolderManager {
           .handle_member_list_changed_notification(user_uuid, Some(mentioned_at), None)
           .await
       },
+      WorkspaceNotification::MentionablePersonListChangedNewMember { user_uuid } => {
+        self.fetch_single_mentionable_person(user_uuid).await
+      },
+      WorkspaceNotification::MentionablePersonListChangedRemovedMember { user_uuid } => {
+        self.delete_mentionable_person(user_uuid)
+      },
       _ => Ok(()),
     }
+  }
+
+  async fn fetch_single_mentionable_person(&self, user_uuid: Uuid) -> FlowyResult<()> {
+    let workspace_id = self.user.workspace_id()?;
+    if let Some(cloud_service) = self.cloud_service.upgrade() {
+      if let Ok(person) = cloud_service
+        .get_workspace_mentionable_person(&workspace_id, &user_uuid)
+        .await
+      {
+        let uid = self.user.user_id()?;
+        let mut db = self.user.sqlite_connection(uid)?;
+        let row = MentionablePersonTable::from_mention_person(person, workspace_id);
+        upsert_mentionable_person(&mut db, &row)?;
+        self
+          .send_update_mentionable_person_notification(row.to_entity().into())
+          .await;
+      }
+    }
+    Ok(())
+  }
+
+  fn delete_mentionable_person(&self, user_uuid: Uuid) -> FlowyResult<()> {
+    let uid = self.user.user_id()?;
+    let workspace_id = self.user.workspace_id()?.to_string();
+    let mut db = self.user.sqlite_connection(uid)?;
+    delete_workspace_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?;
+    Ok(())
   }
 
   async fn handle_recent_section_notification(
@@ -94,11 +130,15 @@ impl FolderManager {
 
     // Handle role update
     if let Some(role) = role {
-      if let Some(mut person) =
+      if let Some(person) =
         select_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?
       {
-        person.role = role as i32;
-        update_mentionable_person(&mut db, &workspace_id, &person)?;
+        update_role(
+          &mut db,
+          &workspace_id,
+          &user_uuid.to_string(),
+          MentionablePersonType::from(role),
+        )?;
         updated_person = Some(person.to_entity().into());
       } else {
         debug!(

@@ -54,7 +54,6 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     }
 
     final availableEmails = await _getFolderEventGetSharedUsers();
-
     final personsResult = await repository.getWorkspacePersons(
       workspaceId: workspaceId,
       query: '',
