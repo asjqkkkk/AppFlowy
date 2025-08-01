@@ -92,7 +92,8 @@ async fn text_cell_data_test() {
   let cells = test
     .editor
     .get_cells_for_field(&test.view_id, &text_field.id, false)
-    .await;
+    .await
+    .unwrap();
 
   for (i, row_cell) in cells.into_iter().enumerate() {
     let text = StringCellData::from(row_cell.cell.as_ref().unwrap());
@@ -115,7 +116,8 @@ async fn url_cell_data_test() {
   let cells = test
     .editor
     .get_cells_for_field(&test.view_id, &url_field.id, false)
-    .await;
+    .await
+    .unwrap();
 
   for (i, row_cell) in cells.into_iter().enumerate() {
     if let Some(cell) = row_cell.cell.as_ref() {
@@ -156,7 +158,8 @@ async fn update_updated_at_field_on_other_cell_update() {
   let cells = test
     .editor
     .get_cells_for_field(&test.view_id, &updated_at_field.id, false)
-    .await;
+    .await
+    .unwrap();
 
   tokio::time::sleep(Duration::from_millis(500)).await;
   let after_update_timestamp = chrono::offset::Utc::now().timestamp();
@@ -195,7 +198,8 @@ async fn time_cell_data_test() {
   let cells = test
     .editor
     .get_cells_for_field(&test.view_id, &time_field.id, false)
-    .await;
+    .await
+    .unwrap();
 
   if let Some(cell) = cells[0].cell.as_ref() {
     let cell = TimeCellData::from(cell);
