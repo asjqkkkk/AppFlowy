@@ -26,9 +26,7 @@ use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
-use client_api::entity::{
-  CreateImportTaskType, PublishInfo, SectionChangedBody, WorkspaceNotification,
-};
+use client_api::entity::{CreateImportTaskType, PublishInfo};
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
@@ -47,6 +45,9 @@ use flowy_folder_pub::cloud::{FolderCloudService, gen_view_id};
 use flowy_folder_pub::entities::{
   PublishDatabaseData, PublishDatabasePayload, PublishDocumentPayload, PublishPayload,
   PublishViewInfo, PublishViewMeta, PublishViewMetaData,
+};
+use flowy_folder_pub::sql::mentionable_person_sql::{
+  insert_mentionable_persons_from_entities, select_all_mentionable_persons,
 };
 use flowy_folder_pub::sql::recent_view_sql::{
   UserRecentViewTable, delete_user_recent_views, select_latest_recent_view,
@@ -130,61 +131,6 @@ impl FolderManager {
     };
 
     Ok(manager)
-  }
-
-  pub async fn handle_notification(&self, notification: WorkspaceNotification) {
-    debug!("folder handle workspace notification: {:?}", notification);
-    match notification {
-      WorkspaceNotification::SectionChanged { data } => {
-        if let Err(err) = match data {
-          SectionChangedBody::AddRecentViews { items } => {
-            self.handle_recent_section_notification(items, vec![]).await
-          },
-          SectionChangedBody::RemoveRecentViews { ids } => {
-            self.handle_recent_section_notification(vec![], ids).await
-          },
-        } {
-          error!("Failed to handle outline changed notification: {:?}", err);
-        }
-      },
-      WorkspaceNotification::ShareViewsChanged { view_id, emails } => {
-        info!(
-          "handle share views changed notification: view_id: {:?}, emails: {:?}",
-          view_id, emails
-        );
-        if let Err(err) = self.handle_share_views_changed_notification().await {
-          error!(
-            "Failed to handle shared view changed notification: {:?}",
-            err
-          );
-        }
-      },
-      _ => {},
-    }
-  }
-
-  async fn handle_recent_section_notification(
-    &self,
-    inserted_items: Vec<RecentViewItem>,
-    removed_ids: Vec<Uuid>,
-  ) -> FlowyResult<()> {
-    if inserted_items.is_empty() && removed_ids.is_empty() {
-      return Ok(());
-    }
-
-    let uid = self.user.user_id()?;
-    let workspace_id = self.user.workspace_id()?.to_string();
-    let mut db = self.user.sqlite_connection(uid)?;
-    upsert_user_recent_views(&mut db, uid, &workspace_id, inserted_items)?;
-    delete_user_recent_views(&mut db, uid, &workspace_id, removed_ids)?;
-
-    self.send_update_recent_views_notification().await;
-    Ok(())
-  }
-
-  async fn handle_share_views_changed_notification(&self) -> FlowyResult<()> {
-    let _ = self.get_shared_pages(true).await?;
-    Ok(())
   }
 
   pub fn client_id(&self) -> FlowyResult<ClientID> {
@@ -2333,16 +2279,6 @@ impl FolderManager {
     }
   }
 
-  async fn send_update_recent_views_notification(&self) {
-    if let Ok(workspace_id) = self.user.workspace_id() {
-      folder_notification_builder(
-        workspace_id.to_string(),
-        FolderNotification::DidUpdateRecentViews,
-      )
-      .send();
-    }
-  }
-
   #[tracing::instrument(level = "trace", skip(self))]
   pub(crate) async fn get_all_favorites(&self) -> Vec<SectionItem> {
     self.get_sections(Section::Favorite).await
@@ -2424,6 +2360,51 @@ impl FolderManager {
           Err(err) => {
             error!(
               "Failed to sync recent views for user {} in workspace {}: {:?}",
+              uid, workspace_id, err
+            );
+          },
+        }
+      }
+    });
+  }
+
+  fn sync_mentionable_persons_in_background(&self, workspace_id: Uuid, uid: i64) {
+    let user = self.user.clone();
+    let cloud_service = self.cloud_service.clone();
+    debug!(
+      "Syncing mentionable persons for user {} in workspace {}",
+      uid, workspace_id
+    );
+    tokio::spawn(async move {
+      if let Some(cloud_service) = cloud_service.upgrade() {
+        match cloud_service
+          .get_workspace_mentionable_persons(&workspace_id)
+          .await
+        {
+          Ok(result) => {
+            if let Ok(mut db) = user.sqlite_connection(uid) {
+              let persons: Vec<_> = result.persons.iter().collect();
+              let _ = insert_mentionable_persons_from_entities(&mut db, persons);
+            }
+
+            let payload = GetMentionablePersonsResponsePB {
+              persons: result
+                .persons
+                .into_iter()
+                .map(|person| person.into())
+                .collect(),
+            };
+
+            folder_notification_builder(
+              workspace_id.to_string(),
+              FolderNotification::DidUpdateMentionablePersons,
+            )
+            .payload(payload)
+            .send();
+          },
+          Err(err) => {
+            error!(
+              "Failed to sync mentionable persons for user {} in workspace {}: {:?}",
               uid, workspace_id, err
             );
           },
@@ -3254,17 +3235,17 @@ impl FolderManager {
     &self,
   ) -> FlowyResult<GetMentionablePersonsResponsePB> {
     let workspace_id = self.user.workspace_id()?;
-    let result = self
-      .cloud_service()?
-      .get_workspace_mentionable_persons(&workspace_id)
-      .await?;
-    Ok(GetMentionablePersonsResponsePB {
-      persons: result
-        .persons
-        .into_iter()
-        .map(|person| person.into())
-        .collect(),
-    })
+    let uid = self.user.user_id()?;
+
+    let db = self.user.sqlite_connection(uid)?;
+    let disk_persons = select_all_mentionable_persons(db)?;
+    let persons: Vec<_> = disk_persons
+      .into_iter()
+      .map(|person| person.to_entity().into())
+      .collect();
+
+    self.sync_mentionable_persons_in_background(workspace_id, uid);
+    Ok(GetMentionablePersonsResponsePB { persons })
   }
 
   pub async fn update_page_mention(

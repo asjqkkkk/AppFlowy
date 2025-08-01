@@ -1085,7 +1085,7 @@ impl From<PageMentionUpdateInfoPB> for PageMentionUpdate {
 impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
   fn from(person: MentionablePersonWithLastMentionedTime) -> Self {
     MentionablePersonPB {
-      uuid: person.uuid.to_string(),
+      uuid: person.person_id.to_string(),
       email: person.email,
       name: person.name,
       role: person.role.into(),

@@ -79,6 +79,21 @@ diesel::table! {
 }
 
 diesel::table! {
+    mentionable_person (person_id) {
+        person_id -> Text,
+        name -> Text,
+        email -> Text,
+        role -> Integer,
+        avatar_url -> Nullable<Text>,
+        cover_image_url -> Nullable<Text>,
+        custom_image_url -> Nullable<Text>,
+        description -> Nullable<Text>,
+        invited -> Bool,
+        last_mentioned_at -> Nullable<Timestamp>,
+    }
+}
+
+diesel::table! {
     upload_file_part (upload_id, e_tag) {
         upload_id -> Text,
         e_tag -> Text,
@@ -201,6 +216,7 @@ diesel::allow_tables_to_appear_in_same_query!(
   collab_snapshot,
   index_collab_record_table,
   local_ai_model_table,
+  mentionable_person,
   upload_file_part,
   upload_file_table,
   user_data_migration_records,

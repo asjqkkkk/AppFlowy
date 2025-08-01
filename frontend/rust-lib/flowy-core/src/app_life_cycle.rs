@@ -573,7 +573,9 @@ impl AppLifeCycle for AppLifeCycleImpl {
     if let Ok(folder) = self.folder_manager() {
       let notification = notification.clone();
       tokio::spawn(async move {
-        folder.handle_notification(notification).await;
+        if let Err(err) = folder.handle_notification(notification).await {
+          error!("Failed to handle workspace notification:{:?}", err);
+        }
       });
     } else {
       warn!("FolderManager is not available to handle workspace notification");

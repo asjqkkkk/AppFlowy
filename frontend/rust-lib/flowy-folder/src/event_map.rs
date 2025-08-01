@@ -65,6 +65,7 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::BatchPermissionCheck, batch_permission_check_handler)
     .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
     .event(FolderEvent::GetWorkspaceMentionablePersons, get_workspace_mentionable_persons_handler)
+    // .event(FolderEvent::GetPageMentionablePersons, get_page_mentionable_persons_handler)
     .event(FolderEvent::UpdatePageMention, update_page_mention_handler)
     .event(FolderEvent::ExportWorkspace, export_workspace_handler)
     .event(FolderEvent::ImportWorkspace, import_workspace_handler)

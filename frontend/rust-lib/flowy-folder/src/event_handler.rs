@@ -668,7 +668,7 @@ pub(crate) async fn update_page_mention_handler(
 ) -> Result<(), FlowyError> {
   let folder = upgrade_folder(folder)?;
   let info = &data.into_inner();
-  folder.update_page_mention(&info).await
+  folder.update_page_mention(info).await
 }
 
 #[tracing::instrument(level = "debug", skip(data, folder), err)]
