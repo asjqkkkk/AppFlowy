@@ -31,7 +31,7 @@ use flowy_server_pub::guest_dto::{
 };
 use flowy_server_pub::workspace_dto::RecentViewItem;
 use flowy_server_pub::CreateImportTaskType;
-use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate};
+use flowy_server_pub::{MentionablePersons, PageMentionUpdate};
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
 use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use flowy_user_pub::cloud::{

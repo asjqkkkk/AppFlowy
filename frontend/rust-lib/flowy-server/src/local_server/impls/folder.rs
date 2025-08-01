@@ -25,7 +25,7 @@ use flowy_server_pub::CreateImportTaskType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
-use flowy_server_pub::{MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate};
+use flowy_server_pub::{MentionablePersons, PageMentionUpdate};
 use lib_infra::async_trait::async_trait;
 use std::sync::Arc;
 use uuid::Uuid;
