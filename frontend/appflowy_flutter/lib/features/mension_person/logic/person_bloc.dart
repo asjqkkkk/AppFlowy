@@ -1,7 +1,9 @@
 import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
+import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
+import 'package:appflowy/workspace/application/workspace/workspace_mentionable_listener.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -18,14 +20,29 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     required this.workspaceId,
     required this.personListCache,
     required this.repository,
-  }) : super(PersonState.initial()) {
+  })  : _listener = WorkspaceMentionableListener(workspaceId: workspaceId),
+        super(PersonState.initial()) {
     on<InitialEvent>(_onInitial);
     on<NotifyPersonEvent>(_onNotifyPersonEvent);
+    on<UpdatePersonEvent>(_onUpdatePersonEvent);
+    on<UpdatePersonsEvent>(_onUpdatePersonsEvent);
+    _listener.start(
+      mentionablePersonChanged: onMentionablePersonChanged,
+      mentionablePersonsChanged: onMentionablePersonsChanged,
+    );
   }
+
   final String documentId;
   final String workspaceId;
   final PersonListMemoryCache personListCache;
   final MentionRepository repository;
+  final WorkspaceMentionableListener _listener;
+
+  @override
+  Future<void> close() async {
+    await _listener.stop();
+    return super.close();
+  }
 
   Future<void> _onInitial(
     InitialEvent event,
@@ -35,15 +52,8 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     if (localPersons.isNotEmpty) {
       emit(state.copyWith(persons: localPersons, status: PersonStatus.idle));
     }
-    final documentUsersResult = await FolderEventGetSharedUsers(
-      GetSharedUsersPayloadPB(viewId: documentId, isFetchFromCloud: false),
-    ).send();
 
-    final users = documentUsersResult.fold(
-      (users) => users.items,
-      (error) => <SharedUserPB>[],
-    );
-    final availableEmails = users.map((user) => user.email).toList();
+    final availableEmails = await _getFolderEventGetSharedUsers();
 
     final personsResult = await repository.getWorkspacePersons(
       workspaceId: workspaceId,
@@ -112,6 +122,58 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
         );
       }
       Log.error('Failed to notify person: $e');
+    });
+  }
+
+  Future<void> _onUpdatePersonEvent(
+    UpdatePersonEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    personListCache.updatePerson(workspaceId, event.person);
+    final availableEmails = await _getFolderEventGetSharedUsers();
+    final newPersons = personListCache.getPersons(workspaceId);
+    emit(
+      state.copyWith(persons: newPersons, availableEmails: availableEmails),
+    );
+  }
+
+  Future<void> _onUpdatePersonsEvent(
+    UpdatePersonsEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    personListCache.updatePersonList(workspaceId, event.persons);
+    final availableEmails = await _getFolderEventGetSharedUsers();
+    emit(
+      state.copyWith(persons: event.persons, availableEmails: availableEmails),
+    );
+  }
+
+  Future<List<String>> _getFolderEventGetSharedUsers() async {
+    final documentUsersResult = await FolderEventGetSharedUsers(
+      GetSharedUsersPayloadPB(viewId: documentId, isFetchFromCloud: false),
+    ).send();
+
+    final users = documentUsersResult.fold(
+      (users) => users.items,
+      (error) => <SharedUserPB>[],
+    );
+    return users.map((user) => user.email).toList();
+  }
+
+  void onMentionablePersonsChanged(MentionablePersonsNotifyValue v) {
+    v.fold((v) {
+      final persons = v.map((e) => Person.fromProto(e)).toList();
+      add(PersonEvent.updatePersons(persons));
+    }, (e) {
+      Log.error('Failed to notify mentionable persons: $e');
+    });
+  }
+
+  void onMentionablePersonChanged(MentionablePersonNotifyValue v) {
+    v.fold((v) {
+      add(PersonEvent.updatePerson(Person.fromProto(v)));
+    }, (e) {
+      Log.error('Failed to notify mentionable person: $e');
     });
   }
 }

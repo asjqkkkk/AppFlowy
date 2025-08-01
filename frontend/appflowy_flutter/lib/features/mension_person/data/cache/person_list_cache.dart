@@ -7,6 +7,15 @@ class PersonListMemoryCache {
     _cache[workspaceId] = List.of(persons);
   }
 
+  void updatePerson(String workspaceId, Person person) {
+    final persons = _cache[workspaceId] ?? <Person>[];
+    final index = persons.indexWhere((e) => e.id == person.id);
+    if (index != -1) {
+      persons[index] = person;
+    }
+    _cache[workspaceId] = persons;
+  }
+
   List<Person>? getPersons(String workspaceId) {
     final persons = _cache[workspaceId];
     if (persons == null) return null;

@@ -1,26 +1,19 @@
 import 'package:appflowy/features/mension_person/data/models/person.dart';
 
-import 'person_state.dart';
-
 sealed class PersonEvent {
   const PersonEvent();
 
   const factory PersonEvent.initial() = InitialEvent;
 
-  const factory PersonEvent.updatePerson(PersonWithAccess person) =
-      UpdatePersonEvent;
+  const factory PersonEvent.updatePerson(Person person) = UpdatePersonEvent;
 
   const factory PersonEvent.notifyPerson({
     String? blockId,
     required Person person,
   }) = NotifyPersonEvent;
 
-  const factory PersonEvent.updateMentionTime() = UpdateMentionTimeEvent;
-
-  const factory PersonEvent.updateStatusEvent({
-    required PersonStatus status,
-    String? errorMessage,
-  }) = UpdateStatusEvent;
+  const factory PersonEvent.updatePersons(List<Person> persons) =
+      UpdatePersonsEvent;
 }
 
 class InitialEvent implements PersonEvent {
@@ -30,17 +23,12 @@ class InitialEvent implements PersonEvent {
 class UpdatePersonEvent implements PersonEvent {
   const UpdatePersonEvent(this.person);
 
-  final PersonWithAccess person;
+  final Person person;
 }
 
-class UpdateStatusEvent implements PersonEvent {
-  const UpdateStatusEvent({
-    required this.status,
-    this.errorMessage,
-  });
-
-  final PersonStatus status;
-  final String? errorMessage;
+class UpdatePersonsEvent implements PersonEvent {
+  const UpdatePersonsEvent(this.persons);
+  final List<Person> persons;
 }
 
 class NotifyPersonEvent implements PersonEvent {
@@ -50,8 +38,4 @@ class NotifyPersonEvent implements PersonEvent {
   });
   final String? blockId;
   final Person person;
-}
-
-class UpdateMentionTimeEvent implements PersonEvent {
-  const UpdateMentionTimeEvent();
 }
