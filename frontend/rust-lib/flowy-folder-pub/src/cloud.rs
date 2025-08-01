@@ -2,8 +2,8 @@ use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
-  CreateImportTaskType, MentionablePersons, PageMentionUpdate,
-  PublishInfo,
+  CreateImportTaskType, MentionablePerson, MentionablePersons, PageMentionUpdate, PublishInfo,
+  WorkspaceMemberProfile,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
@@ -158,6 +158,17 @@ pub trait FolderCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     view_ids: Vec<Uuid>,
   ) -> Result<(), FlowyError>;
+  async fn update_workspace_member_profile(
+    &self,
+    workspace_id: &Uuid,
+    profile: &WorkspaceMemberProfile,
+  ) -> Result<(), FlowyError>;
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError>;
 }
 
 #[derive(Debug)]

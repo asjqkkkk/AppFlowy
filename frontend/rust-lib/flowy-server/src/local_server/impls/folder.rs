@@ -21,10 +21,10 @@ use flowy_folder_pub::entities::PublishPayload;
 use flowy_folder_pub::sql::recent_view_sql::{
   delete_user_recent_views, select_user_recent_views, upsert_user_recent_views,
 };
-use flowy_server_pub::CreateImportTaskType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::{CreateImportTaskType, MentionablePerson, WorkspaceMemberProfile};
 use flowy_server_pub::{MentionablePersons, PageMentionUpdate};
 use lib_infra::async_trait::async_trait;
 use std::sync::Arc;
@@ -235,6 +235,13 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
   ) -> Result<(), FlowyError> {
     Err(FlowyError::local_version_not_support())
   }
+  async fn update_workspace_member_profile(
+    &self,
+    workspace_id: &Uuid,
+    profile: &WorkspaceMemberProfile,
+  ) -> Result<(), FlowyError> {
+    Err(FlowyError::local_version_not_support())
+  }
 
   async fn get_recent_views(
     &self,
@@ -292,5 +299,13 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     let mut db = self.logged_user.get_sqlite_db(uid)?;
     delete_user_recent_views(&mut db, uid, &workspace_id.to_string(), view_ids)?;
     Ok(())
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    Err(FlowyError::local_version_not_support())
   }
 }

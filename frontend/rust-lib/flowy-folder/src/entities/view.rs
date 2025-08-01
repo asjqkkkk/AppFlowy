@@ -547,6 +547,82 @@ pub struct UpdateViewPayloadPB {
   pub extra: Option<String>,
 }
 
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct PersonIdPB {
+  #[pb(index = 1)]
+  pub person_id: String,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonPB {
+  #[pb(index = 1)]
+  pub uuid: String,
+  #[pb(index = 2)]
+  pub name: String,
+  #[pb(index = 3)]
+  pub email: String,
+  #[pb(index = 4)]
+  pub role: MentionablePersonTypePB,
+  #[pb(index = 5, one_of)]
+  pub avatar_url: Option<String>,
+  #[pb(index = 6, one_of)]
+  pub cover_image_url: Option<String>,
+  #[pb(index = 7, one_of)]
+  pub custom_cover_image_url: Option<String>,
+  #[pb(index = 8, one_of)]
+  pub description: Option<String>,
+  #[pb(index = 9)]
+  pub invited: bool,
+}
+
+impl From<MentionablePerson> for MentionablePersonPB {
+  fn from(person: MentionablePerson) -> Self {
+    MentionablePersonPB {
+      uuid: person.uuid.to_string(),
+      email: person.email,
+      name: person.name,
+      role: person.role.into(),
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      custom_cover_image_url: person.custom_image_url,
+      description: person.description,
+      invited: person.invited,
+    }
+  }
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default)]
+pub enum MentionablePersonTypePB {
+  #[default]
+  WorkspaceMember = 0,
+  WorkspaceGuest = 1,
+  Contact = 2,
+}
+
+impl From<MentionablePersonType> for MentionablePersonTypePB {
+  fn from(value: MentionablePersonType) -> Self {
+    match value {
+      MentionablePersonType::WorkspaceMember => MentionablePersonTypePB::WorkspaceMember,
+      MentionablePersonType::WorkspaceGuest => MentionablePersonTypePB::WorkspaceGuest,
+      MentionablePersonType::Contact => MentionablePersonTypePB::Contact,
+    }
+  }
+}
+
+#[derive(Default, ProtoBuf, Validate, Clone, Debug)]
+pub struct WorkspaceMemberProfilePB {
+  #[pb(index = 1)]
+  pub name: String,
+  #[pb(index = 2, one_of)]
+  pub avatar_url: Option<String>,
+  #[pb(index = 3, one_of)]
+  pub cover_image_url: Option<String>,
+  #[pb(index = 4, one_of)]
+  pub description: Option<String>,
+  #[pb(index = 5, one_of)]
+  pub custom_cover_image_url: Option<String>,
+}
+
 #[derive(Clone, Debug)]
 pub struct UpdateViewParams {
   pub view_id: String,
@@ -1036,28 +1112,6 @@ pub struct MentionablePersonWithAccessPB {
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
-pub struct MentionablePersonPB {
-  #[pb(index = 1)]
-  pub uuid: String,
-  #[pb(index = 2)]
-  pub name: String,
-  #[pb(index = 3)]
-  pub email: String,
-  #[pb(index = 4)]
-  pub role: MentionablePersonTypePB,
-  #[pb(index = 5, one_of)]
-  pub avatar_url: Option<String>,
-  #[pb(index = 6, one_of)]
-  pub cover_image_url: Option<String>,
-  #[pb(index = 7, one_of)]
-  pub description: Option<String>,
-  #[pb(index = 8)]
-  pub invited: bool,
-  #[pb(index = 9, one_of)]
-  pub last_mentioned_at: Option<i64>,
-}
-
-#[derive(Default, ProtoBuf, Clone, Debug)]
 pub struct PageMentionUpdateInfoPB {
   #[pb(index = 1)]
   pub view_id: String,
@@ -1091,27 +1145,9 @@ impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
       role: person.role.into(),
       avatar_url: person.avatar_url,
       cover_image_url: person.cover_image_url,
+      custom_cover_image_url: person.custom_image_url,
       description: person.description,
       invited: person.invited,
-      last_mentioned_at: person
-        .last_mentioned_at
-        .map(|datetime| datetime.timestamp()),
-    }
-  }
-}
-
-impl From<MentionablePerson> for MentionablePersonPB {
-  fn from(person: MentionablePerson) -> Self {
-    MentionablePersonPB {
-      uuid: person.uuid.to_string(),
-      email: person.email,
-      name: person.name,
-      role: person.role.into(),
-      avatar_url: person.avatar_url,
-      cover_image_url: person.cover_image_url,
-      description: person.description,
-      invited: person.invited,
-      last_mentioned_at: None,
     }
   }
 }
@@ -1121,24 +1157,6 @@ impl From<MentionablePersonWithAccess> for MentionablePersonWithAccessPB {
     MentionablePersonWithAccessPB {
       person: person.person.into(),
       can_access_page: person.can_access_page,
-    }
-  }
-}
-
-#[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default)]
-pub enum MentionablePersonTypePB {
-  #[default]
-  WorkspaceMember = 0,
-  WorkspaceGuest = 1,
-  Contact = 2,
-}
-
-impl From<MentionablePersonType> for MentionablePersonTypePB {
-  fn from(value: MentionablePersonType) -> Self {
-    match value {
-      MentionablePersonType::WorkspaceMember => MentionablePersonTypePB::WorkspaceMember,
-      MentionablePersonType::WorkspaceGuest => MentionablePersonTypePB::WorkspaceGuest,
-      MentionablePersonType::Contact => MentionablePersonTypePB::Contact,
     }
   }
 }

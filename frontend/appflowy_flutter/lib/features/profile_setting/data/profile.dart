@@ -1,4 +1,5 @@
 import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 import 'package:flutter/material.dart';
 import 'banner.dart';
 
@@ -53,5 +54,18 @@ class Profile {
       banner: banner ?? this.banner,
       customBanner: customBanner != null ? customBanner() : this.customBanner,
     );
+  }
+
+   static ShareRole fromProtoToShareRole(MentionablePersonTypePB role) {
+    switch (role) {
+      case MentionablePersonTypePB.WorkspaceMember:
+        return ShareRole.member;
+      case MentionablePersonTypePB.WorkspaceGuest:
+        return ShareRole.guest;
+      case MentionablePersonTypePB.Contact:
+        throw ArgumentError('Unknown role: $role');
+      default:
+        throw ArgumentError('Unknown role: $role');
+    }
   }
 }

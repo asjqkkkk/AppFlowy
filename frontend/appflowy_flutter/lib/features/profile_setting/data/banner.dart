@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:appflowy_backend/log.dart';
 import 'package:equatable/equatable.dart';
 
 final List<BannerData> defaultBanners = const [
@@ -15,6 +16,30 @@ final List<BannerData> defaultBanners = const [
 
 abstract class BannerData extends Equatable {
   const BannerData();
+
+  String get toUrl;
+
+  static BannerData fromUrl(String url) {
+    final uri = Uri.tryParse(url);
+    if (uri == null) return defaultBanners.first;
+    try {
+      if (uri.scheme == 'image') {
+        if (uri.host == 'color-image') {
+          final color = Color(int.parse(uri.queryParameters['color'] ?? ''));
+          return ColorBanner(color: color);
+        } else if (uri.host == 'asset-image') {
+          final path = uri.queryParameters['path'] ?? '';
+          return AssetImageBanner(path: path);
+        } else if (uri.host == 'network-image') {
+          final imageUrl = uri.queryParameters['url'] ?? '';
+          return NetworkImageBanner(url: imageUrl);
+        }
+      }
+    } catch (e) {
+      Log.error('Failed to parse banner URL: $url', e);
+    }
+    return defaultBanners.first;
+  }
 }
 
 class EmptyBanner extends BannerData {
@@ -24,6 +49,9 @@ class EmptyBanner extends BannerData {
 
   @override
   List<Object?> get props => [];
+
+  @override
+  String get toUrl => '';
 }
 
 class ColorBanner extends BannerData {
@@ -33,6 +61,9 @@ class ColorBanner extends BannerData {
 
   @override
   List<Object?> get props => [color];
+
+  @override
+  String get toUrl => 'image://color-image?color=${color.toString()}';
 }
 
 class AssetImageBanner extends BannerData {
@@ -42,6 +73,9 @@ class AssetImageBanner extends BannerData {
 
   @override
   List<Object?> get props => [path];
+
+  @override
+  String get toUrl => 'image://asset-image?path=$path';
 }
 
 class NetworkImageBanner extends BannerData {
@@ -51,4 +85,7 @@ class NetworkImageBanner extends BannerData {
 
   @override
   List<Object?> get props => [url];
+
+  @override
+  String get toUrl => url;
 }

@@ -4,8 +4,9 @@ use crate::entities::{
   FolderSnapshotPB, GetMentionablePersonsResponsePB, MoveNestedViewParams, PageMentionUpdateInfoPB,
   RepeatedSharedUserPB, RepeatedSharedViewResponsePB, RepeatedTrashPB, RepeatedViewPB,
   SharedUserPB, SharedViewPB, SharedViewSectionPB, UpdateViewParams, ViewLayoutPB, ViewPB,
-  ViewSectionPB, WorkspaceLatestPB, WorkspacePB, view_pb_with_all_child_views,
-  view_pb_with_child_views, view_pb_without_child_views, view_pb_without_child_views_from_arc,
+  ViewSectionPB, WorkspaceLatestPB, WorkspaceMemberProfilePB, WorkspacePB,
+  view_pb_with_all_child_views, view_pb_with_child_views, view_pb_without_child_views,
+  view_pb_without_child_views_from_arc,
 };
 use crate::export_workspace::exporter::WorkspaceExporter;
 use crate::import_workspace::types::{FolderWorkspaceImporter, ImportRequest};
@@ -25,7 +26,9 @@ use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
-use client_api::entity::{CreateImportTaskType, PublishInfo};
+use client_api::entity::{
+  CreateImportTaskType, MentionablePerson, PublishInfo, WorkspaceMemberProfile,
+};
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
 use collab_entity::{CollabType, EncodedCollab};
@@ -3309,6 +3312,42 @@ impl FolderManager {
   pub async fn import_workspace(&self, request: ImportRequest) -> FlowyResult<String> {
     let importer = FolderWorkspaceImporter::new(self);
     importer.import_workspace(request).await
+  }
+
+  pub async fn update_workspace_member_profile(
+    &self,
+    profile: &WorkspaceMemberProfilePB,
+  ) -> FlowyResult<()> {
+    let workspace_id = self.user.workspace_id()?;
+    self
+      .cloud_service()?
+      .update_workspace_member_profile(
+        &workspace_id,
+        &WorkspaceMemberProfile {
+          name: profile.name.clone(),
+          avatar_url: profile.avatar_url.clone(),
+          cover_image_url: profile.cover_image_url.clone(),
+          custom_image_url: profile.custom_cover_image_url.clone(),
+          description: profile.description.clone(),
+        },
+      )
+      .await?;
+
+    Ok(())
+  }
+
+  pub async fn get_workspace_mentionable_person(
+    &self,
+    person_id: &str,
+  ) -> FlowyResult<MentionablePerson> {
+    let workspace_id = self.user.workspace_id()?;
+    let person_id_uuid = Uuid::from_str(person_id)?;
+    let resp = self
+      .cloud_service()?
+      .get_workspace_mentionable_person(&workspace_id, &person_id_uuid)
+      .await?;
+
+    Ok(resp)
   }
 
   pub async fn get_other_private_view_ids_cached(

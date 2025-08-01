@@ -585,6 +585,27 @@ impl FolderCloudService for ServerProvider {
       .delete_recent_views(workspace_id, view_ids)
       .await
   }
+
+  async fn update_workspace_member_profile(
+    &self,
+    workspace_id: &Uuid,
+    profile: &WorkspaceMemberProfile,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .update_workspace_member_profile(workspace_id, profile)
+      .await
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    self
+      .get_folder_service()?
+      .get_workspace_mentionable_person(workspace_id, person_id)
+  }
 }
 
 #[async_trait]

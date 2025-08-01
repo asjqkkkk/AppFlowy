@@ -447,4 +447,19 @@ class ViewBackendService {
     final payload = ViewIdPB()..value = viewId;
     return FolderEventUnlockView(payload).send();
   }
+
+  static Future<FlowyResult<void, FlowyError>> updateWorkspaceMemberProfile(
+    WorkspaceMemberProfilePB profile,
+  ) async {
+    return FolderEventUpdateWorkspaceMemberProfile(profile).send();
+  }
+
+  static Future<FlowyResult<MentionablePersonPB, FlowyError>>
+      getWorkspaceMentionablePerson(
+    String personId,
+  ) async {
+    return FolderEventGetWorkspaceMentionablePerson(
+      PersonIdPB(personId: personId),
+    ).send();
+  }
 }
