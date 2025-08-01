@@ -54,17 +54,17 @@ impl MentionablePersonTable {
     }
   }
 
-  pub fn from_entity(person: &MentionablePersonWithLastMentionedTime, workspace_id: Uuid) -> Self {
+  pub fn from_entity(person: MentionablePersonWithLastMentionedTime, workspace_id: Uuid) -> Self {
     Self {
       person_id: person.person_id.to_string(),
       workspace_id: workspace_id.to_string(),
-      name: person.name.clone(),
-      email: person.email.clone(),
-      role: person.role.clone() as i32,
-      avatar_url: person.avatar_url.clone(),
-      cover_image_url: person.cover_image_url.clone(),
-      custom_image_url: person.custom_image_url.clone(),
-      description: person.description.clone(),
+      name: person.name,
+      email: person.email,
+      role: person.role as i32,
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      custom_image_url: person.custom_image_url,
+      description: person.description,
       invited: person.invited,
       last_mentioned_at: person.last_mentioned_at.map(|dt| dt.naive_utc()),
     }
@@ -227,7 +227,7 @@ pub fn select_mentionable_persons_by_last_mentioned(
 pub fn insert_mentionable_persons_from_entities(
   conn: &mut SqliteConnection,
   workspace_id: Uuid,
-  persons: Vec<&MentionablePersonWithLastMentionedTime>,
+  persons: Vec<MentionablePersonWithLastMentionedTime>,
 ) -> FlowyResult<()> {
   for person in persons {
     let table_person = MentionablePersonTable::from_entity(person, workspace_id);

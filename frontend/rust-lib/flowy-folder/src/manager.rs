@@ -331,7 +331,7 @@ impl FolderManager {
     data_source: FolderInitDataSource,
   ) -> FlowyResult<()> {
     self.initialize_after_sign_in(uid, data_source).await?;
-    self.sync_recent_views_in_background(*workspace_id, uid, 30, 0);
+    self.sync_recent_views(*workspace_id, uid, 30, 0, None);
     Ok(())
   }
 
@@ -1595,7 +1595,7 @@ impl FolderManager {
     // If there is no recent view, we will try to get the current view from the folder.
     if recent_view_id.is_none() {
       if let Ok(workspace_id) = self.user.workspace_id() {
-        self.sync_recent_views_in_background(workspace_id, uid, 30, 0);
+        self.sync_recent_views(workspace_id, uid, 30, 0, None);
       }
 
       let lock = self.mutex_folder.load_full()?;
@@ -1665,7 +1665,6 @@ impl FolderManager {
     // save to cloud
     let cloud_service = self.cloud_service()?;
     cloud_service.add_recent_views(&workspace_id, ids).await?;
-    self.send_update_recent_views_notification().await;
     Ok(())
   }
 
@@ -1685,7 +1684,6 @@ impl FolderManager {
     let _ = cloud_service
       .delete_recent_views(&workspace_id, view_ids)
       .await;
-    self.send_update_recent_views_notification().await;
     Ok(())
   }
 
@@ -2321,19 +2319,31 @@ impl FolderManager {
     .ok();
     match local_views {
       Some(views) => {
-        self.sync_recent_views_in_background(workspace_id, uid, limit, offset);
+        self.sync_recent_views(workspace_id, uid, limit, offset, None);
         Ok(views)
       },
       None => {
-        self
-          .fetch_and_save_recent_views(workspace_id, uid, limit, offset, true)
-          .await
+        let (tx, rx) = tokio::sync::oneshot::channel();
+        self.sync_recent_views(workspace_id, uid, limit, offset, Some(tx));
+        let items = rx.await??;
+        let recent_views = items
+          .into_iter()
+          .map(|item| (workspace_id.to_string(), uid, item).into())
+          .collect::<Vec<_>>();
+        Ok(recent_views)
       },
     }
   }
 
   /// Sync recent views from cloud in the background
-  fn sync_recent_views_in_background(&self, workspace_id: Uuid, uid: i64, limit: u32, offset: u32) {
+  fn sync_recent_views(
+    &self,
+    workspace_id: Uuid,
+    uid: i64,
+    limit: u32,
+    offset: u32,
+    tx: Option<tokio::sync::oneshot::Sender<FlowyResult<Vec<RecentViewItem>>>>,
+  ) {
     let user = self.user.clone();
     let cloud_service = self.cloud_service.clone();
     debug!(
@@ -2347,7 +2357,6 @@ impl FolderManager {
           .await
         {
           Ok(recent_views) => {
-            // Save to local database
             if let Ok(mut db) = user.sqlite_connection(uid) {
               let _ = upsert_user_recent_views(
                 &mut db,
@@ -2355,6 +2364,10 @@ impl FolderManager {
                 &workspace_id.to_string(),
                 recent_views.clone(),
               );
+            }
+
+            if let Some(tx) = tx {
+              let _ = tx.send(Ok(recent_views));
             }
           },
           Err(err) => {
@@ -2377,7 +2390,7 @@ impl FolderManager {
     uid: i64,
     rx: Option<tokio::sync::oneshot::Sender<FlowyResult<GetMentionablePersonsResponsePB>>>,
   ) {
-    let user: Arc<dyn FolderUser> = self.user.clone();
+    let user = self.user.clone();
     let cloud_service = self.cloud_service.clone();
     debug!(
       "Syncing mentionable persons for user {} in workspace {}",
@@ -2391,17 +2404,18 @@ impl FolderManager {
         {
           Ok(result) => {
             // Save to local database
-            tokio::spawn(tokio::task::spawn_blocking(|| {
+            let persons: Vec<_> = result.persons.to_vec();
+            let cloned_workspace_id = workspace_id;
+            tokio::spawn(tokio::task::spawn_blocking(move || {
               if let Ok(mut db) = user.sqlite_connection(uid) {
-                let persons: Vec<_> = result.persons.iter().collect();
                 if let Err(err) = db.immediate_transaction(|conn| {
-                  delete_workspace_mentionable_person(conn, &workspace_id.to_string())?;
-                  insert_mentionable_persons_from_entities(conn, workspace_id, persons)?;
+                  delete_workspace_mentionable_person(conn, &cloned_workspace_id.to_string())?;
+                  insert_mentionable_persons_from_entities(conn, cloned_workspace_id, persons)?;
                   Ok::<_, FlowyError>(())
                 }) {
                   error!(
                     "Failed to save mentionable persons for user {} in workspace {}: {:?}",
-                    uid, workspace_id, err
+                    uid, cloned_workspace_id, err
                   );
                 }
               }
@@ -2436,33 +2450,6 @@ impl FolderManager {
         }
       }
     });
-  }
-
-  /// Fetch recent views from cloud and save to local database
-  pub(crate) async fn fetch_and_save_recent_views(
-    &self,
-    workspace_id: Uuid,
-    uid: i64,
-    limit: u32,
-    offset: u32,
-    notify: bool,
-  ) -> FlowyResult<Vec<UserRecentViewTable>> {
-    let cloud_service = self.cloud_service()?;
-    let recent_items = cloud_service
-      .get_recent_views(&workspace_id, limit, offset)
-      .await?;
-
-    let mut db = self.user.sqlite_connection(uid)?;
-    let recent_views =
-      upsert_user_recent_views(&mut db, uid, &workspace_id.to_string(), recent_items)?;
-    debug!(
-      "Fetched recent views for user {} in workspace {}: {:?}",
-      uid, workspace_id, recent_views
-    );
-    if notify {
-      self.send_update_recent_views_notification().await;
-    }
-    Ok(recent_views)
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
