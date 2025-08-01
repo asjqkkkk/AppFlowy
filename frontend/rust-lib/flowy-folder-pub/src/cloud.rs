@@ -2,7 +2,7 @@ use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
-  CreateImportTaskType, MentionablePersons, MentionablePersonsWithAccess, PageMentionUpdate,
+  CreateImportTaskType, MentionablePersons, PageMentionUpdate,
   PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
@@ -131,13 +131,6 @@ pub trait FolderCloudService: Send + Sync + 'static {
     &self,
     workspace_id: &Uuid,
   ) -> Result<MentionablePersons, FlowyError>;
-
-  /// Get the mentionable persons in a page(with access)
-  async fn get_page_mentionable_persons(
-    &self,
-    workspace_id: &Uuid,
-    view_id: &Uuid,
-  ) -> Result<MentionablePersonsWithAccess, FlowyError>;
 
   /// Update the mentionable persons in a page(with access)
   async fn update_page_mention(

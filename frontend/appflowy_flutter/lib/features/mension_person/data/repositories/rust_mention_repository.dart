@@ -39,33 +39,7 @@ class RustMentionRepository extends MentionRepository {
       },
     );
   }
-
-  @override
-  Future<FlowyResult<List<PersonWithAccess>, FlowyError>> getPagePersons({
-    required String workspaceId,
-    required String documentId,
-  }) async {
-    final result =
-        await ViewBackendService.getPageMentionablePersons(documentId);
-    return result.fold(
-      (r) {
-        return FlowyResult.success(
-          r.persons
-              .map(
-                (e) => PersonWithAccess(
-                  person: Person.fromProto(e.person),
-                  access: e.canAccessPage,
-                ),
-              )
-              .toList(),
-        );
-      },
-      (error) {
-        return FlowyResult.failure(error);
-      },
-    );
-  }
-
+  
   @override
   Future<FlowyResult<Person, FlowyError>> invitePerson({
     required String workspaceId,

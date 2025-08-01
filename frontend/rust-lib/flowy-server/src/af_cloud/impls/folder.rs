@@ -343,19 +343,6 @@ where
     Ok(resp)
   }
 
-  async fn get_page_mentionable_persons(
-    &self,
-    workspace_id: &Uuid,
-    view_id: &Uuid,
-  ) -> Result<MentionablePersonsWithAccess, FlowyError> {
-    let try_get_client = self.inner.try_get_client();
-    let resp = try_get_client?
-      .list_page_mentionable_persons(workspace_id, view_id)
-      .await
-      .map_err(FlowyError::from)?;
-    Ok(resp)
-  }
-
   async fn update_page_mention(
     &self,
     workspace_id: &Uuid,

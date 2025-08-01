@@ -269,15 +269,6 @@ class ViewBackendService {
     return FolderEventGetWorkspaceMentionablePersons().send();
   }
 
-  static Future<FlowyResult<GetMentionablePersonsWithAccessPB, FlowyError>>
-      getPageMentionablePersons(String viewId) async {
-    if (viewId.isEmpty) {
-      Log.error('ViewId is empty while getting page mentionable persons');
-    }
-    final payload = ViewIdPB.create()..value = viewId;
-    return FolderEventGetPageMentionablePersons(payload).send();
-  }
-
   static Future<FlowyResult<void, FlowyError>> updatePageMention({
     required String viewId,
     required String viewName,

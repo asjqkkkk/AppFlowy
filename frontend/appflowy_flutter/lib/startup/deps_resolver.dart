@@ -136,9 +136,6 @@ void _resolveUserDeps(GetIt getIt, IntegrationMode mode) {
   getIt.registerLazySingleton<PersonListMemoryCache>(
     () => PersonListMemoryCache(),
   );
-  getIt.registerLazySingleton<PersonListWithAccessMemoryCache>(
-    () => PersonListWithAccessMemoryCache(),
-  );
   getIt.registerLazySingleton<SubscriptionSuccessListenable>(
     () => SubscriptionSuccessListenable(),
   );

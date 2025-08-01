@@ -227,14 +227,6 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     Err(FlowyError::local_version_not_support())
   }
 
-  async fn get_page_mentionable_persons(
-    &self,
-    workspace_id: &Uuid,
-    view_id: &Uuid,
-  ) -> Result<MentionablePersonsWithAccess, FlowyError> {
-    Err(FlowyError::local_version_not_support())
-  }
-
   async fn update_page_mention(
     &self,
     workspace_id: &Uuid,

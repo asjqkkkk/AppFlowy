@@ -541,17 +541,6 @@ impl FolderCloudService for ServerProvider {
       .await
   }
 
-  async fn get_page_mentionable_persons(
-    &self,
-    workspace_id: &Uuid,
-    view_id: &Uuid,
-  ) -> Result<MentionablePersonsWithAccess, FlowyError> {
-    self
-      .get_folder_service()?
-      .get_page_mentionable_persons(workspace_id, view_id)
-      .await
-  }
-
   async fn update_page_mention(
     &self,
     workspace_id: &Uuid,

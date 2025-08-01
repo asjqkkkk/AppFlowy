@@ -3267,25 +3267,6 @@ impl FolderManager {
     })
   }
 
-  pub async fn get_page_mentionable_persons(
-    &self,
-    view_id: &str,
-  ) -> FlowyResult<GetMentionablePersonsWithAccessPB> {
-    let workspace_id = self.user.workspace_id()?;
-    let uuid_view_id = Uuid::from_str(view_id)?;
-    let result = self
-      .cloud_service()?
-      .get_page_mentionable_persons(&workspace_id, &uuid_view_id)
-      .await?;
-    Ok(GetMentionablePersonsWithAccessPB {
-      persons: result
-        .persons
-        .into_iter()
-        .map(|person| person.into())
-        .collect(),
-    })
-  }
-
   pub async fn update_page_mention(
     &self,
     page_mention: &PageMentionUpdateInfoPB,

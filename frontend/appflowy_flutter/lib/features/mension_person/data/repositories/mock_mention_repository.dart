@@ -27,18 +27,7 @@ class MockMentionRepository extends MentionRepository {
     }
     return FlowySuccess(persons);
   }
-
-  @override
-  Future<FlowyResult<List<PersonWithAccess>, FlowyError>> getPagePersons({
-    required String workspaceId,
-    required String documentId,
-  }) async {
-    final persons = _MockState.getInstance()
-        .persons
-        .map((e) => PersonWithAccess(person: e, access: Random().nextBool()));
-    return FlowySuccess(persons.toList());
-  }
-
+  
   @override
   Future<FlowyResult<Person, FlowyError>> invitePerson({
     required String workspaceId,
