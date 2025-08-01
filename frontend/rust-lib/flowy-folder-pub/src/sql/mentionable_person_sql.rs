@@ -9,9 +9,10 @@ use uuid::Uuid;
 
 #[derive(Queryable, Insertable, AsChangeset, Debug, Clone)]
 #[diesel(table_name = mentionable_person)]
-#[diesel(primary_key(uuid))]
+#[diesel(primary_key(person_id))]
 pub struct MentionablePersonTable {
   pub person_id: String,
+  pub workspace_id: String,
   pub name: String,
   pub email: String,
   pub role: i32,
@@ -27,6 +28,7 @@ impl MentionablePersonTable {
   #[allow(clippy::too_many_arguments)]
   pub fn new(
     person_id: Uuid,
+    workspace_id: Uuid,
     name: String,
     email: String,
     role: MentionablePersonType,
@@ -39,6 +41,7 @@ impl MentionablePersonTable {
   ) -> Self {
     Self {
       person_id: person_id.to_string(),
+      workspace_id: workspace_id.to_string(),
       name,
       email,
       role: role as i32,
@@ -51,9 +54,10 @@ impl MentionablePersonTable {
     }
   }
 
-  pub fn from_entity(person: &MentionablePersonWithLastMentionedTime) -> Self {
+  pub fn from_entity(person: &MentionablePersonWithLastMentionedTime, workspace_id: Uuid) -> Self {
     Self {
       person_id: person.person_id.to_string(),
+      workspace_id: workspace_id.to_string(),
       name: person.name.clone(),
       email: person.email.clone(),
       role: person.role.clone() as i32,
@@ -101,39 +105,26 @@ pub fn insert_mentionable_person(
   Ok(())
 }
 
-/// Upsert a mentionable person. If the person already exists, updates all fields.
-pub fn upsert_mentionable_person(
+/// Update the last mentioned time for a person
+pub fn update_last_mentioned_at(
   conn: &mut SqliteConnection,
-  person: &MentionablePersonTable,
+  workspace_id: &str,
+  person_id: &str,
+  last_mentioned_at: DateTime<Utc>,
 ) -> FlowyResult<()> {
-  insert_into(mentionable_person::table)
-    .values(person)
-    .on_conflict(mentionable_person::person_id)
-    .do_update()
-    .set((
-      mentionable_person::name.eq(&person.name),
-      mentionable_person::email.eq(&person.email),
-      mentionable_person::role.eq(&person.role),
-      mentionable_person::avatar_url.eq(&person.avatar_url),
-      mentionable_person::cover_image_url.eq(&person.cover_image_url),
-      mentionable_person::custom_image_url.eq(&person.custom_image_url),
-      mentionable_person::description.eq(&person.description),
-      mentionable_person::invited.eq(&person.invited),
-      mentionable_person::last_mentioned_at.eq(&person.last_mentioned_at),
-    ))
+  update(mentionable_person::table.filter(mentionable_person::person_id.eq(person_id)))
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
+    .set(mentionable_person::last_mentioned_at.eq(last_mentioned_at.naive_utc()))
     .execute(conn)?;
 
   Ok(())
 }
 
-/// Update the last mentioned time for a person
-pub fn update_last_mentioned_at(
+pub fn delete_workspace_mentionable_person(
   conn: &mut SqliteConnection,
-  person_id: &str,
-  last_mentioned_at: DateTime<Utc>,
+  workspace_id: &str,
 ) -> FlowyResult<()> {
-  update(mentionable_person::table.filter(mentionable_person::person_id.eq(person_id)))
-    .set(mentionable_person::last_mentioned_at.eq(last_mentioned_at.naive_utc()))
+  delete(mentionable_person::table.filter(mentionable_person::workspace_id.eq(workspace_id)))
     .execute(conn)?;
 
   Ok(())
@@ -142,10 +133,13 @@ pub fn update_last_mentioned_at(
 /// Update a person's information
 pub fn update_mentionable_person(
   conn: &mut SqliteConnection,
+  workspace_id: &str,
   person: &MentionablePersonTable,
 ) -> FlowyResult<()> {
   update(mentionable_person::table.filter(mentionable_person::person_id.eq(&person.person_id)))
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
     .set((
+      mentionable_person::workspace_id.eq(&person.workspace_id),
       mentionable_person::name.eq(&person.name),
       mentionable_person::email.eq(&person.email),
       mentionable_person::role.eq(&person.role),
@@ -161,69 +155,42 @@ pub fn update_mentionable_person(
   Ok(())
 }
 
-/// Delete a mentionable person by UUID
-pub fn delete_mentionable_person(conn: &mut SqliteConnection, uuid: &str) -> FlowyResult<()> {
-  delete(mentionable_person::table.filter(mentionable_person::person_id.eq(uuid))).execute(conn)?;
-
-  Ok(())
-}
-
-/// Delete multiple mentionable persons by UUIDs
-pub fn delete_mentionable_persons(
-  conn: &mut SqliteConnection,
-  uuids: Vec<String>,
-) -> FlowyResult<()> {
-  for uuid in uuids {
-    delete(mentionable_person::table.filter(mentionable_person::person_id.eq(uuid)))
-      .execute(conn)?;
-  }
-
-  Ok(())
-}
-
 /// Select a mentionable person by UUID
 pub fn select_mentionable_person(
   conn: &mut SqliteConnection,
+  workspace_id: &str,
   uuid: &str,
 ) -> FlowyResult<Option<MentionablePersonTable>> {
   let person = dsl::mentionable_person
     .filter(mentionable_person::person_id.eq(uuid))
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
     .first::<MentionablePersonTable>(conn)
     .optional()?;
 
   Ok(person)
 }
 
-/// Select a mentionable person by email
-pub fn select_mentionable_person_by_email(
-  conn: &mut SqliteConnection,
-  email: &str,
-) -> FlowyResult<Option<MentionablePersonTable>> {
-  let person = dsl::mentionable_person
-    .filter(mentionable_person::email.eq(email))
-    .first::<MentionablePersonTable>(conn)
-    .optional()?;
-
-  Ok(person)
-}
-
-/// Select all mentionable persons
+/// Select all mentionable persons for a workspace
 pub fn select_all_mentionable_persons(
   mut conn: DBConnection,
+  workspace_id: &str,
 ) -> FlowyResult<Vec<MentionablePersonTable>> {
   let persons = dsl::mentionable_person
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
     .order(mentionable_person::name.asc())
     .load::<MentionablePersonTable>(&mut conn)?;
 
   Ok(persons)
 }
 
-/// Select mentionable persons by role
+/// Select mentionable persons by role for a workspace
 pub fn select_mentionable_persons_by_role(
   mut conn: DBConnection,
+  workspace_id: &str,
   role: MentionablePersonType,
 ) -> FlowyResult<Vec<MentionablePersonTable>> {
   let persons = dsl::mentionable_person
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
     .filter(mentionable_person::role.eq(role as i32))
     .order(mentionable_person::name.asc())
     .load::<MentionablePersonTable>(&mut conn)?;
@@ -231,13 +198,15 @@ pub fn select_mentionable_persons_by_role(
   Ok(persons)
 }
 
-/// Select mentionable persons ordered by last mentioned time (most recent first)
+/// Select mentionable persons ordered by last mentioned time (most recent first) for a workspace
 pub fn select_mentionable_persons_by_last_mentioned(
   mut conn: DBConnection,
+  workspace_id: &str,
   limit: Option<u32>,
   offset: Option<u32>,
 ) -> FlowyResult<Vec<MentionablePersonTable>> {
   let mut query = dsl::mentionable_person
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
     .filter(mentionable_person::last_mentioned_at.is_not_null())
     .order(mentionable_person::last_mentioned_at.desc())
     .into_boxed();
@@ -254,49 +223,14 @@ pub fn select_mentionable_persons_by_last_mentioned(
   Ok(persons)
 }
 
-/// Search mentionable persons by name or email (case-insensitive)
-pub fn search_mentionable_persons(
-  mut conn: DBConnection,
-  query: &str,
-  limit: Option<u32>,
-) -> FlowyResult<Vec<MentionablePersonTable>> {
-  let search_pattern = format!("%{}%", query);
-  let mut sql_query = dsl::mentionable_person
-    .filter(
-      mentionable_person::name
-        .like(search_pattern.clone())
-        .or(mentionable_person::email.like(search_pattern)),
-    )
-    .order(mentionable_person::name.asc())
-    .into_boxed();
-
-  if let Some(limit_value) = limit {
-    sql_query = sql_query.limit(limit_value as i64);
-  }
-
-  let persons = sql_query.load::<MentionablePersonTable>(&mut conn)?;
-  Ok(persons)
-}
-
-/// Batch upsert multiple mentionable persons
-pub fn upsert_mentionable_persons(
-  conn: &mut SqliteConnection,
-  persons: Vec<MentionablePersonTable>,
-) -> FlowyResult<()> {
-  for person in persons {
-    upsert_mentionable_person(conn, &person)?;
-  }
-
-  Ok(())
-}
-
 /// Batch insert multiple mentionable persons from entities
 pub fn insert_mentionable_persons_from_entities(
   conn: &mut SqliteConnection,
+  workspace_id: Uuid,
   persons: Vec<&MentionablePersonWithLastMentionedTime>,
 ) -> FlowyResult<()> {
   for person in persons {
-    let table_person = MentionablePersonTable::from_entity(person);
+    let table_person = MentionablePersonTable::from_entity(person, workspace_id);
     insert_mentionable_person(conn, &table_person)?;
   }
 

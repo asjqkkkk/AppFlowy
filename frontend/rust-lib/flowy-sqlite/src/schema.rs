@@ -81,6 +81,7 @@ diesel::table! {
 diesel::table! {
     mentionable_person (person_id) {
         person_id -> Text,
+        workspace_id -> Text,
         name -> Text,
         email -> Text,
         role -> Integer,

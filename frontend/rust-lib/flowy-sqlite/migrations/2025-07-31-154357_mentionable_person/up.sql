@@ -1,6 +1,7 @@
 -- Your SQL goes here
 CREATE TABLE IF NOT EXISTS mentionable_person (
   person_id TEXT NOT NULL PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   role INTEGER NOT NULL,

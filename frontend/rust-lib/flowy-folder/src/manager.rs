@@ -46,7 +46,8 @@ use flowy_folder_pub::entities::{
   PublishViewInfo, PublishViewMeta, PublishViewMetaData,
 };
 use flowy_folder_pub::sql::mentionable_person_sql::{
-  insert_mentionable_persons_from_entities, select_all_mentionable_persons,
+  delete_workspace_mentionable_person, insert_mentionable_persons_from_entities,
+  select_all_mentionable_persons,
 };
 use flowy_folder_pub::sql::recent_view_sql::{
   UserRecentViewTable, delete_user_recent_views, select_latest_recent_view,
@@ -2367,8 +2368,16 @@ impl FolderManager {
     });
   }
 
-  fn sync_mentionable_persons_in_background(&self, workspace_id: Uuid, uid: i64) {
-    let user = self.user.clone();
+  /// sync_mentionable_persons is running in the background to fetch mentionable persons from cloud and save to local database.
+  /// Using the rx to notify the caller when the sync is done.
+  /// If rx is None, it will send a notification to the frontend.
+  pub(crate) fn sync_mentionable_persons(
+    &self,
+    workspace_id: Uuid,
+    uid: i64,
+    rx: Option<tokio::sync::oneshot::Sender<FlowyResult<GetMentionablePersonsResponsePB>>>,
+  ) {
+    let user: Arc<dyn FolderUser> = self.user.clone();
     let cloud_service = self.cloud_service.clone();
     debug!(
       "Syncing mentionable persons for user {} in workspace {}",
@@ -2381,10 +2390,22 @@ impl FolderManager {
           .await
         {
           Ok(result) => {
-            if let Ok(mut db) = user.sqlite_connection(uid) {
-              let persons: Vec<_> = result.persons.iter().collect();
-              let _ = insert_mentionable_persons_from_entities(&mut db, persons);
-            }
+            // Save to local database
+            tokio::spawn(tokio::task::spawn_blocking(|| {
+              if let Ok(mut db) = user.sqlite_connection(uid) {
+                let persons: Vec<_> = result.persons.iter().collect();
+                if let Err(err) = db.immediate_transaction(|conn| {
+                  delete_workspace_mentionable_person(conn, &workspace_id.to_string())?;
+                  insert_mentionable_persons_from_entities(conn, workspace_id, persons)?;
+                  Ok::<_, FlowyError>(())
+                }) {
+                  error!(
+                    "Failed to save mentionable persons for user {} in workspace {}: {:?}",
+                    uid, workspace_id, err
+                  );
+                }
+              }
+            }));
 
             let payload = GetMentionablePersonsResponsePB {
               persons: result
@@ -2394,12 +2415,17 @@ impl FolderManager {
                 .collect(),
             };
 
-            folder_notification_builder(
-              workspace_id.to_string(),
-              FolderNotification::DidUpdateMentionablePersons,
-            )
-            .payload(payload)
-            .send();
+            // Notify the caller or send a notification
+            if let Some(rx) = rx {
+              let _ = rx.send(Ok(payload));
+            } else {
+              folder_notification_builder(
+                workspace_id.to_string(),
+                FolderNotification::DidUpdateMentionablePersons,
+              )
+              .payload(payload)
+              .send();
+            }
           },
           Err(err) => {
             error!(
@@ -3237,14 +3263,21 @@ impl FolderManager {
     let uid = self.user.user_id()?;
 
     let db = self.user.sqlite_connection(uid)?;
-    let disk_persons = select_all_mentionable_persons(db)?;
+    let disk_persons = select_all_mentionable_persons(db, &workspace_id.to_string())?;
     let persons: Vec<_> = disk_persons
       .into_iter()
       .map(|person| person.to_entity().into())
       .collect();
 
-    self.sync_mentionable_persons_in_background(workspace_id, uid);
-    Ok(GetMentionablePersonsResponsePB { persons })
+    if persons.is_empty() {
+      let (tx, rx) = tokio::sync::oneshot::channel();
+      self.sync_mentionable_persons(workspace_id, uid, Some(tx));
+      let data = rx.await??;
+      Ok(data)
+    } else {
+      self.sync_mentionable_persons(workspace_id, uid, None);
+      Ok(GetMentionablePersonsResponsePB { persons })
+    }
   }
 
   pub async fn update_page_mention(

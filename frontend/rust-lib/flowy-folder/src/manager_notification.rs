@@ -73,6 +73,7 @@ impl FolderManager {
     data: MentionablePersonListChangedBody,
   ) -> FlowyResult<()> {
     let uid = self.user.user_id()?;
+    let workspace_id = self.user.workspace_id()?.to_string();
     let mut db = self.user.sqlite_connection(uid)?;
 
     match data {
@@ -82,9 +83,11 @@ impl FolderManager {
         role,
       } => {
         // Update the role for the mentionable person if they exist
-        if let Some(mut person) = select_mentionable_person(&mut db, &user_uuid.to_string())? {
+        if let Some(mut person) =
+          select_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?
+        {
           person.role = role as i32;
-          update_mentionable_person(&mut db, &person)?;
+          update_mentionable_person(&mut db, &workspace_id, &person)?;
           let updated_person = person.to_entity().into();
           self
             .send_update_mentionable_person_notification(updated_person)
@@ -101,8 +104,10 @@ impl FolderManager {
         view_id: _,
         mentioned_at,
       } => {
-        if let Some(person) = select_mentionable_person(&mut db, &user_uuid.to_string())? {
-          update_last_mentioned_at(&mut db, &user_uuid.to_string(), mentioned_at)?;
+        if let Some(person) =
+          select_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?
+        {
+          update_last_mentioned_at(&mut db, &workspace_id, &user_uuid.to_string(), mentioned_at)?;
           let updated_person = person.to_entity().into();
           self
             .send_update_mentionable_person_notification(updated_person)
