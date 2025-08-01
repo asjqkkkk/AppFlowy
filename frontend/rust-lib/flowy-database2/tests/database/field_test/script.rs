@@ -24,7 +24,7 @@ impl DatabaseFieldTest {
   pub async fn create_field(&mut self, params: CreateFieldParams) {
     self.field_count += 1;
     let _ = self.editor.create_field_with_type_option(params).await;
-    let fields = self.editor.get_fields(&self.view_id, None).await;
+    let fields = self.editor.get_fields(&self.view_id, None).await.unwrap();
     assert_eq!(self.field_count, fields.len());
   }
 
@@ -38,7 +38,7 @@ impl DatabaseFieldTest {
     }
 
     self.editor.delete_field(&field.id).await.unwrap();
-    let fields = self.editor.get_fields(&self.view_id, None).await;
+    let fields = self.editor.get_fields(&self.view_id, None).await.unwrap();
     assert_eq!(self.field_count, fields.len());
   }
 
