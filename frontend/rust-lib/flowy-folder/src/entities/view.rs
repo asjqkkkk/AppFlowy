@@ -1,14 +1,17 @@
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
-use client_api::entity::{AFAccessLevel, AFRole};
-use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
+use client_api::entity::{
+  AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
+  MentionablePersonWithLastMentionedTime, PageMentionUpdate,
+};
+use collab_folder::{View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
 use flowy_folder_pub::cloud::gen_view_id;
 use flowy_folder_pub::sql::workspace_shared_user_sql::WorkspaceSharedUserTable;
 use lib_infra::validator_fn::required_not_empty_str;
-use std::collections::HashMap;
+use serde_json::Value;
 use std::collections::HashSet;
 use std::convert::TryInto;
 use std::fmt::Debug;
@@ -321,30 +324,27 @@ pub struct CreateViewPayloadPB {
   #[pb(index = 5)]
   pub initial_data: Vec<u8>,
 
-  #[pb(index = 6)]
-  pub meta: HashMap<String, String>,
-
   // Mark the view as current view after creation.
-  #[pb(index = 7)]
+  #[pb(index = 6)]
   pub set_as_current: bool,
 
   // The index of the view in the parent view.
   // If the index is None or the index is out of range, the view will be appended to the end of the parent view.
-  #[pb(index = 8, one_of)]
+  #[pb(index = 7, one_of)]
   pub index: Option<u32>,
 
   // The section of the view.
   // Only the view in public section will be shown in the shared workspace view list.
   // The view in private section will only be shown in the user's private view list.
-  #[pb(index = 9, one_of)]
+  #[pb(index = 8, one_of)]
   pub section: Option<ViewSectionPB>,
 
-  #[pb(index = 10, one_of)]
+  #[pb(index = 9, one_of)]
   pub view_id: Option<String>,
 
   // The extra data of the view.
   // Refer to the extra field in the collab
-  #[pb(index = 11, one_of)]
+  #[pb(index = 10, one_of)]
   pub extra: Option<String>,
 }
 
@@ -381,7 +381,6 @@ pub struct CreateViewParams {
   pub layout: ViewLayoutPB,
   pub view_id: Uuid,
   pub initial_data: ViewData,
-  pub meta: HashMap<String, String>,
   // Mark the view as current view after creation.
   pub set_as_current: bool,
   // The index of the view in the parent view.
@@ -397,9 +396,9 @@ pub struct CreateViewParams {
 
 impl Debug for CreateViewParams {
   fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let space_info = match &self.extra {
+    let extra = match &self.extra {
       None => None,
-      Some(extra) => serde_json::from_str::<SpaceInfo>(extra).ok(),
+      Some(extra) => serde_json::from_str::<Value>(extra).ok(),
     };
     f.debug_struct("CreateViewParams")
       .field("parent_view_id", &self.parent_view_id)
@@ -407,12 +406,11 @@ impl Debug for CreateViewParams {
       .field("layout", &self.layout)
       .field("view_id", &self.view_id)
       .field("initial_data", &self.initial_data)
-      .field("meta", &self.meta)
       .field("set_as_current", &self.set_as_current)
       .field("index", &self.index)
       .field("section", &self.section)
       .field("icon", &self.icon)
-      .field("extra", &space_info)
+      .field("extra", &extra)
       .finish()
   }
 }
@@ -430,13 +428,17 @@ impl TryInto<CreateViewParams> for CreateViewPayloadPB {
       .and_then(|v| Uuid::parse_str(&v).ok())
       .unwrap_or_else(gen_view_id);
 
+    let initial_data = if self.initial_data.is_empty() {
+      ViewData::Empty
+    } else {
+      ViewData::Data(self.initial_data.into())
+    };
     Ok(CreateViewParams {
       parent_view_id,
       name,
       layout: self.layout,
       view_id,
-      initial_data: ViewData::Data(self.initial_data.into()),
-      meta: self.meta,
+      initial_data,
       set_as_current: self.set_as_current,
       index: self.index,
       section: self.section,
@@ -452,14 +454,18 @@ impl TryInto<CreateViewParams> for CreateOrphanViewPayloadPB {
   fn try_into(self) -> Result<CreateViewParams, Self::Error> {
     let name = ViewName::parse(self.name)?.0;
     let view_id = Uuid::parse_str(&self.view_id).map_err(|_| ErrorCode::InvalidParams)?;
+    let initial_data = if self.initial_data.is_empty() {
+      ViewData::Empty
+    } else {
+      ViewData::Data(self.initial_data.into())
+    };
 
     Ok(CreateViewParams {
       parent_view_id: view_id,
       name,
       layout: self.layout,
       view_id,
-      initial_data: ViewData::Data(self.initial_data.into()),
-      meta: Default::default(),
+      initial_data,
       set_as_current: false,
       index: None,
       section: None,
@@ -960,6 +966,8 @@ impl From<SharedViewDetails> for RepeatedSharedUserPB {
 pub struct GetSharedUsersPayloadPB {
   #[pb(index = 1)]
   pub view_id: String,
+  #[pb(index = 2)]
+  pub is_fetch_from_cloud: bool,
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
@@ -1006,6 +1014,133 @@ pub struct GetAccessLevelPayloadPB {
 pub struct GetAccessLevelResponsePB {
   #[pb(index = 1)]
   pub access_level: AFAccessLevelPB,
+}
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetMentionablePersonsResponsePB {
+  #[pb(index = 1)]
+  pub persons: Vec<MentionablePersonPB>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetMentionablePersonsWithAccessPB {
+  #[pb(index = 1)]
+  pub persons: Vec<MentionablePersonWithAccessPB>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonWithAccessPB {
+  #[pb(index = 1)]
+  pub person: MentionablePersonPB,
+  #[pb(index = 2)]
+  pub can_access_page: bool,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonPB {
+  #[pb(index = 1)]
+  pub uuid: String,
+  #[pb(index = 2)]
+  pub name: String,
+  #[pb(index = 3)]
+  pub email: String,
+  #[pb(index = 4)]
+  pub role: MentionablePersonTypePB,
+  #[pb(index = 5, one_of)]
+  pub avatar_url: Option<String>,
+  #[pb(index = 6, one_of)]
+  pub cover_image_url: Option<String>,
+  #[pb(index = 7, one_of)]
+  pub description: Option<String>,
+  #[pb(index = 8)]
+  pub invited: bool,
+  #[pb(index = 9, one_of)]
+  pub last_mentioned_at: Option<i64>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct PageMentionUpdateInfoPB {
+  #[pb(index = 1)]
+  pub view_id: String,
+  #[pb(index = 2)]
+  pub person_id: String,
+  #[pb(index = 3)]
+  pub require_notification: bool,
+  #[pb(index = 4, one_of)]
+  pub block_id: Option<String>,
+  #[pb(index = 5)]
+  pub view_name: String,
+}
+
+impl From<PageMentionUpdateInfoPB> for PageMentionUpdate {
+  fn from(person: PageMentionUpdateInfoPB) -> Self {
+    PageMentionUpdate {
+      person_id: Uuid::from_str(&person.person_id).unwrap(),
+      require_notification: person.require_notification,
+      block_id: person.block_id.clone(),
+      view_name: person.view_name,
+    }
+  }
+}
+
+impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
+  fn from(person: MentionablePersonWithLastMentionedTime) -> Self {
+    MentionablePersonPB {
+      uuid: person.person_id.to_string(),
+      email: person.email,
+      name: person.name,
+      role: person.role.into(),
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      description: person.description,
+      invited: person.invited,
+      last_mentioned_at: person
+        .last_mentioned_at
+        .map(|datetime| datetime.timestamp()),
+    }
+  }
+}
+
+impl From<MentionablePerson> for MentionablePersonPB {
+  fn from(person: MentionablePerson) -> Self {
+    MentionablePersonPB {
+      uuid: person.uuid.to_string(),
+      email: person.email,
+      name: person.name,
+      role: person.role.into(),
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      description: person.description,
+      invited: person.invited,
+      last_mentioned_at: None,
+    }
+  }
+}
+
+impl From<MentionablePersonWithAccess> for MentionablePersonWithAccessPB {
+  fn from(person: MentionablePersonWithAccess) -> Self {
+    MentionablePersonWithAccessPB {
+      person: person.person.into(),
+      can_access_page: person.can_access_page,
+    }
+  }
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default)]
+pub enum MentionablePersonTypePB {
+  #[default]
+  WorkspaceMember = 0,
+  WorkspaceGuest = 1,
+  Contact = 2,
+}
+
+impl From<MentionablePersonType> for MentionablePersonTypePB {
+  fn from(value: MentionablePersonType) -> Self {
+    match value {
+      MentionablePersonType::WorkspaceMember => MentionablePersonTypePB::WorkspaceMember,
+      MentionablePersonType::WorkspaceGuest => MentionablePersonTypePB::WorkspaceGuest,
+      MentionablePersonType::Contact => MentionablePersonTypePB::Contact,
+    }
+  }
 }
 
 // impl<'de> Deserialize<'de> for ViewDataType {

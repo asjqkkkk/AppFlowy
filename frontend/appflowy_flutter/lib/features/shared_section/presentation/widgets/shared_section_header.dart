@@ -18,7 +18,7 @@ class SharedSectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     return AFBaseButton(
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return Colors.transparent;

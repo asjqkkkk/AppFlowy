@@ -15,6 +15,7 @@ use flowy_storage::manager::StorageManager;
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user::services::entities::UserConfig;
 use flowy_user::user_manager::UserManager;
+use std::env::temp_dir;
 use std::path::PathBuf;
 use std::sync::{Arc, Weak};
 use std::time::Duration;
@@ -93,7 +94,6 @@ impl AppFlowyCore {
     runtime: Arc<AFPluginRuntime>,
     stream_log_sender: Option<Arc<dyn StreamLogSender>>,
   ) -> Self {
-    dbg!(&config);
     let platform = OperatingSystem::from(&config.platform);
 
     #[allow(clippy::if_same_then_else)]
@@ -302,7 +302,9 @@ impl AppFlowyCore {
       reminder: Box::new(ReminderActionInterceptorImpl {
         document_manager: Arc::downgrade(&document_manager),
       }),
-      notification: Box::new(NotificationInterceptorImpl),
+      notification_handler: Box::new(NotificationInterceptorImpl {
+        user_manager: Arc::downgrade(&user_manager),
+      }),
     };
     if let Err(err) = user_manager
       .init_with_callback(app_life_cycle, interceptor)
@@ -395,6 +397,26 @@ impl LoggedUser for LoggedUserImpl {
     Ok(PathBuf::from(
       self.upgrade_user()?.get_application_root_dir(),
     ))
+  }
+
+  fn http_cache_dir(&self) -> PathBuf {
+    let user_data_dir = self
+      .upgrade_user()
+      .and_then(|user| user.get_user_data_dir());
+
+    match user_data_dir {
+      Ok(p) => {
+        let new_path = p.join("http_cache");
+        if !new_path.exists() {
+          if let Err(err) = std::fs::create_dir_all(&new_path) {
+            error!("Failed to create http cache directory: {}", err);
+            return temp_dir();
+          }
+        }
+        new_path
+      },
+      Err(_) => temp_dir().join("appflowy_http_cache"),
+    }
   }
 
   fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {

@@ -207,7 +207,7 @@ class _WorkspaceMoreActionWrapper extends CustomActionCell {
       borderColor: (context, isHovering, disabled, isFocused) {
         return Colors.transparent;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (isHovering) {
           return theme.fillColorScheme.contentHover;

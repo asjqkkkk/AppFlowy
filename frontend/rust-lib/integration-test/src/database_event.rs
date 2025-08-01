@@ -41,12 +41,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Grid,
       initial_data,
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)
@@ -74,12 +73,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Board,
       initial_data,
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)
@@ -101,12 +99,11 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Calendar,
       initial_data,
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,
       view_id: None,
-      extra: None,
+      extra: Default::default(),
     };
     EventBuilder::new(self.clone())
       .event(FolderEvent::CreateView)

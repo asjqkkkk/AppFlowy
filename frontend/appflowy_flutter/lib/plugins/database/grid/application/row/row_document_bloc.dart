@@ -16,7 +16,7 @@ part 'row_document_bloc.freezed.dart';
 class RowDocumentBloc extends Bloc<RowDocumentEvent, RowDocumentState> {
   RowDocumentBloc({
     required this.rowId,
-    required String viewId,
+    required this.viewId,
   })  : _rowBackendSvc = RowBackendService(viewId: viewId),
         super(RowDocumentState.initial()) {
     _dispatch();
@@ -24,6 +24,7 @@ class RowDocumentBloc extends Bloc<RowDocumentEvent, RowDocumentState> {
 
   final String rowId;
   final RowBackendService _rowBackendSvc;
+  final String viewId;
 
   void _dispatch() {
     on<RowDocumentEvent>(

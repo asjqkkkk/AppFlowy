@@ -38,7 +38,7 @@ class AFFilledButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: disabled,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         if (disabled) {
           return AppFlowyTheme.of(context).fillColorScheme.contentHover;
         }
@@ -68,7 +68,7 @@ class AFFilledButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: disabled,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         if (disabled) {
           return AppFlowyTheme.of(context).fillColorScheme.contentHover;
         }
@@ -97,7 +97,7 @@ class AFFilledButton extends StatelessWidget {
       disabled: true,
       padding: padding,
       borderRadius: borderRadius,
-      backgroundColor: (context, isHovering, disabled) =>
+      backgroundColor: (context, isHovering, disabled, _) =>
           backgroundColor ??
           AppFlowyTheme.of(context).fillColorScheme.contentHover,
     );
@@ -109,7 +109,7 @@ class AFFilledButton extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final double? borderRadius;
 
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
   final AFFilledButtonWidgetBuilder builder;
 
   @override

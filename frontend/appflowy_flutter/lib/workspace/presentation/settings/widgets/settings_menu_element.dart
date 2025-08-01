@@ -27,7 +27,7 @@ class SettingsMenuElement extends StatelessWidget {
       padding: EdgeInsets.all(theme.spacing.m),
       borderRadius: theme.borderRadius.m,
       borderColor: (_, __, ___, ____) => Colors.transparent,
-      backgroundColor: (_, isHovering, __) {
+      backgroundColor: (_, isHovering, __, ___) {
         if (isHovering) {
           return theme.fillColorScheme.contentHover;
         } else if (page == selectedPage) {

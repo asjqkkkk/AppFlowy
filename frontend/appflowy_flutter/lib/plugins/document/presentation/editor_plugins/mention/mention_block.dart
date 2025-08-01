@@ -7,12 +7,14 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'mention_link_block.dart';
+import 'mention_person_block.dart';
 
 enum MentionType {
   page,
   date,
   externalLink,
-  childPage;
+  childPage,
+  person;
 
   static MentionType fromString(String value) => switch (value) {
         'page' => page,
@@ -21,6 +23,7 @@ enum MentionType {
         'childPage' => childPage,
         // Backwards compatibility
         'reminder' => date,
+        'person' => person,
         _ => throw UnimplementedError(),
       };
 }
@@ -58,6 +61,8 @@ class MentionBlockKeys {
   static const includeTime = 'include_time';
   static const reminderId = 'reminder_id'; // ReminderID
   static const reminderOption = 'reminder_option';
+  static const personId = 'person_id';
+  static const personName = 'person_name';
 
   static const mentionChar = '\$';
 
@@ -92,6 +97,23 @@ class MentionBlockKeys {
       },
     };
   }
+
+  static Map<String, dynamic> buildMentionPersonAttributes({
+    required String personId,
+    required String personName,
+    required String pageId,
+    String? blockId,
+  }) {
+    return {
+      MentionBlockKeys.mention: {
+        MentionBlockKeys.type: MentionType.person.name,
+        MentionBlockKeys.personId: personId,
+        MentionBlockKeys.personName: personName,
+        MentionBlockKeys.pageId: pageId,
+        if (blockId != null) MentionBlockKeys.blockId: blockId,
+      },
+    };
+  }
 }
 
 class MentionBlock extends StatelessWidget {
@@ -101,12 +123,16 @@ class MentionBlock extends StatelessWidget {
     required this.node,
     required this.index,
     required this.textStyle,
+    this.hasCustomTextColor = false,
+    this.hasCustomBackgroundColor = false,
   });
 
   final Map<String, dynamic> mention;
   final Node node;
   final int index;
   final TextStyle? textStyle;
+  final bool hasCustomTextColor;
+  final bool hasCustomBackgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -172,6 +198,24 @@ class MentionBlock extends StatelessWidget {
           editorState: editorState,
           node: node,
           index: index,
+        );
+      case MentionType.person:
+        final String? personId = mention[MentionBlockKeys.personId] as String?;
+        final String? pageId = mention[MentionBlockKeys.pageId] as String?;
+        final String? blockId = mention[MentionBlockKeys.blockId] as String?;
+
+        if (personId == null || pageId == null) return const SizedBox.shrink();
+        return MentionPersonBlock(
+          key: ValueKey('$personId-${node.id}'),
+          editorState: editorState,
+          personId: personId,
+          pageId: pageId,
+          blockId: blockId,
+          node: node,
+          textStyle: textStyle,
+          index: index,
+          hasCustomBackgroundColor: hasCustomBackgroundColor,
+          hasCustomTextColor: hasCustomTextColor,
         );
     }
   }

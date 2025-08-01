@@ -7,6 +7,7 @@ class AFBaseTextButton extends StatelessWidget {
     required this.text,
     required this.onTap,
     this.disabled = false,
+    this.showFocusRing = false,
     this.size = AFButtonSize.m,
     this.padding,
     this.borderRadius,
@@ -21,6 +22,9 @@ class AFBaseTextButton extends StatelessWidget {
 
   /// Whether the button is disabled.
   final bool disabled;
+
+  /// Whether to show the focus ring.
+  final bool showFocusRing;
 
   /// The callback when the button is tapped.
   final VoidCallback onTap;
@@ -38,7 +42,7 @@ class AFBaseTextButton extends StatelessWidget {
   final AFBaseButtonColorBuilder? textColor;
 
   /// The background color of the button.
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   /// The alignment of the button.
   ///

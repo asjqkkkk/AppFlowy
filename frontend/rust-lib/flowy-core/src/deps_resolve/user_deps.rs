@@ -10,9 +10,7 @@ use flowy_folder::manager::FolderManager;
 use flowy_folder_pub::cloud::Error;
 use flowy_folder_pub::entities::ImportFrom;
 use flowy_sqlite::kv::KVStorePreferences;
-use flowy_user::services::action_interceptor::{
-  NotificationInterceptor, ReminderActionInterceptor,
-};
+use flowy_user::services::action_interceptor::{NotificationHandler, ReminderActionInterceptor};
 use flowy_user::services::authenticate_user::AuthenticateUser;
 use flowy_user::user_manager::UserManager;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
@@ -21,7 +19,7 @@ use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 use std::sync::{Arc, Weak};
-use tracing::info;
+use tracing::debug;
 
 pub struct UserDepsResolver();
 
@@ -97,15 +95,17 @@ impl WorkspaceDataImporter for UserDataImportImpl {
   }
 }
 
-pub struct NotificationInterceptorImpl;
+pub struct NotificationInterceptorImpl {
+  pub user_manager: Weak<UserManager>,
+}
 
 #[async_trait]
-impl NotificationInterceptor for NotificationInterceptorImpl {
-  async fn receive_notification(&self, notification: WorkspaceNotification) {
-    info!("Received workspace notification: {:?}", notification);
-    match notification {
-      WorkspaceNotification::UserProfileChange { .. } => {},
-      WorkspaceNotification::ObjectAccessChanged { .. } => {},
+impl NotificationHandler for NotificationInterceptorImpl {
+  async fn handle_notification(&self, notification: WorkspaceNotification) {
+    if let Some(user_manager) = self.user_manager.upgrade() {
+      user_manager.handle_notification(&notification).await;
+    } else {
+      debug!("User manager is dropped, cannot handle notification");
     }
   }
 }

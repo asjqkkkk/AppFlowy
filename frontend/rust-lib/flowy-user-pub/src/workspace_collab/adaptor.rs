@@ -226,7 +226,7 @@ impl WorkspaceCollabAdaptor {
       .build_collab_with_source(workspace_id, collab_type, doc_state)
       .await?;
     let folder = Folder::open(collab, folder_notifier)?;
-    folder.subscribe_view_change(uid).await?;
+    folder.body.observe_view_changes(uid).await;
     let folder = Arc::new(RwLock::new(folder));
     self
       .bind_and_cache_collab(workspace_id, workspace_id, collab_type, folder)
@@ -248,7 +248,7 @@ impl WorkspaceCollabAdaptor {
       .build_collab_with_source(workspace_id, collab_type, data_source)
       .await?;
     let folder = Folder::create(collab, folder_notifier, folder_data);
-    folder.subscribe_view_change(uid).await?;
+    folder.body.observe_view_changes(uid).await;
     let folder = Arc::new(RwLock::new(folder));
     self
       .bind_and_cache_collab(workspace_id, workspace_id, collab_type, folder)

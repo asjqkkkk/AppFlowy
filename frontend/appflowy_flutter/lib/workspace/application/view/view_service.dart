@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_page_bloc.dart';
 import 'package:appflowy/plugins/trash/application/trash_service.dart';
@@ -31,13 +32,7 @@ class ViewBackendService {
     /// The initial data should be a JSON that represent the DocumentDataPB.
     /// Currently, only support create document with initial data.
     List<int>? initialDataBytes,
-
-    /// The [ext] is used to pass through the custom configuration
-    /// to the backend.
-    /// Linking the view to the existing database, it needs to pass
-    /// the database id. For example: "database_id": "xxx"
-    ///
-    Map<String, String> ext = const {},
+    String? extra,
 
     /// The [index] is the index of the view in the parent view.
     /// If the index is null, the view will be added to the end of the list.
@@ -52,8 +47,8 @@ class ViewBackendService {
       ..setAsCurrent = openAfterCreate
       ..initialData = initialDataBytes ?? [];
 
-    if (ext.isNotEmpty) {
-      payload.meta.addAll(ext);
+    if (extra != null) {
+      payload.extra = extra;
     }
 
     if (index != null) {
@@ -103,7 +98,7 @@ class ViewBackendService {
       layoutType: layoutType,
       parentViewId: parentViewId,
       name: name,
-      ext: {'database_id': databaseId},
+      extra: jsonEncode({'database_id': databaseId}),
     );
   }
 
@@ -267,6 +262,30 @@ class ViewBackendService {
   static Future<FlowyResult<RepeatedViewPB, FlowyError>>
       getAllViewsWithPermissionCheck() async {
     return FolderEventGetAllViewsWithPermission().send();
+  }
+
+  static Future<FlowyResult<GetMentionablePersonsResponsePB, FlowyError>>
+      getWorkspaceMentionablePersons() async {
+    return FolderEventGetWorkspaceMentionablePersons().send();
+  }
+
+  static Future<FlowyResult<void, FlowyError>> updatePageMention({
+    required String viewId,
+    required String viewName,
+    required String personId,
+    String? blockId,
+    required bool requireNotification,
+  }) async {
+    if (viewId.isEmpty || personId.isEmpty) {
+      Log.error('ViewId or PersonId is empty while updating page mention');
+    }
+    final payload = PageMentionUpdateInfoPB.create()
+      ..viewId = viewId
+      ..viewName = viewName
+      ..personId = personId
+      ..blockId = blockId ?? ''
+      ..requireNotification = requireNotification;
+    return FolderEventUpdatePageMention(payload).send();
   }
 
   static Future<FlowyResult<ViewPB, FlowyError>> getView(

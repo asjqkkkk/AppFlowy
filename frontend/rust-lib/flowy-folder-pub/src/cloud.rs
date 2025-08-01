@@ -1,6 +1,8 @@
 use crate::entities::PublishPayload;
 pub use anyhow::Error;
+use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
+  CreateImportTaskType, MentionablePersons, PageMentionUpdate,
   PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
@@ -92,7 +94,11 @@ pub trait FolderCloudService: Send + Sync + 'static {
 
   async fn get_publish_namespace(&self, workspace_id: &Uuid) -> Result<String, FlowyError>;
 
-  async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError>;
+  async fn import_zip(
+    &self,
+    file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError>;
 
   /// Share a page with a user (member or guest)
   async fn share_page_with_user(
@@ -119,6 +125,39 @@ pub trait FolderCloudService: Send + Sync + 'static {
 
   /// Get the shared views of a workspace
   async fn get_shared_views(&self, workspace_id: &Uuid) -> Result<SharedViews, FlowyError>;
+
+  /// Get the mentionable persons in a workspace
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError>;
+
+  /// Update the mentionable persons in a page(with access)
+  async fn update_page_mention(
+    &self,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    page_mention: &PageMentionUpdate,
+  ) -> Result<(), FlowyError>;
+
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError>;
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError>;
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError>;
 }
 
 #[derive(Debug)]

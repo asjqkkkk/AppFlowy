@@ -20,7 +20,7 @@ import 'package:flowy_infra_ui/widget/ignore_parent_gesture.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ImageMenu extends StatefulWidget {
   const ImageMenu({
@@ -143,27 +143,37 @@ class _ImageMenuState extends State<ImageMenu> {
   void openFullScreen() {
     showDialog(
       context: context,
-      builder: (_) => InteractiveImageViewer(
-        userProfile: context.read<UserWorkspaceBloc?>()?.state.userProfile ??
-            context.read<DocumentBloc>().state.userProfilePB,
-        imageProvider: AFBlockImageProvider(
-          images: [
-            ImageBlockData(
-              url: url!,
-              type: CustomImageType.fromIntValue(
-                widget.node.attributes[CustomImageBlockKeys.imageType] ?? 2,
-              ),
-            ),
+      builder: (_) {
+        final userWorkspaceBloc = context.read<UserWorkspaceBloc?>();
+        return MultiBlocProvider(
+          providers: [
+            if (userWorkspaceBloc != null)
+              BlocProvider.value(value: userWorkspaceBloc),
           ],
-          onDeleteImage: widget.state.editorState.editable
-              ? (_) async {
-                  final transaction = widget.state.editorState.transaction;
-                  transaction.deleteNode(widget.node);
-                  await widget.state.editorState.apply(transaction);
-                }
-              : null,
-        ),
-      ),
+          child: InteractiveImageViewer(
+            userProfile:
+                context.read<UserWorkspaceBloc?>()?.state.userProfile ??
+                    context.read<DocumentBloc>().state.userProfilePB,
+            imageProvider: AFBlockImageProvider(
+              images: [
+                ImageBlockData(
+                  url: url!,
+                  type: CustomImageType.fromIntValue(
+                    widget.node.attributes[CustomImageBlockKeys.imageType] ?? 2,
+                  ),
+                ),
+              ],
+              onDeleteImage: widget.state.editorState.editable
+                  ? (_) async {
+                      final transaction = widget.state.editorState.transaction;
+                      transaction.deleteNode(widget.node);
+                      await widget.state.editorState.apply(transaction);
+                    }
+                  : null,
+            ),
+          ),
+        );
+      },
     );
   }
 

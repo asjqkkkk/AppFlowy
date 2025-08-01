@@ -3,28 +3,32 @@ import 'dart:async';
 import 'package:appflowy/core/notification/folder_notification.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/notification.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-notification/subject.pb.dart';
 import 'package:appflowy_backend/rust_stream.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:flutter/foundation.dart';
 
 typedef RecentViewsUpdated = void Function(
-  FlowyResult<RepeatedViewIdPB, FlowyError> result,
+  FlowyResult<void, FlowyError> result,
 );
 
 class RecentViewsListener {
+  RecentViewsListener({
+    required this.workspaceId,
+  });
+
   StreamSubscription<SubscribeObject>? _streamSubscription;
   FolderNotificationParser? _parser;
 
   RecentViewsUpdated? _recentViewsUpdated;
+  final String workspaceId;
 
   void start({
     RecentViewsUpdated? recentViewsUpdated,
   }) {
     _recentViewsUpdated = recentViewsUpdated;
     _parser = FolderNotificationParser(
-      id: 'recent_views',
+      id: workspaceId,
       callback: _observableCallback,
     );
     _streamSubscription = RustStreamReceiver.listen(
@@ -42,9 +46,8 @@ class RecentViewsListener {
 
     result.fold(
       (payload) {
-        final view = RepeatedViewIdPB.fromBuffer(payload);
         _recentViewsUpdated?.call(
-          FlowyResult.success(view),
+          FlowyResult.success(null),
         );
       },
       (error) => _recentViewsUpdated?.call(

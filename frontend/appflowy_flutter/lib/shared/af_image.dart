@@ -1,10 +1,9 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/file_entities.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
+import 'package:flutter/material.dart';
 
 class AFImage extends StatelessWidget {
   const AFImage({
@@ -47,7 +46,8 @@ class AFImage extends StatelessWidget {
           return const SizedBox.shrink();
         },
       );
-    } else if (uploadType == FileUploadTypePB.LocalFile) {
+    } else if (uploadType == FileUploadTypePB.LocalFile &&
+        File(url).existsSync()) {
       child = Image.file(
         File(url),
         height: height,

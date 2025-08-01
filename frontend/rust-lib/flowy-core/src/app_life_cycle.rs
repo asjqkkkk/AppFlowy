@@ -2,7 +2,7 @@ use anyhow::Context;
 use client_api::entity::billing_dto::{PersonalPlan, SubscriptionPlan};
 use client_api::v2::{ConnectState, WorkspaceController};
 use std::sync::{Arc, Weak};
-use tracing::{error, event, info, instrument, trace};
+use tracing::{debug, error, event, info, instrument, trace, warn};
 
 use crate::editing_collab_data_provider::EditingCollabDataProvider;
 use crate::server_layer::ServerProvider;
@@ -11,6 +11,7 @@ use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use flowy_ai::ai_manager::AIManager;
+use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
 use flowy_error::{FlowyError, FlowyResult};
@@ -453,7 +454,7 @@ impl AppLifeCycle for AppLifeCycleImpl {
 
     self
       .folder_manager()?
-      .initialize_after_open_workspace(user_id, data_source)
+      .initialize_after_open_workspace(user_id, workspace_id, data_source)
       .await?;
     self
       .database_manager()?
@@ -564,6 +565,20 @@ impl AppLifeCycle for AppLifeCycleImpl {
   async fn on_cancel_personal_subscriptions(&self, plan: &PersonalPlan) {
     if let Some(ai_manager) = self.ai_manager.upgrade() {
       ai_manager.on_cancel_personal_subscriptions(plan).await;
+    }
+  }
+
+  async fn on_receive_workspace_notification(&self, notification: &WorkspaceNotification) {
+    debug!("Received workspace notification: {:?}", notification);
+    if let Ok(folder) = self.folder_manager() {
+      let notification = notification.clone();
+      tokio::spawn(async move {
+        if let Err(err) = folder.handle_notification(notification).await {
+          error!("Failed to handle workspace notification:{:?}", err);
+        }
+      });
+    } else {
+      warn!("FolderManager is not available to handle workspace notification");
     }
   }
 }

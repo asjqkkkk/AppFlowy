@@ -38,7 +38,7 @@ class AFGhostButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: disabled,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
@@ -67,7 +67,7 @@ class AFGhostButton extends StatelessWidget {
       padding: padding,
       borderRadius: borderRadius,
       disabled: true,
-      backgroundColor: (context, isHovering, disabled) =>
+      backgroundColor: (context, isHovering, disabled, _) =>
           AppFlowyTheme.of(context).fillColorScheme.content,
     );
   }
@@ -78,7 +78,7 @@ class AFGhostButton extends StatelessWidget {
   final EdgeInsetsGeometry? padding;
   final double? borderRadius;
 
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
   final AFGhostButtonWidgetBuilder builder;
 
   @override

@@ -7,6 +7,7 @@ use tracing::instrument;
 use uuid::Uuid;
 
 use crate::entities::*;
+use crate::import_workspace::types::ImportRequest;
 use crate::manager::FolderManager;
 use crate::share::ImportParams;
 
@@ -17,14 +18,6 @@ fn upgrade_folder(
     .upgrade()
     .ok_or(FlowyError::internal().with_context("The folder manager is already dropped"))?;
   Ok(folder)
-}
-
-#[tracing::instrument(level = "debug", skip_all, err)]
-pub(crate) async fn get_all_workspace_handler(
-  _data: AFPluginData<CreateWorkspacePayloadPB>,
-  _folder: AFPluginState<Weak<FolderManager>>,
-) -> DataResult<RepeatedWorkspacePB, FlowyError> {
-  todo!()
 }
 
 #[tracing::instrument(level = "debug", skip(folder), err)]
@@ -88,7 +81,7 @@ pub(crate) async fn create_view_handler(
   let set_as_current = params.set_as_current;
   let view = folder.create_view_with_params(params, true).await?;
   if set_as_current {
-    let _ = folder.set_current_view(view.id.clone()).await;
+    let _ = folder.open_view(view.id.clone()).await;
   }
   data_result_ok(view_pb_without_child_views(view))
 }
@@ -102,7 +95,7 @@ pub(crate) async fn create_orphan_view_handler(
   let set_as_current = params.set_as_current;
   let view = folder.create_orphan_view_with_params(params).await?;
   if set_as_current {
-    let _ = folder.set_current_view(view.id.clone()).await;
+    let _ = folder.open_view(view.id.clone()).await;
   }
   data_result_ok(view_pb_without_child_views(view))
 }
@@ -213,13 +206,13 @@ pub(crate) async fn update_recent_views_handler(
   Ok(())
 }
 
-pub(crate) async fn set_latest_view_handler(
+pub(crate) async fn open_view_handler(
   data: AFPluginData<ViewIdPB>,
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> Result<(), FlowyError> {
   let folder = upgrade_folder(folder)?;
   let view_id: ViewIdPB = data.into_inner();
-  let _ = folder.set_current_view(view_id.value.clone()).await;
+  let _ = folder.open_view(view_id.value.clone()).await;
   Ok(())
 }
 
@@ -293,23 +286,21 @@ pub(crate) async fn read_recent_views_handler(
   folder: AFPluginState<Weak<FolderManager>>,
 ) -> DataResult<RepeatedRecentViewPB, FlowyError> {
   let folder = upgrade_folder(folder)?;
-  let recent_items = folder.get_my_recent_sections().await;
-  let start = data.start;
-  let limit = data.limit;
-  let ids = recent_items
+  let recent_views = folder
+    .get_recent_views(Some(data.limit as u32), Some(data.start as u32))
+    .await?;
+  let view_ids = recent_views
     .iter()
-    .rev()  // the most recent view is at the end of the list
-    .map(|item| item.id.clone())
-    .skip(start as usize)
-    .take(limit as usize)
+    .map(|item| item.view_id.clone())
     .collect::<Vec<_>>();
-  let views = folder.get_view_pbs_without_children(ids).await?;
+
+  let views = folder.get_view_pbs_without_children(view_ids).await?;
   let items = views
     .into_iter()
-    .zip(recent_items.into_iter().rev())
+    .zip(recent_views.into_iter())
     .map(|(view, item)| SectionViewPB {
       item: view,
-      timestamp: item.timestamp,
+      timestamp: item.view_at.and_utc().timestamp(),
     })
     .collect::<Vec<_>>();
   data_result_ok(RepeatedRecentViewPB { items })
@@ -383,7 +374,8 @@ pub(crate) async fn import_zip_file_handler(
 ) -> Result<(), FlowyError> {
   let folder = upgrade_folder(folder)?;
   let data = data.try_into_inner()?;
-  folder.import_zip_file(&data.file_path).await?;
+  let task_type = data.task_type.into();
+  folder.import_zip_file(&data.file_path, task_type).await?;
   Ok(())
 }
 
@@ -564,7 +556,9 @@ pub(crate) async fn get_shared_users_handler(
   let folder = upgrade_folder(folder)?;
   let params = data.into_inner();
   let view_id = Uuid::from_str(&params.view_id)?;
-  let shared_users = folder.get_shared_page_details(&view_id, true).await?;
+  let shared_users = folder
+    .get_shared_page_details(&view_id, params.is_fetch_from_cloud)
+    .await?;
   data_result_ok(shared_users.into())
 }
 
@@ -656,4 +650,64 @@ pub(crate) async fn get_all_views_with_permission_handler(
   let folder = upgrade_folder(folder)?;
   let views = folder.get_all_view_pbs_with_permission().await?;
   data_result_ok(RepeatedViewPB::from(views))
+}
+
+#[tracing::instrument(level = "debug", skip(folder))]
+pub(crate) async fn get_workspace_mentionable_persons_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<GetMentionablePersonsResponsePB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let mentionable_persons = folder.get_workspace_mentionable_persons().await?;
+  data_result_ok(mentionable_persons)
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn update_page_mention_handler(
+  data: AFPluginData<PageMentionUpdateInfoPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let info = &data.into_inner();
+  folder.update_page_mention(info).await
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn export_workspace_handler(
+  data: AFPluginData<ExportWorkspaceRequestPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let payload = data.into_inner();
+
+  let workspace_id = Uuid::from_str(&payload.workspace_id).map_err(|e| {
+    FlowyError::invalid_data().with_context(format!("Invalid workspace ID format: {}", e))
+  })?;
+
+  folder
+    .export_workspace(ExportRequest {
+      workspace_id,
+      output_path: payload.output_path,
+    })
+    .await
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn import_workspace_handler(
+  data: AFPluginData<ImportWorkspaceRequestPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let payload = data.into_inner();
+
+  let request = ImportRequest {
+    archive_path: payload.archive_path,
+    new_workspace_name: if payload.new_workspace_name.is_empty() {
+      None
+    } else {
+      Some(payload.new_workspace_name)
+    },
+  };
+
+  folder.import_workspace(request).await?;
+  Ok(())
 }

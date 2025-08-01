@@ -4,12 +4,16 @@ use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
+use client_api::entity::server_info_dto::ServerInfo;
 use client_api::v2::{
   ConnectState, DisconnectedReason, RetryConfig, WorkspaceController, WorkspaceControllerOptions,
 };
+use client_api::verify_signature;
 use dashmap::Entry;
 use flowy_error::{FlowyError, FlowyResult};
+use flowy_server_pub::server_info_dto::SignedServerInfoData;
 use flowy_server_pub::GotrueTokenResponse;
+use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::cloud::UserServerProvider;
 use flowy_user_pub::entities::WorkspaceType;
 use std::ops::Deref;
@@ -18,7 +22,53 @@ use tokio_stream::StreamExt;
 use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
 
+fn sync_server_info_for_user(
+  uid: i64,
+  server_provider: Weak<dyn UserServerProvider>,
+  store_preferences: Weak<KVStorePreferences>,
+) {
+  tokio::spawn(async move {
+    info!("Syncing server info for user: {}", uid);
+    let store_preferences = store_preferences
+      .upgrade()
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade store preferences"))?;
+
+    let server_provider = server_provider
+      .upgrade()
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade cloud service"))?;
+
+    let server_info = server_provider.sync_server_info(uid).await?;
+    let key = format!("server_info_{}", uid);
+
+    debug!("server info: {:?}", server_info);
+    store_preferences.set_object(&key, &server_info)?;
+    Ok::<_, FlowyError>(())
+  });
+}
+
 impl UserManager {
+  fn sync_server_info(&self, uid: i64) {
+    sync_server_info_for_user(
+      uid,
+      self.cloud_service.clone(),
+      Arc::downgrade(&self.store_preferences),
+    );
+  }
+
+  pub async fn get_server_info(&self) -> Option<ServerInfo> {
+    let uid = self.user_id().ok()?;
+    let key = format!("server_info_{}", uid);
+    let info = self.store_preferences.get_object::<ServerInfo>(&key)?;
+    let data = SignedServerInfoData::from(&info);
+    match verify_signature(&info.sig, &data) {
+      Ok(_) => Some(info),
+      Err(err) => {
+        error!("Failed to verify server info signature: {}", err);
+        None
+      },
+    }
+  }
+
   pub fn update_network_reachable(&self, reachable: bool) {
     if reachable {
       if let Ok(workspace_id) = self.workspace_id() {
@@ -108,6 +158,7 @@ impl UserManager {
 
   pub(crate) fn init_workspace_controller_if_need(
     &self,
+    uid: i64,
     workspace_id: &Uuid,
     workspace_type: &WorkspaceType,
     cloud_service: &Arc<dyn UserServerProvider>,
@@ -121,6 +172,9 @@ impl UserManager {
       "Initializing workspace controller for workspace: {}, type: {:?}, sync_enabled: {}",
       workspace_id, workspace_type, sync_enabled
     );
+
+    self.sync_server_info(uid);
+
     let controller = match entry {
       Entry::Occupied(mut value) => {
         value.get_mut().mark_active();
@@ -313,10 +367,7 @@ impl WorkspaceControllerLifeCycle {
       inactive_since: None,
       interceptors,
     };
-
-    if !matches!(this.workspace_type, WorkspaceType::Cloud) {
-      this.spawn_observe_workspace_notification();
-    }
+    this.spawn_observe_workspace_notification();
     this
   }
 
@@ -363,7 +414,6 @@ impl WorkspaceControllerLifeCycle {
   pub fn spawn_observe_workspace_notification(&self) {
     let weak_interceptors = self.interceptors.clone();
     let mut rx = self.controller.subscribe_notification();
-    let workspace_id = self.controller.workspace_id().to_string();
     tokio::spawn(async move {
       while let Ok(notification) = rx.recv().await {
         match weak_interceptors.upgrade() {
@@ -372,12 +422,12 @@ impl WorkspaceControllerLifeCycle {
             break;
           },
           Some(v) => {
-            send_notification(&workspace_id, UserNotification::ServerNotification)
-              .serde(&notification)
-              .send();
-
             if let Some(v) = v.load_full() {
-              v.notification.receive_notification(notification).await;
+              v.notification_handler
+                .handle_notification(notification)
+                .await;
+            } else {
+              debug!("Action interceptors is None, cannot handle notification");
             }
           },
         }

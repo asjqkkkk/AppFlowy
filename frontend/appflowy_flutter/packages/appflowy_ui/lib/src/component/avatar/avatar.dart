@@ -163,6 +163,11 @@ class AFAvatar extends StatelessWidget {
         avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
     final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
     final borderRadius = radius ?? size / 2;
+    final text = Text(
+      initial,
+      style: textStyle,
+      textAlign: TextAlign.center,
+    );
     return Container(
       width: size,
       height: size,
@@ -171,11 +176,12 @@ class AFAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: textStyle,
-        textAlign: TextAlign.center,
-      ),
+      child: isEmojiAvatarUrl
+          ? SizedBox(
+              width: textStyle.fontSize,
+              child: text,
+            )
+          : text,
     );
   }
 

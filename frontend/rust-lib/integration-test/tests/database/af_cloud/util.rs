@@ -50,6 +50,7 @@ pub fn make_test_summary_grid() -> DatabaseData {
     views: vec![view],
     fields,
     rows,
+    row_metas: Default::default(),
   }
 }
 

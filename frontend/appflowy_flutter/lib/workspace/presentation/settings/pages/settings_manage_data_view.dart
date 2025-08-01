@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/settings/settings.dart';
+import 'package:appflowy/features/workspace_import/presentation/workspace_import_dialog.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/appflowy_cache_manager.dart';
+import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/share_log_files.dart';
 import 'package:appflowy/workspace/application/settings/setting_file_importer_bloc.dart';
@@ -23,7 +25,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:fluttertoast/fluttertoast.dart';
@@ -56,9 +57,9 @@ class SettingsManageDataView extends StatelessWidget {
           }
         },
         builder: (context, state) {
-          // final _ = state.userDataLocation?.isCustom ?? false;
           final isCloudWorkspace =
               workspace.workspaceType == WorkspaceTypePB.ServerW;
+          final isCustom = state.userDataLocation?.isCustom ?? false;
           final path = state.userDataLocation?.path;
 
           return SettingsBody(
@@ -71,7 +72,7 @@ class SettingsManageDataView extends StatelessWidget {
                 tooltip:
                     LocaleKeys.settings_manageDataPage_dataStorage_tooltip.tr(),
                 actions: [
-                  if (isCloudWorkspace)
+                  if (isCustom)
                     SettingAction(
                       tooltip: LocaleKeys
                           .settings_manageDataPage_dataStorage_actions_resetTooltip
@@ -106,30 +107,48 @@ class SettingsManageDataView extends StatelessWidget {
                       },
                     ),
                 ],
-                children: path == null
-                    ? [
-                        const CircularProgressIndicator(),
-                      ]
-                    : [
-                        _CurrentPath(path: path),
-                        if (isCloudWorkspace) _DataPathActions(path: path),
-                      ],
+                children: [
+                  if (path == null)
+                    const CircularProgressIndicator()
+                  else
+                    _CurrentPath(path: path),
+                ],
               ),
-              SettingsCategory(
-                title: LocaleKeys.settings_manageDataPage_importData_title.tr(),
-                tooltip:
-                    LocaleKeys.settings_manageDataPage_importData_tooltip.tr(),
-                children: const [_ImportDataField()],
-              ),
-              if (kDebugMode) ...[
-                SettingsCategory(
-                  title: LocaleKeys.settings_files_exportData.tr(),
-                  children: const [
-                    SettingsExportFileWidget(),
-                    FixDataWidget(),
-                  ],
-                ),
-              ],
+              ...FeatureFlag.exportImport.isOn
+                  ? [
+                      if (isCloudWorkspace)
+                        SettingsCategory(
+                          title: LocaleKeys
+                              .workspaceImport_settings_importWorkspace
+                              .tr(),
+                          tooltip: LocaleKeys
+                              .workspaceImport_settings_importWorkspace_tooltip
+                              .tr(),
+                          children: const [_ImportWorkspaceField()],
+                        ),
+                      SettingsCategory(
+                        title: LocaleKeys
+                            .workspaceImport_settings_backupWorkspace
+                            .tr(),
+                        tooltip: LocaleKeys
+                            .workspaceImport_settings_backupWorkspace_tooltip
+                            .tr(),
+                        children: const [
+                          SettingsExportFileWidget(),
+                        ],
+                      ),
+                    ]
+                  : [
+                      SettingsCategory(
+                        title: LocaleKeys
+                            .settings_manageDataPage_importData_title
+                            .tr(),
+                        tooltip: LocaleKeys
+                            .settings_manageDataPage_importData_tooltip
+                            .tr(),
+                        children: const [_ImportDataField()],
+                      ),
+                    ],
               SettingsCategory(
                 title: LocaleKeys.workspace_errorActions_exportLogFiles.tr(),
                 children: [
@@ -138,8 +157,15 @@ class SettingsManageDataView extends StatelessWidget {
                     label:
                         LocaleKeys.workspace_errorActions_exportLogFiles.tr(),
                     buttonLabel: LocaleKeys.settings_files_export.tr(),
-                    onPressed: () {
-                      shareLogFiles(context);
+                    onPressed: () async {
+                      final customPath =
+                          await getIt<FilePickerService>().getDirectoryPath();
+                      if (customPath != null && context.mounted) {
+                        await shareLogFiles(
+                          context,
+                          customExportPath: customPath,
+                        );
+                      }
                     },
                   ),
                 ],
@@ -193,89 +219,14 @@ class SettingsManageDataView extends StatelessWidget {
   }
 }
 
-// class _EncryptDataSetting extends StatelessWidget {
-//   const _EncryptDataSetting({required this.userProfile});
-
-//   final UserProfilePB userProfile;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return BlocProvider<EncryptSecretBloc>.value(
-//       value: context.read<EncryptSecretBloc>(),
-//       child: BlocBuilder<EncryptSecretBloc, EncryptSecretState>(
-//         builder: (context, state) {
-//           if (state.loadingState?.isLoading() == true) {
-//             return const Row(
-//               children: [
-//                 SizedBox(
-//                   width: 20,
-//                   height: 20,
-//                   child: CircularProgressIndicator(
-//                     strokeWidth: 3,
-//                   ),
-//                 ),
-//                 HSpace(16),
-//                 FlowyText.medium(
-//                   'Encrypting data...',
-//                   fontSize: 14,
-//                 ),
-//               ],
-//             );
-//           }
-
-//           if (userProfile.encryptionType == EncryptionTypePB.NoEncryption) {
-//             return Row(
-//               children: [
-//                 SizedBox(
-//                   height: 42,
-//                   child: FlowyTextButton(
-//                     LocaleKeys.settings_manageDataPage_encryption_action.tr(),
-//                     padding: const EdgeInsets.symmetric(
-//                       horizontal: 24,
-//                       vertical: 12,
-//                     ),
-//                     fontWeight: FontWeight.w600,
-//                     radius: BorderRadius.circular(12),
-//                     fillColor: Theme.of(context).colorScheme.primary,
-//                     hoverColor: const Color(0xFF005483),
-//                     fontHoverColor: Colors.white,
-//                     onPressed: () => SettingsAlertDialog(
-//                       title: LocaleKeys
-//                           .settings_manageDataPage_encryption_dialog_title
-//                           .tr(),
-//                       subtitle: LocaleKeys
-//                           .settings_manageDataPage_encryption_dialog_description
-//                           .tr(),
-//                       confirmLabel: LocaleKeys
-//                           .settings_manageDataPage_encryption_dialog_title
-//                           .tr(),
-//                       implyLeading: true,
-//                       // Generate a secret one time for the user
-//                       confirm: () => context
-//                           .read<EncryptSecretBloc>()
-//                           .add(const EncryptSecretEvent.setEncryptSecret('')),
-//                     ).show(context),
-//                   ),
-//                 ),
-//               ],
-//             );
-//           }
-//           // Show encryption secret for copy/save
-//           return const SizedBox.shrink();
-//         },
-//       ),
-//     );
-//   }
-// }
-
 class _ImportDataField extends StatefulWidget {
   const _ImportDataField();
 
   @override
-  State<_ImportDataField> createState() => _ImportDataFieldState();
+  State<_ImportDataField> createState() => __ImportDataFieldState();
 }
 
-class _ImportDataFieldState extends State<_ImportDataField> {
+class __ImportDataFieldState extends State<_ImportDataField> {
   final _fToast = FToast();
 
   @override
@@ -317,6 +268,64 @@ class _ImportDataFieldState extends State<_ImportDataField> {
               context
                   .read<SettingFileImportBloc>()
                   .add(SettingFileImportEvent.importAppFlowyDataFolder(path));
+            },
+          );
+        },
+      ),
+    );
+  }
+
+  void _showToast(String message) {
+    _fToast.showToast(
+      child: FlowyMessageToast(message: message),
+      gravity: ToastGravity.CENTER,
+    );
+  }
+}
+
+class _ImportWorkspaceField extends StatefulWidget {
+  const _ImportWorkspaceField();
+
+  @override
+  State<_ImportWorkspaceField> createState() => _ImportWorkspaceFieldState();
+}
+
+class _ImportWorkspaceFieldState extends State<_ImportWorkspaceField> {
+  final _fToast = FToast();
+
+  @override
+  void initState() {
+    super.initState();
+    _fToast.init(context);
+  }
+
+  @override
+  void dispose() {
+    _fToast.removeQueuedCustomToasts();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider<SettingFileImportBloc>(
+      create: (context) => SettingFileImportBloc(),
+      child: BlocConsumer<SettingFileImportBloc, SettingFileImportState>(
+        listenWhen: (previous, current) =>
+            previous.successOrFail != current.successOrFail,
+        listener: (_, state) => state.successOrFail?.fold(
+          (_) => _showToast(LocaleKeys.settings_menu_importSuccess.tr()),
+          (_) => _showToast(LocaleKeys.settings_menu_importFailed.tr()),
+        ),
+        builder: (context, state) {
+          return SingleSettingAction(
+            label: LocaleKeys.workspaceImport_settings_importWorkspace_tooltip
+                .tr(),
+            labelMaxLines: 2,
+            buttonLabel: LocaleKeys
+                .workspaceImport_settings_importWorkspace_buttonText
+                .tr(),
+            onPressed: () async {
+              await WorkspaceImportDialog.show(context);
             },
           );
         },
@@ -448,29 +457,6 @@ class _CurrentPathState extends State<_CurrentPath> {
         if (mounted) {
           setState(() => showCopyMessage = false);
         }
-      },
-    );
-  }
-}
-
-class _DataPathActions extends StatelessWidget {
-  const _DataPathActions({required this.path});
-
-  final String path;
-
-  @override
-  Widget build(BuildContext context) {
-    return AFFilledTextButton.primary(
-      text: LocaleKeys.settings_manageDataPage_dataStorage_actions_change.tr(),
-      onTap: () async {
-        final path = await getIt<FilePickerService>().getDirectoryPath();
-        if (!context.mounted || path == null || path == path) {
-          return;
-        }
-
-        context
-            .read<DataLocationBloc>()
-            .add(DataLocationEvent.setCustomPath(path));
       },
     );
   }

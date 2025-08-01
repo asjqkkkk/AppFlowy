@@ -37,6 +37,7 @@ Future<T?> showMobileBottomSheet<T>(
   VoidCallback? onRemove,
   // this field is only used if showHeader is true
   String title = '',
+  String? doneText,
   bool isScrollControlled = true,
   bool showDivider = true,
   bool useRootNavigator = false,
@@ -107,6 +108,7 @@ Future<T?> showMobileBottomSheet<T>(
             showDoneButton: showDoneButton,
             showRemoveButton: showRemoveButton,
             title: title,
+            doneText: doneText,
             onRemove: onRemove,
             onDone: onDone,
           ),
@@ -176,8 +178,8 @@ class BottomSheetHeader extends StatelessWidget {
     required this.showBackButton,
     required this.showCloseButton,
     required this.showRemoveButton,
-    required this.title,
     required this.showDoneButton,
+    required this.title,
     this.backButtonBuilder,
     this.doneButtonBuilder,
     this.doneText,
@@ -198,7 +200,6 @@ class BottomSheetHeader extends StatelessWidget {
   final VoidCallback? onRemove;
   final VoidCallback? onBack;
   final VoidCallback? onClose;
-
   final ValueChanged<BuildContext>? onDone;
   final WidgetBuilder? backButtonBuilder;
   final WidgetBuilder? doneButtonBuilder;
@@ -215,9 +216,8 @@ class BottomSheetHeader extends StatelessWidget {
             if (showBackButton)
               Align(
                 alignment: Alignment.centerLeft,
-                child: BottomSheetBackButton(
-                  onTap: onBack,
-                ),
+                child: backButtonBuilder?.call(context) ??
+                    BottomSheetBackButton(onTap: onBack),
               ),
             if (showCloseButton)
               Align(
@@ -249,6 +249,7 @@ class BottomSheetHeader extends StatelessWidget {
                 alignment: Alignment.centerRight,
                 child: doneButtonBuilder?.call(context) ??
                     BottomSheetDoneButton(
+                      text: doneText,
                       onDone: () {
                         if (onDone != null) {
                           onDone?.call(context);

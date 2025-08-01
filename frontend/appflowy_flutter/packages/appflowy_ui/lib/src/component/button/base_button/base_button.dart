@@ -34,7 +34,7 @@ class AFBaseButton extends StatefulWidget {
 
   final AFBaseButtonBorderColorBuilder? borderColor;
   final AFBaseButtonBorderColorBuilder? ringColor;
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   final EdgeInsetsGeometry padding;
   final double borderRadius;
@@ -143,7 +143,8 @@ class _AFBaseButtonState extends State<AFBaseButton> {
 
   Color _buildBackgroundColor(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    return widget.backgroundColor?.call(context, isHovering, widget.disabled) ??
+    return widget.backgroundColor
+            ?.call(context, isHovering, widget.disabled, isFocused) ??
         theme.fillColorScheme.content;
   }
 

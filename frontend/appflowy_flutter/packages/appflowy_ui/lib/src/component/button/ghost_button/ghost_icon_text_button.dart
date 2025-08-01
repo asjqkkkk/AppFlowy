@@ -45,7 +45,7 @@ class AFGhostIconTextButton extends StatelessWidget {
       borderRadius: borderRadius,
       disabled: disabled,
       mainAxisAlignment: mainAxisAlignment,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return Colors.transparent;
@@ -85,7 +85,7 @@ class AFGhostIconTextButton extends StatelessWidget {
       borderRadius: borderRadius,
       disabled: true,
       mainAxisAlignment: mainAxisAlignment,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         return Colors.transparent;
       },
       textColor: (context, isHovering, disabled) {
@@ -105,7 +105,7 @@ class AFGhostIconTextButton extends StatelessWidget {
   final AFGhostIconBuilder iconBuilder;
 
   final AFBaseButtonColorBuilder? textColor;
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   final MainAxisAlignment mainAxisAlignment;
 

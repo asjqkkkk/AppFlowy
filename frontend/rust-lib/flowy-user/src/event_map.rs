@@ -2,6 +2,7 @@ use crate::event_handler::*;
 use crate::services::entities::{UserConfig, UserPaths};
 use crate::user_manager::UserManager;
 use client_api::entity::billing_dto::{PersonalPlan, SubscriptionPlan};
+use client_api::entity::WorkspaceNotification;
 use client_api::v2::WorkspaceController;
 use flowy_derive::{Flowy_Event, ProtoBuf_Enum};
 use flowy_error::FlowyResult;
@@ -377,6 +378,8 @@ pub trait AppLifeCycle: Send + Sync + 'static {
   }
 
   async fn on_cancel_personal_subscriptions(&self, _plan: &PersonalPlan) {}
+
+  async fn on_receive_workspace_notification(&self, _notification: &WorkspaceNotification) {}
 }
 
 /// Acts as a placeholder [AppLifeCycle] for the user session, but does not perform any function

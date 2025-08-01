@@ -1,3 +1,4 @@
+import 'package:appflowy/plugins/document/presentation/editor_plugins/base/toolbar_extension.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/link_preview/paste_as/paste_as_menu.dart';
 import 'package:appflowy/shared/markdown_to_document.dart';
 import 'package:appflowy/shared/patterns/common_patterns.dart';
@@ -59,9 +60,8 @@ extension PasteFromPlainText on EditorState {
     }
 
     final node = getNodeAtPath(selection.start.path);
-    if (node == null) {
-      return false;
-    }
+    if (node == null) return false;
+    if (containsMention(selection, node)) return false;
 
     final transaction = this.transaction;
     transaction.formatText(node, selection.startIndex, selection.length, {

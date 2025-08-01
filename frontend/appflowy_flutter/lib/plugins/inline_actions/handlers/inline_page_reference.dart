@@ -5,18 +5,17 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/base/inser
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_block.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_page_block.dart';
-import 'package:appflowy/plugins/inline_actions/inline_actions_menu.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_result.dart';
 import 'package:appflowy/plugins/inline_actions/service_handler.dart';
 import 'package:appflowy/shared/flowy_error_page.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/list_extension.dart';
-import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/recent/cached_recent_service.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/dialog/styled_dialogs.dart';
@@ -54,8 +53,6 @@ class InlinePageReferenceService extends InlineActionsDelegate {
   ///
   final int limitResults;
 
-  late final CachedRecentService _recentService;
-
   bool _recentViewsInitialized = false;
   late final List<InlineActionsMenuItem> _recentViews;
 
@@ -66,7 +63,7 @@ class InlinePageReferenceService extends InlineActionsDelegate {
 
     _recentViewsInitialized = true;
 
-    final sectionViews = await _recentService.recentViews();
+    final sectionViews = await readRecentViews();
     final views =
         sectionViews.unique((e) => e.item.id).map((e) => e.item).toList();
 
@@ -102,7 +99,6 @@ class InlinePageReferenceService extends InlineActionsDelegate {
   }
 
   Future<void> init() async {
-    _recentService = getIt<CachedRecentService>();
     // _searchListener.start(onResultsClosed: _onResults);
   }
 
@@ -154,84 +150,6 @@ class InlinePageReferenceService extends InlineActionsDelegate {
     );
   }
 
-  Future<void> _onInsertPageRef(
-    ViewPB view,
-    BuildContext context,
-    EditorState editorState,
-    (int, int) replace,
-  ) async {
-    final selection = editorState.selection;
-    if (selection == null || !selection.isCollapsed) {
-      return;
-    }
-
-    final node = editorState.getNodeAtPath(selection.start.path);
-
-    if (node != null) {
-      // Delete search term
-      if (replace.$2 > 0) {
-        final transaction = editorState.transaction
-          ..deleteText(node, replace.$1, replace.$2);
-        await editorState.apply(transaction);
-      }
-
-      // Insert newline before inserting referenced database
-      if (node.delta?.toPlainText().isNotEmpty == true) {
-        await editorState.insertNewLine();
-      }
-    }
-
-    try {
-      await editorState.insertReferencePage(view, view.layout);
-    } on FlowyError catch (e) {
-      if (context.mounted) {
-        return Dialogs.show(
-          context,
-          child: AppFlowyErrorPage(
-            error: e,
-          ),
-        );
-      }
-    }
-  }
-
-  Future<void> _onInsertLinkRef(
-    ViewPB view,
-    BuildContext context,
-    EditorState editorState,
-    InlineActionsMenuService menuService,
-    (int, int) replace,
-  ) async {
-    final selection = editorState.selection;
-    if (selection == null || !selection.isCollapsed) {
-      return;
-    }
-
-    final node = editorState.getNodeAtPath(selection.start.path);
-    final delta = node?.delta;
-    if (node == null || delta == null) {
-      return;
-    }
-
-    // @page name -> $
-    // preload the page infos
-    pageMemorizer[view.id] = view;
-    final transaction = editorState.transaction
-      ..replaceText(
-        node,
-        replace.$1,
-        replace.$2,
-        MentionBlockKeys.mentionChar,
-        attributes: MentionBlockKeys.buildMentionPageAttributes(
-          mentionType: MentionType.page,
-          pageId: view.id,
-          blockId: null,
-        ),
-      );
-
-    await editorState.apply(transaction);
-  }
-
   InlineActionsMenuItem _fromView(ViewPB view) => InlineActionsMenuItem(
         keywords: [view.nameOrDefault.toLowerCase()],
         label: view.nameOrDefault,
@@ -249,8 +167,8 @@ class InlinePageReferenceService extends InlineActionsDelegate {
           );
         },
         onSelected: (context, editorState, menu, replace) => insertPage
-            ? _onInsertPageRef(view, context, editorState, replace)
-            : _onInsertLinkRef(view, context, editorState, menu, replace),
+            ? editorState.insertPage(view, context, replace)
+            : editorState.insertPageLinkRef(view, replace),
       );
 
 // Future<InlineActionsMenuItem?> _fromSearchResult(
@@ -264,4 +182,73 @@ class InlinePageReferenceService extends InlineActionsDelegate {
 
 //   return _fromView(view);
 // }
+}
+
+extension InlinePageReferenceEditorStateExtension on EditorState {
+  Future<void> insertPageLinkRef(ViewPB view, (int, int) replace) async {
+    final selection = this.selection;
+    if (selection == null || !selection.isCollapsed) return;
+
+    final node = getNodeAtPath(selection.start.path);
+    final delta = node?.delta;
+    if (node == null || delta == null) return;
+
+    // @page name -> $
+    // preload the page infos
+    pageMemorizer[view.id] = view;
+    final transaction = this.transaction
+      ..replaceText(
+        node,
+        replace.$1,
+        replace.$2,
+        MentionBlockKeys.mentionChar,
+        attributes: MentionBlockKeys.buildMentionPageAttributes(
+          mentionType: MentionType.page,
+          pageId: view.id,
+          blockId: null,
+        ),
+      );
+
+    await apply(transaction);
+  }
+}
+
+extension InlinePageEditorStateExtension on EditorState {
+  Future<void> insertPage(
+    ViewPB view,
+    BuildContext context,
+    (int, int) replace,
+  ) async {
+    final selection = this.selection;
+    if (selection == null || !selection.isCollapsed) return;
+
+    final node = getNodeAtPath(selection.start.path);
+
+    if (node != null) {
+      // Delete search term
+      if (replace.$2 > 0) {
+        final transaction = this.transaction
+          ..deleteText(node, replace.$1, replace.$2);
+        await apply(transaction);
+      }
+
+      // Insert newline before inserting referenced database
+      if (node.delta?.toPlainText().isNotEmpty == true) {
+        await this.insertNewLine();
+      }
+    }
+
+    try {
+      await insertReferencePage(view, view.layout);
+    } on FlowyError catch (e) {
+      if (context.mounted) {
+        return Dialogs.show(
+          context,
+          child: AppFlowyErrorPage(
+            error: e,
+          ),
+        );
+      }
+    }
+  }
 }

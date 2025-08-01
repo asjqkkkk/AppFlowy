@@ -46,14 +46,13 @@ flowy-ai = { workspace = true }
 chrono.workspace = true
 workspace-template.workspace = true
 url = "2.5.0"
+base64 = "0.22.1"
 
 [dependencies.client-api]
 workspace = true
 features = [
   "test_util",
   "enable_brotli",
-  # Uncomment the following line to enable verbose logging for sync
-  # "sync_verbose_log",
 ]
 
 [dev-dependencies]

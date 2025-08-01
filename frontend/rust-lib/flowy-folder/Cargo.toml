@@ -9,6 +9,9 @@ edition = "2024"
 collab = { workspace = true }
 collab-folder = { workspace = true }
 collab-entity = { workspace = true }
+collab-database = { workspace = true }
+collab-document = { workspace = true }
+collab-importer = { workspace = true }
 flowy-folder-pub = { workspace = true }
 flowy-user-pub = { workspace = true }
 flowy-search-pub = { workspace = true }
@@ -37,13 +40,18 @@ async-trait.workspace = true
 client-api = { workspace = true }
 regex = "1.9.5"
 futures = "0.3.31"
-dashmap.workspace = true
+dashmap = "5"
 num_enum.workspace = true
+zip = "0.6"
 moka.workspace = true
-
+chrono.workspace = true
 
 [build-dependencies]
 flowy-codegen.workspace = true
+
+[dev-dependencies]
+tempfile = "3.0"
+chrono.workspace = true
 
 [features]
 dart = ["flowy-codegen/dart", "flowy-notification/dart"]

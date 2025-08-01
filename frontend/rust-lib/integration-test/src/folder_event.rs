@@ -177,7 +177,6 @@ impl EventIntegrationTest {
         layout: view.layout.into(),
         view_id: Uuid::from_str(&view.id).unwrap(),
         initial_data: ViewData::Empty,
-        meta: Default::default(),
         set_as_current: false,
         index: None,
         section: None,
@@ -328,7 +327,6 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Document,
       initial_data: vec![],
-      meta: Default::default(),
       set_as_current: false,
       index: None,
       section: None,
@@ -350,7 +348,6 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout: ViewLayoutPB::Document,
       initial_data: vec![],
-      meta: Default::default(),
       set_as_current: false,
       index: None,
       section: Some(ViewSectionPB::Private),
@@ -386,7 +383,6 @@ impl EventIntegrationTest {
       thumbnail: None,
       layout,
       initial_data: vec![],
-      meta: Default::default(),
       set_as_current: false,
       index: None,
       section: None,
@@ -445,6 +441,18 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse::<RepeatedViewPB>()
+  }
+
+  pub async fn import_workspace(
+    &self,
+    data: ImportWorkspaceRequestPB,
+  ) -> ImportWorkspaceResponsePB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::ImportWorkspace)
+      .payload(data)
+      .async_send()
+      .await
+      .parse_or_panic::<ImportWorkspaceResponsePB>()
   }
 
   pub async fn get_view_ancestors(&self, view_id: &str) -> Vec<ViewPB> {
@@ -583,19 +591,21 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
         view_id: view_id.to_string(),
+        is_fetch_from_cloud: true,
       })
       .async_send()
       .await
       .parse::<RepeatedSharedUserPB>();
 
     // wait for 1 second to make sure the cache is refreshed
-    tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    tokio::time::sleep(std::time::Duration::from_secs(2)).await;
 
     // fetch from cloud
     EventBuilder::new(self.clone())
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
         view_id: view_id.to_string(),
+        is_fetch_from_cloud: true,
       })
       .async_send()
       .await
@@ -679,7 +689,6 @@ impl ViewTest {
       thumbnail: Some("http://1.png".to_string()),
       layout: layout.into(),
       initial_data: data,
-      meta: Default::default(),
       set_as_current: true,
       index: None,
       section: None,

@@ -3,8 +3,10 @@ import 'dart:async';
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/guest_tag.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace_import/workspace_import.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/auth/auth_service.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
@@ -53,6 +55,7 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
@@ -67,7 +70,7 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
                   _getUserInfo(),
                   fontSize: 12.0,
                   overflow: TextOverflow.ellipsis,
-                  color: Theme.of(context).hintColor,
+                  color: theme.textColorScheme.secondary,
                 ),
               ),
               const HSpace(4.0),
@@ -110,10 +113,11 @@ class _WorkspacesMenuState extends State<WorkspacesMenu> {
           child: _CreateWorkspaceButton(),
         ),
 
-        if (UniversalPlatform.isDesktop) ...[
+        if (UniversalPlatform.isDesktop &&
+            widget.currentWorkspace.workspaceType != WorkspaceTypePB.Vault) ...[
           const Padding(
             padding: EdgeInsets.only(left: 6.0, top: 6.0, right: 6.0),
-            child: _ImportNotionButton(),
+            child: _ImportWorkspaceButton(),
           ),
         ],
 
@@ -179,7 +183,7 @@ class _WorkspaceMenuItemState extends State<WorkspaceMenuItem> {
           //  cause the popover dismiss intermediately when click the right icon.
           // so using the stack to put the right icon on the flowy button.
           return SizedBox(
-            height: 44,
+            height: 50,
             child: MouseRegion(
               onEnter: (_) => isHovered.value = true,
               onExit: (_) => isHovered.value = false,
@@ -288,6 +292,11 @@ class _WorkspaceInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     final memberCount = workspace.memberCount.toInt();
+    final memberCountText = memberCount == 0
+        ? ''
+        : LocaleKeys.settings_appearance_members_membersCount.plural(
+            memberCount,
+          );
 
     return FlowyButton(
       onTap: () => _openWorkspace(context),
@@ -311,7 +320,7 @@ class _WorkspaceInfo extends StatelessWidget {
                         preferBelow: true,
                         child: Text(
                           workspace.name,
-                          style: theme.textStyle.body.enhanced(
+                          style: theme.textStyle.body.standard(
                             color: theme.textColorScheme.primary,
                           ),
                           overflow: TextOverflow.ellipsis,
@@ -331,16 +340,11 @@ class _WorkspaceInfo extends StatelessWidget {
                 if (workspace.role != AFRolePB.Guest &&
                     workspace.workspaceType == WorkspaceTypePB.ServerW)
                   // workspace members count
-                  FlowyText.regular(
-                    memberCount == 0
-                        ? ''
-                        : LocaleKeys.settings_appearance_members_membersCount
-                            .plural(
-                            memberCount,
-                          ),
-                    fontSize: 10.0,
-                    figmaLineHeight: 12.0,
-                    color: Theme.of(context).hintColor,
+                  Text(
+                    memberCountText,
+                    style: theme.textStyle.caption.standard(
+                      color: theme.textColorScheme.secondary,
+                    ),
                   ),
                 if (workspace.workspaceType == WorkspaceTypePB.Vault)
                   FlowyText.regular(
@@ -386,6 +390,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return SizedBox(
       height: 44,
       child: FlowyButton(
@@ -399,8 +404,11 @@ class _CreateWorkspaceButton extends StatelessWidget {
           children: [
             _buildLeftIcon(context),
             const HSpace(8.0),
-            FlowyText.regular(
+            Text(
               LocaleKeys.workspace_create.tr(),
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
             ),
           ],
         ),
@@ -422,92 +430,6 @@ class _CreateWorkspaceButton extends StatelessWidget {
       ),
       child: const FlowySvg(FlowySvgs.add_workspace_s),
     );
-  }
-}
-
-class _ImportNotionButton extends StatelessWidget {
-  const _ImportNotionButton();
-
-  @override
-  Widget build(BuildContext context) {
-    return SizedBox(
-      height: 44,
-      child: FlowyButton(
-        key: importNotionButtonKey,
-        onTap: () {
-          _showImportNotionDialog(context);
-        },
-        margin: const EdgeInsets.symmetric(horizontal: 4.0),
-        text: Row(
-          children: [
-            _buildLeftIcon(context),
-            const HSpace(8.0),
-            FlowyText.regular(
-              LocaleKeys.workspace_importFromNotion.tr(),
-            ),
-          ],
-        ),
-        rightIcon: FlowyTooltip(
-          message: LocaleKeys.workspace_learnMore.tr(),
-          preferBelow: true,
-          child: FlowyIconButton(
-            icon: const FlowySvg(
-              FlowySvgs.information_s,
-            ),
-            onPressed: () {
-              afLaunchUrlString(
-                'https://docs.appflowy.io/docs/guides/import-from-notion',
-              );
-            },
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLeftIcon(BuildContext context) {
-    return Container(
-      width: 36.0,
-      height: 36.0,
-      padding: const EdgeInsets.all(7.0),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: const Color(0x01717171).withValues(alpha: 0.12),
-          width: 0.8,
-        ),
-      ),
-      child: const FlowySvg(FlowySvgs.add_workspace_s),
-    );
-  }
-
-  Future<void> _showImportNotionDialog(BuildContext context) async {
-    final result = await getIt<FilePickerService>().pickFiles(
-      type: FileType.custom,
-      allowedExtensions: ['zip'],
-    );
-
-    if (result == null || result.files.isEmpty) {
-      return;
-    }
-
-    final path = result.files.first.path;
-    if (path == null) {
-      return;
-    }
-
-    if (context.mounted) {
-      PopoverContainer.of(context).closeAll();
-      await NavigatorCustomDialog(
-        hideCancelButton: true,
-        confirm: () {},
-        child: NotionImporter(
-          filePath: path,
-        ),
-      ).show(context);
-    } else {
-      Log.error('context is not mounted when showing import notion dialog');
-    }
   }
 }
 
@@ -550,5 +472,166 @@ class WorkspaceMoreButton extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _ImportWorkspaceButton extends StatefulWidget {
+  const _ImportWorkspaceButton();
+
+  @override
+  State<_ImportWorkspaceButton> createState() => _ImportWorkspaceButtonState();
+}
+
+class _ImportWorkspaceButtonState extends State<_ImportWorkspaceButton> {
+  final AFPopoverController popoverController = AFPopoverController();
+
+  @override
+  void dispose() {
+    popoverController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    return AFPopover(
+      controller: popoverController,
+      anchor: const AFAnchorAuto(
+        offset: Offset(128, 0),
+        targetAnchor: Alignment.topRight,
+      ),
+      padding: EdgeInsets.zero,
+      decoration: BoxDecoration(),
+      popover: (_) => _ImportMenu(controller: popoverController),
+      child: SizedBox(
+        height: 44,
+        child: FlowyButton(
+          onTap: () => popoverController.toggle(),
+          margin: const EdgeInsets.symmetric(horizontal: 4.0),
+          text: Row(
+            children: [
+              _buildLeftIcon(context),
+              const HSpace(8.0),
+              Text(
+                LocaleKeys.workspace_importWorkspace.tr(),
+                style: theme.textStyle.body.standard(
+                  color: theme.textColorScheme.primary,
+                ),
+              ),
+              const Spacer(),
+              FlowySvg(
+                FlowySvgs.arrow_right_s,
+                size: Size.square(16.0),
+                color: theme.iconColorScheme.tertiary,
+              ),
+              HSpace(theme.spacing.m),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLeftIcon(BuildContext context) {
+    return Container(
+      width: 36.0,
+      height: 36.0,
+      padding: const EdgeInsets.all(7.0),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: const Color(0x01717171).withValues(alpha: 0.12),
+          width: 0.8,
+        ),
+      ),
+      child: const FlowySvg(FlowySvgs.add_workspace_s),
+    );
+  }
+}
+
+class _ImportMenu extends StatelessWidget {
+  const _ImportMenu({
+    required this.controller,
+  });
+
+  final AFPopoverController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
+    return AFMenu(
+      width: 240,
+      children: [
+        if (FeatureFlag.exportImport.isOn)
+          AFMenuItem(
+            title: Text(
+              LocaleKeys.workspace_importFromAppFlowy.tr(),
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
+            ),
+            onTap: () async {
+              controller.hide();
+              PopoverContainer.of(context).closeAll();
+              await WorkspaceImportDialog.show(context);
+            },
+          ),
+        AFMenuItem(
+          title: Text(
+            LocaleKeys.workspace_importFromNotion.tr(),
+            style: theme.textStyle.body.standard(
+              color: theme.textColorScheme.primary,
+            ),
+          ),
+          trailing: (context, isHovering, disabled) => FlowyTooltip(
+            message: LocaleKeys.workspace_learnMore.tr(),
+            child: AFGhostButton.normal(
+              padding: EdgeInsets.all(theme.spacing.xs),
+              onTap: () => afLaunchUrlString(
+                'https://docs.appflowy.io/docs/guides/import-from-notion',
+              ),
+              builder: (context, isHovering, disabled) => const FlowySvg(
+                FlowySvgs.information_s,
+                size: Size.square(16.0),
+              ),
+            ),
+          ),
+          onTap: () {
+            controller.hide();
+            _showImportNotionDialog(context);
+          },
+        ),
+      ],
+    );
+  }
+
+  Future<void> _showImportNotionDialog(BuildContext context) async {
+    final result = await getIt<FilePickerService>().pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['zip'],
+    );
+
+    if (result == null || result.files.isEmpty) {
+      return;
+    }
+
+    final path = result.files.first.path;
+    if (path == null) {
+      return;
+    }
+
+    if (context.mounted) {
+      PopoverContainer.of(context).closeAll();
+      await NavigatorCustomDialog(
+        hideCancelButton: true,
+        confirm: () {},
+        child: NotionImporter(
+          filePath: path,
+        ),
+      ).show(context);
+    } else {
+      Log.error('context is not mounted when showing import notion dialog');
+    }
   }
 }

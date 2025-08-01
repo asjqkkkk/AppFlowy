@@ -38,5 +38,7 @@ pub trait LoggedUser: Send + Sync {
 
   fn application_root_dir(&self) -> Result<PathBuf, FlowyError>;
 
+  fn http_cache_dir(&self) -> PathBuf;
+
   fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
 }

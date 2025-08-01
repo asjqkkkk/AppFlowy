@@ -21,7 +21,7 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::UpdateView, update_view_handler)
     .event(FolderEvent::DeleteView, delete_view_handler)
     .event(FolderEvent::DuplicateView, duplicate_view_handler)
-    .event(FolderEvent::SetLatestView, set_latest_view_handler)
+    .event(FolderEvent::OpenView, open_view_handler)
     .event(FolderEvent::CloseView, close_view_handler)
     .event(FolderEvent::MoveView, move_view_handler)
     .event(FolderEvent::MoveNestedView, move_nested_view_handler)
@@ -64,6 +64,11 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::GetAccessLevel, get_access_level_handler)
     .event(FolderEvent::BatchPermissionCheck, batch_permission_check_handler)
     .event(FolderEvent::GetAllViewsWithPermission, get_all_views_with_permission_handler)
+    .event(FolderEvent::GetWorkspaceMentionablePersons, get_workspace_mentionable_persons_handler)
+    // .event(FolderEvent::GetPageMentionablePersons, get_page_mentionable_persons_handler)
+    .event(FolderEvent::UpdatePageMention, update_page_mention_handler)
+    .event(FolderEvent::ExportWorkspace, export_workspace_handler)
+    .event(FolderEvent::ImportWorkspace, import_workspace_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -127,7 +132,7 @@ pub enum FolderEvent {
 
   /// Set the current visiting view
   #[event(input = "ViewIdPB")]
-  SetLatestView = 21,
+  OpenView = 21,
 
   /// Move the view or app to another place
   #[event(input = "MoveViewPayloadPB")]
@@ -266,4 +271,16 @@ pub enum FolderEvent {
 
   #[event(output = "RepeatedViewPB")]
   GetAllViewsWithPermission = 65,
+
+  #[event(output = "GetMentionablePersonsResponsePB")]
+  GetWorkspaceMentionablePersons = 66,
+
+  #[event(input = "PageMentionUpdateInfoPB")]
+  UpdatePageMention = 67,
+
+  #[event(input = "ExportWorkspaceRequestPB")]
+  ExportWorkspace = 150,
+
+  #[event(input = "ImportWorkspaceRequestPB")]
+  ImportWorkspace = 151,
 }

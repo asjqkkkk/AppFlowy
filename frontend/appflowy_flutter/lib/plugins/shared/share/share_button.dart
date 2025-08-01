@@ -21,9 +21,11 @@ class ShareButton extends StatelessWidget {
   const ShareButton({
     super.key,
     required this.view,
+    this.shareTabBloc,
   });
 
   final ViewPB view;
+  final ShareTabBloc? shareTabBloc;
 
   @override
   Widget build(BuildContext context) {
@@ -47,6 +49,7 @@ class ShareButton extends StatelessWidget {
           ),
         BlocProvider(
           create: (context) {
+            if (shareTabBloc != null) return shareTabBloc!;
             final bloc = ShareTabBloc(
               repository: RustShareWithUserRepositoryImpl(),
               pageId: view.id,

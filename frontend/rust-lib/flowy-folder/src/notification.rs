@@ -36,12 +36,15 @@ pub enum FolderNotification {
   DidUnfavoriteView = 37,
 
   DidUpdateRecentViews = 38,
-
   /// Trigger when the ROOT views (the first level) in section are updated
   DidUpdateSectionViews = 39,
 
   DidUpdateSharedViews = 40,
   DidUpdateSharedUsers = 41,
+  /// Trigger when a single mentionable person is updated (role changes, new mentions, etc.)
+  DidUpdateMentionablePerson = 42,
+  /// Trigger when all mentionable persons are refreshed from remote server
+  DidUpdateMentionablePersons = 43,
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

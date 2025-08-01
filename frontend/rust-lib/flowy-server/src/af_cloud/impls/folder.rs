@@ -1,18 +1,21 @@
-use client_api::entity::workspace_dto::PublishInfoView;
+use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CollabParams, PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams,
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
+use flowy_server_pub::CreateImportTaskType;
 use flowy_server_pub::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
+use flowy_server_pub::{MentionablePersons, PageMentionUpdate};
 use serde_json::to_vec;
 use std::path::PathBuf;
 use std::sync::Weak;
 use tracing::{instrument, trace};
 use uuid::Uuid;
 
+use flowy_ai_pub::cloud::workspace_dto::AddRecentPagesParams;
 use flowy_error::FlowyError;
 use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
@@ -257,10 +260,17 @@ where
     Ok(namespace)
   }
 
-  async fn import_zip(&self, file_path: &str) -> Result<(), FlowyError> {
+  async fn import_zip(
+    &self,
+    file_path: &str,
+    task_type: CreateImportTaskType,
+  ) -> Result<(), FlowyError> {
     let file_path = PathBuf::from(file_path);
     let client = self.inner.try_get_client()?;
-    let url = client.create_import(&file_path).await?.presigned_url;
+    let url = client
+      .create_import(&file_path, task_type)
+      .await?
+      .presigned_url;
     trace!(
       "Importing zip file: {} to url: {}",
       file_path.display(),
@@ -319,5 +329,80 @@ where
       .await
       .map_err(FlowyError::from)?;
     Ok(resp)
+  }
+
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .list_workspace_mentionable_persons(workspace_id)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(resp)
+  }
+
+  async fn update_page_mention(
+    &self,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    page_mention: &PageMentionUpdate,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    try_get_client?
+      .update_page_mention(workspace_id, view_id, page_mention)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(())
+  }
+  async fn get_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    limit: u32,
+    offset: u32,
+  ) -> Result<Vec<RecentViewItem>, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_workspace_recent_with_pagination(workspace_id, Some(limit), Some(offset))
+      .await?;
+    Ok(
+      resp
+        .views
+        .into_iter()
+        .map(|v| RecentViewItem {
+          object_id: v.view.view_id,
+          viewed_at: v.last_viewed_at,
+        })
+        .collect(),
+    )
+  }
+
+  async fn add_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let params = AddRecentPagesParams {
+      recent_view_ids: view_ids,
+    };
+    try_get_client?
+      .add_recent_pages(*workspace_id, &params)
+      .await?;
+    Ok(())
+  }
+
+  async fn delete_recent_views(
+    &self,
+    workspace_id: &Uuid,
+    view_ids: Vec<Uuid>,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    try_get_client?
+      .remove_recent_pages(*workspace_id, view_ids)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(())
   }
 }

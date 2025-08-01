@@ -10,12 +10,14 @@ class AFTextMenuItem extends StatelessWidget {
     super.key,
     required this.title,
     required this.onTap,
+    this.maxTitleLine,
     this.leading,
     this.subtitle,
     this.selected = false,
     this.trailing,
     this.titleColor,
     this.subtitleColor,
+    this.backgroundColor,
     this.showSelectedBackground = true,
   });
 
@@ -24,6 +26,9 @@ class AFTextMenuItem extends StatelessWidget {
 
   /// The main text of the menu item.
   final String title;
+
+  /// The maximum number of lines for the title.
+  final int? maxTitleLine;
 
   /// The color of the title.
   final Color? titleColor;
@@ -46,6 +51,9 @@ class AFTextMenuItem extends StatelessWidget {
   /// Widget to display after the title (e.g., a trailing icon).
   final AFMenuItemBuilder? trailing;
 
+  /// background color of the menu item.
+  final AFMenuItemColorBuilder? backgroundColor;
+
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
@@ -55,6 +63,8 @@ class AFTextMenuItem extends StatelessWidget {
         style: theme.textStyle.body.standard(
           color: titleColor ?? theme.textColorScheme.primary,
         ),
+        maxLines: maxTitleLine,
+        overflow: TextOverflow.ellipsis,
       ),
       subtitle: subtitle != null
           ? Text(
@@ -69,6 +79,7 @@ class AFTextMenuItem extends StatelessWidget {
       selected: selected,
       showSelectedBackground: showSelectedBackground,
       onTap: onTap,
+      backgroundColor: backgroundColor,
     );
   }
 }

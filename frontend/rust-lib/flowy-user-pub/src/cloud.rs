@@ -9,6 +9,7 @@ use client_api::entity::billing_dto::WorkspaceSubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
 use client_api::entity::billing_dto::{PersonalPlan, RecurringInterval};
 use client_api::entity::billing_dto::{PersonalSubscriptionStatus, SubscriptionPlan};
+use client_api::entity::dto::server_info_dto::ServerInfo;
 pub use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use collab::preclude::ClientID;
 use collab_entity::CollabType;
@@ -71,6 +72,7 @@ pub trait UserServerProvider: Send + Sync {
   fn set_auth_provider(&self, auth_type: &AuthProvider) -> Result<(), FlowyError>;
   fn set_network_reachable(&self, reachable: bool);
   fn set_encrypt_secret(&self, secret: String);
+  async fn sync_server_info(&self, uid: i64) -> Result<ServerInfo, FlowyError>;
   fn current_workspace_service(&self) -> Result<Arc<dyn UserWorkspaceService>, FlowyError>;
   fn workspace_service(
     &self,

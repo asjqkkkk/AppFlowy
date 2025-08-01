@@ -376,6 +376,7 @@ class AiWriterCubit extends Cubit<AiWriterState> {
     if (aiWriterNode == null) {
       return;
     }
+    final selection = aiWriterNode!.aiWriterSelection;
     final command = AiWriterCommand.userQuestion;
 
     final stream = await _aiService.streamCompletion(
@@ -387,6 +388,13 @@ class AiWriterCubit extends Cubit<AiWriterState> {
       sourceIds: selectedSourcesNotifier.value,
       completionType: command.toCompletionType(),
       onStart: () async {
+        if (selection != null) {
+          await formatSelection(
+            editorState,
+            selection,
+            ApplySuggestionFormatType.original,
+          );
+        }
         final position = await ensurePreviousNodeIsEmptyParagraph(
           editorState,
           aiWriterNode!,

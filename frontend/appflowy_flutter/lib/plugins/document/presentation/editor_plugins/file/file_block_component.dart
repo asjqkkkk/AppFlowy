@@ -1,14 +1,20 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/env/cloud_env.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_option_tile.dart';
+import 'package:appflowy/plugins/database/grid/application/row/row_detail_bloc.dart';
+import 'package:appflowy/plugins/database/grid/application/row/row_document_bloc.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_drop_manager.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/mobile_block_action_buttons.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_util.dart';
+import 'package:appflowy/shared/patterns/file_type_patterns.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/toast.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/file_entities.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -348,7 +354,8 @@ class FileBlockComponentState extends State<FileBlockComponent>
     FileUrlType urlType,
     String url,
   ) async {
-    await afLaunchUrlString(url, context: context);
+    final normalizedUrl = normalizeFileUrl(context, fileId: url);
+    await afLaunchUrlString(normalizedUrl, context: context);
   }
 
   void _openMenu() {
@@ -647,4 +654,42 @@ class FileMenuTrigger extends StatelessWidget {
       ),
     );
   }
+}
+
+/// If the url is a fileId.ext, we need to remap it to workspace_id/object_id/fileId.ext
+String normalizeFileUrl(
+  BuildContext context, {
+  String? baseUrl,
+  required String fileId,
+}) {
+  baseUrl ??= getAppFlowyCloudShareEnvBaseUrl();
+
+  final workspaceId =
+      context.read<UserWorkspaceBloc?>()?.state.currentWorkspace?.workspaceId;
+  if (workspaceId == null) {
+    return fileId;
+  }
+
+  if (filePathWithIdAndExtRegex.hasMatch(fileId)) {
+    if (baseUrl == 'http://localhost') {
+      return '$baseUrl:8000/api/file_storage/$workspaceId/v1/blob/$fileId';
+    }
+    return '$baseUrl/api/file_storage/$workspaceId/v1/blob/$fileId';
+  }
+
+  if (!fileIdExtensionRegex.hasMatch(fileId)) {
+    return fileId;
+  }
+
+  final objectId = context.read<ViewBloc?>()?.view.id ??
+      context.read<DocumentBloc?>()?.documentId ??
+      context.read<RowDetailBloc?>()?.rowController.viewId ??
+      context.read<RowDocumentBloc?>()?.viewId;
+  if (objectId == null) {
+    return fileId;
+  }
+  if (baseUrl == 'http://localhost') {
+    return '$baseUrl:8000/api/file_storage/$workspaceId/v1/blob/$objectId/$fileId';
+  }
+  return '$baseUrl/api/file_storage/$workspaceId/v1/blob/$objectId/$fileId';
 }
