@@ -1,6 +1,6 @@
 use crate::af_cloud::AFServer;
 use crate::util::tanvity_local_search;
-use flowy_ai_pub::cloud::search_dto::{
+use client_api::entity::search_dto::{
   SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
 };
 use flowy_error::FlowyError;

@@ -4,15 +4,17 @@ use crate::EmbeddingWriter;
 use crate::af_cloud::define::LoggedUser;
 use crate::local_server::util::default_encode_collab_for_collab_type;
 use chrono::Utc;
-use client_api::entity::PublishInfo;
-use client_api::entity::workspace_dto::PublishInfoView;
+use client_api::entity::guest_dto::{
+  RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
+};
+use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
+use client_api::entity::{CreateImportTaskType, PublishInfo};
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::Collab;
 use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
-use flowy_ai_pub::cloud::workspace_dto::RecentViewItem;
 use flowy_error::FlowyError;
 use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
@@ -20,10 +22,6 @@ use flowy_folder_pub::cloud::{
 use flowy_folder_pub::entities::PublishPayload;
 use flowy_folder_pub::sql::recent_view_sql::{
   delete_user_recent_views, select_user_recent_views, upsert_user_recent_views,
-};
-use flowy_server_pub::CreateImportTaskType;
-use flowy_server_pub::guest_dto::{
-  RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
 use lib_infra::async_trait::async_trait;
 use std::sync::Arc;

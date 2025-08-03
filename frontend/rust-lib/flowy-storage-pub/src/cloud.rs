@@ -1,6 +1,6 @@
-use crate::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use async_trait::async_trait;
 use bytes::Bytes;
+use client_api::entity::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use flowy_error::{FlowyError, FlowyResult};
 use mime::Mime;
 use uuid::Uuid;

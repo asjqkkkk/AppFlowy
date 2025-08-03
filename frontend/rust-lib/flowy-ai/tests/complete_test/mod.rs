@@ -1,8 +1,8 @@
 use crate::setup_log;
+use client_api::entity::{CompletionStreamValue, CompletionType, OutputLayout, ResponseFormat};
 use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::completion::chain::CompletionChain;
 use flowy_ai::local_ai::completion::stream_interpreter::stream_interpreter_for_completion;
-use flowy_ai_pub::cloud::{CompletionStreamValue, CompletionType, OutputLayout, ResponseFormat};
 use flowy_error::FlowyError;
 use futures_util::{StreamExt, stream, stream::BoxStream};
 use langchain_rust::language_models::LLMError;

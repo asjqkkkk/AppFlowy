@@ -1,19 +1,16 @@
 use crate::entities::{CompleteTextPB, CompleteTextTaskPB, CompletionTypePB};
+use crate::stream_message::StreamMessage;
 use allo_isolate::Isolate;
-use std::str::FromStr;
-
-use dashmap::DashMap;
-use flowy_ai_pub::cloud::{
-  AIModel, ChatCloudService, CompleteTextParams, CompletionMetadata, CompletionStreamValue,
-  CompletionType, CustomPrompt,
+use client_api::entity::{
+  CompleteTextParams, CompletionMetadata, CompletionStreamValue, CompletionType, CustomPrompt,
 };
+use dashmap::DashMap;
+use flowy_ai_pub::cloud::{AIModel, ChatCloudService};
+use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};
-
 use futures::{SinkExt, StreamExt};
 use lib_infra::isolate_stream::IsolateSink;
-
-use crate::stream_message::StreamMessage;
-use flowy_ai_pub::user_service::AIUserService;
+use std::str::FromStr;
 use std::sync::{Arc, Weak};
 use tokio::select;
 use tracing::{error, info};

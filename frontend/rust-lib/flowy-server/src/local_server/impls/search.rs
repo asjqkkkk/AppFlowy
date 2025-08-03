@@ -1,10 +1,11 @@
 use crate::af_cloud::define::LoggedUser;
 use crate::util::tanvity_local_search;
+use client_api::entity::search_dto::{
+  SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
+};
 use flowy_ai::local_ai::controller::LocalAIController;
 use flowy_error::FlowyError;
-use flowy_search_pub::cloud::{
-  SearchCloudService, SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
-};
+use flowy_search_pub::cloud::SearchCloudService;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use lib_infra::async_trait::async_trait;
 use std::sync::{Arc, Weak};

@@ -5,7 +5,7 @@ use crate::local_ai::completion::writer::{
   ImproveWritingWriter, MakeLongerWriter, SpellingGrammarWriter, SummaryWriter,
 };
 use crate::local_ai::prompt::{format_prompt, history_prompt};
-use flowy_ai_pub::cloud::{
+use client_api::entity::{
   CompletionMetadata, CompletionStreamValue, CompletionType, CustomPrompt, ResponseFormat,
 };
 use flowy_error::FlowyError;

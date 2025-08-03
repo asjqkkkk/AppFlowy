@@ -1,5 +1,5 @@
 use chrono::{Duration, NaiveDateTime, Utc};
-use client_api::entity::billing_dto::{RecurringInterval, SubscriptionPlanDetail};
+use client_api::entity::billing_dto::{PersonalPlan, RecurringInterval, SubscriptionPlanDetail};
 use client_api::entity::billing_dto::{SubscriptionPlan, WorkspaceUsageAndLimit};
 
 use crate::entities::{
@@ -17,7 +17,6 @@ use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_folder_pub::entities::{ImportFrom, ImportedCollabData, ImportedFolderData};
-use flowy_server_pub::billing_dto::PersonalPlan;
 use flowy_sqlite::ConnectionPool;
 use flowy_user_pub::cloud::{UserServerProvider, UserWorkspaceService};
 use flowy_user_pub::entities::{

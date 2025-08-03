@@ -1,5 +1,5 @@
-use crate::cloud::CollabType;
-use crate::cloud::workspace_dto::ViewIcon;
+use client_api::entity::CollabType;
+use client_api::entity::workspace_dto::ViewIcon;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use std::fmt::Display;
 use twox_hash::xxhash64::Hasher;

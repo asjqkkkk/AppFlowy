@@ -30,7 +30,7 @@ use crate::af_cloud::impls::user::dto::{
 use crate::af_cloud::impls::user::util::encryption_type_from_profile;
 use crate::af_cloud::impls::util::check_request_workspace_id_is_match;
 use crate::af_cloud::{AFCloudClient, AFServer};
-use flowy_ai_pub::cloud::billing_dto::{
+use client_api::entity::billing_dto::{
   PersonalPlan, PersonalSubscriptionCancelRequest, PersonalSubscriptionLinkRequest,
   PersonalSubscriptionStatus,
 };

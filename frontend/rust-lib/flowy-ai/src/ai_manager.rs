@@ -12,11 +12,6 @@ use flowy_ai_pub::persistence::{
 };
 use std::collections::HashMap;
 
-use dashmap::{DashMap, Entry};
-use flowy_ai_pub::cloud::{AIModel, ChatCloudService, ChatSettings, UpdateChatParams};
-use flowy_error::{FlowyError, FlowyResult};
-use flowy_sqlite::kv::KVStorePreferences;
-
 use crate::chat_file::ChatLocalFileStorage;
 use crate::completion::AICompletion;
 use crate::embeddings::indexer::LocalEmbeddingModel;
@@ -25,11 +20,16 @@ use crate::model_select::{
   ServerAiSource, ServerModelStorageImpl, SourceKey,
 };
 use crate::notification::{ChatNotification, chat_notification_builder};
-use flowy_ai_pub::cloud::billing_dto::PersonalPlan;
+use client_api::entity::billing_dto::PersonalPlan;
+use client_api::entity::chat_dto::{ChatSettings, UpdateChatParams};
+use dashmap::{DashMap, Entry};
+use flowy_ai_pub::cloud::{AIModel, ChatCloudService};
 use flowy_ai_pub::persistence::{
   AFCollabMetadata, batch_insert_collab_metadata, batch_select_collab_metadata,
 };
 use flowy_ai_pub::user_service::AIUserService;
+use flowy_error::{FlowyError, FlowyResult};
+use flowy_sqlite::kv::KVStorePreferences;
 use flowy_storage_pub::storage::StorageService;
 use lib_infra::async_trait::async_trait;
 use serde_json::json;

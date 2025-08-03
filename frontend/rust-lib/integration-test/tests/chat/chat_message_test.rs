@@ -1,12 +1,10 @@
 use crate::util::receive_with_timeout;
+use client_api::entity::chat_dto::ChatMessageType;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::EventIntegrationTest;
 use flowy_ai::entities::ChatMessageListPB;
 use flowy_ai::notification::ChatNotification;
 use std::str::FromStr;
-
-use flowy_ai_pub::cloud::ChatMessageType;
-
 use std::time::Duration;
 use uuid::Uuid;
 

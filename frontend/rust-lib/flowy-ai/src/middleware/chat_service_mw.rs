@@ -1,17 +1,19 @@
-use crate::local_ai::controller::LocalAIController;
-use flowy_ai_pub::persistence::select_message_content;
-
-use flowy_ai_pub::cloud::{
-  AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  CreatedChatMessage, MessageCursor, ModelList, RelatedQuestion, RepeatedChatMessage,
-  RepeatedRelatedQuestion, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
-};
-use flowy_error::{FlowyError, FlowyResult};
-use lib_infra::async_trait::async_trait;
-
 use crate::local_ai::chat::llm_chat::{EmbedFile, StreamQuestionOptions};
+use crate::local_ai::controller::LocalAIController;
+use client_api::entity::chat_dto::{
+  ChatMessage, ChatMessageType, ChatSettings, MessageCursor, RepeatedChatMessage, UpdateChatParams,
+};
+use client_api::entity::{
+  CompleteTextParams, ModelList, RelatedQuestion, RepeatedRelatedQuestion, ResponseFormat,
+};
+use flowy_ai_pub::cloud::{
+  AIModel, ChatCloudService, CreatedChatMessage, StreamAnswer, StreamComplete,
+};
+use flowy_ai_pub::persistence::select_message_content;
 use flowy_ai_pub::user_service::AIUserService;
+use flowy_error::{FlowyError, FlowyResult};
 use flowy_storage_pub::storage::StorageService;
+use lib_infra::async_trait::async_trait;
 use std::path::Path;
 use std::sync::{Arc, Weak};
 use tracing::{debug, info, warn};

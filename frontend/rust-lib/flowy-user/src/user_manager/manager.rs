@@ -1,4 +1,4 @@
-use client_api::entity::GotrueTokenResponse;
+use client_api::entity::{GotrueTokenResponse, WorkspaceNotification};
 use flowy_error::FlowyResult;
 use std::str::FromStr;
 
@@ -21,7 +21,6 @@ use arc_swap::ArcSwapOption;
 use collab::lock::RwLock;
 use collab_plugins::CollabKVDB;
 use dashmap::DashMap;
-use flowy_server_pub::WorkspaceNotification;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::schema::user_table;
 use flowy_sqlite::ConnectionPool;

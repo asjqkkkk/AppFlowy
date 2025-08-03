@@ -1,5 +1,5 @@
 use crate::local_ai::prompt::format_prompt;
-use flowy_ai_pub::cloud::ResponseFormat;
+use client_api::entity::ResponseFormat;
 use flowy_error::{FlowyError, FlowyResult};
 use langchain_rust::prompt::{
   FormatPrompter, HumanMessagePromptTemplate, MessageFormatter, PromptArgs, PromptError,
