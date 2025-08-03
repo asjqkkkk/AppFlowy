@@ -2,18 +2,16 @@ use crate::entities::{
   AuthProvider, AuthResponse, Role, UpdateUserProfileParams, UserProfile, UserTokenState,
   UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
 };
-use client_api::entity::GotrueTokenResponse;
 use client_api::entity::billing_dto::SubscriptionPlanDetail;
-pub use client_api::entity::billing_dto::SubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceSubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
 use client_api::entity::billing_dto::{PersonalPlan, RecurringInterval};
 use client_api::entity::billing_dto::{PersonalSubscriptionStatus, SubscriptionPlan};
 use client_api::entity::dto::server_info_dto::ServerInfo;
-pub use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
+use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
+use client_api::entity::{GotrueTokenResponse, WorkspaceNotification};
 use collab::preclude::ClientID;
 use collab_entity::CollabType;
-use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
 use lib_infra::async_trait::async_trait;
 use lib_infra::box_any::BoxAny;

@@ -1574,6 +1574,15 @@ impl FolderManager {
         let view_id = Uuid::from_str(&view.id)?;
         if let Err(err) = handle.open_view(&view_id).await {
           error!("Open view error: {:?}", err);
+        } else {
+          let workspace_id = self.user.workspace_id()?.to_string();
+          let setting = WorkspaceLatestPB {
+            workspace_id: workspace_id.to_string(),
+            latest_view: Some(view_pb_without_child_views(view.as_ref().clone())),
+          };
+          folder_notification_builder(workspace_id, FolderNotification::DidUpdateWorkspaceSetting)
+            .payload(setting)
+            .send();
         }
       }
     }

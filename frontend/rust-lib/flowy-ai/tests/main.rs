@@ -5,12 +5,13 @@ mod summary_test;
 mod test_utils;
 mod translate_test;
 
+use client_api::entity::{ContextSuggestedQuestion, QuestionStreamValue};
 use flowy_ai::SqliteVectorStore;
 use flowy_ai::embeddings::indexer::LocalEmbeddingModel;
 use flowy_ai::local_ai::chat::LLMChatInfo;
 use flowy_ai::local_ai::chat::llm::LocalLLMController;
 use flowy_ai::local_ai::chat::llm_chat::LLMChat;
-use flowy_ai_pub::cloud::{ContextSuggestedQuestion, QuestionStreamValue, StreamAnswer};
+use flowy_ai_pub::cloud::StreamAnswer;
 use flowy_ai_pub::entities::EmbeddingDimension;
 use flowy_sqlite_vec::db::VectorSqliteDB;
 use ollama_rs::Ollama;

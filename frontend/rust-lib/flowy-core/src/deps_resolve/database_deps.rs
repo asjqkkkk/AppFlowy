@@ -1,3 +1,4 @@
+use client_api::entity::TranslateRowResponse;
 use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use collab_plugins::CollabKVDB;
@@ -5,7 +6,6 @@ use flowy_ai::ai_manager::AIManager;
 use flowy_database2::{DatabaseManager, DatabaseUser};
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateRowContent,
-  TranslateRowResponse,
 };
 use flowy_error::FlowyError;
 use flowy_user::services::authenticate_user::AuthenticateUser;

@@ -2,7 +2,7 @@ use crate::embeddings::embedder::Embedder;
 use crate::embeddings::indexer::IndexerProvider;
 use crate::local_ai::chat::llm::LocalLLMController;
 use crate::search::summary::{LLMDocument, summarize_documents};
-use flowy_ai_pub::cloud::search_dto::{
+use client_api::entity::search_dto::{
   SearchContentType, SearchDocumentResponseItem, SearchResult, SearchSummaryResult, Summary,
 };
 use flowy_ai_pub::entities::{EmbeddingRecord, UnindexedCollab, UnindexedData};

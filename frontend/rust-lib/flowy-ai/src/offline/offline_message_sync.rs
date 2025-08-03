@@ -1,7 +1,9 @@
+use client_api::entity::chat_dto::{
+  ChatMessage, ChatMessageType, ChatSettings, MessageCursor, RepeatedChatMessage, UpdateChatParams,
+};
+use client_api::entity::{CompleteTextParams, ModelList, RepeatedRelatedQuestion, ResponseFormat};
 use flowy_ai_pub::cloud::{
-  AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  CreatedChatMessage, MessageCursor, ModelList, RepeatedChatMessage, RepeatedRelatedQuestion,
-  ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
+  AIModel, ChatCloudService, CreatedChatMessage, StreamAnswer, StreamComplete,
 };
 use flowy_ai_pub::persistence::{
   ChatMessageTable, ChatTable, update_chat_is_sync, update_chat_message_is_sync, upsert_chat,

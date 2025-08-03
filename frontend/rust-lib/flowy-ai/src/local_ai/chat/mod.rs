@@ -13,11 +13,11 @@ use crate::local_ai::chat::retriever::RetrieverStore;
 use crate::local_ai::completion::chain::CompletionChain;
 use crate::local_ai::database::summary::DatabaseSummaryChain;
 use crate::local_ai::database::translate::DatabaseTranslateChain;
-use dashmap::{DashMap, Entry};
-use flowy_ai_pub::cloud::ai_dto::{TranslateRowData, TranslateRowResponse};
-use flowy_ai_pub::cloud::{
-  CompleteTextParams, CompletionType, ResponseFormat, StreamAnswer, StreamComplete,
+use client_api::entity::{
+  CompleteTextParams, CompletionType, ResponseFormat, TranslateRowData, TranslateRowResponse,
 };
+use dashmap::{DashMap, Entry};
+use flowy_ai_pub::cloud::{StreamAnswer, StreamComplete};
 use flowy_ai_pub::persistence::select_message_pair;
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_database_pub::cloud::{SummaryRowContent, TranslateRowContent};

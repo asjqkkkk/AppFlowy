@@ -1,8 +1,10 @@
 use crate::af_cloud::AFServer;
-use client_api::entity::{CompleteUploadRequest, CreateUploadRequest};
+use client_api::entity::{
+  CompleteUploadRequest, CompletedPartRequest, CreateUploadRequest, CreateUploadResponse,
+  UploadPartResponse,
+};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_storage_pub::cloud::{ObjectIdentity, ObjectValue, StorageCloudService};
-use flowy_storage_pub::storage::{CompletedPartRequest, CreateUploadResponse, UploadPartResponse};
 use lib_infra::async_trait::async_trait;
 use uuid::Uuid;
 

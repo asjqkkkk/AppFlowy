@@ -7,10 +7,11 @@ use crate::{
   services::manager::{SearchHandler, SearchType},
 };
 use async_stream::stream;
+use client_api::entity::search_dto::SearchResult;
 use flowy_error::FlowyResult;
 use flowy_folder::entities::ViewPB;
 use flowy_folder::{ViewLayout, manager::FolderManager};
-use flowy_search_pub::cloud::{SearchCloudService, SearchResult};
+use flowy_search_pub::cloud::SearchCloudService;
 use lib_infra::async_trait::async_trait;
 use std::pin::Pin;
 use std::sync::Arc;

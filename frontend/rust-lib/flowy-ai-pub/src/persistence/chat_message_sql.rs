@@ -1,6 +1,5 @@
-use crate::cloud::MessageCursor;
-use crate::cloud::chat_dto::ChatAuthorType;
-use client_api::entity::chat_dto::ChatMessage;
+use client_api::entity::chat_dto::MessageCursor;
+use client_api::entity::dto::chat_dto::{ChatAuthorType, ChatMessage};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::upsert::excluded;
 use flowy_sqlite::{

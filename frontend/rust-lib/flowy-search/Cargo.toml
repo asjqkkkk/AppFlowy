@@ -38,6 +38,7 @@ tokio-stream.workspace = true
 async-stream = "0.3.6"
 dashmap.workspace = true
 arc-swap.workspace = true
+client-api.workspace = true
 
 [build-dependencies]
 flowy-codegen.workspace = true

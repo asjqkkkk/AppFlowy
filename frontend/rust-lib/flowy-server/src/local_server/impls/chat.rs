@@ -1,13 +1,17 @@
 use crate::af_cloud::define::LoggedUser;
 use chrono::{TimeZone, Utc};
-use client_api::entity::ai_dto::RepeatedRelatedQuestion;
+use client_api::entity::chat_dto::{
+  ChatAuthor, ChatMessage, ChatMessageType, ChatSettings, MessageCursor, RepeatedChatMessage,
+  UpdateChatParams,
+};
+use client_api::entity::{
+  CompleteTextParams, ModelList, RelatedQuestion, RepeatedRelatedQuestion, ResponseFormat,
+};
 use flowy_ai::local_ai::chat::llm_chat::StreamQuestionOptions;
 use flowy_ai::local_ai::controller::LocalAIController;
-use flowy_ai_pub::cloud::chat_dto::ChatAuthor;
 use flowy_ai_pub::cloud::{
-  AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings, CompleteTextParams,
-  CreatedChatMessage, DEFAULT_AI_MODEL_NAME, MessageCursor, ModelList, RelatedQuestion,
-  RepeatedChatMessage, ResponseFormat, StreamAnswer, StreamComplete, UpdateChatParams,
+  AIModel, ChatCloudService, CreatedChatMessage, DEFAULT_AI_MODEL_NAME, StreamAnswer,
+  StreamComplete,
 };
 use flowy_ai_pub::persistence::{
   ChatMessageTable, ChatTable, ChatTableChangeset, chat_auth_type_from_i64,

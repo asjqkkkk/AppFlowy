@@ -1,9 +1,9 @@
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
+use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use client_api::v2::ConnectState;
 use validator::Validate;
 
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
-use flowy_user_pub::cloud::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use flowy_user_pub::entities::{
   AuthProvider, Role, WorkspaceInvitation, WorkspaceMember, WorkspaceType,
 };

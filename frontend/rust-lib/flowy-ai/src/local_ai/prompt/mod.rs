@@ -1,4 +1,4 @@
-use flowy_ai_pub::cloud::{CompletionMessage, OutputLayout, ResponseFormat};
+use client_api::entity::{CompletionMessage, OutputLayout, ResponseFormat};
 use langchain_rust::schemas::{Message, MessageType};
 
 pub const OPEN_AI_QA_FLEX_FORMAT: &str = r#"Use Markdown for formatting. Start responses naturally—avoid formal phrases like “Certainly,” “Absolutely,” or “Sure.” Keep the tone conversational, clear, and professional."#;

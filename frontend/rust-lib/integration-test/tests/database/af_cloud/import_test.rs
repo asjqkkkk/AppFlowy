@@ -1,8 +1,8 @@
 use crate::util::test_unzip;
+use client_api::entity::QueryCollab;
 use collab_entity::CollabType;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::EventIntegrationTest;
-use flowy_server_pub::QueryCollab;
 use uuid::Uuid;
 
 #[tokio::test]

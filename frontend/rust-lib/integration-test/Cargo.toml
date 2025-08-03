@@ -45,11 +45,12 @@ strum = "0.25.0"
 csv = "1.3.0"
 tokio-stream = "0.1.17"
 futures = "0.3.31"
+client-api.workspace = true
 
 [dev-dependencies]
 uuid.workspace = true
 assert-json-diff = "2.0.2"
-chrono = "0.4.31"
+chrono = "0.4"
 zip.workspace = true
 walkdir = "2.5.0"
 flowy-ai-pub = { workspace = true }

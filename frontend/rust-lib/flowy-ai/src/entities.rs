@@ -1,9 +1,11 @@
 use crate::local_ai::controller::LocalAISetting;
 use crate::local_ai::resource::PendingResource;
-use flowy_ai_pub::cloud::{
-  AIModel, ChatMessage, ChatMessageType, CompletionMessage, LLMModel, OutputContent, OutputLayout,
-  RelatedQuestion, RepeatedChatMessage, RepeatedRelatedQuestion, ResponseFormat,
+use client_api::entity::chat_dto::{ChatMessage, ChatMessageType, RepeatedChatMessage};
+use client_api::entity::{
+  CompletionMessage, LLMModel, OutputContent, OutputLayout, RelatedQuestion,
+  RepeatedRelatedQuestion, ResponseFormat,
 };
+use flowy_ai_pub::cloud::AIModel;
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use lib_infra::validator_fn::required_not_empty_str;
 use serde::{Deserialize, Serialize};

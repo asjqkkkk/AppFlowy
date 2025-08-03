@@ -1,4 +1,4 @@
-pub use client_api::entity::search_dto::{
+use client_api::entity::search_dto::{
   SearchDocumentResponseItem, SearchResult, SearchSummaryResult,
 };
 use flowy_error::FlowyError;

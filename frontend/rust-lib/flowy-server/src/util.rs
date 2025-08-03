@@ -1,4 +1,4 @@
-use flowy_ai_pub::cloud::search_dto::{SearchContentType, SearchDocumentResponseItem};
+use client_api::entity::search_dto::{SearchContentType, SearchDocumentResponseItem};
 use flowy_search_pub::entities::TanvitySearchResponseItem;
 use flowy_search_pub::tantivy_state::DocumentTantivyState;
 use serde::{Deserialize, Deserializer};

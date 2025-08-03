@@ -1,6 +1,7 @@
 use crate::DatabaseUser;
 use anyhow::anyhow;
 use async_trait::async_trait;
+use client_api::entity::QueryCollab;
 use collab::core::collab::{CollabOptions, DataSource, default_client_id};
 use collab::core::origin::CollabOrigin;
 use collab::entity::EncodedCollab;
@@ -17,7 +18,7 @@ use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use flowy_database_pub::ChangedCollab;
-use flowy_database_pub::cloud::{DatabaseCloudService, QueryCollab};
+use flowy_database_pub::cloud::DatabaseCloudService;
 use flowy_error::FlowyError;
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use rayon::iter::IntoParallelRefIterator;
