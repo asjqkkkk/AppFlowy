@@ -14,6 +14,9 @@ sealed class PersonEvent {
 
   const factory PersonEvent.updatePersons(List<Person> persons) =
       UpdatePersonsEvent;
+
+  const factory PersonEvent.updateAvailableEmails(List<String> emails) =
+      UpdateAvailableEmailsEvent;
 }
 
 class InitialEvent implements PersonEvent {
@@ -29,6 +32,11 @@ class UpdatePersonEvent implements PersonEvent {
 class UpdatePersonsEvent implements PersonEvent {
   const UpdatePersonsEvent(this.persons);
   final List<Person> persons;
+}
+
+class UpdateAvailableEmailsEvent implements PersonEvent {
+  const UpdateAvailableEmailsEvent(this.emails);
+  final List<String> emails;
 }
 
 class NotifyPersonEvent implements PersonEvent {
