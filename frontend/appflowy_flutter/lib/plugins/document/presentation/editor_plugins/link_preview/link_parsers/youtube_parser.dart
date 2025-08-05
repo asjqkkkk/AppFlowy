@@ -45,7 +45,11 @@ class YoutubeParser implements LinkInfoParser {
       );
     } catch (e) {
       Log.error('Parse link $link error: $e');
-      return null;
+      return DefaultParser().parse(
+        link,
+        timeout: timeout,
+        headers: headers,
+      );
     }
   }
 }

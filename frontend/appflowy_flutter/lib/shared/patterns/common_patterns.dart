@@ -55,3 +55,6 @@ final wordRegex = RegExp(_wordPattern);
 const _appleNotesPattern =
     r'<meta\s+name="Generator"\s+content="Cocoa HTML Writer"\s*>\s*<meta\s+name="CocoaVersion"\s+content="\d+"\s*>';
 final appleNotesRegex = RegExp(_appleNotesPattern);
+
+const _emptyLinePattern = r'^\s*$';
+final emptyLineRegex = RegExp(_emptyLinePattern);

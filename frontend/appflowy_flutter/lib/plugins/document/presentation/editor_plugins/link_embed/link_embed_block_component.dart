@@ -2,6 +2,7 @@ import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/callout/callout_block_component.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/link_preview/custom_link_parser.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/link_preview/default_selectable_mixin.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
@@ -12,6 +13,7 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:string_validator/string_validator.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 import 'link_embed_menu.dart';
@@ -189,6 +191,8 @@ class LinkEmbedBlockComponentState
   Widget buildContent(BuildContext context) {
     final theme = AppFlowyTheme.of(context), textScheme = theme.textColorScheme;
     final hasSiteName = linkInfo.siteName?.isNotEmpty ?? false;
+    final imageUrl = linkInfo.imageUrl ?? '',
+        hasUrl = isURL(normalizeFileUrl(context, fileId: imageUrl));
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -198,14 +202,16 @@ class LinkEmbedBlockComponentState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: ClipRRect(
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(16)),
-                child: FlowyNetworkImage(
-                  url: linkInfo.imageUrl ?? '',
-                  width: MediaQuery.of(context).size.width,
-                ),
-              ),
+              child: hasUrl
+                  ? ClipRRect(
+                      borderRadius:
+                          const BorderRadius.vertical(top: Radius.circular(16)),
+                      child: FlowyNetworkImage(
+                        url: linkInfo.imageUrl ?? '',
+                        width: MediaQuery.of(context).size.width,
+                      ),
+                    )
+                  : SizedBox.shrink(),
             ),
             Container(
               height: 64,
