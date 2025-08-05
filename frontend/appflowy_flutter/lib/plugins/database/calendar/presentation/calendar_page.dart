@@ -1,4 +1,5 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -11,7 +12,6 @@ import 'package:appflowy/plugins/database/grid/presentation/grid_page.dart';
 import 'package:appflowy/plugins/database/grid/presentation/layout/sizes.dart';
 import 'package:appflowy/plugins/database/tab_bar/desktop/setting_menu.dart';
 import 'package:appflowy/plugins/database/tab_bar/tab_bar_view.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:calendar_view/calendar_view.dart';
@@ -129,9 +129,7 @@ class _CalendarPageState extends State<CalendarPage> {
           ),
           BlocProvider(
             create: (context) => PageAccessLevelBloc(view: widget.view)
-              ..add(
-                PageAccessLevelEvent.initial(),
-              ),
+              ..add(PageAccessLevelEvent.initial(requestSharedUsers: false)),
           ),
         ],
         child: MultiBlocListener(

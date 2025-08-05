@@ -81,7 +81,7 @@ class AIChatPagePlugin extends Plugin {
     _viewInfoBloc = ViewInfoBloc(view: notifier.view)
       ..add(const ViewInfoEvent.started());
     _pageAccessLevelBloc = PageAccessLevelBloc(view: notifier.view)
-      ..add(const PageAccessLevelEvent.initial());
+      ..add(PageAccessLevelEvent.initial(requestSharedUsers: false));
   }
 
   @override

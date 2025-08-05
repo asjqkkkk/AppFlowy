@@ -159,7 +159,7 @@ class _DatabaseTabBarViewState extends State<DatabaseTabBarView> {
             ),
             BlocProvider<PageAccessLevelBloc>(
               create: (_) => PageAccessLevelBloc(view: widget.view)
-                ..add(const PageAccessLevelEvent.initial()),
+                ..add(PageAccessLevelEvent.initial(requestSharedUsers: false)),
             ),
           ],
           child: BlocBuilder<DatabaseTabBarBloc, DatabaseTabBarState>(
@@ -402,7 +402,7 @@ class DatabaseTabBarViewPlugin extends Plugin {
       ..add(const ViewInfoEvent.started());
     _pageAccessLevelBloc = initialPageAccessLevelBloc ??
         (PageAccessLevelBloc(view: notifier.view)
-          ..add(const PageAccessLevelEvent.initial()));
+          ..add(PageAccessLevelEvent.initial(requestSharedUsers: false)));
   }
 
   @override
