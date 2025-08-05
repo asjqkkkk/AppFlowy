@@ -449,13 +449,14 @@ impl UserManager {
   }
 
   #[tracing::instrument(level = "info", skip(self))]
-  pub async fn sign_out(&self) -> Result<(), FlowyError> {
+  pub async fn sign_out(&self, notify: bool) -> Result<(), FlowyError> {
     if let Ok(session) = self.get_session() {
       sign_out(
         &self.cloud_service()?,
         &session,
         &self.authenticate_user,
         self.db_connection(session.user_id)?,
+        notify,
       )
       .await?;
     }
@@ -570,11 +571,7 @@ impl UserManager {
             "User is unauthorized, sign out the user"
           );
 
-          self.sign_out().await?;
-          send_auth_state_notification(AuthStateChangedPB {
-            state: AuthStatePB::InvalidAuth,
-            message: "User is not found on the server".to_string(),
-          });
+          self.sign_out(true).await?;
         }
         Err(err)
       },
@@ -876,6 +873,7 @@ pub async fn sign_out(
   session: &Session,
   authenticate_user: &AuthenticateUser,
   conn: DBConnection,
+  notify: bool,
 ) -> Result<(), FlowyError> {
   info!("[Sign out] Sign out user: {}", session.user_id);
   let _ = remove_user_token(session.user_id, conn);
@@ -884,12 +882,25 @@ pub async fn sign_out(
     "[Sign out] Close user related database: {}",
     session.user_id
   );
-  authenticate_user.database.close(session.user_id)?;
-  authenticate_user.set_session(None)?;
+  if let Err(err) = authenticate_user.database.close(session.user_id) {
+    error!(
+      "[Sign out] Close user database failed: {}, error: {:?}",
+      session.user_id, err
+    );
+  }
+  let _ = authenticate_user.set_session(None);
 
-  let server = cloud_services.auth_service()?;
-  if let Err(err) = server.sign_out(None).await {
-    event!(tracing::Level::ERROR, "{:?}", err);
+  if let Ok(server) = cloud_services.auth_service() {
+    if let Err(err) = server.sign_out(None).await {
+      event!(tracing::Level::ERROR, "{:?}", err);
+    }
+  }
+
+  if notify {
+    send_auth_state_notification(AuthStateChangedPB {
+      state: AuthStatePB::InvalidAuth,
+      message: "User is not found on the server".to_string(),
+    });
   }
 
   Ok(())
@@ -912,18 +923,13 @@ async fn observe_token_change(
     };
 
     match token_state {
-      UserTokenState::Refresh {
-        token: new_token,
-        access_token,
-      } => {
+      UserTokenState::Refresh { token: new_token } => {
         if Some(&new_token) == current_token.as_ref() {
           debug!("Refresh: token unchanged, skipping.");
           continue;
         }
 
-        if let Err(err) =
-          handle_refresh(&auth_user, &controller_by_wid, &new_token, &access_token).await
-        {
+        if let Err(err) = handle_refresh(&auth_user, &controller_by_wid, &new_token).await {
           warn!("Refresh failed: {}", err);
         }
 
@@ -955,7 +961,6 @@ async fn handle_refresh(
   auth_user: &Arc<AuthenticateUser>,
   controllers: &Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
   new_token: &str,
-  access_token: &str,
 ) -> FlowyResult<()> {
   // 1) Upgrade and get session
   let session = auth_user.get_session()?;
@@ -965,16 +970,24 @@ async fn handle_refresh(
   // 2) Reconnect controller if present
   if let Some(ctr) = controllers.get_mut(&workspace_uuid) {
     if ctr.is_connected() {
-      if let Err(e) = ctr.disconnect().await {
-        error!("Disconnect error for {}: {:?}", workspace_uuid, e);
-      }
+      info!(
+        "skip reconnecting websocket for workspace {} as it is already connected",
+        workspace_uuid
+      );
     }
 
-    if let Err(e) = ctr.connect_with_access_token(access_token.to_owned()).await {
+    info!(
+      "Reconnecting websocket for workspace {} after refreshing token",
+      workspace_uuid
+    );
+    if let Err(e) = ctr.connect().await {
       error!("Connect error for {}: {:?}", workspace_uuid, e);
     }
   } else {
-    debug!("No controller for workspace {}", workspace_uuid);
+    info!(
+      "No controller for workspace {} when refreshing token",
+      workspace_uuid
+    );
   }
 
   // 3) Persist the new token
@@ -982,7 +995,6 @@ async fn handle_refresh(
   save_user_token(uid, &session.workspace_id, conn, new_token.to_string())
     .map_err(|e| format!("DB save error: {}", e))?;
 
-  debug!("Token updated and saved for user {}", uid);
   Ok(())
 }
 
@@ -994,7 +1006,7 @@ pub(crate) async fn handle_invalid_token(
   let session = auth_user.get_session()?;
   let conn = auth_user.get_sqlite_connection(session.user_id)?;
 
-  sign_out(service, &session, auth_user, conn)
+  sign_out(service, &session, auth_user, conn, true)
     .await
     .map_err(|e| format!("Sign-out error: {:?}", e))?;
   info!("Successfully signed out user {}", session.user_id);

@@ -5,10 +5,7 @@ use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
 use client_api::entity::server_info_dto::{ServerInfo, SignedServerInfoData};
-use client_api::entity::GotrueTokenResponse;
-use client_api::v2::{
-  ConnectState, DisconnectedReason, RetryConfig, WorkspaceController, WorkspaceControllerOptions,
-};
+use client_api::v2::{ConnectState, RetryConfig, WorkspaceController, WorkspaceControllerOptions};
 use client_api::verify_signature;
 use dashmap::Entry;
 use flowy_error::{FlowyError, FlowyResult};
@@ -111,13 +108,7 @@ impl UserManager {
   #[cfg(debug_assertions)]
   pub async fn start_ws_connect_manually(&self, workspace_id: &Uuid) -> FlowyResult<()> {
     if let Some(c) = self.controller_by_wid.get(workspace_id) {
-      let uid = self.user_id()?;
-      let profile = self
-        .get_user_profile_from_disk(uid, &workspace_id.to_string())
-        .await?;
-
-      let token = serde_json::from_str::<GotrueTokenResponse>(&profile.token)?;
-      c.connect(token.access_token).await?;
+      c.connect().await?;
     }
     Ok(())
   }
@@ -163,7 +154,6 @@ impl UserManager {
     cloud_service: &Arc<dyn UserServerProvider>,
   ) -> Result<Weak<WorkspaceController>, FlowyError> {
     let sync_enabled = matches!(workspace_type, WorkspaceType::Cloud);
-    let access_token = cloud_service.get_access_token();
     let entry = self.controller_by_wid.entry(*workspace_id);
     let retry_config = RetryConfig::default();
 
@@ -171,14 +161,14 @@ impl UserManager {
       "Initializing workspace controller for workspace: {}, type: {:?}, sync_enabled: {}",
       workspace_id, workspace_type, sync_enabled
     );
-
     self.sync_server_info(uid);
 
+    // build the workspace controller
     let controller = match entry {
       Entry::Occupied(mut value) => {
         value.get_mut().mark_active();
         let controller = value.get().clone();
-        spawn_connect(controller.clone(), access_token, workspace_type);
+        spawn_connect(controller.clone(), workspace_type);
         Arc::downgrade(&controller)
       },
       Entry::Vacant(entry) => {
@@ -193,10 +183,12 @@ impl UserManager {
           sync_eagerly: true,
           sync_enabled,
         };
+        let token_provider = cloud_service.get_token_provider()?;
         let workspace_controller = Arc::new(WorkspaceController::new_with_rocksdb(
           options,
           collab_db,
           retry_config,
+          token_provider,
         )?);
         let controller = WorkspaceControllerLifeCycle::new(
           *workspace_type,
@@ -206,11 +198,8 @@ impl UserManager {
 
         entry.insert(controller.clone());
         let weak_controller = Arc::downgrade(&workspace_controller);
-        spawn_subscribe_websocket_connect_state(
-          workspace_controller.clone(),
-          self.cloud_service.clone(),
-        );
-        spawn_connect(controller, access_token, workspace_type);
+        spawn_subscribe_websocket_connect_state(workspace_controller.clone());
+        spawn_connect(controller, workspace_type);
         weak_controller
       },
     };
@@ -239,21 +228,12 @@ impl UserManager {
     .payload(ConnectStateNotificationPB::from(ConnectState::Connecting))
     .send();
 
-    let cloud_service = self
-      .cloud_service
-      .upgrade()
-      .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade cloud service"))?;
-
-    let access_token = cloud_service
-      .get_access_token()
-      .ok_or_else(|| FlowyError::internal().with_context("Access token not found"))?;
-
     if let Some(controller) = self.controller_by_wid.get(&workspace_id) {
       info!(
         "Start workspace:{} websocket connect manually",
         workspace_id
       );
-      controller.connect_with_access_token(access_token).await?;
+      controller.connect().await?;
 
       send_notification(
         workspace_id.to_string(),
@@ -265,30 +245,12 @@ impl UserManager {
     Ok(())
   }
 }
-fn spawn_subscribe_websocket_connect_state(
-  controller: Arc<WorkspaceController>,
-  cloud_service: Weak<dyn UserServerProvider>,
-) {
+fn spawn_subscribe_websocket_connect_state(controller: Arc<WorkspaceController>) {
   let workspace_id = controller.workspace_id();
   let mut rx = controller.subscribe_connect_state();
   let weak_controller = Arc::downgrade(&controller);
   tokio::spawn(async move {
     while let Some(value) = rx.next().await {
-      match &value {
-        ConnectState::Disconnected {
-          reason: Some(reason),
-        } => {
-          if let Some(service) = cloud_service.upgrade() {
-            if let DisconnectedReason::Unauthorized(_) = reason {
-              service.notify_access_token_invalid();
-            }
-          };
-        },
-        ConnectState::Disconnected { reason: None } => {},
-        ConnectState::Connecting => {},
-        ConnectState::Connected => {},
-      }
-
       if weak_controller.upgrade().is_none() {
         info!(
           "Workspace controller for {} is dropped, stopping connect state subscription",
@@ -296,7 +258,6 @@ fn spawn_subscribe_websocket_connect_state(
         );
         break;
       }
-
       send_notification(
         workspace_id.to_string(),
         UserNotification::WebSocketConnectState,
@@ -307,35 +268,27 @@ fn spawn_subscribe_websocket_connect_state(
   });
 }
 
-fn spawn_connect(
-  controller: WorkspaceControllerLifeCycle,
-  access_token: Option<String>,
-  workspace_type: &WorkspaceType,
-) {
+fn spawn_connect(controller: WorkspaceControllerLifeCycle, workspace_type: &WorkspaceType) {
   debug!(
     "Spawning websocket connect for workspace:{}/{}",
     controller.workspace_id(),
     workspace_type,
   );
 
-  if let Some(token) = access_token {
-    tokio::spawn(async move {
-      match controller.connect_with_access_token(token).await {
-        Ok(_) => {
-          debug!(
-            "workspace: {}, type: {:?} websocket connected successfully",
-            controller.workspace_id(),
-            controller.workspace_type
-          );
-        },
-        Err(err) => {
-          error!("spawn connect failed: {:?}", err);
-        },
-      }
-    });
-  } else {
-    warn!("No access token provided for workspace controller connection");
-  }
+  tokio::spawn(async move {
+    match controller.connect().await {
+      Ok(_) => {
+        debug!(
+          "workspace: {}, type: {:?} websocket connected successfully",
+          controller.workspace_id(),
+          controller.workspace_type
+        );
+      },
+      Err(err) => {
+        error!("spawn connect failed: {:?}", err);
+      },
+    }
+  });
 }
 
 #[derive(Clone)]
@@ -368,11 +321,6 @@ impl WorkspaceControllerLifeCycle {
     };
     this.spawn_observe_workspace_notification();
     this
-  }
-
-  pub async fn connect_with_access_token(&self, access_token: String) -> FlowyResult<()> {
-    self.connect(access_token).await?;
-    Ok(())
   }
 
   fn is_inactive(&self) -> bool {

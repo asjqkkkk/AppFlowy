@@ -10,6 +10,7 @@ use client_api::entity::billing_dto::{PersonalSubscriptionStatus, SubscriptionPl
 use client_api::entity::dto::server_info_dto::ServerInfo;
 use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use client_api::entity::{GotrueTokenResponse, WorkspaceNotification};
+use client_api::v2::TokenProvider;
 use collab::preclude::ClientID;
 use collab_entity::CollabType;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult, internal_error};
@@ -62,8 +63,7 @@ impl Display for UserCloudConfig {
 #[async_trait]
 pub trait UserServerProvider: Send + Sync {
   fn set_token(&self, token: Option<String>) -> Result<(), FlowyError>;
-  fn get_access_token(&self) -> Option<String>;
-  fn notify_access_token_invalid(&self);
+  fn get_token_provider(&self) -> FlowyResult<Arc<dyn TokenProvider>>;
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError>;
   fn subscribe_token_state(&self) -> Option<WatchStream<UserTokenState>>;
   fn set_enable_sync(&self, uid: i64, enable_sync: bool);

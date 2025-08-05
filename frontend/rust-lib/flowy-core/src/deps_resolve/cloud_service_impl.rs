@@ -15,6 +15,7 @@ use client_api::entity::{
   CreateUploadResponse, ModelList, PublishInfo, QueryCollab, RepeatedRelatedQuestion,
   ResponseFormat, TranslateRowResponse, UploadPartResponse,
 };
+use client_api::v2::TokenProvider;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use flowy_ai_pub::cloud::{
@@ -168,17 +169,9 @@ impl UserServerProvider for ServerProvider {
     Ok(())
   }
 
-  fn get_access_token(&self) -> Option<String> {
-    let server = self.get_server().ok()?;
-    server.get_access_token()
-  }
-
-  fn notify_access_token_invalid(&self) {
-    if let Ok(server) = self.get_server() {
-      tokio::spawn(async move {
-        server.refresh_access_token("access token invalid").await;
-      });
-    }
+  fn get_token_provider(&self) -> FlowyResult<Arc<dyn TokenProvider>> {
+    let server = self.get_server()?;
+    Ok(server.get_token_provider())
   }
 
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError> {

@@ -124,7 +124,7 @@ pub async fn sign_out_handler(manager: AFPluginState<Weak<UserManager>>) -> Resu
   tokio::spawn(async move {
     let result = async {
       let manager = upgrade_manager(manager)?;
-      manager.sign_out().await?;
+      manager.sign_out(false).await?;
       Ok::<(), FlowyError>(())
     }
     .await;

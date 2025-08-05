@@ -4,6 +4,7 @@ use std::sync::{Arc, Weak};
 use crate::af_cloud::AFCloudClient;
 use anyhow::Error;
 use arc_swap::ArcSwapOption;
+use client_api::v2::TokenProvider;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use flowy_ai_pub::cloud::ChatCloudService;
@@ -61,9 +62,8 @@ where
 pub trait AppFlowyServer: Send + Sync + 'static {
   fn get_client(&self) -> Option<Arc<AFCloudClient>>;
   fn set_token(&self, _token: &str) -> Result<(), Error>;
-  fn get_access_token(&self) -> Option<String>;
+  fn get_token_provider(&self) -> Arc<dyn TokenProvider>;
 
-  async fn refresh_access_token(&self, reason: &str);
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>);
   fn set_ai_model(&self, _ai_model: &str) -> Result<(), Error> {
     Ok(())

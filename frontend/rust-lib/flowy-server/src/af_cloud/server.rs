@@ -4,6 +4,7 @@ use std::sync::{Arc, Weak};
 use crate::af_cloud::define::LoggedUser;
 use anyhow::Error;
 use client_api::notify::TokenState;
+use client_api::v2::{HttpTokenProvider, TokenProvider};
 use client_api::{Client, ClientConfiguration};
 use flowy_ai_pub::cloud::ChatCloudService;
 use flowy_database_pub::cloud::{DatabaseAIService, DatabaseCloudService};
@@ -109,8 +110,9 @@ impl AppFlowyServer for AppFlowyCloudServer {
       .map_err(|err| Error::new(FlowyError::unauthorized().with_context(err)))
   }
 
-  fn get_access_token(&self) -> Option<String> {
-    self.client.get_access_token().ok()
+  fn get_token_provider(&self) -> Arc<dyn TokenProvider> {
+    let client = Arc::downgrade(&self.client);
+    Arc::new(HttpTokenProvider::new(client))
   }
 
   fn set_ai_model(&self, ai_model: &str) -> Result<(), Error> {
@@ -122,28 +124,34 @@ impl AppFlowyServer for AppFlowyCloudServer {
     let mut token_state_rx = self.client.subscribe_token_state();
     let (watch_tx, watch_rx) = watch::channel(UserTokenState::Init);
     let weak_client = Arc::downgrade(&self.client);
+
     tokio::spawn(async move {
       while let Ok(token_state) = token_state_rx.recv().await {
-        if let Some(client) = weak_client.upgrade() {
-          match token_state {
-            TokenState::Refresh => match client.get_token() {
-              Ok(resp) => {
-                let token = serde_json::to_string(&resp).unwrap();
-                if let Err(err) = watch_tx.send(UserTokenState::Refresh {
-                  token,
-                  access_token: resp.access_token,
-                }) {
-                  error!("Failed to send token after token state changed: {}", err);
-                }
+        // Check if client is still alive before processing
+        if weak_client.upgrade().is_none() {
+          info!("Client has been dropped, stopping token state subscription");
+          break;
+        }
+
+        // Process token state changes
+        let user_token_state = match token_state {
+          TokenState::Refresh { token } => {
+            match serde_json::to_string(&token) {
+              Ok(serialized_token) => UserTokenState::Refresh {
+                token: serialized_token,
               },
               Err(err) => {
-                error!("Failed to get token after token state changed: {}", err);
+                error!("Failed to serialize token: {}", err);
+                continue; // Skip this token state change
               },
-            },
-            TokenState::Invalid => {
-              let _ = watch_tx.send(UserTokenState::Invalid);
-            },
-          }
+            }
+          },
+          TokenState::Invalid => UserTokenState::Invalid,
+        };
+
+        // Send the processed token state to watchers
+        if let Err(err) = watch_tx.send(user_token_state) {
+          error!("Failed to send token state to watchers: {}", err);
         }
       }
     });
@@ -221,10 +229,6 @@ impl AppFlowyServer for AppFlowyCloudServer {
 
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>) {
     *self.tanvity_state.write().await = state;
-  }
-
-  async fn refresh_access_token(&self, reason: &str) {
-    let _ = self.client.refresh_token(reason).await;
   }
 
   fn billing_service(&self) -> Option<Arc<dyn UserBillingService>> {

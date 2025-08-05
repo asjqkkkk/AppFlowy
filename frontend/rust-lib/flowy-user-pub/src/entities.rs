@@ -375,7 +375,7 @@ pub struct AFCloudOAuthParams {
 #[derive(Clone, Debug)]
 pub enum UserTokenState {
   Init,
-  Refresh { token: String, access_token: String },
+  Refresh { token: String },
   Invalid,
 }
 
