@@ -12,6 +12,8 @@ const _left = 'left';
 const _center = 'center';
 const _right = 'right';
 
+typedef _AlignItem = (String current, FlowySvgData icon, String next);
+
 class AlignItems extends StatelessWidget {
   AlignItems({
     super.key,
@@ -28,6 +30,7 @@ class AlignItems extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final currentAlignItem = _getCurrentAlignItem();
+    final nextAlignItem = currentAlignItem.$3;
     final theme = ToolbarColorExtension.of(context);
     return PopupMenu(
       itemLength: _alignMenuItems.length,
@@ -67,7 +70,7 @@ class AlignItems extends StatelessWidget {
         size: const Size(82, 52),
         onTap: () async {
           await editorState.alignBlock(
-            currentAlignItem.$1,
+            nextAlignItem,
             selectionExtraInfo: {
               selectionExtraInfoDoNotAttachTextService: true,
               selectionExtraInfoDisableFloatingToolbar: true,
@@ -88,16 +91,16 @@ class AlignItems extends StatelessWidget {
     );
   }
 
-  (String, FlowySvgData) _getCurrentAlignItem() {
+  _AlignItem _getCurrentAlignItem() {
     final align = _getCurrentBlockAlign();
     if (align == _left) {
-      return (_left, FlowySvgs.m_aa_align_left_s);
+      return (_left, FlowySvgs.m_aa_align_left_s, _center);
     } else if (align == _center) {
-      return (_center, FlowySvgs.m_aa_align_center_s);
+      return (_center, FlowySvgs.m_aa_align_center_s, _right);
     } else if (align == _right) {
-      return (_right, FlowySvgs.m_aa_align_right_s);
+      return (_right, FlowySvgs.m_aa_align_right_s, _left);
     } else {
-      return (_left, FlowySvgs.m_aa_align_left_s);
+      return (_left, FlowySvgs.m_aa_align_left_s, _center);
     }
   }
 

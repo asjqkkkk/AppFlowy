@@ -119,7 +119,7 @@ class SettingsManageDataView extends StatelessWidget {
                       if (isCloudWorkspace)
                         SettingsCategory(
                           title: LocaleKeys
-                              .workspaceImport_settings_importWorkspace
+                              .workspaceImport_settings_importWorkspace_title
                               .tr(),
                           tooltip: LocaleKeys
                               .workspaceImport_settings_importWorkspace_tooltip
@@ -128,7 +128,7 @@ class SettingsManageDataView extends StatelessWidget {
                         ),
                       SettingsCategory(
                         title: LocaleKeys
-                            .workspaceImport_settings_backupWorkspace
+                            .workspaceImport_settings_backupWorkspace_title
                             .tr(),
                         tooltip: LocaleKeys
                             .workspaceImport_settings_backupWorkspace_tooltip

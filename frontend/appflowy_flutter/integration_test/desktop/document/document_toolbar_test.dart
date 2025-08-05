@@ -16,6 +16,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 import '../../shared/util.dart';
 
@@ -449,6 +450,29 @@ void main() {
       node = tester.editor.getNodeAtPath([0]);
       expect(getNodeText(node), link);
       expect(getLinkFromNode(node), null);
+    });
+
+    testWidgets('insert link by shortcuts', (tester) async {
+      const text = 'edit link', link = 'https://test.appflowy.cloud';
+      await prepareForToolbar(tester, text);
+
+      /// ctrl + k
+      await tester.simulateKeyEvent(
+        LogicalKeyboardKey.keyK,
+        isControlPressed: !UniversalPlatform.isMacOS,
+        isMetaPressed: UniversalPlatform.isMacOS,
+      );
+
+      /// search for page and select it
+      final textField = find.descendant(
+        of: find.byType(LinkCreateMenu),
+        matching: find.byType(TextFormField),
+      );
+      await tester.enterText(textField, link);
+      await tester.pumpAndSettle();
+      await tester.simulateKeyEvent(LogicalKeyboardKey.enter);
+      final node = tester.editor.getNodeAtPath([0]);
+      expect(getLinkFromNode(node), link);
     });
   });
 }

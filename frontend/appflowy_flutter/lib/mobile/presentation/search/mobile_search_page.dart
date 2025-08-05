@@ -125,6 +125,7 @@ class _MobileSearchPageState extends State<MobileSearchPage> {
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (enableShowAISearch) MobileSearchAskAiEntrance(),
                             MobileSearchResult(),

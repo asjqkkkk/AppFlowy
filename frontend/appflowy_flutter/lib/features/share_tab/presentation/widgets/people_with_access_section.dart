@@ -64,10 +64,6 @@ class PeopleWithAccessSection extends StatelessWidget {
         horizontal: theme.spacing.m,
       ),
       children: users.map((user) {
-        if (currentUser == null) {
-          return const SizedBox.shrink();
-        }
-
         return SharedUserWidget(
           user: user,
           currentUser: currentUser,

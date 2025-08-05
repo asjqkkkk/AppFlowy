@@ -103,7 +103,7 @@ class DocumentPlugin extends Plugin {
       ..add(const ViewInfoEvent.started());
     _pageAccessLevelBloc = initialPageAccessLevelBloc ??
         (PageAccessLevelBloc(view: notifier.view)
-          ..add(const PageAccessLevelEvent.initial()));
+          ..add(const PageAccessLevelEvent.initial(requestSharedUsers: false)));
   }
 
   @override

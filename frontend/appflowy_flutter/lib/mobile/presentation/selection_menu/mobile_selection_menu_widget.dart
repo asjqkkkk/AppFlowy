@@ -1,6 +1,6 @@
 import 'dart:math';
 
-import 'package:appflowy/mobile/presentation/selection_menu/mobile_selection_menu.dart';
+import 'package:appflowy/mobile/presentation/widgets/mobile_no_result_item.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 
@@ -194,7 +194,7 @@ class _MobileSelectionMenuWidgetState extends State<MobileSelectionMenuWidget> {
                 borderRadius: BorderRadius.circular(6.0),
               ),
               child: _showingItems.isEmpty
-                  ? context.buildNoResultWidget()
+                  ? MobileNoResultItem()
                   : _buildResultsWidget(
                       context,
                       _showingItems,

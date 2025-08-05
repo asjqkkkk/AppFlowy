@@ -211,7 +211,12 @@ class _SignInDialogContent extends StatelessWidget {
                 const _DialogHeader(),
                 const _DialogTitle(),
                 const VSpace(16),
-                const ContinueWithEmailAndPassword(),
+                ContinueWithEmailAndPassword(
+                  withAnimation: false,
+                  didLogin: () {
+                    context.popToHome();
+                  },
+                ),
                 if (isAuthEnabled) ...[
                   const VSpace(20),
                   const _OrDivider(),
