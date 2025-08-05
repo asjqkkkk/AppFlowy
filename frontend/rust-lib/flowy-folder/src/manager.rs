@@ -770,7 +770,11 @@ impl FolderManager {
   /// Therefore, to access a nested child view within one of the initial child views, you must invoke this method
   /// again using the ID of the child view you wish to access.
   #[tracing::instrument(level = "debug", skip(self))]
-  pub async fn get_view_pb(&self, view_id: &str) -> FlowyResult<ViewPB> {
+  pub async fn get_view_pb_with_children(&self, view_id: &str) -> FlowyResult<ViewPB> {
+    self.get_view_pb(view_id, true).await
+  }
+
+  async fn get_view_pb(&self, view_id: &str, include_children: bool) -> FlowyResult<ViewPB> {
     self
       .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
       .await?;
@@ -790,26 +794,28 @@ impl FolderManager {
     if view_ids_should_be_filtered.contains(&view_id) {
       return Err(FlowyError::new(
         ErrorCode::RecordNotFound,
-        format!("View: {} is in trash or other private sections", view_id),
+        format!("View: {} is in trash or no access to this view", view_id),
       ));
     }
 
     match folder.get_view(&view_id, uid) {
-      None => {
-        error!("Can't find the view with id: {}", view_id);
-        Err(FlowyError::record_not_found())
-      },
+      None => Err(FlowyError::record_not_found()),
       Some(view) => {
-        let mut child_views = folder
-          .get_views_belong_to(&view.id, uid)
-          .into_iter()
-          .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
-          .collect::<Vec<_>>();
+        if include_children {
+          let mut child_views = folder
+            .get_views_belong_to(&view.id, uid)
+            .into_iter()
+            .filter(|view| !view_ids_should_be_filtered.contains(&view.id))
+            .collect::<Vec<_>>();
 
-        child_views.retain(|view| !no_access_view_ids.contains(&view.id));
+          child_views.retain(|view| !no_access_view_ids.contains(&view.id));
 
-        let view_pb = view_pb_with_child_views(view, child_views);
-        Ok(view_pb)
+          let view_pb = view_pb_with_child_views(view, child_views);
+          Ok(view_pb)
+        } else {
+          let view_pb = view_pb_without_child_views(view.as_ref().clone());
+          Ok(view_pb)
+        }
       },
     }
   }
@@ -826,27 +832,18 @@ impl FolderManager {
     &self,
     view_ids: Vec<String>,
   ) -> FlowyResult<Vec<ViewPB>> {
-    let lock = self
-      .mutex_folder
-      .load_full()
-      .ok_or_else(folder_not_init_error)?;
-
-    // trash views and other private views should not be accessed
-    let folder = lock.read().await;
-    let uid = self.user.user_id()?;
-    let view_ids_should_be_filtered = Self::get_view_ids_should_be_filtered(&folder, uid);
-
-    let views = view_ids
-      .into_iter()
-      .filter_map(|view_id| {
-        if view_ids_should_be_filtered.contains(&view_id) {
-          return None;
-        }
-        folder.get_view(&view_id, uid)
-      })
-      .map(view_pb_without_child_views_from_arc)
-      .collect::<Vec<_>>();
-
+    let mut views = vec![];
+    for view_id in view_ids {
+      let view_pb = self.get_view_pb(&view_id, false).await;
+      match view_pb {
+        Err(e) => {
+          debug!("Can't get the view with id: {}, error: {}", view_id, e);
+        },
+        Ok(view_pb) => {
+          views.push(view_pb);
+        },
+      }
+    }
     Ok(views)
   }
 
@@ -1021,7 +1018,7 @@ impl FolderManager {
     let prev_view_id = params.prev_view_id;
     let from_section = params.from_section;
     let to_section = params.to_section;
-    let view = self.get_view_pb(&view_id.to_string()).await?;
+    let view = self.get_view_pb_with_children(&view_id.to_string()).await?;
     // if the view is locked, the view can't be moved
     if view.is_locked.unwrap_or(false) {
       return Err(FlowyError::view_is_locked());
@@ -1080,7 +1077,7 @@ impl FolderManager {
       .check_user_permission(view_id, AFAccessLevelPB::FullAccess)
       .await?;
 
-    let view = self.get_view_pb(view_id).await?;
+    let view = self.get_view_pb_with_children(view_id).await?;
     // if the view is locked, the view can't be moved
     if view.is_locked.unwrap_or(false) {
       return Err(FlowyError::view_is_locked());
@@ -1103,7 +1100,7 @@ impl FolderManager {
           .collect::<Vec<_>>()
       } else {
         self
-          .get_view_pb(&parent_view_id)
+          .get_view_pb_with_children(&parent_view_id)
           .await?
           .child_views
           .into_iter()
@@ -1216,7 +1213,7 @@ impl FolderManager {
 
   // if the other_private_view_ids is provided, the function will use it instead of fetching it again.
   // when need to check permission for a lot of views, it can save a lot of time.
-  #[instrument(level = "debug", skip_all, err)]
+  #[instrument(level = "debug", skip_all)]
   async fn check_user_permission_with_precomputed_private_view_ids(
     &self,
     view_id: &str,
@@ -1383,7 +1380,7 @@ impl FolderManager {
       .check_user_permission(view_id, AFAccessLevelPB::ReadOnly)
       .await?;
 
-    let view = self.get_view_pb(view_id).await?;
+    let view = self.get_view_pb_with_children(view_id).await?;
     let current_extra = view.extra.unwrap_or_default();
 
     let mut extra_map: serde_json::Map<String, serde_json::Value> =
@@ -1609,7 +1606,7 @@ impl FolderManager {
     // notify the update here
     let folder = lock.read().await;
     notify_parent_view_did_change(workspace_id, &folder, vec![parent_view_id], uid);
-    let duplicated_view = self.get_view_pb(&new_view_id).await?;
+    let duplicated_view = self.get_view_pb_with_children(&new_view_id).await?;
     Ok(duplicated_view)
   }
 
@@ -1667,7 +1664,10 @@ impl FolderManager {
       drop(folder);
     }
 
-    let current = self.get_view_pb(&recent_view_id?).await.ok()?;
+    let current = self
+      .get_view_pb_with_children(&recent_view_id?)
+      .await
+      .ok()?;
     Some(current)
   }
 
@@ -2180,7 +2180,7 @@ impl FolderManager {
     let mut payloads = Vec::new();
 
     while let Some(current_view_id) = stack.pop() {
-      let view = match self.get_view_pb(&current_view_id).await {
+      let view = match self.get_view_pb_with_children(&current_view_id).await {
         Ok(view) => view,
         Err(_) => continue,
       };
@@ -2216,7 +2216,7 @@ impl FolderManager {
   }
 
   async fn build_publish_views(&self, view_id: &str) -> Option<PublishViewInfo> {
-    let view_pb = self.get_view_pb(view_id).await.ok()?;
+    let view_pb = self.get_view_pb_with_children(view_id).await.ok()?;
 
     let mut child_views_futures = vec![];
 
@@ -2259,7 +2259,7 @@ impl FolderManager {
       .await?;
 
     let view_str_id = view_id.to_string();
-    let view = self.get_view_pb(&view_str_id).await?;
+    let view = self.get_view_pb_with_children(&view_str_id).await?;
 
     let publish_name = publish_name.unwrap_or_else(|| generate_publish_name(&view.id, &view.name));
 
@@ -2323,7 +2323,7 @@ impl FolderManager {
 
   // Used by toggle_favorites to send notification to frontend, after the favorite status of view has been changed.It sends two distinct notifications: one to correctly update the concerned view's is_favorite status, and another to update the list of favorites that is to be displayed.
   async fn send_toggle_favorite_notification(&self, view_id: &str) {
-    if let Ok(view) = self.get_view_pb(view_id).await {
+    if let Ok(view) = self.get_view_pb_with_children(view_id).await {
       let notification_type = if view.is_favorite {
         FolderNotification::DidFavoriteView
       } else {
@@ -2383,6 +2383,10 @@ impl FolderManager {
     let offset = offset.unwrap_or(0);
 
     let db = self.user.sqlite_connection(uid)?;
+    debug!(
+      "Fetching recent views for user {} in workspace {}, limit: {}, offset: {}",
+      uid, workspace_id, limit, offset
+    );
     let local_views = select_user_recent_views(
       db,
       uid,
@@ -2393,6 +2397,7 @@ impl FolderManager {
     .ok();
     match local_views {
       Some(views) => {
+        debug!("Found {} recent views in local database", views.len());
         self.sync_recent_views_in_background(workspace_id, uid, limit, offset);
         Ok(views)
       },
@@ -2673,7 +2678,7 @@ impl FolderManager {
       }
     }
 
-    if let Ok(view_pb) = self.get_view_pb(view_id).await {
+    if let Ok(view_pb) = self.get_view_pb_with_children(view_id).await {
       folder_notification_builder(&view_pb.id, FolderNotification::DidUpdateView)
         .payload(view_pb)
         .send();

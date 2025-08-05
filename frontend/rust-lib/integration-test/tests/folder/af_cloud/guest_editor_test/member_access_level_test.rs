@@ -293,4 +293,11 @@ async fn member_share_a_private_page_with_owner_test() {
   // owner has permission to view the private page
   let owner_private_page = owner.get_view_or_panic(&private_page.id).await;
   assert_eq!(owner_private_page.id, private_page.id);
+
+  // owner get the recent section and check the private shared page is in the recent section
+  owner.open_view(&private_page.id).await;
+  let recent_section = owner.get_recent_section().await;
+  let first_item = recent_section.items.first().unwrap();
+  assert_eq!(first_item.item.id, private_page.id);
+  assert_eq!(first_item.item.name, private_page.name);
 }

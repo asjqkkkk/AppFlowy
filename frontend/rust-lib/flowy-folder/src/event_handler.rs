@@ -107,7 +107,7 @@ pub(crate) async fn get_view_handler(
 ) -> DataResult<ViewPB, FlowyError> {
   let folder = upgrade_folder(folder)?;
   let view_id = data.try_into_inner()?;
-  let view_pb = folder.get_view_pb(&view_id.value).await?;
+  let view_pb = folder.get_view_pb_with_children(&view_id.value).await?;
   data_result_ok(view_pb)
 }
 
@@ -270,7 +270,7 @@ pub(crate) async fn read_favorites_handler(
   let favorite_items = folder.get_all_favorites().await;
   let mut views = vec![];
   for item in favorite_items {
-    if let Ok(view) = folder.get_view_pb(&item.id).await {
+    if let Ok(view) = folder.get_view_pb_with_children(&item.id).await {
       views.push(SectionViewPB {
         item: view,
         timestamp: item.timestamp,
@@ -295,6 +295,7 @@ pub(crate) async fn read_recent_views_handler(
     .collect::<Vec<_>>();
 
   let views = folder.get_view_pbs_without_children(view_ids).await?;
+
   let items = views
     .into_iter()
     .zip(recent_views.into_iter())
