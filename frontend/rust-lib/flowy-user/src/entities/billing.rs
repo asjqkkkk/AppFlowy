@@ -1,9 +1,8 @@
-use client_api::entity::billing_dto::{PersonalPlan, PersonalSubscriptionStatus};
-use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
-use flowy_server_pub::billing_dto::{
-  Currency, RecurringInterval, SubscriptionPlan, SubscriptionPlanDetail,
-  WorkspaceSubscriptionStatus,
+use client_api::entity::billing_dto::{
+  Currency, PersonalPlan, PersonalSubscriptionStatus, RecurringInterval, SubscriptionPlan,
+  SubscriptionPlanDetail, SubscriptionStatus, WorkspaceSubscriptionStatus,
 };
+use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use lib_infra::validator_fn::required_not_empty_str;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -401,7 +400,7 @@ impl From<PersonalSubscriptionStatus> for PersonalSubscriptionPB {
     Self {
       plan: status.plan.into(),
       status: match status.subscription_status {
-        flowy_server_pub::billing_dto::SubscriptionStatus::Active => SubscriptionStatusPB::Active,
+        SubscriptionStatus::Active => SubscriptionStatusPB::Active,
         _ => SubscriptionStatusPB::Canceled,
       },
       end_date: status.current_period_end,

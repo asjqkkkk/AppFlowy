@@ -132,6 +132,12 @@ pub trait FolderCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
   ) -> Result<MentionablePersons, FlowyError>;
 
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError>;
+
   /// Update the mentionable persons in a page(with access)
   async fn update_page_mention(
     &self,
@@ -163,12 +169,6 @@ pub trait FolderCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     profile: &WorkspaceMemberProfile,
   ) -> Result<(), FlowyError>;
-
-  async fn get_workspace_mentionable_person(
-    &self,
-    workspace_id: &Uuid,
-    person_id: &Uuid,
-  ) -> Result<MentionablePerson, FlowyError>;
 }
 
 #[derive(Debug)]

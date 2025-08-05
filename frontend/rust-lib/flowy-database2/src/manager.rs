@@ -1,4 +1,14 @@
+use crate::collab_service::DatabaseCollabServiceImpl;
+use crate::entities::{DatabaseLayoutPB, DatabaseSnapshotPB, FieldType, RowMetaPB};
+use crate::services::cell::stringify_cell;
+use crate::services::database::{
+  DatabaseEditor, DatabaseRowCollabServiceMiddleware, ImportDatabaseRowCollabService,
+};
+use crate::services::database_view::DatabaseLayoutDepsResolver;
+use crate::services::field_settings::default_field_settings_by_layout_map;
+use crate::services::share::csv::{CSVFormat, CSVImporter};
 use arc_swap::ArcSwapOption;
+use client_api::entity::{CreateCollabParams, TranslateItem};
 use collab::lock::RwLock;
 use collab::preclude::ClientID;
 use collab_database::database::{Database, DatabaseContext, DatabaseData};
@@ -14,33 +24,22 @@ use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use dashmap::{DashMap, Entry};
-use rayon::prelude::*;
-use std::collections::{HashMap, HashSet};
-use std::str::FromStr;
-use std::sync::{Arc, Weak};
-use std::time::Duration;
-use tracing::{debug, error, info, instrument, trace};
-
 use flowy_database_pub::cloud::{
-  CreateCollabParams, DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateItem,
-  TranslateRowContent,
+  DatabaseAIService, DatabaseCloudService, SummaryRowContent, TranslateRowContent,
 };
 use flowy_error::{FlowyError, FlowyResult, internal_error};
-
-use crate::collab_service::DatabaseCollabServiceImpl;
-use crate::entities::{DatabaseLayoutPB, DatabaseSnapshotPB, FieldType, RowMetaPB};
-use crate::services::cell::stringify_cell;
-use crate::services::database::{
-  DatabaseEditor, DatabaseRowCollabServiceMiddleware, ImportDatabaseRowCollabService,
-};
-use crate::services::database_view::DatabaseLayoutDepsResolver;
-use crate::services::field_settings::default_field_settings_by_layout_map;
-use crate::services::share::csv::{CSVFormat, CSVImporter};
 use flowy_user_pub::workspace_collab::adaptor::WorkspaceCollabAdaptor;
 use lib_infra::async_entry::AsyncEntry;
 use lib_infra::box_any::BoxAny;
 use lib_infra::priority_task::TaskDispatcher;
+use rayon::prelude::*;
+use std::collections::{HashMap, HashSet};
+use std::ops::DerefMut;
+use std::str::FromStr;
+use std::sync::{Arc, Weak};
+use std::time::Duration;
 use tokio::sync::RwLock as TokioRwLock;
+use tracing::{debug, error, info, instrument, trace};
 use uuid::Uuid;
 
 pub trait DatabaseUser: Send + Sync {
@@ -329,8 +328,8 @@ impl DatabaseManager {
     let database = self.get_or_init_database_editor(&database_id).await?;
     let data = database
       .database
-      .read()
-      .await
+      .try_read_for_duration(Duration::from_millis(300))
+      .await?
       .get_database_data(20, true)
       .await;
     Ok(data)
@@ -548,10 +547,16 @@ impl DatabaseManager {
     let mut params =
       CreateViewParams::new(database_id.clone(), database_view_id.clone(), name, layout);
     if let Ok(editor) = self.get_or_init_database(&database_id).await {
+      let mut database = editor
+        .database
+        .try_write_for_duration(Duration::from_millis(300))
+        .await?;
       let (field, layout_setting, field_settings_map) =
-        DatabaseLayoutDepsResolver::new(editor.database.clone(), layout)
+        DatabaseLayoutDepsResolver::new(database.deref_mut(), layout)
           .resolve_deps_when_create_database_linked_view(&database_parent_view_id)
           .await;
+      drop(database);
+
       if let Some(field) = field {
         params = params.with_deps_fields(vec![field], vec![default_field_settings_by_layout_map()]);
       }
@@ -686,7 +691,7 @@ impl DatabaseManager {
     let database = self.get_database_editor_with_view_id(view_id).await?;
     let mut summary_row_content = SummaryRowContent::new();
     if let Some(row) = database.get_row(view_id, &row_id).await {
-      let fields = database.get_fields(view_id, None).await;
+      let fields = database.get_fields(view_id, None).await?;
       for field in fields {
         // When summarizing a row, skip the content in the "AI summary" cell; it does not need to
         // be summarized.
@@ -739,7 +744,7 @@ impl DatabaseManager {
     let mut language = "english".to_string();
 
     if let Some(row) = database.get_row(&view_id, &row_id).await {
-      let fields = database.get_fields(&view_id, None).await;
+      let fields = database.get_fields(&view_id, None).await?;
       for field in fields {
         // When translate a row, skip the content in the "AI Translate" cell; it does not need to
         // be translated.
@@ -803,7 +808,8 @@ impl DatabaseManager {
   ) -> Result<Arc<DatabaseEditor>, FlowyError> {
     let entry = self
       .database_editors
-      .entry(database_id.to_string())
+      .try_entry(database_id.to_string())
+      .ok_or_else(|| FlowyError::internal().with_context("Failed to acquire database entry"))?
       .or_insert_with(|| DatabaseEditorEntry::new_initializing(database_id.to_string()))
       .clone();
 

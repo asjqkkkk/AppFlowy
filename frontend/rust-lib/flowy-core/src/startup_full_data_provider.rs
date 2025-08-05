@@ -1,5 +1,5 @@
 use crate::editing_collab_data_consumer::index_views_from_folder;
-use client_api::entity::workspace_dto::ViewIcon;
+use client_api::entity::workspace_dto::{IconType, ViewIcon};
 use collab::core::collab::default_client_id;
 use collab::preclude::Collab;
 use collab_entity::CollabType;
@@ -13,7 +13,6 @@ use flowy_ai_pub::persistence::{
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_folder::manager::FolderManager;
 use flowy_server::af_cloud::define::LoggedUser;
-use flowy_server_pub::workspace_dto::IconType;
 use flowy_user_pub::workspace_collab::adaptor::unindexed_data_form_collab;
 use lib_infra::async_trait::async_trait;
 use std::collections::HashMap;

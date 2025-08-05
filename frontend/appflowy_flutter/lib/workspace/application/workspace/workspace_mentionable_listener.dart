@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:typed_data';
 
 import 'package:appflowy/core/notification/folder_notification.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
@@ -7,11 +6,13 @@ import 'package:appflowy_backend/protobuf/flowy-folder/notification.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:flowy_infra/notifier.dart';
+import 'package:flutter/foundation.dart';
 
 typedef MentionablePersonsNotifyValue
     = FlowyResult<List<MentionablePersonPB>, FlowyError>;
 typedef MentionablePersonNotifyValue
     = FlowyResult<MentionablePersonPB, FlowyError>;
+typedef SharedUsersNotifyValue = FlowyResult<List<SharedUserPB>, FlowyError>;
 
 /// The [WorkspaceMentionableListener] listens to the changes including the below:
 ///
@@ -26,12 +27,15 @@ class WorkspaceMentionableListener {
       PublishNotifier();
   PublishNotifier<MentionablePersonNotifyValue>? _mentionablePersonNotifier =
       PublishNotifier();
+  PublishNotifier<SharedUsersNotifyValue>? _sharedUsersNotifier =
+      PublishNotifier();
 
   FolderNotificationListener? _listener;
 
   void start({
-    void Function(MentionablePersonsNotifyValue)? mentionablePersonsChanged,
-    void Function(MentionablePersonNotifyValue)? mentionablePersonChanged,
+    ValueChanged<MentionablePersonsNotifyValue>? mentionablePersonsChanged,
+    ValueChanged<MentionablePersonNotifyValue>? mentionablePersonChanged,
+    ValueChanged<SharedUsersNotifyValue>? sharedUsersChanged,
   }) {
     if (mentionablePersonsChanged != null) {
       _mentionablePersonsNotifier
@@ -40,6 +44,9 @@ class WorkspaceMentionableListener {
 
     if (mentionablePersonChanged != null) {
       _mentionablePersonNotifier?.addPublishListener(mentionablePersonChanged);
+    }
+    if (sharedUsersChanged != null) {
+      _sharedUsersNotifier?.addPublishListener(sharedUsersChanged);
     }
 
     _listener = FolderNotificationListener(
@@ -70,6 +77,13 @@ class WorkspaceMentionableListener {
               _mentionablePersonsNotifier?.value = FlowyResult.failure(error),
         );
         break;
+      case FolderNotification.DidUpdateSharedUsers:
+        result.fold(
+          (payload) => _sharedUsersNotifier?.value = FlowyResult.success(
+            RepeatedSharedUserPB.fromBuffer(payload).items,
+          ),
+          (error) => _sharedUsersNotifier?.value = FlowyResult.failure(error),
+        );
       default:
         break;
     }
@@ -78,8 +92,10 @@ class WorkspaceMentionableListener {
   Future<void> stop() async {
     _mentionablePersonsNotifier?.dispose();
     _mentionablePersonNotifier?.dispose();
+    _sharedUsersNotifier?.dispose();
     _mentionablePersonsNotifier = null;
     _mentionablePersonNotifier = null;
+    _sharedUsersNotifier = null;
     await _listener?.stop();
   }
 }

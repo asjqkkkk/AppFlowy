@@ -2,6 +2,7 @@
 
 use crate::af_cloud::define::LoggedUser;
 use crate::local_server::util::default_encode_collab_for_collab_type;
+use client_api::entity::{CreateCollabParams, QueryCollab};
 use client_api::v2::CollabKVActionExt;
 use collab::core::collab::{CollabOptions, default_client_id};
 use collab::core::origin::CollabOrigin;
@@ -11,7 +12,6 @@ use collab_entity::CollabType;
 use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
-use flowy_ai_pub::cloud::{CreateCollabParams, QueryCollab};
 use flowy_database_pub::cloud::{DatabaseCloudService, DatabaseSnapshot, EncodeCollabByOid};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use lib_infra::async_trait::async_trait;

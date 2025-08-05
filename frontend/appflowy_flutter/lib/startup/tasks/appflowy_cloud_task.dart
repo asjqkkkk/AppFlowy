@@ -127,6 +127,10 @@ class AppFlowyCloudDeepLink {
             result is FlowyResult<UserProfilePB, FlowyError>) {
           // Close the in-app webview after successful sign-in
           result.onSuccess((_) {
+            _stateNotifier?.value = DeepLinkResult(
+              state: DeepLinkState.finish,
+              result: result,
+            );
             if (UniversalPlatform.isIOS) {
               closeInAppWebView();
             }
@@ -144,6 +148,7 @@ class AppFlowyCloudDeepLink {
                 if (context != null) {
                   showToastNotification(
                     message: err.msg,
+                    type: ToastificationType.error,
                   );
                 }
               },

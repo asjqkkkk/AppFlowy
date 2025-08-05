@@ -1,12 +1,10 @@
-use anyhow::Result;
-use std::collections::HashMap;
-
 use crate::local_ai::chat::llm::AFLLM;
-use flowy_ai_pub::cloud::ai_dto::{TranslateRowData, TranslateRowResponse};
-use flowy_database_pub::cloud::TranslateItem;
+use anyhow::Result;
+use client_api::entity::{TranslateItem, TranslateRowData, TranslateRowResponse};
 use flowy_error::{FlowyError, FlowyResult};
 use langchain_rust::language_models::llm::LLM;
 use langchain_rust::schemas::Message;
+use std::collections::HashMap;
 use tracing::{info, warn};
 
 /// The translation prompt templates

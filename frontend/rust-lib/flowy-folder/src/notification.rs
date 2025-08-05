@@ -35,7 +35,6 @@ pub enum FolderNotification {
   DidFavoriteView = 36,
   DidUnfavoriteView = 37,
 
-  DidUpdateRecentViews = 38,
   /// Trigger when the ROOT views (the first level) in section are updated
   DidUpdateSectionViews = 39,
 

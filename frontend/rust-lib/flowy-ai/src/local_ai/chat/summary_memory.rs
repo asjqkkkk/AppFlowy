@@ -1,7 +1,6 @@
 use crate::local_ai::chat::llm::AFLLM;
 use async_trait::async_trait;
-use flowy_ai_pub::cloud::MessageCursor;
-use flowy_ai_pub::cloud::chat_dto::ChatAuthorType;
+use client_api::entity::chat_dto::{ChatAuthorType, MessageCursor};
 use flowy_ai_pub::persistence::{chat_auth_type_from_i64, select_chat_messages};
 use flowy_ai_pub::user_service::AIUserService;
 use flowy_error::{FlowyError, FlowyResult};

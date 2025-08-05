@@ -1,6 +1,6 @@
+use client_api::entity::chat_dto::MessageCursor;
 use event_integration_test::user_event::use_localhost_af_cloud;
 use event_integration_test::EventIntegrationTest;
-use flowy_ai_pub::cloud::MessageCursor;
 use flowy_ai_pub::persistence::{
   select_answer_where_match_reply_message_id, select_chat_messages, select_message,
   select_message_content, total_message_count, upsert_chat_messages, ChatMessageTable,

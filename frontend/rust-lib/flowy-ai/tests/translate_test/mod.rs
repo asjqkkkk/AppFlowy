@@ -1,8 +1,7 @@
 use crate::setup_log;
+use client_api::entity::{TranslateItem, TranslateRowData};
 use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::database::translate::DatabaseTranslateChain;
-use flowy_ai_pub::cloud::ai_dto::TranslateRowData;
-use flowy_database_pub::cloud::TranslateItem;
 
 #[tokio::test]
 async fn local_ai_test_database_translate() {
@@ -10,7 +9,6 @@ async fn local_ai_test_database_translate() {
 
   let ollama = AFLLM::default();
   let chain = DatabaseTranslateChain::new(ollama);
-
   let data = TranslateRowData {
     cells: vec![
       TranslateItem {

@@ -1,6 +1,6 @@
 use crate::embeddings::document_indexer::DocumentIndexer;
 use crate::embeddings::embedder::Embedder;
-use flowy_ai_pub::cloud::CollabType;
+use client_api::entity::CollabType;
 use flowy_ai_pub::entities::{EmbeddedChunk, EmbeddingDimension};
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;

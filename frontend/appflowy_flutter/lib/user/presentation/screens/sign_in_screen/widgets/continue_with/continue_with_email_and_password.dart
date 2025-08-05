@@ -13,7 +13,14 @@ import 'package:string_validator/string_validator.dart';
 import 'package:universal_platform/universal_platform.dart';
 
 class ContinueWithEmailAndPassword extends StatefulWidget {
-  const ContinueWithEmailAndPassword({super.key});
+  const ContinueWithEmailAndPassword({
+    super.key,
+    this.didLogin,
+    this.withAnimation = true,
+  });
+
+  final VoidCallback? didLogin;
+  final bool withAnimation;
 
   @override
   State<ContinueWithEmailAndPassword> createState() =>
@@ -46,7 +53,10 @@ class _ContinueWithEmailAndPasswordState
         // only push the continue with magic link or passcode page if the magic link is sent successfully
         if (successOrFail != null) {
           successOrFail.fold(
-            (_) => emailKey.currentState?.clearError(),
+            (_) {
+              emailKey.currentState?.clearError();
+              widget.didLogin?.call();
+            },
             (error) => emailKey.currentState?.syncError(
               errorText: error.msg,
             ),
@@ -131,32 +141,45 @@ class _ContinueWithEmailAndPasswordState
     final signInBloc = context.read<SignInBloc>();
 
     // push the a continue with magic link or passcode screen
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => BlocProvider.value(
-          value: signInBloc,
-          child: ContinueWithMagicLinkOrPasscodePage(
-            email: email,
-            backToLogin: () {
-              Navigator.pop(context);
+    Widget buildPage(BuildContext context) {
+      return BlocProvider.value(
+        value: signInBloc,
+        child: ContinueWithMagicLinkOrPasscodePage(
+          email: email,
+          backToLogin: () {
+            Navigator.pop(context);
 
-              emailKey.currentState?.clearError();
+            emailKey.currentState?.clearError();
 
-              _hasPushedContinueWithMagicLinkOrPasscodePage = false;
-            },
-            onEnterPasscode: (passcode) {
-              signInBloc.add(
-                SignInEvent.signInWithPasscode(
-                  email: email,
-                  passcode: passcode,
-                ),
-              );
-            },
-          ),
+            _hasPushedContinueWithMagicLinkOrPasscodePage = false;
+          },
+          onEnterPasscode: (passcode) {
+            signInBloc.add(
+              SignInEvent.signInWithPasscode(
+                email: email,
+                passcode: passcode,
+              ),
+            );
+          },
         ),
-      ),
-    );
+      );
+    }
+
+    if (widget.withAnimation) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => buildPage(context),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, _, __) => buildPage(context),
+        ),
+      );
+    }
 
     _hasPushedContinueWithMagicLinkOrPasscodePage = true;
   }
@@ -166,30 +189,41 @@ class _ContinueWithEmailAndPasswordState
     String email,
   ) {
     final signInBloc = context.read<SignInBloc>();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        settings: const RouteSettings(name: '/continue-with-password'),
-        builder: (context) => BlocProvider.value(
-          value: signInBloc,
-          child: ContinueWithPasswordPage(
-            email: email,
-            backToLogin: () {
-              emailKey.currentState?.clearError();
-              Navigator.pop(context);
-            },
-            onEnterPassword: (password) => signInBloc.add(
-              SignInEvent.signInWithEmailAndPassword(
-                email: email,
-                password: password,
-              ),
+    Widget buildPage(BuildContext context) {
+      return BlocProvider.value(
+        value: signInBloc,
+        child: ContinueWithPasswordPage(
+          email: email,
+          backToLogin: () {
+            emailKey.currentState?.clearError();
+            Navigator.pop(context);
+          },
+          onEnterPassword: (password) => signInBloc.add(
+            SignInEvent.signInWithEmailAndPassword(
+              email: email,
+              password: password,
             ),
-            onForgotPassword: () {
-              // todo: implement forgot password
-            },
           ),
+          onForgotPassword: () {},
         ),
-      ),
-    );
+      );
+    }
+
+    if (widget.withAnimation) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          settings: const RouteSettings(name: '/continue-with-password'),
+          builder: (context) => buildPage(context),
+        ),
+      );
+    } else {
+      Navigator.push(
+        context,
+        PageRouteBuilder(
+          pageBuilder: (context, _, __) => buildPage(context),
+        ),
+      );
+    }
   }
 }

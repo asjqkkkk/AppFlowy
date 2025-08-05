@@ -1,7 +1,3 @@
-use std::borrow::Cow;
-use std::collections::HashMap;
-use std::sync::Arc;
-
 use super::{
   CalculationOperations, CellOperations, DatabaseOperations, DatabaseViewChanged, FieldOperations,
   FilterOperations, GroupOperations, LayoutOperations, RowOperations, SortOperations,
@@ -41,6 +37,11 @@ use collab_database::rows::{Cell, Cells, CreateRowParams, Row, RowCell, RowDetai
 use collab_database::views::{DatabaseLayout, RowOrder};
 use dashmap::DashMap;
 use flowy_error::{FlowyError, FlowyResult};
+use std::borrow::Cow;
+use std::collections::HashMap;
+use std::ops::DerefMut;
+use std::sync::Arc;
+use std::time::Duration;
 
 use crate::services::field::TypeOptionHandlerCache;
 use lib_infra::util::timestamp;
@@ -1310,11 +1311,15 @@ impl DatabaseViewEditor {
     // using the {} brackets to denote the lifetime of the resolver. Because the DatabaseLayoutDepsResolver
     // is not sync and send, so we can't pass it to the async block.
     {
-      let resolver =
-        DatabaseLayoutDepsResolver::new(self.database_ops.get_database(), new_layout_type);
+      let database = self.database_ops.get_database();
+      let mut db_guard = database
+        .try_write_for_duration(Duration::from_millis(300))
+        .await?;
+      let mut resolver = DatabaseLayoutDepsResolver::new(db_guard.deref_mut(), new_layout_type);
       resolver
         .resolve_deps_when_update_layout_type(&self.view_id)
         .await;
+      drop(db_guard);
     }
 
     // initialize the group controller if the current layout support grouping

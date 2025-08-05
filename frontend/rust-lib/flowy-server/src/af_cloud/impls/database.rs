@@ -3,17 +3,17 @@ use crate::af_cloud::AFServer;
 use crate::af_cloud::define::LoggedUser;
 use crate::af_cloud::impls::util::check_request_workspace_id_is_match;
 use client_api::entity::QueryCollabResult::{Failed, Success};
-use client_api::entity::ai_dto::{
-  SummarizeRowData, SummarizeRowParams, TranslateRowData, TranslateRowParams,
+use client_api::entity::ai_dto::{SummarizeRowData, SummarizeRowParams};
+use client_api::entity::{
+  CollabParams, CreateCollabParams, QueryCollab, QueryCollabParams, TranslateRowData,
+  TranslateRowParams, TranslateRowResponse,
 };
-use client_api::entity::{CreateCollabParams, QueryCollab, QueryCollabParams};
 use client_api::error::ErrorCode::RecordNotFound;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
-use flowy_ai_pub::cloud::CollabParams;
 use flowy_database_pub::cloud::{
   DatabaseAIService, DatabaseCloudService, DatabaseSnapshot, EncodeCollabByOid, SummaryRowContent,
-  TranslateRowContent, TranslateRowResponse,
+  TranslateRowContent,
 };
 use flowy_error::FlowyError;
 use lib_infra::async_trait::async_trait;

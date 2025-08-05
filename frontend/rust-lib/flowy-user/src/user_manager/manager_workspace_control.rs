@@ -4,15 +4,14 @@ use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
-use client_api::entity::server_info_dto::ServerInfo;
+use client_api::entity::server_info_dto::{ServerInfo, SignedServerInfoData};
+use client_api::entity::GotrueTokenResponse;
 use client_api::v2::{
   ConnectState, DisconnectedReason, RetryConfig, WorkspaceController, WorkspaceControllerOptions,
 };
 use client_api::verify_signature;
 use dashmap::Entry;
 use flowy_error::{FlowyError, FlowyResult};
-use flowy_server_pub::server_info_dto::SignedServerInfoData;
-use flowy_server_pub::GotrueTokenResponse;
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::cloud::UserServerProvider;
 use flowy_user_pub::entities::WorkspaceType;

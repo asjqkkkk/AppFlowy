@@ -1,9 +1,9 @@
 use crate::test_utils::{assert_content_similar, assert_response_about_topic};
 use crate::{TestContext, collect_stream, setup_log};
+use client_api::entity::{OutputLayout, ResponseFormat};
 use flowy_ai::local_ai::chat::chains::related_question_chain::RelatedQuestionChain;
 use flowy_ai::local_ai::chat::llm::AFLLM;
 use flowy_ai::local_ai::chat::llm_chat::StreamQuestionOptions;
-use flowy_ai_pub::cloud::{OutputLayout, ResponseFormat};
 use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
 
 #[tokio::test]

@@ -26,9 +26,11 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     on<NotifyPersonEvent>(_onNotifyPersonEvent);
     on<UpdatePersonEvent>(_onUpdatePersonEvent);
     on<UpdatePersonsEvent>(_onUpdatePersonsEvent);
+    on<UpdateAvailableEmailsEvent>(_onUpdateAvailableEmailsEvent);
     _listener.start(
       mentionablePersonChanged: onMentionablePersonChanged,
       mentionablePersonsChanged: onMentionablePersonsChanged,
+      sharedUsersChanged: onSharedUsersChanged,
     );
   }
 
@@ -54,7 +56,6 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     }
 
     final availableEmails = await _getFolderEventGetSharedUsers();
-
     final personsResult = await repository.getWorkspacePersons(
       workspaceId: workspaceId,
       query: '',
@@ -148,6 +149,13 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     );
   }
 
+  Future<void> _onUpdateAvailableEmailsEvent(
+    UpdateAvailableEmailsEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    emit(state.copyWith(availableEmails: event.emails));
+  }
+
   Future<List<String>> _getFolderEventGetSharedUsers() async {
     final documentUsersResult = await FolderEventGetSharedUsers(
       GetSharedUsersPayloadPB(viewId: documentId, isFetchFromCloud: false),
@@ -174,6 +182,16 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
       if (!isClosed) add(PersonEvent.updatePerson(Person.fromProto(v)));
     }, (e) {
       Log.error('Failed to notify mentionable person: $e');
+    });
+  }
+
+  void onSharedUsersChanged(SharedUsersNotifyValue v) {
+    v.fold((v) {
+      if (!isClosed) {
+        add(PersonEvent.updateAvailableEmails(v.map((e) => e.email).toList()));
+      }
+    }, (e) {
+      Log.error('Failed to notify shared users: $e');
     });
   }
 }

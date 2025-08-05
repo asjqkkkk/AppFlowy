@@ -136,15 +136,21 @@ pub fn upsert_user_recent_views(
 
   let recent_views = items
     .into_iter()
-    .map(|item| UserRecentViewTable {
-      view_id: item.object_id.to_string(),
-      view_at: item.viewed_at.naive_utc(),
-      uid,
-      workspace_id: workspace_id.to_string(),
-    })
+    .map(|item| (workspace_id.to_string(), uid, item).into())
     .collect::<Vec<_>>();
   for recent_view in &recent_views {
     upsert_user_recent_view(conn, recent_view)?;
   }
   Ok(recent_views)
+}
+
+impl From<(String, i64, RecentViewItem)> for UserRecentViewTable {
+  fn from((workspace_id, uid, item): (String, i64, RecentViewItem)) -> Self {
+    UserRecentViewTable {
+      view_id: item.object_id.to_string(),
+      view_at: item.viewed_at.naive_utc(),
+      uid,
+      workspace_id,
+    }
+  }
 }

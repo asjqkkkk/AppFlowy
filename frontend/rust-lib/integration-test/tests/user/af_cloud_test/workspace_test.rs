@@ -145,11 +145,12 @@ async fn af_cloud_workspace_current_view_test() {
   assert_eq!(latest_view.id, view.id);
 
   // make sure the recent view request is sent before dropping the test
-  tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+  tokio::time::sleep(std::time::Duration::from_secs(3)).await;
   drop(test);
 
   // simulate reopen the app
   let test_2 = EventIntegrationTest::new_with_config(config).await;
+  tokio::time::sleep(std::time::Duration::from_secs(2)).await;
   let all_workspace_views = test_2.get_all_workspace_views().await;
   dbg!(&all_workspace_views);
 

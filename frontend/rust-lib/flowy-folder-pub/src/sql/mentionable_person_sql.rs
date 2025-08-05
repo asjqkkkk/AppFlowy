@@ -1,5 +1,7 @@
 use chrono::{DateTime, Utc};
-use client_api::entity::{MentionablePersonType, MentionablePersonWithLastMentionedTime};
+use client_api::entity::{
+  MentionablePerson, MentionablePersonType, MentionablePersonWithLastMentionedTime,
+};
 use diesel::{RunQueryDsl, delete, insert_into, update};
 use flowy_error::FlowyResult;
 use flowy_sqlite::schema::mentionable_person;
@@ -54,19 +56,35 @@ impl MentionablePersonTable {
     }
   }
 
-  pub fn from_entity(person: &MentionablePersonWithLastMentionedTime, workspace_id: Uuid) -> Self {
+  pub fn from_entity(person: MentionablePersonWithLastMentionedTime, workspace_id: Uuid) -> Self {
     Self {
       person_id: person.person_id.to_string(),
       workspace_id: workspace_id.to_string(),
-      name: person.name.clone(),
-      email: person.email.clone(),
-      role: person.role.clone() as i32,
-      avatar_url: person.avatar_url.clone(),
-      cover_image_url: person.cover_image_url.clone(),
-      custom_image_url: person.custom_image_url.clone(),
-      description: person.description.clone(),
+      name: person.name,
+      email: person.email,
+      role: person.role as i32,
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      custom_image_url: person.custom_image_url,
+      description: person.description,
       invited: person.invited,
       last_mentioned_at: person.last_mentioned_at.map(|dt| dt.naive_utc()),
+    }
+  }
+
+  pub fn from_mention_person(person: MentionablePerson, workspace_id: Uuid) -> Self {
+    Self {
+      person_id: person.person_id.to_string(),
+      workspace_id: workspace_id.to_string(),
+      name: person.name,
+      email: person.email,
+      role: person.role as i32,
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      custom_image_url: person.custom_image_url,
+      description: person.description,
+      invited: person.invited,
+      last_mentioned_at: None,
     }
   }
 
@@ -105,6 +123,46 @@ pub fn insert_mentionable_person(
   Ok(())
 }
 
+pub fn upsert_mentionable_person(
+  conn: &mut SqliteConnection,
+  person: &MentionablePersonTable,
+) -> FlowyResult<()> {
+  // Use insert_or_ignore to avoid duplicates
+  insert_into(mentionable_person::table)
+    .values(person)
+    .on_conflict(mentionable_person::person_id)
+    .do_update()
+    .set((
+      mentionable_person::workspace_id.eq(&person.workspace_id),
+      mentionable_person::name.eq(&person.name),
+      mentionable_person::email.eq(&person.email),
+      mentionable_person::role.eq(&person.role),
+      mentionable_person::avatar_url.eq(&person.avatar_url),
+      mentionable_person::cover_image_url.eq(&person.cover_image_url),
+      mentionable_person::custom_image_url.eq(&person.custom_image_url),
+      mentionable_person::description.eq(&person.description),
+      mentionable_person::invited.eq(&person.invited),
+      mentionable_person::last_mentioned_at.eq(&person.last_mentioned_at),
+    ))
+    .execute(conn)?;
+
+  Ok(())
+}
+
+pub fn update_role(
+  conn: &mut SqliteConnection,
+  workspace_id: &str,
+  person_id: &str,
+  role: MentionablePersonType,
+) -> FlowyResult<()> {
+  update(mentionable_person::table.filter(mentionable_person::person_id.eq(person_id)))
+    .filter(mentionable_person::workspace_id.eq(workspace_id))
+    .set(mentionable_person::role.eq(role as i32))
+    .execute(conn)?;
+
+  Ok(())
+}
+
 /// Update the last mentioned time for a person
 pub fn update_last_mentioned_at(
   conn: &mut SqliteConnection,
@@ -120,7 +178,7 @@ pub fn update_last_mentioned_at(
   Ok(())
 }
 
-pub fn delete_workspace_mentionable_person(
+pub fn delete_workspace_all_mentionable_persons(
   conn: &mut SqliteConnection,
   workspace_id: &str,
 ) -> FlowyResult<()> {
@@ -130,27 +188,17 @@ pub fn delete_workspace_mentionable_person(
   Ok(())
 }
 
-/// Update a person's information
-pub fn update_mentionable_person(
+pub fn delete_workspace_mentionable_person(
   conn: &mut SqliteConnection,
   workspace_id: &str,
-  person: &MentionablePersonTable,
+  person_id: &str,
 ) -> FlowyResult<()> {
-  update(mentionable_person::table.filter(mentionable_person::person_id.eq(&person.person_id)))
-    .filter(mentionable_person::workspace_id.eq(workspace_id))
-    .set((
-      mentionable_person::workspace_id.eq(&person.workspace_id),
-      mentionable_person::name.eq(&person.name),
-      mentionable_person::email.eq(&person.email),
-      mentionable_person::role.eq(&person.role),
-      mentionable_person::avatar_url.eq(&person.avatar_url),
-      mentionable_person::cover_image_url.eq(&person.cover_image_url),
-      mentionable_person::custom_image_url.eq(&person.custom_image_url),
-      mentionable_person::description.eq(&person.description),
-      mentionable_person::invited.eq(&person.invited),
-      mentionable_person::last_mentioned_at.eq(&person.last_mentioned_at),
-    ))
-    .execute(conn)?;
+  delete(
+    mentionable_person::table
+      .filter(mentionable_person::workspace_id.eq(workspace_id))
+      .filter(mentionable_person::person_id.eq(person_id)),
+  )
+  .execute(conn)?;
 
   Ok(())
 }
@@ -227,7 +275,7 @@ pub fn select_mentionable_persons_by_last_mentioned(
 pub fn insert_mentionable_persons_from_entities(
   conn: &mut SqliteConnection,
   workspace_id: Uuid,
-  persons: Vec<&MentionablePersonWithLastMentionedTime>,
+  persons: Vec<MentionablePersonWithLastMentionedTime>,
 ) -> FlowyResult<()> {
   for person in persons {
     let table_person = MentionablePersonTable::from_entity(person, workspace_id);

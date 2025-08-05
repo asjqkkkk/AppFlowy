@@ -1,7 +1,7 @@
 use crate::server_layer::ServerProvider;
+use client_api::entity::WorkspaceNotification;
 use collab_entity::reminder::Reminder;
 use collab_folder::hierarchy_builder::ParentChildViews;
-use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
 use flowy_document::reminder::{DocumentReminder, DocumentReminderAction};

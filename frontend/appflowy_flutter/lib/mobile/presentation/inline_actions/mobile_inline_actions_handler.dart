@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:appflowy/mobile/presentation/selection_menu/mobile_selection_menu.dart';
+import 'package:appflowy/mobile/presentation/widgets/mobile_no_result_item.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_menu.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_result.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_service.dart';
@@ -166,7 +166,7 @@ class _MobileInlineActionsHandlerState
           ],
         ),
         child: noResults
-            ? context.buildNoResultWidget()
+            ? MobileNoResultItem()
             : SingleChildScrollView(
                 physics: const ClampingScrollPhysics(),
                 child: Material(

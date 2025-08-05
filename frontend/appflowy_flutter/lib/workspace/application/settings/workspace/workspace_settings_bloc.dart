@@ -83,6 +83,7 @@ class WorkspaceSettingsBloc
 
             final request = ChangeWorkspaceIconPB()
               ..workspaceId = state.workspace!.workspaceId
+              ..workspaceType = state.workspace!.workspaceType
               ..newIcon = icon;
             final result = await UserEventChangeWorkspaceIcon(request).send();
 
@@ -92,7 +93,9 @@ class WorkspaceSettingsBloc
                 final newWorkspace =
                     state.workspace!.rebuild((p0) => p0.icon = icon);
 
-                return emit(state.copyWith(workspace: newWorkspace));
+                return emit(
+                  state.copyWith(workspace: newWorkspace, newIcon: icon),
+                );
               },
               (e) => Log.error('Failed to update workspace icon: $e'),
             );
@@ -101,6 +104,7 @@ class WorkspaceSettingsBloc
               emit(state.copyWith(deleteWorkspace: true)),
           leaveWorkspace: () async =>
               emit(state.copyWith(leaveWorkspace: true)),
+          clearNewIcon: () async => emit(state.copyWith(newIcon: null)),
         );
       },
     );
@@ -137,6 +141,7 @@ class WorkspaceSettingsEvent with _$WorkspaceSettingsEvent {
       UpdateWorkspaceIcon;
   const factory WorkspaceSettingsEvent.deleteWorkspace() = DeleteWorkspace;
   const factory WorkspaceSettingsEvent.leaveWorkspace() = LeaveWorkspace;
+  const factory WorkspaceSettingsEvent.clearNewIcon() = ClearNewIcon;
 }
 
 @freezed
@@ -146,6 +151,7 @@ class WorkspaceSettingsState with _$WorkspaceSettingsState {
     @Default([]) List<WorkspaceMemberPB> members,
     @Default(false) bool deleteWorkspace,
     @Default(false) bool leaveWorkspace,
+    @Default(null) String? newIcon,
   }) = _WorkspaceSettingsState;
 
   factory WorkspaceSettingsState.initial() => const WorkspaceSettingsState();

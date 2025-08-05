@@ -578,7 +578,7 @@ pub struct MentionablePersonPB {
 impl From<MentionablePerson> for MentionablePersonPB {
   fn from(person: MentionablePerson) -> Self {
     MentionablePersonPB {
-      uuid: person.uuid.to_string(),
+      uuid: person.person_id.to_string(),
       email: person.email,
       name: person.name,
       role: person.role.into(),

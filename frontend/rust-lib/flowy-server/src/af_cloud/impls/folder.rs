@@ -1,27 +1,24 @@
-use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
+use client_api::entity::guest_dto::{
+  RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
+};
+use client_api::entity::workspace_dto::{AddRecentPagesParams, PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CollabParams, PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams,
+  CollabParams, CreateImportTaskType, MentionablePerson, MentionablePersons, PageMentionUpdate,
+  PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams, WorkspaceMemberProfile,
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
-use flowy_server_pub::guest_dto::{
-  RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
-};
-use flowy_server_pub::{CreateImportTaskType, MentionablePerson, WorkspaceMemberProfile};
-use flowy_server_pub::{MentionablePersons, PageMentionUpdate};
-use serde_json::to_vec;
-use std::path::PathBuf;
-use std::sync::Weak;
-use tracing::{instrument, trace};
-use uuid::Uuid;
-
-use flowy_ai_pub::cloud::workspace_dto::AddRecentPagesParams;
 use flowy_error::FlowyError;
 use flowy_folder_pub::cloud::{
   FolderCloudService, FolderCollabParams, FolderSnapshot, FullSyncCollabParams,
 };
 use flowy_folder_pub::entities::PublishPayload;
 use lib_infra::async_trait::async_trait;
+use serde_json::to_vec;
+use std::path::PathBuf;
+use std::sync::Weak;
+use tracing::{instrument, trace};
+use uuid::Uuid;
 
 use crate::af_cloud::AFServer;
 use crate::af_cloud::define::LoggedUser;
@@ -338,8 +335,19 @@ where
     let try_get_client = self.inner.try_get_client();
     let resp = try_get_client?
       .list_workspace_mentionable_persons(workspace_id)
-      .await
-      .map_err(FlowyError::from)?;
+      .await?;
+    Ok(resp)
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_workspace_mentionable_person(workspace_id, person_id)
+      .await?;
     Ok(resp)
   }
 
@@ -356,6 +364,19 @@ where
       .map_err(FlowyError::from)?;
     Ok(())
   }
+
+  async fn update_workspace_member_profile(
+    &self,
+    workspace_id: &Uuid,
+    profile: &WorkspaceMemberProfile,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    try_get_client?
+      .update_workspace_member_profile(workspace_id, profile)
+      .await?;
+    Ok(())
+  }
+
   async fn get_recent_views(
     &self,
     workspace_id: &Uuid,
@@ -404,29 +425,5 @@ where
       .await
       .map_err(FlowyError::from)?;
     Ok(())
-  }
-
-  async fn update_workspace_member_profile(
-    &self,
-    workspace_id: &Uuid,
-    profile: &WorkspaceMemberProfile,
-  ) -> Result<(), FlowyError> {
-    let try_get_client = self.inner.try_get_client();
-    try_get_client?
-      .update_workspace_member_profile(workspace_id, profile)
-      .await?;
-    Ok(())
-  }
-
-  async fn get_workspace_mentionable_person(
-    &self,
-    workspace_id: &Uuid,
-    person_id: &Uuid,
-  ) -> Result<MentionablePerson, FlowyError> {
-    let try_get_client = self.inner.try_get_client();
-    let resp = try_get_client?
-      .get_workspace_mentionable_person(workspace_id, person_id)
-      .await?;
-    Ok(resp)
   }
 }

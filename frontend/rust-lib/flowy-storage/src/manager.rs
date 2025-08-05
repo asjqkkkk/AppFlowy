@@ -10,6 +10,7 @@ use crate::sqlite_sql::{
 use crate::uploader::{FileUploader, FileUploaderRunner, Signal, UploadTask, UploadTaskQueue};
 use allo_isolate::Isolate;
 use async_trait::async_trait;
+use client_api::entity::{CompletedPartRequest, UploadPartResponse};
 use collab_importer::util::FileId;
 use dashmap::DashMap;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
@@ -17,8 +18,8 @@ use flowy_sqlite::DBConnection;
 use flowy_storage_pub::chunked_byte::{ChunkedBytes, MIN_CHUNK_SIZE, calculate_offsets};
 use flowy_storage_pub::cloud::StorageCloudService;
 use flowy_storage_pub::storage::{
-  CompletedPartRequest, CreatedUpload, FileProgress, FileProgressReceiver, FileUploadState,
-  ProgressNotifier, StorageService, UploadPartResponse,
+  CreatedUpload, FileProgress, FileProgressReceiver, FileUploadState, ProgressNotifier,
+  StorageService,
 };
 use lib_infra::box_any::BoxAny;
 use lib_infra::isolate_stream::{IsolateSink, SinkExt};

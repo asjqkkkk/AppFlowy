@@ -1,16 +1,16 @@
 #![allow(unused_variables)]
 
 use crate::af_cloud::AFServer;
-use client_api::entity::ai_dto::{
-  ChatQuestionQuery, CompleteTextParams, RepeatedRelatedQuestion, ResponseFormat,
-};
 use client_api::entity::chat_dto::{
-  CreateAnswerMessageParams, CreateChatMessageParams, CreateChatParams, MessageCursor,
-  RepeatedChatMessage,
+  ChatMessage, ChatMessageType, ChatSettings, CreateAnswerMessageParams, CreateChatMessageParams,
+  CreateChatParams, MessageCursor, RepeatedChatMessage, UpdateChatParams,
+};
+use client_api::entity::{
+  AFWorkspaceSettingsChange, ChatQuestionQuery, CompleteTextParams, ModelList,
+  RepeatedRelatedQuestion, ResponseFormat,
 };
 use flowy_ai_pub::cloud::{
-  AFWorkspaceSettingsChange, AIModel, ChatCloudService, ChatMessage, ChatMessageType, ChatSettings,
-  CreatedChatMessage, ModelList, StreamAnswer, StreamComplete, UpdateChatParams,
+  AIModel, ChatCloudService, CreatedChatMessage, StreamAnswer, StreamComplete,
 };
 use flowy_error::FlowyError;
 use futures_util::{StreamExt, TryStreamExt};

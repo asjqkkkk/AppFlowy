@@ -6,7 +6,9 @@ sealed class PageAccessLevelEvent {
 
   /// Initialize the view lock status, it will create a view listener to listen for view updates.
   /// Also, it will fetch the current view lock status from the repository.
-  const factory PageAccessLevelEvent.initial() = PageAccessLevelInitialEvent;
+  const factory PageAccessLevelEvent.initial({
+    bool requestSharedUsers,
+  }) = PageAccessLevelInitialEvent;
 
   /// Lock the view.
   const factory PageAccessLevelEvent.lock() = PageAccessLevelLockEvent;
@@ -31,7 +33,11 @@ sealed class PageAccessLevelEvent {
 }
 
 class PageAccessLevelInitialEvent extends PageAccessLevelEvent {
-  const PageAccessLevelInitialEvent();
+  const PageAccessLevelInitialEvent({
+    this.requestSharedUsers = true,
+  });
+
+  final bool requestSharedUsers;
 }
 
 class PageAccessLevelLockEvent extends PageAccessLevelEvent {

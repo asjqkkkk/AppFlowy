@@ -6,7 +6,7 @@ use crate::embeddings::indexer::IndexerProvider;
 use crate::local_ai::chat::llm::LocalLLMController;
 use crate::local_ai::chat::retriever::{EmbedFileProgress, RetrieverStore};
 use async_trait::async_trait;
-use flowy_ai_pub::cloud::CollabType;
+use client_api::entity::CollabType;
 use flowy_ai_pub::entities::{EmbeddingDimension, RAG_IDS, SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite_vec::db::VectorSqliteDB;

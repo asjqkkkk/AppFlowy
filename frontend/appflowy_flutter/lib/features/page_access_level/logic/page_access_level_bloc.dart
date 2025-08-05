@@ -105,12 +105,15 @@ class PageAccessLevelBloc
 
     final result = await pageAccessRepository.getView(view.id);
 
-    final sharedUsers =
-        await shareRepository.getSharedUsersInPage(pageId: view.id);
-    _sharedUsers = sharedUsers.fold(
-      (sharedUsers) => sharedUsers,
-      (_) => [],
-    );
+    if (event.requestSharedUsers) {
+      final sharedUsers = await shareRepository.getSharedUsersInPage(
+        pageId: view.id,
+      );
+      _sharedUsers = sharedUsers.fold(
+        (sharedUsers) => sharedUsers,
+        (_) => [],
+      );
+    }
 
     final accessLevel =
         await pageAccessRepository.getAccessLevel(view.id, email);

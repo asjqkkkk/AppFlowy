@@ -1,5 +1,6 @@
 use anyhow::Context;
 use client_api::entity::billing_dto::{PersonalPlan, SubscriptionPlan};
+use client_api::entity::WorkspaceNotification;
 use client_api::v2::{ConnectState, WorkspaceController};
 use std::sync::{Arc, Weak};
 use tracing::{debug, error, event, info, instrument, trace, warn};
@@ -11,7 +12,6 @@ use collab_entity::CollabType;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use flowy_ai::ai_manager::AIManager;
-use flowy_ai_pub::cloud::WorkspaceNotification;
 use flowy_database2::DatabaseManager;
 use flowy_document::manager::DocumentManager;
 use flowy_error::{FlowyError, FlowyResult};

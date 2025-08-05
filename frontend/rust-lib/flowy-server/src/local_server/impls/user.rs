@@ -6,7 +6,7 @@ use crate::local_server::template::create_workspace::{
 };
 use crate::local_server::uid::IDGenerator;
 use anyhow::Context;
-use client_api::entity::GotrueTokenResponse;
+use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange, GotrueTokenResponse};
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::{ClientID, Collab};
@@ -14,7 +14,6 @@ use collab_plugins::CollabKVDB;
 use collab_plugins::local_storage::kv::KVTransactionDB;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
 use collab_user::core::UserAwareness;
-use flowy_ai_pub::cloud::{AFWorkspaceSettings, AFWorkspaceSettingsChange};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_user_pub::DEFAULT_USER_NAME;
 use flowy_user_pub::cloud::{

@@ -1,4 +1,4 @@
-use flowy_ai_pub::cloud::{CompletionStreamValue, CompletionType};
+use client_api::entity::{CompletionStreamValue, CompletionType};
 use futures_util::{Stream, StreamExt, stream, stream::BoxStream};
 use langchain_rust::language_models::LLMError;
 use langchain_rust::schemas::StreamData;

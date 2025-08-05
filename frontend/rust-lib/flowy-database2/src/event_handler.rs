@@ -221,7 +221,7 @@ pub(crate) async fn get_fields_handler(
     .await?;
   let fields = database_editor
     .get_fields(&params.view_id, params.field_ids)
-    .await
+    .await?
     .into_iter()
     .map(FieldPB::new)
     .collect::<Vec<FieldPB>>()
@@ -239,7 +239,7 @@ pub(crate) async fn get_primary_field_handler(
   let database_editor = manager.get_database_editor_with_view_id(&view_id).await?;
   let mut fields = database_editor
     .get_fields(&view_id, None)
-    .await
+    .await?
     .into_iter()
     .filter(|field| field.is_primary)
     .map(FieldPB::new)
@@ -455,7 +455,7 @@ pub(crate) async fn update_row_meta_handler(
   let row_id = RowId::from(params.row_id.clone());
   database_editor
     .update_row_meta(&row_id.clone(), params)
-    .await;
+    .await?;
   Ok(())
 }
 
@@ -530,7 +530,7 @@ pub(crate) async fn remove_cover_handler(
 
   database_editor
     .update_row_meta(&params.row_id, update_row_changeset)
-    .await;
+    .await?;
 
   Ok(())
 }

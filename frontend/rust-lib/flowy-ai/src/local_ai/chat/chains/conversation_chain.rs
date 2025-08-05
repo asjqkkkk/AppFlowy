@@ -10,7 +10,7 @@ use crate::local_ai::chat::llm_chat::EmbedFile;
 use crate::local_ai::chat::retriever::{AFEmbedder, AFRetriever, EmbedFileProgress};
 use arc_swap::ArcSwap;
 use async_trait::async_trait;
-use flowy_ai_pub::cloud::{ContextSuggestedQuestion, QuestionStreamValue};
+use client_api::entity::{ContextSuggestedQuestion, QuestionStreamValue};
 use flowy_ai_pub::entities::{SOURCE, SOURCE_ID, SOURCE_NAME};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite_vec::entities::EmbeddedContent;

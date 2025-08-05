@@ -82,6 +82,7 @@ impl DatabaseEditorTest {
     let fields = editor
       .get_fields(&test.child_view.id, None)
       .await
+      .unwrap()
       .into_iter()
       .map(Arc::new)
       .collect();
@@ -126,6 +127,7 @@ impl DatabaseEditorTest {
       .editor
       .get_fields(&self.view_id, None)
       .await
+      .unwrap()
       .into_iter()
       .filter(|field| {
         let t_field_type = FieldType::from(field.field_type);
@@ -143,6 +145,7 @@ impl DatabaseEditorTest {
       .editor
       .get_fields(&self.view_id, None)
       .await
+      .unwrap()
       .into_iter()
       .filter(|field| {
         let t_field_type = FieldType::from(field.field_type);
@@ -154,7 +157,7 @@ impl DatabaseEditorTest {
   }
 
   pub async fn get_fields(&self) -> Vec<Field> {
-    self.editor.get_fields(&self.view_id, None).await
+    self.editor.get_fields(&self.view_id, None).await.unwrap()
   }
 
   pub async fn get_multi_select_type_option(&self, field_id: &str) -> Vec<SelectOption> {
@@ -204,7 +207,7 @@ impl DatabaseEditorTest {
     let field = self
       .editor
       .get_fields(&self.view_id, None)
-      .await
+      .await?
       .into_iter()
       .find(|field| field.id == field_id)
       .unwrap();
@@ -219,7 +222,7 @@ impl DatabaseEditorTest {
     let field = self
       .editor
       .get_fields(&self.view_id, None)
-      .await
+      .await?
       .iter()
       .find(|field| {
         let field_type = FieldType::from(field.field_type);
@@ -241,7 +244,7 @@ impl DatabaseEditorTest {
     let field = self
       .editor
       .get_fields(&self.view_id, None)
-      .await
+      .await?
       .iter()
       .find(|field| {
         let field_type = FieldType::from(field.field_type);
@@ -267,7 +270,7 @@ impl DatabaseEditorTest {
     let field = self
       .editor
       .get_fields(&self.view_id, None)
-      .await
+      .await?
       .iter()
       .find(|field| {
         let field_type = FieldType::from(field.field_type);

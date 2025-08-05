@@ -1,7 +1,8 @@
 use crate::ai_manager::AIManager;
 use crate::completion::AICompletion;
 use crate::entities::*;
-use flowy_ai_pub::cloud::{AIModel, ChatMessageType};
+use client_api::entity::chat_dto::ChatMessageType;
+use flowy_ai_pub::cloud::AIModel;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use lib_dispatch::prelude::{AFPluginData, AFPluginState, DataResult, data_result_ok};
 use std::fs;

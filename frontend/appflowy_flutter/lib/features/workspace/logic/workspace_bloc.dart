@@ -379,6 +379,31 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
       return;
     }
 
+    if (event.sendRequest == false) {
+      Log.info('ignore icon update request');
+      final workspaces = _updateWorkspaceInList(event.workspaceId, (workspace) {
+        workspace.freeze();
+        return workspace.rebuild((p0) {
+          p0.icon = event.icon;
+        });
+      });
+      emit(
+        state.copyWith(
+          workspaces: workspaces,
+          currentWorkspace: _findWorkspaceById(
+            state.currentWorkspace?.workspaceId ?? '',
+            workspaces,
+          ),
+          actionResult: WorkspaceActionResult(
+            actionType: WorkspaceActionType.updateIcon,
+            isLoading: false,
+            result: null,
+          ),
+        ),
+      );
+      return;
+    }
+
     final result = await repository.updateWorkspaceIcon(
       workspaceId: event.workspaceId,
       icon: event.icon,

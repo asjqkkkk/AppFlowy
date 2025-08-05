@@ -1,5 +1,5 @@
 use crate::local_ai::completion::chain::CompletionWriter;
-use flowy_ai_pub::cloud::CustomPrompt;
+use client_api::entity::CustomPrompt;
 
 pub struct CompletionWriterContext {
   custom_system_reasoning_prompt: Option<String>,
