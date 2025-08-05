@@ -51,7 +51,7 @@ class BottomSheetDoneButton extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12.0),
         child: Text(
-          LocaleKeys.button_done.tr(),
+          text ?? LocaleKeys.button_done.tr(),
           style: theme.textStyle.heading4.enhanced(
             color: theme.textColorScheme.action,
           ),

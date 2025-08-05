@@ -1,9 +1,11 @@
 import 'package:appflowy/features/profile_setting/data/banner.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/appflowy_network_image.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 class NetworkImageBannerWidget extends StatelessWidget {
   const NetworkImageBannerWidget({
@@ -21,20 +23,21 @@ class NetworkImageBannerWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
+    final userProfile = Provider.of<UserProfilePB>(context);
 
     return SizedBox.fromSize(
       size: size,
       child: Stack(
         children: [
-          Container(
-            height: size.height,
-            width: size.width,
-            decoration: BoxDecoration(
-              image: DecorationImage(
-                image: CachedNetworkImageProvider(banner.url),
-                fit: BoxFit.cover,
-              ),
-              borderRadius: BorderRadius.circular(spacing.m),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(spacing.m),
+            child: FlowyNetworkImage(
+              height: size.height,
+              width: size.width,
+              userProfilePB: userProfile,
+              progressIndicatorBuilder: (context, url, progress) =>
+                  CircularProgressIndicator.adaptive(),
+              url: banner.url,
             ),
           ),
           context._buildBorder(

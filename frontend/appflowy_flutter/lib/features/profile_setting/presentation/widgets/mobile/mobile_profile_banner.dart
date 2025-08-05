@@ -1,8 +1,11 @@
 import 'package:appflowy/features/profile_setting/data/banner.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import 'mobile_edit_banner_bottom_sheet.dart';
 
@@ -27,7 +30,7 @@ class MobileProfileBanner extends StatelessWidget {
         children: [
           ClipRRect(
             borderRadius: BorderRadius.circular(theme.spacing.m),
-            child: buildBanner(),
+            child: buildBanner(context),
           ),
           Positioned(
             top: spacing.m,
@@ -39,14 +42,17 @@ class MobileProfileBanner extends StatelessWidget {
     );
   }
 
-  Widget buildBanner() {
+  Widget buildBanner(BuildContext context) {
     final banner = this.banner;
     if (banner is ColorBanner) {
       return DecoratedBox(decoration: BoxDecoration(color: banner.color));
     } else if (banner is AssetImageBanner) {
       return Image.asset(banner.path, fit: BoxFit.cover);
     } else if (banner is NetworkImageBanner) {
-      return CachedNetworkImage(imageUrl: banner.url, fit: BoxFit.cover);
+      return FlowyNetworkImage(
+        url: banner.url,
+        userProfilePB: context.read<ProfileSettingBloc>().userProfile,
+      );
     }
     return const SizedBox.shrink();
   }
@@ -54,7 +60,10 @@ class MobileProfileBanner extends StatelessWidget {
   Widget buildEditButton(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     return GestureDetector(
-      onTap: () => showMobileContactDetailMenu(context),
+      onTap: () => showMobileContactDetailMenu(
+        context: context,
+        userProfile: context.read<UserWorkspaceBloc>().userProfile,
+      ),
       behavior: HitTestBehavior.opaque,
       child: Container(
         padding: EdgeInsets.all(theme.spacing.xs),

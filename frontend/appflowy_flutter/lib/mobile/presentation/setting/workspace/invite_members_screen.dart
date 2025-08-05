@@ -108,33 +108,31 @@ class _InviteMemberPageState extends State<_InviteMemberPage> {
           child: BlocConsumer<WorkspaceMemberBloc, WorkspaceMemberState>(
             listener: _onListener,
             builder: (context, state) {
-              return SingleChildScrollView(
-                child: Column(
-                  children: [
-                    if (state.myRole.isOwner) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: EdgeInsets.all(theme.spacing.xl),
-                        child: const MInviteMemberByLink(),
-                      ),
-                      VSpace(theme.spacing.m),
-                    ],
-                    if (state.members.isNotEmpty) ...[
-                      const AFDivider(),
-                      VSpace(theme.spacing.xl),
-                      MobileMemberList(
-                        members: state.members,
-                        userProfile: userProfile,
-                        myRole: state.myRole,
-                      ),
-                    ],
-                    if (state.myRole.isMember) ...[
-                      Spacer(),
-                      const _LeaveWorkspaceButton(),
-                    ],
-                    const VSpace(48),
+              return Column(
+                children: [
+                  if (state.myRole.isOwner) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: EdgeInsets.all(theme.spacing.xl),
+                      child: const MInviteMemberByLink(),
+                    ),
+                    VSpace(theme.spacing.m),
                   ],
-                ),
+                  if (state.members.isNotEmpty) ...[
+                    const AFDivider(),
+                    VSpace(theme.spacing.xl),
+                    MobileMemberList(
+                      members: state.members,
+                      userProfile: userProfile,
+                      myRole: state.myRole,
+                    ),
+                  ],
+                  if (state.myRole.isMember) ...[
+                    Spacer(),
+                    const _LeaveWorkspaceButton(),
+                  ],
+                  const VSpace(48),
+                ],
               );
             },
           ),

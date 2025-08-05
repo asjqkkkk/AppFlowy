@@ -101,7 +101,7 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
                   child: Column(
                     children: [
                       if (state.userProfile.userAuthType == AuthTypePB.Server)
-                        MobileAccountProfile(userProfile: state.userProfile),
+                        MobileAccountProfile(),
                       PersonalInfoSettingGroup(userProfile: userProfile),
                       if (state.userProfile.userAuthType == AuthTypePB.Server)
                         const WorkspaceSettingGroup(),

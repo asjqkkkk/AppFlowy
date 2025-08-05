@@ -5,7 +5,6 @@ import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -18,11 +17,11 @@ class ProfileAvatar extends StatefulWidget {
 
 class _ProfileAvatarState extends State<ProfileAvatar> {
   bool hovering = false;
-  final popoverController = PopoverController();
+  final popoverController = AFPopoverController();
 
   @override
   void dispose() {
-    popoverController.close();
+    popoverController.dispose();
     super.dispose();
   }
 
@@ -38,25 +37,24 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
       initialType = PickerTabType.custom;
     }
 
-    return AppFlowyPopover(
-      direction: PopoverDirection.bottomWithCenterAligned,
+    return AFPopover(
       controller: popoverController,
-      offset: const Offset(0, 8),
-      constraints: BoxConstraints.loose(const Size(400, 400)),
-      margin: EdgeInsets.zero,
       child: buildUploadButton(),
-      popupBuilder: (BuildContext popoverContext) {
-        return FlowyIconEmojiPicker(
-          initialType: initialType,
-          tabs: [
-            if (!isLocal) PickerTabType.custom,
-            PickerTabType.emoji,
-          ],
-          documentId: bloc.workspace?.workspaceId ?? '',
-          onSelectedEmoji: (r) {
-            bloc.add(ProfileSettingEvent.updateAvatar(r.emoji));
-            if (!r.keepOpen) popoverController.close();
-          },
+      popover: (context) {
+        return ConstrainedBox(
+          constraints: BoxConstraints.loose(const Size(400, 400)),
+          child: FlowyIconEmojiPicker(
+            initialType: initialType,
+            tabs: [
+              if (!isLocal) PickerTabType.custom,
+              PickerTabType.emoji,
+            ],
+            documentId: bloc.workspace?.workspaceId ?? '',
+            onSelectedEmoji: (r) {
+              bloc.add(ProfileSettingEvent.updateAvatar(r.emoji));
+              if (!r.keepOpen) popoverController.hide();
+            },
+          ),
         );
       },
     );

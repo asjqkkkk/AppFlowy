@@ -2,6 +2,7 @@ import 'package:appflowy/features/profile_setting/data/banner.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/profile_setting/presentation/widgets/banner_widget.dart';
+import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
 import 'package:appflowy/shared/patterns/file_type_patterns.dart';
@@ -10,6 +11,7 @@ import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:dotted_border/dotted_border.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -22,7 +24,9 @@ class MobileBannerUploader extends StatelessWidget {
     final bloc = context.read<ProfileSettingBloc>(),
         profile = bloc.state.profile,
         customBanner = profile.customBanner,
-        selected = customBanner == profile.banner;
+        selected = customBanner == profile.banner,
+        spacing = AppFlowyTheme.of(context).spacing;
+
     if (customBanner == null) {
       return buildUploadArea(context);
     }
@@ -41,6 +45,11 @@ class MobileBannerUploader extends StatelessWidget {
               size: Size(double.infinity, 120),
               banner: customBanner,
               selected: selected,
+            ),
+            Positioned(
+              top: spacing.m,
+              right: spacing.m,
+              child: buildChangeImageButton(context),
             ),
           ],
         ),
@@ -82,6 +91,38 @@ class MobileBannerUploader extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget buildChangeImageButton(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    return GestureDetector(
+      onTap: () => pickAndUploadImage(context),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: theme.surfaceColorScheme.layer01,
+          borderRadius: BorderRadius.circular(theme.spacing.s),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(theme.spacing.xs),
+          child: Row(
+            children: [
+              FlowySvg(
+                FlowySvgs.banner_edit_icon_s,
+                size: Size.square(16),
+                color: theme.iconColorScheme.secondary,
+              ),
+              HSpace(theme.spacing.s),
+              Text(
+                LocaleKeys.settings_profilePage_changeImage.tr(),
+                style: theme.textStyle.body.enhanced(
+                  color: theme.textColorScheme.secondary,
+                ),
+              ),
+            ],
           ),
         ),
       ),

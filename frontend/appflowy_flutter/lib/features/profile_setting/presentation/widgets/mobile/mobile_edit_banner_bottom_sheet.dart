@@ -5,14 +5,19 @@ import 'package:appflowy/features/profile_setting/logic/profile_setting_state.da
 import 'package:appflowy/features/profile_setting/presentation/widgets/banner_widget.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:provider/provider.dart';
 import 'mobile_banner_uploader.dart';
 
-void showMobileContactDetailMenu(BuildContext context) {
+void showMobileContactDetailMenu({
+  required BuildContext context,
+  required UserProfilePB userProfile,
+}) {
   final theme = AppFlowyTheme.of(context);
   showMobileBottomSheet(
     context,
@@ -22,13 +27,15 @@ void showMobileContactDetailMenu(BuildContext context) {
     backgroundColor: theme.surfaceColorScheme.primary,
     builder: (_) => BlocProvider.value(
       value: context.read<ProfileSettingBloc>(),
-      child: MobileEditBannerBottomSheet(),
+      child: MobileEditBannerBottomSheet(userProfile: userProfile),
     ),
   );
 }
 
 class MobileEditBannerBottomSheet extends StatelessWidget {
-  const MobileEditBannerBottomSheet({super.key});
+  const MobileEditBannerBottomSheet({super.key, required this.userProfile});
+
+  final UserProfilePB userProfile;
 
   @override
   Widget build(BuildContext context) {
@@ -71,35 +78,18 @@ class MobileEditBannerBottomSheet extends StatelessWidget {
 
   List<Widget> buildCustomBanner(BuildContext context) {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    final bloc = context.read<ProfileSettingBloc>(),
-        profile = bloc.state.profile,
-        hasCustomBanner = profile.customBanner != null;
+    final bloc = context.read<ProfileSettingBloc>();
     return [
-      Row(
-        children: [
-          Text(
-            LocaleKeys.settings_profilePage_customImage.tr(),
-            style: theme.textStyle.caption
-                .prominent(color: theme.textColorScheme.secondary),
-          ),
-          if (hasCustomBanner) ...[
-            Spacer(),
-            GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
-                bloc.add(ProfileSettingEvent.uploadBanner(null));
-              },
-              child: Text(
-                LocaleKeys.button_clear.tr(),
-                style: theme.textStyle.caption
-                    .enhanced(color: theme.textColorScheme.secondary),
-              ),
-            ),
-          ],
-        ],
+      Text(
+        LocaleKeys.settings_profilePage_customImage.tr(),
+        style: theme.textStyle.caption
+            .prominent(color: theme.textColorScheme.secondary),
       ),
       VSpace(spacing.xs),
-      MobileBannerUploader(),
+      Provider.value(
+        value: userProfile,
+        child: MobileBannerUploader(),
+      ),
       VSpace(spacing.xl),
       Text(
         LocaleKeys.settings_profilePage_wallpapers.tr(),

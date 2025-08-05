@@ -57,7 +57,7 @@ class _EditDescriptionBottomSheetState
           showDoneButton: true,
           showCloseButton: true,
           showRemoveButton: false,
-          title: LocaleKeys.settings_profilePage_displayName.tr(),
+          title: LocaleKeys.settings_profilePage_aboutMe.tr(),
           doneButtonBuilder: (context) {
             return BottomSheetDoneButton(
               text: LocaleKeys.button_save.tr(),
@@ -67,7 +67,7 @@ class _EditDescriptionBottomSheetState
         ),
         VSpace(theme.spacing.xl),
         SizedBox(
-          height: 132,
+          height: 112,
           child: Padding(
             padding: EdgeInsets.symmetric(horizontal: theme.spacing.xl),
             child: Form(
