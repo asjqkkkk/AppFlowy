@@ -21,7 +21,7 @@ class SharedUserWidget extends StatelessWidget {
   });
 
   final SharedUser user;
-  final SharedUser currentUser;
+  final SharedUser? currentUser;
   final AccessLevelListCallbacks? callbacks;
   final bool isInPublicPage;
 
@@ -56,7 +56,7 @@ class SharedUserWidget extends StatelessWidget {
     BuildContext context,
   ) {
     final theme = AppFlowyTheme.of(context);
-    final isCurrentUser = user.email == currentUser.email;
+    final isCurrentUser = user.email == currentUser?.email;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
@@ -105,9 +105,9 @@ class SharedUserWidget extends StatelessWidget {
   }
 
   Widget _buildTrailing(BuildContext context, bool isHovering, bool disabled) {
-    final isCurrentUser = user.email == currentUser.email;
+    final isCurrentUser = user.email == currentUser?.email;
     final theme = AppFlowyTheme.of(context);
-    final currentAccessLevel = currentUser.accessLevel;
+    final currentAccessLevel = currentUser?.accessLevel;
 
     Widget disabledAccessButton() => AFGhostTextButton.disabled(
           text: user.accessLevel.title,
@@ -134,7 +134,7 @@ class SharedUserWidget extends StatelessWidget {
 
     // Only owner can turn a guest into a member
     if (user.role == ShareRole.guest &&
-        currentUser.role == ShareRole.owner &&
+        currentUser?.role == ShareRole.owner &&
         !user.isPending) {
       return Row(
         children: [

@@ -160,7 +160,7 @@ class ViewItem extends StatelessWidget {
         BlocProvider(
           create: (_) => PageAccessLevelBloc(
             view: view,
-          )..add(const PageAccessLevelEvent.initial()),
+          )..add(const PageAccessLevelEvent.initial(requestSharedUsers: false)),
         ),
       ],
       child: BlocConsumer<ViewBloc, ViewState>(
