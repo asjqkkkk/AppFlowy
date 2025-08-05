@@ -158,14 +158,9 @@ class SettingsManageDataView extends StatelessWidget {
                         LocaleKeys.workspace_errorActions_exportLogFiles.tr(),
                     buttonLabel: LocaleKeys.settings_files_export.tr(),
                     onPressed: () async {
-                      final customPath =
-                          await getIt<FilePickerService>().getDirectoryPath();
-                      if (customPath != null && context.mounted) {
-                        await shareLogFiles(
-                          context,
-                          customExportPath: customPath,
-                        );
-                      }
+                      await shareLogFiles(
+                        context,
+                      );
                     },
                   ),
                 ],
