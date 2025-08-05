@@ -16,6 +16,43 @@ import 'toolbar_id_enum.dart';
 
 const kIsPageLink = 'is_page_link';
 
+/// Cmd / Ctrl + K: show link menu
+/// - support
+///   - desktop
+///   - web
+final CommandShortcutEvent showCustomLinkMenuCommand = CommandShortcutEvent(
+  key: 'custom link menu',
+  getDescription: () => AppFlowyEditorL10n.current.cmdConvertToLink,
+  command: 'ctrl+k',
+  macOSCommand: 'cmd+k',
+  handler: (editorState) {
+    final selection = editorState.selection;
+    if (selection == null || selection.isCollapsed) {
+      return KeyEventResult.ignored;
+    }
+    getIt<FloatingToolbarController>().hideToolbar();
+    final nodes = editorState.getNodesInSelection(selection);
+    final isHref = nodes.allSatisfyInSelection(selection, (delta) {
+      return delta.everyAttributes(
+        (attributes) => attributes[AppFlowyRichTextKeys.href] != null,
+      );
+    });
+    final context =
+        editorState.getNodeAtPath(selection.end.path)?.key.currentContext;
+    if (context == null) return KeyEventResult.ignored;
+    if (!isHref) {
+      final viewId = context.read<DocumentBloc?>()?.documentId ?? '';
+      showLinkCreateMenu(context, editorState, selection, viewId);
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        getIt<LinkHoverTriggers>()
+            .call(HoverTriggerKey(nodes.first.id, selection));
+      });
+    }
+    return KeyEventResult.handled;
+  },
+);
+
 final customLinkItem = ToolbarItem(
   id: ToolbarId.link.id,
   group: 4,
