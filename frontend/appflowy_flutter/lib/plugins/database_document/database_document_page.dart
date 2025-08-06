@@ -138,7 +138,7 @@ class _DatabaseDocumentPageState extends State<DatabaseDocumentPage> {
       },
       dispose: (_, editorContext) => editorContext.dispose(),
       child: EditorTransactionService(
-        viewId: widget.view.id,
+        viewId: widget.documentId,
         editorState: state.editorState!,
         child: Column(
           children: [

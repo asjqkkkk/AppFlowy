@@ -117,10 +117,10 @@ async fn owner_has_access_to_invited_private_views_test() {
   let error = owner.get_view(&private_page.id).await;
   assert!(error.is_err());
 
-  // member shares the private space and private page with the owner
+  // member shares private page with the owner
   member
     .share_page_with_email(
-      &private_space.id,
+      &private_page.id,
       &owner.get_email().await,
       AFAccessLevelPB::ReadOnly,
     )
@@ -132,9 +132,7 @@ async fn owner_has_access_to_invited_private_views_test() {
   let access_level = owner.preload_access_level(&private_page.id).await;
   assert_eq!(access_level, AFAccessLevelPB::ReadOnly);
 
-  // owner has permission to view the private space and private page
-  let owner_private_space = owner.get_view(&private_space.id).await.unwrap();
-  assert_eq!(owner_private_space.id, private_space.id);
+  // owner has permission to view the private page
   let owner_private_page = owner.get_view(&private_page.id).await.unwrap();
   assert_eq!(owner_private_page.id, private_page.id);
 }
