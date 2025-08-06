@@ -28,8 +28,19 @@ extension type ColorGenerator(String value) {
   }
 
   (Color, Color) randomColorFromDesignSystem(BuildContext context) {
-    final hash = value.codeUnits.fold(0, (int acc, int unit) => acc + unit);
-    final index = (hash % 20 + 1).clamp(1, 20);
+    int hash = 0;
+
+    for (var i = 0; i < value.length; i++) {
+      hash = (hash << 5) - hash + value.codeUnitAt(i);
+      hash = hash & 0xFFFFFFFF; // Keep it within unsigned 32-bit range
+
+      // If the 31st bit is set (sign bit), convert to negative signed 32-bit equivalent
+      if ((hash & 0x80000000) != 0) {
+        hash = hash - 0x100000000;
+      }
+    }
+
+    final index = (hash.abs() % 20) + 1;
 
     final theme = AppFlowyTheme.of(context);
     final background = theme.badgeColorScheme.getLightColorSet(index).$2;

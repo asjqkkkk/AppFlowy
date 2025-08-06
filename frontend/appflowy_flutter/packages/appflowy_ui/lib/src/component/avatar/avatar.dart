@@ -171,10 +171,18 @@ class AFAvatar extends StatelessWidget {
   /// Deterministically pick a color index (1-20) based on the user name
   int _pickColorIndexFromName(String? name) {
     if (name == null || name.isEmpty) return 1;
+
     int hash = 0;
-    for (int i = 0; i < name.length; i++) {
-      hash = name.codeUnitAt(i) + ((hash << 5) - hash);
+    for (var i = 0; i < name.length; i++) {
+      hash = (hash << 5) - hash + name.codeUnitAt(i);
+      hash = hash & 0xFFFFFFFF; // Keep it within unsigned 32-bit range
+
+      // If the 31st bit is set (sign bit), convert to negative signed 32-bit equivalent
+      if ((hash & 0x80000000) != 0) {
+        hash = hash - 0x100000000;
+      }
     }
+
     return (hash.abs() % 20) + 1;
   }
 
