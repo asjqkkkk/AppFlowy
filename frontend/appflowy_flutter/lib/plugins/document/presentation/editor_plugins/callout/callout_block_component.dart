@@ -50,7 +50,7 @@ Node calloutNode({
   final attributes = {
     CalloutBlockKeys.delta: (delta ?? Delta()).toJson(),
     CalloutBlockKeys.icon: defaultEmoji.emoji,
-    CalloutBlockKeys.iconType: defaultEmoji.type,
+    CalloutBlockKeys.iconType: defaultEmoji.type.name,
     CalloutBlockKeys.backgroundColor: defaultColor?.toHex(),
   };
   return Node(

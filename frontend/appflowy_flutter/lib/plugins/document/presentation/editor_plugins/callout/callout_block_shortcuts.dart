@@ -18,7 +18,7 @@ final CharacterShortcutEvent insertNewLineInCalloutBlock =
 );
 
 CharacterShortcutEventHandler _insertNewLineHandler = (editorState) async {
-  final selection = editorState.selection?.normalized;
+  Selection? selection = editorState.selection?.normalized;
   if (selection == null) {
     return false;
   }
@@ -31,16 +31,26 @@ CharacterShortcutEventHandler _insertNewLineHandler = (editorState) async {
   // delete the selection
   await editorState.deleteSelection(selection);
 
+  selection = editorState.selection;
+
   if (HardwareKeyboard.instance.isShiftPressed) {
     // ignore the shift+enter event, fallback to the default behavior
     return false;
-  } else if (node.children.isEmpty) {
-    // insert a new paragraph within the callout block
+  } else if (selection != null && selection.isCollapsed) {
+    // insert a new paragraph with sliced delta within the callout block
+    final length = node.delta?.length ?? selection.start.offset;
+    final slicedDelta = node.delta?.slice(selection.start.offset, length);
+    final newNode = paragraphNode(delta: slicedDelta);
     final path = node.path.child(0);
     final transaction = editorState.transaction;
     transaction.insertNode(
       path,
-      paragraphNode(),
+      newNode,
+    );
+    transaction.deleteText(
+      node,
+      selection.start.offset,
+      length - selection.start.offset,
     );
     transaction.afterSelection = Selection.collapsed(
       Position(
@@ -48,7 +58,8 @@ CharacterShortcutEventHandler _insertNewLineHandler = (editorState) async {
       ),
     );
     await editorState.apply(transaction);
+    return true;
   }
 
-  return true;
+  return false;
 };
