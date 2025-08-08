@@ -111,15 +111,22 @@ class DatabaseController {
 
   final ValueNotifier<bool> _isLoading = ValueNotifier(true);
   final ValueNotifier<bool> _compactMode = ValueNotifier(true);
+  bool _isDisposed = false;
 
-  void setIsLoading(bool isLoading) => _isLoading.value = isLoading;
+  void setIsLoading(bool isLoading) {
+    if (!_isDisposed) {
+      _isLoading.value = isLoading;
+    }
+  }
 
   ValueNotifier<bool> get isLoading => _isLoading;
 
   void setCompactMode(bool compactMode) {
-    _compactMode.value = compactMode;
-    for (final callback in Set.of(_compactModeCallbacks)) {
-      callback.call(compactMode);
+    if (!_isDisposed) {
+      _compactMode.value = compactMode;
+      for (final callback in Set.of(_compactModeCallbacks)) {
+        callback.call(compactMode);
+      }
     }
   }
 
@@ -256,6 +263,7 @@ class DatabaseController {
   }
 
   Future<void> dispose() async {
+    _isDisposed = true;
     await _databaseViewBackendSvc.closeView();
     await fieldController.dispose();
     await _groupListener.stop();
@@ -265,6 +273,7 @@ class DatabaseController {
     _layoutCallbacks.clear();
     _compactModeCallbacks.clear();
     _isLoading.dispose();
+    _compactMode.dispose();
   }
 
   Future<void> _loadGroups() async {

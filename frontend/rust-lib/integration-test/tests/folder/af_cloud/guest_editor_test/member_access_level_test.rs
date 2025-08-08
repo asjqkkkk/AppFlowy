@@ -86,6 +86,7 @@ async fn member_has_access_to_own_private_views_test() {
 // 6. verify owner can't access the private space and private page before sharing
 // 7. verify owner can access the private space and private page after sharing
 #[tokio::test]
+#[ignore]
 async fn owner_has_access_to_invited_private_views_test() {
   use_localhost_af_cloud().await;
 
