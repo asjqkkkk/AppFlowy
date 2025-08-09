@@ -19,6 +19,9 @@ part 'select_option_cell_editor_bloc.freezed.dart';
 const String createSelectOptionSuggestionId =
     "create_select_option_suggestion_id";
 
+/// Number of allowed SelectOptionColorPB colors
+const int _numberOfColors = 10;
+
 class SelectOptionCellEditorBloc
     extends Bloc<SelectOptionCellEditorEvent, SelectOptionCellEditorState> {
   SelectOptionCellEditorBloc({
@@ -92,7 +95,6 @@ class SelectOptionCellEditorBloc
             filter = "";
             await _createOption(
               name: state.createSelectOptionSuggestion!.name,
-              color: state.createSelectOptionSuggestion!.color,
             );
             emit(state.copyWith(clearFilter: true));
           },
@@ -105,7 +107,10 @@ class SelectOptionCellEditorBloc
             }
           },
           updateOption: (option) async {
-            await _updateOption(option);
+            final options = _typeOptionAction.updateOption(allOptions, option);
+
+            final result = _getVisibleOptions(options);
+            emit(state.copyWith(options: result.options));
           },
           selectOption: (optionId) async {
             await _selectOptionService.select(optionIds: [optionId]);
@@ -197,8 +202,22 @@ class SelectOptionCellEditorBloc
 
   Future<void> _createOption({
     required String name,
-    required SelectOptionColorPB color,
   }) async {
+    int hash = 0;
+
+    for (var i = 0; i < name.length; i++) {
+      hash = (hash << 5) - hash + name.codeUnitAt(i);
+      hash = hash & 0xFFFFFFFF; // Keep it within unsigned 32-bit range
+
+      // If the 31st bit is set (sign bit), convert to negative signed 32-bit equivalent
+      if ((hash & 0x80000000) != 0) {
+        hash = hash - 0x100000000;
+      }
+    }
+
+    final index = (hash.abs() % _numberOfColors) + 1;
+    final color = SelectOptionColorPB.values[index];
+
     final result = await _selectOptionService.create(
       name: name,
       color: color,
@@ -208,14 +227,6 @@ class SelectOptionCellEditorBloc
 
   Future<void> _deleteOption(List<SelectOptionPB> options) async {
     final result = await _selectOptionService.delete(options: options);
-    result.fold((l) => null, (err) => Log.error(err));
-  }
-
-  Future<void> _updateOption(SelectOptionPB option) async {
-    final result = await _selectOptionService.update(
-      option: option,
-    );
-
     result.fold((l) => null, (err) => Log.error(err));
   }
 
@@ -230,7 +241,6 @@ class SelectOptionCellEditorBloc
       filter = "";
       _createOption(
         name: state.createSelectOptionSuggestion!.name,
-        color: state.createSelectOptionSuggestion!.color,
       );
       emit(
         state.copyWith(

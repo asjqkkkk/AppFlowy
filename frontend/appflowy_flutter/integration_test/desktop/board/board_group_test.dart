@@ -1,6 +1,5 @@
 import 'package:appflowy/plugins/database/board/presentation/widgets/board_column_header.dart';
 import 'package:appflowy/plugins/database/widgets/card/card.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_property.dart';

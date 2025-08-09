@@ -4,7 +4,7 @@ import 'dart:typed_data';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/flowy_search_text_field.dart';
-import 'package:appflowy/mobile/presentation/base/option_color_list.dart';
+import 'package:appflowy/plugins/database/widgets/cell_editor/mobile_select_option_color_list.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/database/card/card_detail/widgets/widgets.dart';
 import 'package:appflowy/mobile/presentation/widgets/widgets.dart';
@@ -14,6 +14,7 @@ import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/date/date_time_format.dart';
 import 'package:appflowy/util/field_type_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/size.dart';
@@ -962,33 +963,37 @@ class _SelectOptionColor extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    final backgroundColor = selectOptionColorToBgAFColor(color).toColor(theme);
+
     return GestureDetector(
       onTap: () {
         showMobileBottomSheet(
           context,
           showHeader: true,
           showCloseButton: true,
+          showDragHandle: true,
           title: LocaleKeys.grid_selectOption_colorPanelTitle.tr(),
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
           builder: (context) {
             return OptionColorList(
               selectedColor: color,
-              onSelectedColor: onChanged,
+              onSelectColor: onChanged,
             );
           },
         );
       },
       child: Container(
         decoration: BoxDecoration(
-          color: color.toColor(context),
+          color: backgroundColor,
           borderRadius: Corners.s10Border,
         ),
         width: 32,
         height: 32,
         alignment: Alignment.center,
-        child: const FlowySvg(
+        child: FlowySvg(
           FlowySvgs.arrow_down_s,
-          size: Size.square(20),
+          size: const Size.square(20),
+          color: theme.iconColorScheme.primary,
         ),
       ),
     );

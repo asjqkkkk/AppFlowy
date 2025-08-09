@@ -68,6 +68,11 @@ pub enum SelectOptionColorPB {
   Green = 6,
   Aqua = 7,
   Blue = 8,
+  Cream = 9,
+  Mint = 10,
+  Sky = 11,
+  Lilac = 12,
+  Pearl = 13,
 }
 
 impl From<SelectOptionColor> for SelectOptionColorPB {
@@ -82,6 +87,11 @@ impl From<SelectOptionColor> for SelectOptionColorPB {
       SelectOptionColor::Green => SelectOptionColorPB::Green,
       SelectOptionColor::Aqua => SelectOptionColorPB::Aqua,
       SelectOptionColor::Blue => SelectOptionColorPB::Blue,
+      SelectOptionColor::Cream => SelectOptionColorPB::Cream,
+      SelectOptionColor::Mint => SelectOptionColorPB::Mint,
+      SelectOptionColor::Sky => SelectOptionColorPB::Sky,
+      SelectOptionColor::Lilac => SelectOptionColorPB::Lilac,
+      SelectOptionColor::Pearl => SelectOptionColorPB::Pearl,
     }
   }
 }
@@ -98,6 +108,11 @@ impl From<SelectOptionColorPB> for SelectOptionColor {
       SelectOptionColorPB::Green => SelectOptionColor::Green,
       SelectOptionColorPB::Aqua => SelectOptionColor::Aqua,
       SelectOptionColorPB::Blue => SelectOptionColor::Blue,
+      SelectOptionColorPB::Cream => SelectOptionColor::Cream,
+      SelectOptionColorPB::Mint => SelectOptionColor::Mint,
+      SelectOptionColorPB::Sky => SelectOptionColor::Sky,
+      SelectOptionColorPB::Lilac => SelectOptionColor::Lilac,
+      SelectOptionColorPB::Pearl => SelectOptionColor::Pearl,
     }
   }
 }

@@ -1,16 +1,12 @@
-import 'dart:io';
-
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/field/type_option/select_option_type_option_bloc.dart';
 import 'package:appflowy/plugins/database/application/field/type_option/select_type_option_actions.dart';
-import 'package:appflowy/plugins/database/grid/presentation/layout/sizes.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flowy_infra_ui/style_widget/hover.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -32,6 +28,8 @@ class SelectOptionTypeOptionWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
     return BlocProvider<SelectOptionTypeOptionBloc>(
       create: (context) => SelectOptionTypeOptionBloc(
         options: options,
@@ -40,131 +38,39 @@ class SelectOptionTypeOptionWidget extends StatelessWidget {
       child:
           BlocBuilder<SelectOptionTypeOptionBloc, SelectOptionTypeOptionState>(
         builder: (context, state) {
-          final List<Widget> children = [
-            const _OptionTitle(),
-            const VSpace(4),
-            if (state.isEditingOption) ...[
-              CreateOptionTextField(popoverMutex: popoverMutex),
-              const VSpace(4),
-            ] else
-              const _AddOptionButton(),
-            const VSpace(4),
-            Flexible(
-              child: _OptionList(
-                popoverMutex: popoverMutex,
-              ),
-            ),
-          ];
-
           return Column(
             mainAxisSize: MainAxisSize.min,
-            children: children,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: theme.spacing.m * 2,
+                  vertical: theme.spacing.xs,
+                ),
+                child: Text(
+                  LocaleKeys.grid_field_optionTitle.tr(),
+                  textAlign: TextAlign.start,
+                  style: theme.textStyle.caption.enhanced(
+                    color: theme.textColorScheme.tertiary,
+                  ),
+                ),
+              ),
+              if (state.isEditingOption)
+                CreateOptionTextField(popoverMutex: popoverMutex)
+              else
+                const _AddOptionButton(),
+              VSpace(
+                theme.spacing.xs,
+              ),
+              Flexible(
+                child: _OptionList(
+                  popoverMutex: popoverMutex,
+                ),
+              ),
+            ],
           );
         },
       ),
-    );
-  }
-}
-
-class _OptionTitle extends StatelessWidget {
-  const _OptionTitle();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<SelectOptionTypeOptionBloc, SelectOptionTypeOptionState>(
-      builder: (context, state) {
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: FlowyText.regular(
-              LocaleKeys.grid_field_optionTitle.tr(),
-              fontSize: 11,
-              color: Theme.of(context).hintColor,
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _OptionCell extends StatefulWidget {
-  const _OptionCell({
-    super.key,
-    required this.option,
-    required this.index,
-    this.popoverMutex,
-  });
-
-  final SelectOptionPB option;
-  final int index;
-  final PopoverMutex? popoverMutex;
-
-  @override
-  State<_OptionCell> createState() => _OptionCellState();
-}
-
-class _OptionCellState extends State<_OptionCell> {
-  final PopoverController _popoverController = PopoverController();
-
-  @override
-  Widget build(BuildContext context) {
-    final child = SizedBox(
-      height: 28,
-      child: SelectOptionTagCell(
-        option: widget.option,
-        index: widget.index,
-        onSelected: () => _popoverController.show(),
-        children: [
-          FlowyIconButton(
-            onPressed: () => _popoverController.show(),
-            iconPadding: const EdgeInsets.symmetric(horizontal: 6.0),
-            hoverColor: Colors.transparent,
-            icon: FlowySvg(
-              FlowySvgs.three_dots_s,
-              color: Theme.of(context).iconTheme.color,
-              size: const Size.square(16),
-            ),
-          ),
-        ],
-      ),
-    );
-    return AppFlowyPopover(
-      controller: _popoverController,
-      mutex: widget.popoverMutex,
-      offset: const Offset(8, 0),
-      margin: EdgeInsets.zero,
-      asBarrier: true,
-      constraints: BoxConstraints.loose(const Size(460, 470)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: FlowyHover(
-          resetHoverOnRebuild: false,
-          style: HoverStyle(
-            hoverColor: AFThemeExtension.of(context).lightGreyHover,
-          ),
-          child: child,
-        ),
-      ),
-      popupBuilder: (BuildContext popoverContext) {
-        return SelectOptionEditor(
-          option: widget.option,
-          onDeleted: () {
-            context
-                .read<SelectOptionTypeOptionBloc>()
-                .add(SelectOptionTypeOptionEvent.deleteOption(widget.option));
-            PopoverContainer.of(popoverContext).close();
-          },
-          onUpdated: (updatedOption) {
-            context
-                .read<SelectOptionTypeOptionBloc>()
-                .add(SelectOptionTypeOptionEvent.updateOption(updatedOption));
-            PopoverContainer.of(popoverContext).close();
-          },
-          key: ValueKey(widget.option.id),
-        );
-      },
     );
   }
 }
@@ -174,22 +80,28 @@ class _AddOptionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8.0),
-      child: SizedBox(
-        height: GridSize.popoverItemHeight,
-        child: FlowyButton(
-          text: FlowyText(
-            lineHeight: 1.0,
-            LocaleKeys.grid_field_addSelectOption.tr(),
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.spacing.m,
+      ),
+      child: AFMenuItem(
+        title: Text(
+          LocaleKeys.grid_field_addSelectOption.tr(),
+          style: theme.textStyle.body.standard(
+            color: theme.textColorScheme.primary,
           ),
-          onTap: () {
-            context
-                .read<SelectOptionTypeOptionBloc>()
-                .add(const SelectOptionTypeOptionEvent.addingOption());
-          },
-          leftIcon: const FlowySvg(FlowySvgs.add_s),
         ),
+        leading: const FlowySvg(
+          FlowySvgs.add_s,
+          size: Size.square(20),
+        ),
+        onTap: () {
+          context
+              .read<SelectOptionTypeOptionBloc>()
+              .add(const SelectOptionTypeOptionEvent.addingOption());
+        },
       ),
     );
   }
@@ -281,19 +193,9 @@ class _OptionList extends StatelessWidget {
           onReorderStart: (_) => popoverMutex?.close(),
           proxyDecorator: (child, index, _) => Material(
             color: Colors.transparent,
-            child: Stack(
-              children: [
-                BlocProvider.value(
-                  value: context.read<SelectOptionTypeOptionBloc>(),
-                  child: child,
-                ),
-                MouseRegion(
-                  cursor: Platform.isWindows
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.grabbing,
-                  child: const SizedBox.expand(),
-                ),
-              ],
+            child: BlocProvider.value(
+              value: context.read<SelectOptionTypeOptionBloc>(),
+              child: child,
             ),
           ),
           buildDefaultDragHandles: false,
@@ -317,8 +219,119 @@ class _OptionList extends StatelessWidget {
                   ),
                 );
           },
+          padding: EdgeInsets.symmetric(horizontal: 8.0),
         );
       },
+    );
+  }
+}
+
+class _OptionCell extends StatefulWidget {
+  const _OptionCell({
+    super.key,
+    required this.option,
+    required this.index,
+    this.popoverMutex,
+  });
+
+  final SelectOptionPB option;
+  final int index;
+  final PopoverMutex? popoverMutex;
+
+  @override
+  State<_OptionCell> createState() => _OptionCellState();
+}
+
+class _OptionCellState extends State<_OptionCell> {
+  final popoverController = PopoverController();
+
+  @override
+  Widget build(BuildContext context) {
+    return AppFlowyPopover(
+      controller: popoverController,
+      mutex: widget.popoverMutex,
+      margin: EdgeInsets.zero,
+      asBarrier: true,
+      triggerActions: PopoverTriggerFlags.none,
+      constraints: BoxConstraints.loose(const Size(200, 470)),
+      child: _OptionCellChild(
+        option: widget.option,
+        index: widget.index,
+        onTap: () => popoverController.show(),
+      ),
+      popupBuilder: (popoverContext) {
+        return SelectOptionEditor(
+          option: widget.option,
+          onDeleted: () {
+            context
+                .read<SelectOptionTypeOptionBloc>()
+                .add(SelectOptionTypeOptionEvent.deleteOption(widget.option));
+            PopoverContainer.of(popoverContext).close();
+          },
+          onUpdated: (updatedOption) {
+            context
+                .read<SelectOptionTypeOptionBloc>()
+                .add(SelectOptionTypeOptionEvent.updateOption(updatedOption));
+          },
+          key: ValueKey(widget.option.id),
+        );
+      },
+    );
+  }
+}
+
+class _OptionCellChild extends StatefulWidget {
+  const _OptionCellChild({
+    required this.option,
+    required this.index,
+    required this.onTap,
+  });
+
+  final SelectOptionPB option;
+  final int? index;
+  final VoidCallback onTap;
+
+  @override
+  State<_OptionCellChild> createState() => _OptionCellChildState();
+}
+
+class _OptionCellChildState extends State<_OptionCellChild> {
+  bool isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
+    return MouseRegion(
+      onEnter: (_) => setState(() => isHovered = true),
+      onExit: (_) => setState(() => isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: isHovered
+              ? theme.fillColorScheme.contentHover
+              : theme.fillColorScheme.content,
+          borderRadius: const BorderRadius.all(Radius.circular(6)),
+        ),
+        child: SelectOptionTagCell(
+          option: widget.option,
+          index: widget.index,
+          onSelected: widget.onTap,
+          children: [
+            AFGhostButton.normal(
+              onTap: widget.onTap,
+              padding: const EdgeInsets.all(2.0),
+              builder: (context, isHovering, disabled) {
+                return FlowySvg(
+                  FlowySvgs.three_dots_s,
+                  size: const Size.square(20),
+                  color: theme.iconColorScheme.tertiary,
+                );
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

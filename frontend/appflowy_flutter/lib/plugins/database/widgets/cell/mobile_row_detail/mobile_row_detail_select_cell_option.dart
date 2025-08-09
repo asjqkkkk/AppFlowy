@@ -1,8 +1,8 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_bloc.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/mobile_select_option_editor.dart';
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
 import 'package:collection/collection.dart';
@@ -92,7 +92,6 @@ class MobileRowDetailSelectOptionCellSkin
           padding: EdgeInsets.only(left: index == 0 ? 0 : 4),
           child: SelectOptionTag(
             option: option,
-            fontSize: 14,
             padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 5),
           ),
         );

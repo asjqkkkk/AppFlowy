@@ -1,15 +1,16 @@
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/app_bar/app_bar_actions.dart';
-import 'package:appflowy/mobile/presentation/base/option_color_list.dart';
+import 'package:appflowy/plugins/database/widgets/cell_editor/mobile_select_option_color_list.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_mobile_search_text_field.dart';
 import 'package:appflowy/mobile/presentation/widgets/widgets.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_editor_bloc.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller_builder.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/field_entities.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -17,8 +18,6 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:protobuf/protobuf.dart';
-
-// include single select and multiple select
 class MobileSelectOptionEditor extends StatefulWidget {
   const MobileSelectOptionEditor({
     super.key,
@@ -265,7 +264,6 @@ class _OptionList extends StatelessWidget {
           cells.add(
             _CreateOptionCell(
               name: state.createSelectOptionSuggestion!.name,
-              color: state.createSelectOptionSuggestion!.color,
               onTap: () => onCreateOption(
                 state.createSelectOptionSuggestion!.name,
               ),
@@ -345,12 +343,8 @@ class MobileSelectOption extends StatelessWidget {
                 alignment: AlignmentDirectional.centerStart,
                 child: SelectOptionTag(
                   option: option,
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 10,
-                    horizontal: 14,
-                  ),
-                  textAlign: TextAlign.center,
-                  fontSize: 15.0,
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 ),
               ),
             ),
@@ -374,35 +368,34 @@ class MobileSelectOption extends StatelessWidget {
 class _CreateOptionCell extends StatelessWidget {
   const _CreateOptionCell({
     required this.name,
-    required this.color,
     required this.onTap,
   });
 
   final String name;
-  final SelectOptionColorPB color;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
     return SizedBox(
       height: 44,
       child: GestureDetector(
-        behavior: HitTestBehavior.translucent,
+        behavior: HitTestBehavior.opaque,
         onTap: onTap,
         child: Row(
+          spacing: theme.spacing.xs,
           children: [
             FlowyText(
               LocaleKeys.grid_selectOption_create.tr(),
               color: Theme.of(context).hintColor,
             ),
-            const HSpace(8),
             Expanded(
               child: Align(
                 alignment: AlignmentDirectional.centerStart,
-                child: SelectOptionTag(
+                child: SelectOptionTag.custom(
                   name: name,
-                  color: color.toColor(context),
-                  textAlign: TextAlign.center,
+                  color: Colors.transparent,
                   padding: const EdgeInsets.symmetric(
                     vertical: 10,
                     horizontal: 14,
@@ -457,21 +450,16 @@ class _MoreOptionsState extends State<_MoreOptions> {
           ),
           const VSpace(4.0),
           FlowyOptionDecorateBox(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                vertical: 12.0,
-                horizontal: 6.0,
-              ),
-              child: OptionColorList(
-                selectedColor: option.color,
-                onSelectedColor: (color) {
-                  widget.onUpdate(null, color);
-                  setState(() {
-                    option.freeze();
-                    option = option.rebuild((option) => option.color = color);
-                  });
-                },
-              ),
+            showBottomBorder: false,
+            child: OptionColorList(
+              selectedColor: option.color,
+              onSelectColor: (color) {
+                widget.onUpdate(null, color);
+                setState(() {
+                  option.freeze();
+                  option = option.rebuild((option) => option.color = color);
+                });
+              },
             ),
           ),
         ],

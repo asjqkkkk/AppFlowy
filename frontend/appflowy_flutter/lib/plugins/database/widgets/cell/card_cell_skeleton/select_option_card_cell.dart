@@ -1,8 +1,8 @@
 import 'package:appflowy/plugins/database/application/cell/cell_controller.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller_builder.dart';
 import 'package:appflowy/plugins/database/application/database_controller.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_bloc.dart';
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -61,7 +61,7 @@ class _SelectOptionCellState extends State<SelectOptionCardCell> {
               .map(
                 (option) => SelectOptionTag(
                   option: option,
-                  fontSize: widget.style.tagFontSize,
+                  // fontSize: widget.style.tagFontSize,
                   padding: widget.style.tagPadding,
                 ),
               )

@@ -2,12 +2,10 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/plugins/database/application/field/field_info.dart';
 import 'package:appflowy/plugins/database/application/field/filter_entities.dart';
 import 'package:appflowy/plugins/database/grid/application/filter/filter_editor_bloc.dart';
-import 'package:appflowy/plugins/database/grid/presentation/layout/sizes.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
-import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -27,12 +25,10 @@ class SelectOptionFilterList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return ListView.builder(
       physics: const NeverScrollableScrollPhysics(),
       shrinkWrap: true,
       itemCount: options.length,
-      separatorBuilder: (context, index) =>
-          VSpace(GridSize.typeOptionSeparatorHeight),
       itemBuilder: (context, index) {
         final option = options[index];
         final isSelected = filter.optionIds.contains(option.id);
@@ -88,24 +84,21 @@ class SelectOptionFilterCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: GridSize.popoverItemHeight,
-      child: FlowyHover(
-        resetHoverOnRebuild: false,
-        style: HoverStyle(
-          hoverColor: AFThemeExtension.of(context).lightGreyHover,
-        ),
-        child: SelectOptionTagCell(
-          option: option,
-          onSelected: onTap,
-          children: [
-            if (isSelected)
-              const Padding(
-                padding: EdgeInsets.only(right: 6),
-                child: FlowySvg(FlowySvgs.check_s),
-              ),
-          ],
-        ),
+    return FlowyHover(
+      resetHoverOnRebuild: false,
+      style: HoverStyle(
+        hoverColor: AFThemeExtension.of(context).lightGreyHover,
+      ),
+      child: SelectOptionTagCell(
+        option: option,
+        onSelected: onTap,
+        children: [
+          if (isSelected)
+            const Padding(
+              padding: EdgeInsets.only(right: 6),
+              child: FlowySvg(FlowySvgs.check_s),
+            ),
+        ],
       ),
     );
   }

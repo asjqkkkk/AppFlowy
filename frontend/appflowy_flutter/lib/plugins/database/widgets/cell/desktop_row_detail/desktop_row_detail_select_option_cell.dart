@@ -1,7 +1,7 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_bloc.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -64,10 +64,6 @@ class DesktopRowDetailSelectOptionCellSkin
         (option) {
           return SelectOptionTag(
             option: option,
-            padding: const EdgeInsets.symmetric(
-              vertical: 4,
-              horizontal: 8,
-            ),
           );
         },
       ).toList(),

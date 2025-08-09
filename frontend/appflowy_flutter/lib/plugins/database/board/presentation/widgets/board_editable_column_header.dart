@@ -1,8 +1,7 @@
 import 'package:appflowy/plugins/database/application/database_controller.dart';
 import 'package:appflowy/plugins/database/application/field/type_option/type_option_data_parser.dart';
 import 'package:appflowy/plugins/database/board/application/board_bloc.dart';
-import 'package:appflowy/plugins/database/board/group_ext.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_board/appflowy_board.dart';
 import 'package:collection/collection.dart';
@@ -33,15 +32,15 @@ class EditableColumnHeader extends StatefulWidget {
 
 class _EditableColumnHeaderState extends State<EditableColumnHeader> {
   late final FocusNode focusNode;
-  late final TextEditingController textController = TextEditingController(
-    text: _generateGroupName(),
-  );
+  late final TextEditingController textController;
 
   GroupData get customData => widget.groupData.customData;
 
   @override
   void initState() {
     super.initState();
+    final option = _getGroupOption();
+    textController = TextEditingController(text: option?.name ?? '');
     focusNode = FocusNode(
       onKeyEvent: (node, event) {
         if (event.logicalKey == LogicalKeyboardKey.escape &&
@@ -57,7 +56,8 @@ class _EditableColumnHeaderState extends State<EditableColumnHeader> {
   @override
   void didUpdateWidget(covariant oldWidget) {
     if (oldWidget.groupData.customData != widget.groupData.customData) {
-      textController.text = _generateGroupName();
+      final option = _getGroupOption();
+      textController.text = option?.name ?? '';
     }
     super.didUpdateWidget(oldWidget);
   }
@@ -112,8 +112,8 @@ class _EditableColumnHeaderState extends State<EditableColumnHeader> {
   }
 
   Widget _buildTitle() {
-    final (backgroundColor, dotColor) = _generateGroupColor();
-    final groupName = _generateGroupName();
+    final option = _getGroupOption();
+
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       child: GestureDetector(
@@ -124,37 +124,9 @@ class _EditableColumnHeaderState extends State<EditableColumnHeader> {
         child: Align(
           alignment: AlignmentDirectional.centerStart,
           child: FlowyTooltip(
-            message: groupName,
-            child: Container(
-              height: 20,
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
-              decoration: BoxDecoration(
-                color: backgroundColor,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Center(
-                    child: Container(
-                      height: 6,
-                      width: 6,
-                      decoration: BoxDecoration(
-                        color: dotColor,
-                        borderRadius: BorderRadius.circular(3),
-                      ),
-                    ),
-                  ),
-                  const HSpace(4.0),
-                  Flexible(
-                    child: FlowyText.medium(
-                      groupName,
-                      overflow: TextOverflow.ellipsis,
-                      lineHeight: 1.0,
-                    ),
-                  ),
-                ],
-              ),
+            message: option?.name,
+            child: SelectOptionTag(
+              option: option,
             ),
           ),
         ),
@@ -196,67 +168,24 @@ class _EditableColumnHeaderState extends State<EditableColumnHeader> {
     );
   }
 
-  String _generateGroupName() {
-    return customData.group.generateGroupName(widget.databaseController);
-  }
-
-  (Color? backgroundColor, Color? dotColor) _generateGroupColor() {
-    Color? backgroundColor;
-    Color? dotColor;
-
+  SelectOptionPB? _getGroupOption() {
     final groupId = widget.groupData.id;
     final fieldId = customData.fieldInfo.id;
     final field = widget.databaseController.fieldController.getField(fieldId);
-    if (field != null) {
-      final selectOptions = switch (field.fieldType) {
-        FieldType.MultiSelect => MultiSelectTypeOptionDataParser()
-            .fromBuffer(field.field.typeOptionData)
-            .options,
-        FieldType.SingleSelect => SingleSelectTypeOptionDataParser()
-            .fromBuffer(field.field.typeOptionData)
-            .options,
-        _ => <SelectOptionPB>[],
-      };
-
-      final colorPB =
-          selectOptions.firstWhereOrNull((e) => e.id == groupId)?.color;
-
-      if (colorPB != null) {
-        backgroundColor = colorPB.toColor(context);
-        dotColor = getColorOfDot(colorPB);
-      }
+    if (field == null) {
+      return null;
     }
 
-    return (backgroundColor, dotColor);
-  }
-
-  // move to theme file and allow theme customization once palette is finalized
-  Color getColorOfDot(SelectOptionColorPB color) {
-    return switch (Theme.of(context).brightness) {
-      Brightness.light => switch (color) {
-          SelectOptionColorPB.Purple => const Color(0xFFAB8DFF),
-          SelectOptionColorPB.Pink => const Color(0xFFFF8EF5),
-          SelectOptionColorPB.LightPink => const Color(0xFFFF85A9),
-          SelectOptionColorPB.Orange => const Color(0xFFFFBC7E),
-          SelectOptionColorPB.Yellow => const Color(0xFFFCD86F),
-          SelectOptionColorPB.Lime => const Color(0xFFC6EC41),
-          SelectOptionColorPB.Green => const Color(0xFF74F37D),
-          SelectOptionColorPB.Aqua => const Color(0xFF40F0D1),
-          SelectOptionColorPB.Blue => const Color(0xFF00C8FF),
-          _ => throw ArgumentError,
-        },
-      Brightness.dark => switch (color) {
-          SelectOptionColorPB.Purple => const Color(0xFF502FD6),
-          SelectOptionColorPB.Pink => const Color(0xFFBF1CC0),
-          SelectOptionColorPB.LightPink => const Color(0xFFC42A53),
-          SelectOptionColorPB.Orange => const Color(0xFFD77922),
-          SelectOptionColorPB.Yellow => const Color(0xFFC59A1A),
-          SelectOptionColorPB.Lime => const Color(0xFFA4C824),
-          SelectOptionColorPB.Green => const Color(0xFF23CA2E),
-          SelectOptionColorPB.Aqua => const Color(0xFF19CCAC),
-          SelectOptionColorPB.Blue => const Color(0xFF04A9D7),
-          _ => throw ArgumentError,
-        }
+    final selectOptions = switch (field.fieldType) {
+      FieldType.MultiSelect => MultiSelectTypeOptionDataParser()
+          .fromBuffer(field.field.typeOptionData)
+          .options,
+      FieldType.SingleSelect => SingleSelectTypeOptionDataParser()
+          .fromBuffer(field.field.typeOptionData)
+          .options,
+      _ => <SelectOptionPB>[],
     };
+
+    return selectOptions.firstWhereOrNull((e) => e.id == groupId);
   }
 }

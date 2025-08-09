@@ -170,30 +170,18 @@ pub fn select_type_option_from_field(
 }
 
 pub fn new_select_option_color(options: &[SelectOption]) -> SelectOptionColor {
-  let mut freq: Vec<usize> = vec![0; 9];
+  let mut freq: Vec<usize> = vec![0; 14];
 
   for option in options {
     freq[option.color.to_owned() as usize] += 1;
   }
 
-  match freq
+  freq
     .into_iter()
     .enumerate()
     .min_by_key(|(_, v)| *v)
-    .map(|(idx, _val)| idx)
-    .unwrap()
-  {
-    0 => SelectOptionColor::Purple,
-    1 => SelectOptionColor::Pink,
-    2 => SelectOptionColor::LightPink,
-    3 => SelectOptionColor::Orange,
-    4 => SelectOptionColor::Yellow,
-    5 => SelectOptionColor::Lime,
-    6 => SelectOptionColor::Green,
-    7 => SelectOptionColor::Aqua,
-    8 => SelectOptionColor::Blue,
-    _ => SelectOptionColor::Purple,
-  }
+    .map(|(idx, _val)| SelectOptionColor::from(idx))
+    .unwrap_or_default()
 }
 
 pub struct SelectOptionIdsParser();

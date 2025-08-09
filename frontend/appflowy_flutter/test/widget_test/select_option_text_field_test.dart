@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../bloc_test/grid_test/util.dart';
+import 'widget_test_wrapper.dart';
 
 void main() {
   setUpAll(() {
@@ -38,10 +39,8 @@ void main() {
     testWidgets('SelectOptionTextField callback outputs',
         (WidgetTester tester) async {
       await tester.pumpWidget(
-        MaterialApp(
-          home: Material(
-            child: textField,
-          ),
+        WidgetTestWrapper(
+          child: textField,
         ),
       );
 
