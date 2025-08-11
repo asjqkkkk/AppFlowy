@@ -43,6 +43,7 @@ class SettingsManageDataView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return BlocProvider<DataLocationBloc>(
       create: (_) => DataLocationBloc(
         repository: const RustSettingsRepositoryImpl(),
@@ -121,22 +122,60 @@ class SettingsManageDataView extends StatelessWidget {
                           title: LocaleKeys
                               .workspaceImport_settings_importWorkspace_title
                               .tr(),
-                          tooltip: LocaleKeys
-                              .workspaceImport_settings_importWorkspace_tooltip
-                              .tr(),
+                          withSpacer: false,
+                          actions: [
+                            HSpace(theme.spacing.xs),
+                            FlowyTooltip(
+                              message: LocaleKeys.workspace_learnMore.tr(),
+                              child: AFGhostButton.normal(
+                                padding: EdgeInsets.zero,
+                                builder: (context, isHovering, disabled) {
+                                  return FlowySvg(
+                                    FlowySvgs.ai_explain_m,
+                                    size: Size.square(20),
+                                  );
+                                },
+                                onTap: () {
+                                  afLaunchUrlString(
+                                    'https://appflowy.com/guide/import-from-AppFlowy',
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                           children: const [_ImportWorkspaceField()],
                         ),
-                      SettingsCategory(
-                        title: LocaleKeys
-                            .workspaceImport_settings_backupWorkspace_title
-                            .tr(),
-                        tooltip: LocaleKeys
-                            .workspaceImport_settings_backupWorkspace_tooltip
-                            .tr(),
-                        children: const [
-                          SettingsExportFileWidget(),
-                        ],
-                      ),
+                      // only owner can export workspace
+                      if (workspace.role == AFRolePB.Owner)
+                        SettingsCategory(
+                          title: LocaleKeys
+                              .workspaceImport_settings_backupWorkspace_title
+                              .tr(),
+                          withSpacer: false,
+                          actions: [
+                            HSpace(theme.spacing.xs),
+                            FlowyTooltip(
+                              message: LocaleKeys.workspace_learnMore.tr(),
+                              child: AFGhostButton.normal(
+                                padding: EdgeInsets.zero,
+                                builder: (context, isHovering, disabled) {
+                                  return FlowySvg(
+                                    FlowySvgs.ai_explain_m,
+                                    size: Size.square(20),
+                                  );
+                                },
+                                onTap: () {
+                                  afLaunchUrlString(
+                                    'https://appflowy.com/guide/back-up-your-data',
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                          children: const [
+                            SettingsExportFileWidget(),
+                          ],
+                        ),
                     ]
                   : [
                       SettingsCategory(

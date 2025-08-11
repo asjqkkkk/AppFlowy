@@ -111,15 +111,23 @@ impl<'a> WorkspaceExporter<'a> {
       .ok_or_else(folder_not_init_error)?;
     let folder = lock.read().await;
 
-    let view_ids_should_be_filtered: HashSet<String> =
+    let mut view_ids_should_be_filtered: HashSet<String> =
       FolderManager::get_view_ids_should_be_filtered(&folder, uid)
         .into_iter()
         .collect();
+    // no need to include the workspace view itself
+    view_ids_should_be_filtered.insert(workspace_id.to_string());
 
     let mut all_views = Vec::new();
     let mut visited = HashSet::new();
 
-    let root_views = folder.get_views_belong_to(&workspace_id.to_string(), uid);
+    let mut root_views = folder.get_views_belong_to(&workspace_id.to_string(), uid);
+    let orphaned_views = folder
+      .get_all_views(uid)
+      .into_iter()
+      .filter(|v| v.parent_view_id == v.id)
+      .collect::<Vec<_>>();
+    root_views.extend(orphaned_views);
     for view in root_views {
       if !view_ids_should_be_filtered.contains(&view.id) && view.layout != ViewLayout::Chat {
         self.collect_view_hierarchy(
@@ -232,10 +240,7 @@ impl<'a> WorkspaceExporter<'a> {
     let mut relation_map = WorkspaceRelationMap {
       workspace_id: workspace_id.to_string(),
       export_timestamp,
-      views: HashMap::new(),
-      collab_objects: HashMap::new(),
-      dependencies: Vec::new(),
-      workspace_database_meta: Some(Vec::new()),
+      ..Default::default()
     };
 
     for view in views {
@@ -702,7 +707,6 @@ impl<'a> WorkspaceExporter<'a> {
           let path = PathBuf::from(original_path.clone());
           let file_id = FileId::from_path(&path).await?;
           path_to_file_id.insert(original_path.clone(), file_id.clone());
-          // we should optimize it later, keep the original path and move the file to the export folder
           match fs::read(&original_path) {
             Ok(file_content) => {
               local_files_map.insert(file_id.clone(), file_content);

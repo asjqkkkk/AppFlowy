@@ -57,6 +57,7 @@ class WorkspaceExportBloc
         workspaceId: event.workspaceId,
         exportPath: event.exportPath,
         exportName: event.exportName,
+        includeFileAttachments: event.includeFileAttachments,
       );
 
       emit(

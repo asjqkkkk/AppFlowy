@@ -6,5 +6,6 @@ abstract class WorkspaceExportRepository {
     required String workspaceId,
     required String exportPath,
     required String exportName,
+    bool? includeFileAttachments,
   });
 }

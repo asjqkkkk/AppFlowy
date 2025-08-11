@@ -2,7 +2,7 @@ use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
-  CreateImportTaskType, PublishInfo,
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, PublishInfo,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
@@ -98,6 +98,12 @@ pub trait FolderCloudService: Send + Sync + 'static {
     file_path: &str,
     task_type: CreateImportTaskType,
   ) -> Result<(), FlowyError>;
+
+  async fn create_export(
+    &self,
+    workspace_id: &Uuid,
+    req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError>;
 
   /// Share a page with a user (member or guest)
   async fn share_page_with_user(

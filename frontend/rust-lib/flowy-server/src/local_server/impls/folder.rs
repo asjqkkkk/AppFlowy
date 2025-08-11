@@ -8,7 +8,9 @@ use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
-use client_api::entity::{CreateImportTaskType, PublishInfo};
+use client_api::entity::{
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, PublishInfo,
+};
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
 use collab::preclude::Collab;
@@ -184,6 +186,14 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     _file_path: &str,
     _task_type: CreateImportTaskType,
   ) -> Result<(), FlowyError> {
+    Err(FlowyError::local_version_not_support())
+  }
+
+  async fn create_export(
+    &self,
+    _workspace_id: &Uuid,
+    _req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError> {
     Err(FlowyError::local_version_not_support())
   }
 

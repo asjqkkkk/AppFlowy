@@ -11,9 +11,9 @@ use client_api::entity::search_dto::{
 use client_api::entity::server_info_dto::ServerInfo;
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CompleteTextParams, CompletedPartRequest, CreateCollabParams, CreateImportTaskType,
-  CreateUploadResponse, ModelList, PublishInfo, QueryCollab, RepeatedRelatedQuestion,
-  ResponseFormat, TranslateRowResponse, UploadPartResponse,
+  CompleteTextParams, CompletedPartRequest, CreateCollabParams, CreateExportTask,
+  CreateExportTaskResponse, CreateImportTaskType, CreateUploadResponse, ModelList, PublishInfo,
+  QueryCollab, RepeatedRelatedQuestion, ResponseFormat, TranslateRowResponse, UploadPartResponse,
 };
 use client_api::v2::TokenProvider;
 use collab::entity::EncodedCollab;
@@ -555,6 +555,17 @@ impl FolderCloudService for ServerProvider {
     self
       .get_folder_service()?
       .delete_recent_views(workspace_id, view_ids)
+      .await
+  }
+
+  async fn create_export(
+    &self,
+    workspace_id: &Uuid,
+    req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError> {
+    self
+      .get_folder_service()?
+      .create_export(workspace_id, req)
       .await
   }
 }

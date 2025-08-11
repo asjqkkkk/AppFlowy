@@ -667,6 +667,7 @@ pub(crate) async fn export_workspace_handler(
     .export_workspace(ExportRequest {
       workspace_id,
       output_path: payload.output_path,
+      include_file_attachments: payload.include_file_attachments,
     })
     .await
 }

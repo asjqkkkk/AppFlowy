@@ -90,9 +90,8 @@ class WorkspaceImportDialogBloc
     LearnMoreClicked event,
     Emitter<WorkspaceImportDialogState> emit,
   ) async {
-    // replace with the correct url
     await afLaunchUrlString(
-      'https://docs.appflowy.io/docs/appflowy/import-export',
+      'https://appflowy.com/guide/import-from-AppFlowy',
     );
   }
 

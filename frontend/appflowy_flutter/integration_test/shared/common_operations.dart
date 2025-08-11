@@ -355,7 +355,7 @@ extension CommonOperations on WidgetTester {
   }) async {
     // create a new page
     await tapAddViewButton(name: parentName ?? gettingStarted, layout: layout);
-    await pumpAndSettle();
+    await pumpAndSettle(const Duration(milliseconds: 500));
     await tapButtonWithName(layout.menuName);
     final settingsOrFailure = await getIt<KeyValueStorage>().getWithFormat(
       KVKeys.showRenameDialogWhenCreatingNewFile,

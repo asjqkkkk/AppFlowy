@@ -3,8 +3,8 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::workspace_dto::{AddRecentPagesParams, PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CollabParams, CreateImportTaskType, PublishCollabItem, PublishCollabMetadata, QueryCollab,
-  QueryCollabParams,
+  CollabParams, CreateExportTask, CreateExportTaskResponse, CreateImportTaskType,
+  PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams,
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
@@ -275,6 +275,17 @@ where
     );
     client.upload_import_file(&file_path, &url).await?;
     Ok(())
+  }
+
+  async fn create_export(
+    &self,
+    workspace_id: &Uuid,
+    req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError> {
+    let client = self.inner.try_get_client()?;
+    let response = client.create_export(workspace_id, req).await?;
+    check_request_workspace_id_is_match(workspace_id, &self.logged_user, "create export")?;
+    Ok(response)
   }
 
   async fn share_page_with_user(

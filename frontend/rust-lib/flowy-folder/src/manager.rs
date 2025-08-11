@@ -26,7 +26,8 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CreateImportTaskType, PublishInfo, SectionChangedBody, WorkspaceNotification,
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, PublishInfo,
+  SectionChangedBody, WorkspaceNotification,
 };
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
@@ -2624,6 +2625,18 @@ impl FolderManager {
     Ok(())
   }
 
+  pub(crate) async fn create_export_task(
+    &self,
+    req: CreateExportTask,
+  ) -> FlowyResult<CreateExportTaskResponse> {
+    let workspace_id = self.user.workspace_id()?;
+    let response = self
+      .cloud_service()?
+      .create_export(&workspace_id, req)
+      .await?;
+    Ok(response)
+  }
+
   /// Import function to handle the import of data.
   pub(crate) async fn import(&self, import_data: ImportParams) -> FlowyResult<RepeatedViewPB> {
     let workspace_id = self.user.workspace_id()?;
@@ -3266,8 +3279,17 @@ impl FolderManager {
   /// Export the entire workspace to a specified output path.
   #[tracing::instrument(level = "debug", skip(self), err)]
   pub async fn export_workspace(&self, request: ExportRequest) -> FlowyResult<()> {
-    let exporter = WorkspaceExporter::new(self);
-    exporter.export_workspace(request).await
+    let workspace = self.user.get_active_user_workspace()?;
+    if workspace.workspace_type != WorkspaceType::Vault {
+      let create_export_request = CreateExportTask {
+        include_file_attachments: Some(request.include_file_attachments),
+      };
+      let _ = self.create_export_task(create_export_request).await?;
+      Ok(())
+    } else {
+      let exporter = WorkspaceExporter::new(self);
+      exporter.export_workspace(request).await
+    }
   }
 
   /// Import the entire workspace from a specified input path.

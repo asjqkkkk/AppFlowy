@@ -3607,14 +3607,14 @@
   },
   "workspaceImport": {
     "dialogTitle": "Import workspace from AppFlowy",
-    "uploadZipFiles": "Upload .zip files",
-    "dragDropInstruction": "Drag & drop Zip files or click to ",
+    "uploadZipFiles": "Upload an AppFlowy ZIP file",
+    "dragDropInstruction": "Drag & drop or click to ",
     "uploadButtonText": "Upload",
     "fileSizeLimitExceeded": "File size limit exceeded",
     "fileSizeLimitExceededMessage": "The uploaded file ({}) exceeds the {} limit.",
     "invalidFileFormat": "Invalid file format",
     "invalidFileFormatMessage": "The contents of ({}) don't match the workspace format. Please make sure you've selected the correct workspace ZIP file.",
-    "description": "Go to Settings to export the workspace and upload the file here. The imported file will be turned into a new workspace. ",
+    "description": "Go to Settings → Manage Data to back up your workspace to a ZIP file. Then import it here as a new workspace. ",
     "learnMore": "Learn more",
     "uploadingFile": "Uploading file...",
     "pleaseDoNotQuit": "Please do not quit the app",
@@ -3643,12 +3643,12 @@
     "settings": {
       "importWorkspace": {
         "title": "Import your workspace",
-        "tooltip": "Import your workspace from AppFlowy workspace file (.zip)",
+        "tooltip": "Import your workspace from an AppFlowy backup ZIP file",
         "buttonText": "Import"
       },
       "backupWorkspace": {
         "title": "Backup your workspace",
-        "tooltip": "Backup your workspace to AppFlowy workspace file (.zip)",
+        "tooltip": "Back up your AppFlowy workspace to a ZIP file",
         "buttonText": "Backup"
       }
     }
