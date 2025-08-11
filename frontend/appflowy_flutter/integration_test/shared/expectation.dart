@@ -39,11 +39,9 @@ extension Expectation on WidgetTester {
     if (UniversalPlatform.isDesktopOrWeb) {
       final finder = find.byType(HomeStack);
       await pumpUntilFound(finder);
-      expect(finder, findsOneWidget);
     } else if (UniversalPlatform.isMobile) {
       final finder = find.byType(MobileHomePage);
       await pumpUntilFound(finder);
-      expect(finder, findsOneWidget);
     }
 
     final docFinder = find.textContaining(gettingStarted);

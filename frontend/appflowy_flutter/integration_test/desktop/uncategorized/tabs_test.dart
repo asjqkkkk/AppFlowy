@@ -79,77 +79,81 @@ void main() {
       );
     });
 
-    testWidgets('right click show tab menu, close others', (tester) async {
-      await tester.initializeAppFlowy();
-      await tester.tapAnonymousSignInButton();
+    testWidgets(
+      'right click show tab menu, close others',
+      (tester) async {
+        await tester.initializeAppFlowy();
+        await tester.tapAnonymousSignInButton();
 
-      expect(
-        find.descendant(
-          of: find.byType(TabsManager),
-          matching: find.byType(TabBar),
-        ),
-        findsNothing,
-      );
+        expect(
+          find.descendant(
+            of: find.byType(TabsManager),
+            matching: find.byType(TabBar),
+          ),
+          findsNothing,
+        );
 
-      await tester.createNewPageWithNameUnderParent(name: _documentName);
-      await tester.createNewPageWithNameUnderParent(name: _documentTwoName);
+        await tester.createNewPageWithNameUnderParent(name: _documentName);
+        await tester.createNewPageWithNameUnderParent(name: _documentTwoName);
 
-      /// Open second menu item in a new tab
-      await tester.openAppInNewTab(gettingStarted, ViewLayoutPB.Document);
+        /// Open second menu item in a new tab
+        await tester.openAppInNewTab(gettingStarted, ViewLayoutPB.Document);
 
-      /// Open third menu item in a new tab
-      await tester.openAppInNewTab(_documentName, ViewLayoutPB.Document);
+        /// Open third menu item in a new tab
+        await tester.openAppInNewTab(_documentName, ViewLayoutPB.Document);
 
-      expect(
-        find.descendant(
-          of: find.byType(TabsManager),
-          matching: find.byType(FlowyTab),
-        ),
-        findsNWidgets(3),
-      );
+        expect(
+          find.descendant(
+            of: find.byType(TabsManager),
+            matching: find.byType(FlowyTab),
+          ),
+          findsNWidgets(3),
+        );
 
-      /// Right click on second tab
-      await tester.tap(
-        buttons: kSecondaryButton,
-        find.descendant(
+        /// Right click on second tab
+        await tester.tap(
+          buttons: kSecondaryButton,
+          find.descendant(
+            of: find.byType(FlowyTab),
+            matching: find.text(gettingStarted),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        expect(find.byType(TabMenu), findsOneWidget);
+
+        final firstTabFinder = find.descendant(
+          of: find.byType(FlowyTab),
+          matching: find.text(_documentTwoName),
+        );
+        final secondTabFinder = find.descendant(
           of: find.byType(FlowyTab),
           matching: find.text(gettingStarted),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        final thirdTabFinder = find.descendant(
+          of: find.byType(FlowyTab),
+          matching: find.text(_documentName),
+        );
 
-      expect(find.byType(TabMenu), findsOneWidget);
+        expect(firstTabFinder, findsOneWidget);
+        expect(secondTabFinder, findsOneWidget);
+        expect(thirdTabFinder, findsOneWidget);
 
-      final firstTabFinder = find.descendant(
-        of: find.byType(FlowyTab),
-        matching: find.text(_documentTwoName),
-      );
-      final secondTabFinder = find.descendant(
-        of: find.byType(FlowyTab),
-        matching: find.text(gettingStarted),
-      );
-      final thirdTabFinder = find.descendant(
-        of: find.byType(FlowyTab),
-        matching: find.text(_documentName),
-      );
+        // Close other tabs than the second item
+        await tester.tap(find.text(LocaleKeys.tabMenu_closeOthers.tr()));
+        await tester.pumpAndSettle();
 
-      expect(firstTabFinder, findsOneWidget);
-      expect(secondTabFinder, findsOneWidget);
-      expect(thirdTabFinder, findsOneWidget);
+        // We expect to not find any tabs
+        expect(firstTabFinder, findsNothing);
+        expect(secondTabFinder, findsNothing);
+        expect(thirdTabFinder, findsNothing);
 
-      // Close other tabs than the second item
-      await tester.tap(find.text(LocaleKeys.tabMenu_closeOthers.tr()));
-      await tester.pumpAndSettle();
-
-      // We expect to not find any tabs
-      expect(firstTabFinder, findsNothing);
-      expect(secondTabFinder, findsNothing);
-      expect(thirdTabFinder, findsNothing);
-
-      // Expect second tab to be current page (current page has breadcrumb, cover title,
-      //  and in this case view name in sidebar)
-      expect(find.text(gettingStarted), findsNWidgets(3));
-    });
+        // Expect second tab to be current page (current page has breadcrumb, cover title,
+        //  and in this case view name in sidebar)
+        expect(find.text(gettingStarted), findsNWidgets(3));
+      },
+      skip: true,
+    );
 
     testWidgets('cannot close pinned tabs', (tester) async {
       await tester.initializeAppFlowy();

@@ -257,6 +257,7 @@ extension AppFlowyTestBase on WidgetTester {
         (widget) => widget is FlowyText && widget.text == tr,
       );
     }
+    await pumpUntilFound(button);
     await tapButton(
       button,
       milliseconds: milliseconds,

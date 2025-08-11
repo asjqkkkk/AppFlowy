@@ -1066,6 +1066,7 @@ extension AppFlowyDatabaseTest on WidgetTester {
   }
 
   Future<void> tapDatabaseFilterButton() async {
+    await pumpUntilFound(find.byType(FilterButton));
     await tapButton(find.byType(FilterButton));
   }
 

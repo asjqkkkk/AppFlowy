@@ -23,12 +23,12 @@ use collab_importer::workspace::entities::{
 };
 use dashmap::DashMap;
 use flowy_error::{FlowyError, FlowyResult};
+use lib_infra::util::timestamp;
 use regex::Regex;
 use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::time::{SystemTime, UNIX_EPOCH};
 use tracing::{error, info, instrument};
 use uuid::Uuid;
 
@@ -230,16 +230,12 @@ impl<'a> WorkspaceExporter<'a> {
     workspace_id: &Uuid,
     views: &[Arc<View>],
   ) -> FlowyResult<WorkspaceRelationMap> {
-    let export_timestamp = SystemTime::now()
-      .duration_since(UNIX_EPOCH)
-      .map_err(|e| {
-        FlowyError::internal().with_context(format!("Failed to get current timestamp: {}", e))
-      })?
-      .as_secs() as i64;
+    let export_timestamp = timestamp();
 
     let mut relation_map = WorkspaceRelationMap {
       workspace_id: workspace_id.to_string(),
       export_timestamp,
+      workspace_database_meta: Some(vec![]),
       ..Default::default()
     };
 

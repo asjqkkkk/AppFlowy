@@ -183,7 +183,7 @@ class _AIOverview extends StatelessWidget {
           ),
           VSpace(12),
           SizedBox(
-            width: 143,
+            width: 144,
             child: AFOutlinedButton.normal(
               padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               borderRadius: 16,

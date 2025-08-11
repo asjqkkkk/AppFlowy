@@ -219,7 +219,7 @@ extension CommonOperations on WidgetTester {
     ViewLayoutPB layout = ViewLayoutPB.Document,
   }) async {
     final finder = findPageName(name, layout: layout);
-    expect(finder, findsOneWidget);
+    await pumpUntilFound(finder);
     await tapButton(finder);
   }
 
