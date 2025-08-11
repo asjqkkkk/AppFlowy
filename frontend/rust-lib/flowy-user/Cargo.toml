@@ -52,6 +52,8 @@ semver = { version = "1.0.22", features = ["serde"] }
 validator = { workspace = true, features = ["derive"] }
 rayon = "1.10.0"
 num_enum.workspace = true
+chrono-tz = { version = "0.8" }
+iana-time-zone = "0.1.63"
 
 [dev-dependencies]
 fake = "2.0.0"

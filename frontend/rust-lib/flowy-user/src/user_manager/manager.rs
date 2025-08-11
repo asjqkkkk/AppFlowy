@@ -18,9 +18,11 @@ use crate::user_manager::manager_user_awareness::UserAwarenessLifeCycle;
 use crate::user_manager::manager_workspace_control::WorkspaceControllerLifeCycle;
 use crate::{errors::FlowyError, notification::*};
 use arc_swap::ArcSwapOption;
+use client_api::entity::auth_dto::{MetadataKey, UpdateUserParams};
 use collab::lock::RwLock;
 use collab_plugins::CollabKVDB;
 use dashmap::DashMap;
+use diesel::{update, SqliteConnection};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_sqlite::schema::user_table;
 use flowy_sqlite::ConnectionPool;
@@ -479,19 +481,23 @@ impl UserManager {
   /// sends a notification about the change. It's also responsible for handling interactions with the underlying
   /// database and updates user profile.
   ///
-  #[tracing::instrument(level = "debug", skip(self))]
-  pub async fn update_user_profile(
-    &self,
-    params: UpdateUserProfileParams,
-  ) -> Result<(), FlowyError> {
-    let changeset = UserTableChangeset::new(params.clone());
+  #[tracing::instrument(level = "debug", skip_all)]
+  pub async fn update_user_profile(&self, mut params: UpdateUserParams) -> Result<(), FlowyError> {
+    let uid = self.user_id()?;
+    let changeset = UserTableChangeset::new(uid, params.clone());
     let session = self.get_session()?;
     let db = self.db_connection(session.user_id)?;
     upsert_user_profile_change(session.user_id, &session.workspace_id, db, changeset)?;
+
+    // Update tz
+    if let Ok(tz) = iana_time_zone::get_timezone() {
+      params = params.with_metadata_key(MetadataKey::Timezone, tz);
+    }
+
     self
       .cloud_service()?
       .user_profile_service()?
-      .update_user(params)
+      .update_user(uid, params)
       .await?;
 
     Ok(())
@@ -550,13 +556,10 @@ impl UserManager {
         // If the user profile is updated, save the new user profile
         if new_user_profile.updated_at > old_user_profile.updated_at {
           // Save the new user profile
+          let mut db = self.authenticate_user.database.get_connection(uid)?;
+          upsert_user_token(uid, new_user_profile.token.clone(), &mut db)?;
           let changeset = UserTableChangeset::from_user_profile(new_user_profile);
-          let _ = upsert_user_profile_change(
-            uid,
-            workspace_id,
-            self.authenticate_user.database.get_connection(uid)?,
-            changeset,
-          );
+          let _ = upsert_user_profile_change(uid, workspace_id, db, changeset);
         }
         Ok(())
       },
@@ -801,16 +804,17 @@ pub fn upsert_user_profile_change(
   Ok(())
 }
 
+pub fn upsert_user_token(uid: i64, token: String, conn: &mut SqliteConnection) -> FlowyResult<()> {
+  let user_id = uid.to_string();
+  update(user_table::dsl::user_table.filter(user_table::id.eq(&user_id)))
+    .set(user_table::token.eq(token))
+    .execute(conn)?;
+  Ok(())
+}
+
 #[instrument(level = "info", skip_all, err)]
-fn save_user_token(
-  uid: i64,
-  workspace_id: &str,
-  conn: DBConnection,
-  token: String,
-) -> FlowyResult<()> {
-  let params = UpdateUserProfileParams::new(uid).with_token(token);
-  let changeset = UserTableChangeset::new(params);
-  upsert_user_profile_change(uid, workspace_id, conn, changeset)
+fn save_user_token(uid: i64, mut conn: DBConnection, token: String) -> FlowyResult<()> {
+  upsert_user_token(uid, token, &mut conn)
 }
 
 #[instrument(level = "info", skip_all, err)]
@@ -992,8 +996,7 @@ async fn handle_refresh(
 
   // 3) Persist the new token
   let conn = auth_user.get_sqlite_connection(uid)?;
-  save_user_token(uid, &session.workspace_id, conn, new_token.to_string())
-    .map_err(|e| format!("DB save error: {}", e))?;
+  save_user_token(uid, conn, new_token.to_string()).map_err(|e| format!("DB save error: {}", e))?;
 
   Ok(())
 }

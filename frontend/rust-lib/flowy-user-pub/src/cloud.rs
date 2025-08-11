@@ -1,7 +1,8 @@
 use crate::entities::{
-  AuthProvider, AuthResponse, Role, UpdateUserProfileParams, UserProfile, UserTokenState,
-  UserWorkspace, WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
+  AuthProvider, AuthResponse, Role, UserProfile, UserTokenState, UserWorkspace,
+  WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
 };
+use client_api::entity::auth_dto::UpdateUserParams;
 use client_api::entity::billing_dto::SubscriptionPlanDetail;
 use client_api::entity::billing_dto::WorkspaceSubscriptionStatus;
 use client_api::entity::billing_dto::WorkspaceUsageAndLimit;
@@ -326,7 +327,7 @@ pub trait UserAuthService: Send + Sync + 'static {
 #[async_trait]
 pub trait UserProfileService: Send + Sync + 'static {
   /// Using the user's token to update the user information
-  async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError>;
+  async fn update_user(&self, uid: i64, params: UpdateUserParams) -> Result<(), FlowyError>;
 
   /// Get the user information using the user's token or uid
   /// return None if the user is not found

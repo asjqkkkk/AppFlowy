@@ -3,6 +3,7 @@ use std::str::FromStr;
 
 use chrono::{DateTime, Utc};
 use client_api::entity::AFRole;
+use client_api::entity::auth_dto::UserMetaData;
 pub use client_api::entity::billing_dto::RecurringInterval;
 use flowy_error::FlowyResult;
 use serde::{Deserialize, Serialize};
@@ -148,10 +149,10 @@ pub struct UserProfile {
   pub email: String,
   pub name: String,
   pub token: String,
-  pub icon_url: String,
   pub auth_type: AuthProvider,
   pub workspace_type: WorkspaceType,
   pub updated_at: i64,
+  pub metadata: UserMetaData,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default, Eq, PartialEq)]
@@ -199,14 +200,10 @@ where
 {
   fn from(params: (&T, &AuthProvider)) -> Self {
     let (value, auth_type) = params;
-    let icon_url = value
+    let metadata = value
       .metadata()
       .as_ref()
-      .map(|m| {
-        m.get(USER_METADATA_ICON_URL)
-          .map(|v| v.as_str().map(|s| s.to_string()).unwrap_or_default())
-          .unwrap_or_default()
-      })
+      .and_then(|m| serde_json::from_value::<UserMetaData>(m.clone()).ok())
       .unwrap_or_default();
     let workspace_type = WorkspaceType::from(auth_type);
     Self {
@@ -214,10 +211,10 @@ where
       email: value.user_email().unwrap_or_default(),
       name: value.user_name().to_owned(),
       token: value.user_token().unwrap_or_default(),
-      icon_url,
       auth_type: *auth_type,
       workspace_type,
       updated_at: value.updated_at(),
+      metadata,
     }
   }
 }

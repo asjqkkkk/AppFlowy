@@ -5,6 +5,7 @@ use crate::services::cloud_config::{
 };
 use crate::services::data_import::prepare_import;
 use crate::user_manager::UserManager;
+use client_api::entity::auth_dto::UpdateUserParams;
 use flowy_error::{ErrorCode, FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::entities::*;
@@ -149,7 +150,7 @@ pub async fn update_user_profile_handler(
   manager: AFPluginState<Weak<UserManager>>,
 ) -> Result<(), FlowyError> {
   let manager = upgrade_manager(manager)?;
-  let params: UpdateUserProfileParams = data.into_inner().try_into()?;
+  let params: UpdateUserParams = data.into_inner().try_into()?;
   manager.update_user_profile(params).await?;
   Ok(())
 }

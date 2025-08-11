@@ -158,7 +158,7 @@ checksum = "dcfed56ad506cb2c684a14971b8861fdc3baaaae314b9e5f9bb532cbe3ba7a4f"
 [[package]]
 name = "app-error"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "anyhow",
  "bincode",
@@ -180,7 +180,7 @@ dependencies = [
 [[package]]
 name = "appflowy-entity"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "anyhow",
  "app-error",
@@ -208,7 +208,7 @@ dependencies = [
 [[package]]
 name = "appflowy-proto"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "appflowy-entity",
  "bytes",
@@ -929,7 +929,7 @@ dependencies = [
 [[package]]
 name = "client-api"
 version = "0.2.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "anyhow",
  "app-error",
@@ -1359,9 +1359,9 @@ dependencies = [
 
 [[package]]
 name = "core-foundation-sys"
-version = "0.8.4"
+version = "0.8.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e496a50fda8aacccc86d7529e2c1e0892dbd0f898a6b5645b5561b89c3210efa"
+checksum = "773648b94d0e5d620f64f280777445740e61fe701025087ec8b57f45c791888b"
 
 [[package]]
 name = "core_maths"
@@ -2864,6 +2864,7 @@ dependencies = [
  "base64 0.21.5",
  "bytes",
  "chrono",
+ "chrono-tz 0.8.3",
  "client-api",
  "collab",
  "collab-database",
@@ -2884,6 +2885,7 @@ dependencies = [
  "flowy-server-pub",
  "flowy-sqlite",
  "flowy-user-pub",
+ "iana-time-zone",
  "lazy_static",
  "lib-dispatch",
  "lib-infra",
@@ -3272,7 +3274,7 @@ dependencies = [
 [[package]]
 name = "gotrue"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "anyhow",
  "app-error",
@@ -3739,16 +3741,17 @@ dependencies = [
 
 [[package]]
 name = "iana-time-zone"
-version = "0.1.61"
+version = "0.1.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "235e081f3925a06703c2d0117ea8b91f042756fd6e7a6e5d901e8ca1a996b220"
+checksum = "b0c919e5debc312ad217002b8048a17b7d83f80703865bbfcfebb0458b0b27d8"
 dependencies = [
  "android_system_properties",
  "core-foundation-sys",
  "iana-time-zone-haiku",
  "js-sys",
+ "log",
  "wasm-bindgen",
- "windows-core 0.52.0",
+ "windows-core 0.61.2",
 ]
 
 [[package]]
@@ -4039,7 +4042,7 @@ dependencies = [
 [[package]]
 name = "infra"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -9317,7 +9320,7 @@ dependencies = [
 [[package]]
 name = "workspace-template"
 version = "0.1.0"
-source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=f5bd8cf#f5bd8cf7892573cb87afe41314579a892c5d0d36"
+source = "git+https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium?rev=d45415#d45415f07d11ec393bfff5d621219a750efe9c2c"
 dependencies = [
  "anyhow",
  "async-trait",

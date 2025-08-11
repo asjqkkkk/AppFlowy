@@ -4,6 +4,7 @@ use std::str::FromStr;
 use std::sync::{Arc, Weak};
 
 use anyhow::anyhow;
+use client_api::entity::auth_dto::UpdateUserParams;
 use client_api::entity::billing_dto::{
   RecurringInterval, SetSubscriptionRecurringInterval, SubscriptionCancelRequest, SubscriptionPlan,
   SubscriptionPlanDetail, WorkspaceSubscriptionStatus, WorkspaceUsageAndLimit,
@@ -20,12 +21,12 @@ use client_api::entity::{QueryCollab, QueryCollabParams};
 use client_api::{Client, ClientConfiguration};
 use collab::preclude::ClientID;
 use collab_entity::CollabType;
-use tracing::{instrument, trace};
+use tracing::{debug, instrument, trace};
 
 use super::dto::{from_af_workspace_invitation_status, to_workspace_invitation_status};
 use crate::af_cloud::define::{LoggedUser, USER_SIGN_IN_URL};
 use crate::af_cloud::impls::user::dto::{
-  af_update_from_update_params, from_af_workspace_member, to_af_role, user_profile_from_af_profile,
+  from_af_workspace_member, to_af_role, user_profile_from_af_profile,
 };
 use crate::af_cloud::impls::user::util::encryption_type_from_profile;
 use crate::af_cloud::impls::util::check_request_workspace_id_is_match;
@@ -40,8 +41,8 @@ use flowy_user_pub::cloud::{
   UserWorkspaceService,
 };
 use flowy_user_pub::entities::{
-  AFCloudOAuthParams, AuthResponse, Role, UpdateUserProfileParams, UserProfile, UserWorkspace,
-  WorkspaceInvitation, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
+  AFCloudOAuthParams, AuthResponse, Role, UserProfile, UserWorkspace, WorkspaceInvitation,
+  WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
 };
 use flowy_user_pub::sql::select_user_auth_provider;
 use lib_infra::async_trait::async_trait;
@@ -175,12 +176,11 @@ impl<T> UserProfileService for AFCloudUserServiceImpl<T>
 where
   T: AFServer,
 {
-  async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError> {
+  async fn update_user(&self, _uid: i64, params: UpdateUserParams) -> Result<(), FlowyError> {
+    debug!("Update user profile: {:?}", params);
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
-    client
-      .update_user(af_update_from_update_params(params))
-      .await?;
+    client.update_user(params).await?;
     Ok(())
   }
 

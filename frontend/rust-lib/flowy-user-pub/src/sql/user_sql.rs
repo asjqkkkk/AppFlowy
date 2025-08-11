@@ -1,10 +1,9 @@
 use crate::cloud::UserUpdate;
-use crate::entities::{
-  AuthProvider, Role, UpdateUserProfileParams, UserProfile, UserWorkspace, WorkspaceType,
-};
+use crate::entities::{AuthProvider, Role, UserProfile, UserWorkspace, WorkspaceType};
 use crate::sql::{
   WorkspaceMemberTable, select_user_workspace, upsert_user_workspace, upsert_workspace_member,
 };
+use client_api::entity::auth_dto::{UpdateUserParams, UserMetaData};
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::schema::user_table;
 use flowy_sqlite::{DBConnection, ExpressionMethods, RunQueryDsl, prelude::*};
@@ -22,21 +21,24 @@ pub struct UserTable {
   pub(crate) email: String,
   pub(crate) auth_type: i32,
   pub(crate) updated_at: i64,
+  pub(crate) metadata: Option<String>,
 }
 
 #[allow(deprecated)]
 impl From<(UserProfile, AuthProvider)> for UserTable {
   fn from(value: (UserProfile, AuthProvider)) -> Self {
     let (user_profile, auth_type) = value;
+    let metadata = serde_json::to_string(&user_profile.metadata).ok();
     UserTable {
       id: user_profile.uid.to_string(),
       name: user_profile.name,
       #[allow(deprecated)]
-      icon_url: user_profile.icon_url,
+      icon_url: "".to_string(),
       token: user_profile.token,
       email: user_profile.email,
       auth_type: auth_type as i32,
       updated_at: user_profile.updated_at,
+      metadata,
     }
   }
 }
@@ -47,28 +49,27 @@ pub struct UserTableChangeset {
   pub id: String,
   pub name: Option<String>,
   pub email: Option<String>,
-  pub icon_url: Option<String>,
-  pub token: Option<String>,
+  pub metadata: Option<String>,
 }
 
 impl UserTableChangeset {
-  pub fn new(params: UpdateUserProfileParams) -> Self {
+  pub fn new(uid: i64, params: UpdateUserParams) -> Self {
+    let metadata = params.metadata.and_then(|m| serde_json::to_string(&m).ok());
     UserTableChangeset {
-      id: params.uid.to_string(),
+      id: uid.to_string(),
       name: params.name,
       email: params.email,
-      icon_url: params.icon_url,
-      token: params.token,
+      metadata,
     }
   }
 
   pub fn from_user_profile(user_profile: UserProfile) -> Self {
+    let metadata = serde_json::to_string(&user_profile.metadata).ok();
     UserTableChangeset {
       id: user_profile.uid.to_string(),
       name: Some(user_profile.name),
       email: Some(user_profile.email),
-      icon_url: Some(user_profile.icon_url),
-      token: Some(user_profile.token),
+      metadata,
     }
   }
 }
@@ -148,16 +149,21 @@ pub fn select_user_profile(
   let workspace = select_user_workspace(workspace_id, conn)?;
   let workspace_type = WorkspaceType::from(workspace.workspace_type);
   let row = select_user_table_row(uid, conn)?;
+  let metadata = row
+    .metadata
+    .as_ref()
+    .and_then(|json_str| serde_json::from_str::<UserMetaData>(json_str).ok())
+    .unwrap_or_default();
 
   let user = UserProfile {
     uid: row.id.parse::<i64>().unwrap_or(0),
     email: row.email,
     name: row.name,
     token: row.token,
-    icon_url: row.icon_url,
     auth_type: AuthProvider::from(row.auth_type),
     workspace_type,
     updated_at: row.updated_at,
+    metadata,
   };
 
   Ok(user)

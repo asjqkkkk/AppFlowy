@@ -4,7 +4,9 @@ use crate::services::action_interceptor::ActionInterceptors;
 use crate::user_manager::UserManager;
 use arc_swap::ArcSwapOption;
 use chrono::{DateTime, Utc};
+use client_api::entity::auth_dto::{MetadataKey, UpdateUserParams};
 use client_api::entity::server_info_dto::{ServerInfo, SignedServerInfoData};
+use client_api::entity::user_dto::UserTimezone;
 use client_api::v2::{ConnectState, RetryConfig, WorkspaceController, WorkspaceControllerOptions};
 use client_api::verify_signature;
 use dashmap::Entry;
@@ -49,6 +51,82 @@ impl UserManager {
       self.cloud_service.clone(),
       Arc::downgrade(&self.store_preferences),
     );
+  }
+
+  fn sync_client_default_timezone(&self, uid: i64) {
+    match iana_time_zone::get_timezone() {
+      Ok(default_timezone) => {
+        let timezone_key = format!("{}_client_timezone", uid);
+        if let Some(tz) = self
+          .store_preferences
+          .get_object::<UserTimezone>(&timezone_key)
+        {
+          // User already has a timezone set
+          if tz.timezone.is_some() {
+            return;
+          }
+
+          if tz.default_timezone == default_timezone {
+            debug!("Client timezone is already set to: {}", default_timezone);
+            return;
+          }
+        }
+
+        let weak_store_preferences = Arc::downgrade(&self.store_preferences);
+        let weak_cloud_service = self.cloud_service.clone();
+
+        tokio::spawn(async move {
+          let tz = UserTimezone {
+            default_timezone: default_timezone.clone(),
+            timezone: None,
+          };
+          let params = UpdateUserParams::new().with_metadata_key(MetadataKey::Timezone, tz.clone());
+          const MAX_RETRIES: u32 = 3;
+          const RETRY_DELAY_SECS: u64 = 10;
+          for attempt in 1..=MAX_RETRIES {
+            let Some(store_preferences) = weak_store_preferences.upgrade() else {
+              debug!("Store preferences dropped, cancelling timezone sync");
+              return;
+            };
+
+            let Some(cloud_service) = weak_cloud_service.upgrade() else {
+              debug!("Cloud service dropped, cancelling timezone sync");
+              return;
+            };
+
+            let Ok(user_service) = cloud_service.user_profile_service() else {
+              debug!("User service unavailable, cancelling timezone sync");
+              return;
+            };
+
+            match user_service.update_user(uid, params.clone()).await {
+              Ok(_) => {
+                debug!("Successfully updated timezone to: {:?}", tz);
+                let _ = store_preferences.set_object(&timezone_key, &tz);
+                return;
+              },
+              Err(err) => {
+                if attempt < MAX_RETRIES {
+                  error!(
+                    "Failed to update user timezone (attempt {}/{}): {:?}, retrying in {} seconds",
+                    attempt, MAX_RETRIES, err, RETRY_DELAY_SECS
+                  );
+                  tokio::time::sleep(tokio::time::Duration::from_secs(RETRY_DELAY_SECS)).await;
+                } else {
+                  error!(
+                    "Failed to update user timezone after {} attempts: {:?}",
+                    MAX_RETRIES, err
+                  );
+                }
+              },
+            }
+          }
+        });
+      },
+      Err(err) => {
+        error!("Failed to get client timezone: {:?}", err);
+      },
+    }
   }
 
   pub async fn get_server_info(&self) -> Option<ServerInfo> {
@@ -162,6 +240,7 @@ impl UserManager {
       workspace_id, workspace_type, sync_enabled
     );
     self.sync_server_info(uid);
+    self.sync_client_default_timezone(uid);
 
     // build the workspace controller
     let controller = match entry {

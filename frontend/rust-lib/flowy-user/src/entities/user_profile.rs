@@ -2,6 +2,7 @@ use super::{AFRolePB, WorkspaceTypePB};
 use crate::entities::parser::{UserEmail, UserIcon, UserName};
 use crate::entities::AuthTypePB;
 use crate::errors::ErrorCode;
+use client_api::entity::auth_dto::{MetadataKey, UpdateUserParams};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_user_pub::entities::*;
 use flowy_user_pub::sql::UserWorkspaceTable;
@@ -64,7 +65,10 @@ impl From<UserProfile> for UserProfilePB {
       email: user_profile.email,
       name: user_profile.name,
       token: user_profile.token,
-      icon_url: user_profile.icon_url,
+      icon_url: user_profile
+        .metadata
+        .get_typed(MetadataKey::IconUrl)
+        .unwrap_or_default(),
       user_auth_type: user_profile.auth_type.into(),
       workspace_type: user_profile.workspace_type.into(),
     }
@@ -118,35 +122,34 @@ impl UpdateUserProfilePayloadPB {
   }
 }
 
-impl TryInto<UpdateUserProfileParams> for UpdateUserProfilePayloadPB {
+impl TryInto<UpdateUserParams> for UpdateUserProfilePayloadPB {
   type Error = ErrorCode;
 
-  fn try_into(self) -> Result<UpdateUserProfileParams, Self::Error> {
-    let name = match self.name {
-      None => None,
-      Some(name) => Some(UserName::parse(name)?.0),
+  fn try_into(self) -> Result<UpdateUserParams, Self::Error> {
+    let mut params = UpdateUserParams::new();
+    params = match self.name {
+      None => params,
+      Some(name) => params.with_name(UserName::parse(name)?.0),
     };
 
-    let email = match self.email {
-      None => None,
-      Some(email) => Some(UserEmail::parse(email)?.0),
+    params = match self.email {
+      None => params,
+      Some(email) => params.with_email(UserEmail::parse(email)?.0),
     };
 
-    let password = self.password;
-
-    let icon_url = match self.icon_url {
-      None => None,
-      Some(icon_url) => Some(UserIcon::parse(icon_url)?.0),
+    params = match self.password {
+      None => params,
+      Some(password) => params.with_password(password),
     };
 
-    Ok(UpdateUserProfileParams {
-      uid: self.id,
-      name,
-      email,
-      password,
-      icon_url,
-      token: None,
-    })
+    params = match self.icon_url {
+      None => params,
+      Some(icon_url) => {
+        params.with_metadata_key(MetadataKey::IconUrl, UserIcon::parse(icon_url)?.0)
+      },
+    };
+
+    Ok(params)
   }
 }
 
