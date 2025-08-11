@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -8,11 +6,8 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/base/build
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_style/_page_style_icon_bloc.dart';
-import 'package:appflowy/shared/appflowy_network_image.dart';
-import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/google_fonts_extension.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
-import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy_backend/log.dart';
@@ -29,6 +24,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../../../../shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import '../shared_context/shared_context.dart';
+import 'cover_content.dart';
 
 double kDocumentCoverHeight = 98.0;
 double kDocumentTitlePadding = 20.0;
@@ -260,61 +256,16 @@ class _DocumentImmersiveCoverState extends State<DocumentImmersiveCover> {
     final naviBarHeight = MediaQuery.of(context).padding.top;
     final height = naviBarHeight + kDocumentCoverHeight;
 
-    if (type == PageStyleCoverImageType.customImage ||
-        type == PageStyleCoverImageType.unsplashImage) {
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: FlowyNetworkImage(
-          url: cover.value,
-          userProfilePB: widget.userProfilePB,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.builtInImage) {
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Image.asset(
-          PageStyleCoverImageType.builtInImagePath(cover.value),
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.pureColor) {
-      return Container(
-        height: height,
-        width: double.infinity,
-        color: cover.value.coverColor(context),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.gradientColor) {
-      return Container(
-        height: height,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: FlowyGradientColor.fromId(cover.value).linear,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.localImage) {
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Image.file(
-          File(cover.value),
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: naviBarHeight,
+    return CoverContent(
+      type: type,
+      value: cover.value,
+      height: height,
       width: double.infinity,
+      userProfile: widget.userProfilePB,
+      fallback: SizedBox(
+        height: naviBarHeight,
+        width: double.infinity,
+      ),
     );
   }
 

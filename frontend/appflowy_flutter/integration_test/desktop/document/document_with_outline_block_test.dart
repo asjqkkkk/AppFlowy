@@ -188,7 +188,7 @@ Future<void> hoverAndClickDepthOptionAction(
 ) async {
   await tester.editor.openDepthMenu(path);
   final type = OptionDepthType.fromLevel(level);
-  await tester.tapButton(find.findTextInFlowyText(type.description));
+  await tester.tapButton(find.text(type.description));
   await tester.pumpAndSettle();
 }
 

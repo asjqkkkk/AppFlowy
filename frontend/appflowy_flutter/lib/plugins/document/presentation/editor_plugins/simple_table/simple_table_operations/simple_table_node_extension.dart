@@ -1,5 +1,4 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
-import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_cell_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_constants.dart';
@@ -254,43 +253,25 @@ extension TableNodeExtension on Node {
   /// Build the row color.
   ///
   /// Default is null.
-  Color? buildRowColor(BuildContext context) {
-    try {
-      final rawRowColors =
-          parentTableNode?.attributes[SimpleTableBlockKeys.rowColors];
-      if (rawRowColors == null) {
-        return null;
-      }
-      final color = rawRowColors[rowIndex.toString()];
-      if (color == null) {
-        return null;
-      }
-      return buildEditorCustomizedColor(context, this, color);
-    } catch (e) {
-      Log.warn('get row color: $e');
+  String? buildRowColor(BuildContext context) {
+    final rowRowColors =
+        parentTableNode?.attributes[SimpleTableBlockKeys.rowColors];
+    if (rowRowColors == null) {
       return null;
     }
+    return rowRowColors[rowIndex.toString()];
   }
 
   /// Build the column color.
   ///
   /// Default is null.
-  Color? buildColumnColor(BuildContext context) {
-    try {
-      final columnColors =
-          parentTableNode?.attributes[SimpleTableBlockKeys.columnColors];
-      if (columnColors == null) {
-        return null;
-      }
-      final color = columnColors[columnIndex.toString()];
-      if (color == null) {
-        return null;
-      }
-      return buildEditorCustomizedColor(context, this, color);
-    } catch (e) {
-      Log.warn('get column color: $e');
+  String? buildColumnColor(BuildContext context) {
+    final columnColors =
+        parentTableNode?.attributes[SimpleTableBlockKeys.columnColors];
+    if (columnColors == null) {
       return null;
     }
+    return columnColors[columnIndex.toString()];
   }
 
   /// Whether the current node is in the header column.

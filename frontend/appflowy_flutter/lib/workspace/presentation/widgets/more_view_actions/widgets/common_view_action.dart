@@ -10,6 +10,7 @@ import 'package:appflowy/workspace/presentation/home/menu/view/view_more_action_
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -106,7 +107,7 @@ class CustomViewAction extends StatelessWidget {
     required this.leftIcon,
     required this.label,
     this.tooltipMessage,
-    this.disabled = false,
+    this.isDisabled = false,
     this.onTap,
     this.mutex,
   });
@@ -114,33 +115,34 @@ class CustomViewAction extends StatelessWidget {
   final ViewPB view;
   final FlowySvgData leftIcon;
   final String label;
-  final bool disabled;
+  final bool isDisabled;
   final String? tooltipMessage;
   final VoidCallback? onTap;
   final PopoverMutex? mutex;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: FlowyTooltip(
-        message: tooltipMessage,
-        child: FlowyButton(
-          margin: const EdgeInsets.symmetric(horizontal: 6),
-          disable: disabled,
-          onTap: onTap,
-          leftIcon: FlowySvg(
-            leftIcon,
-            size: const Size.square(16.0),
-            color: disabled ? Theme.of(context).disabledColor : null,
+    final theme = AppFlowyTheme.of(context);
+
+    return FlowyTooltip(
+      message: tooltipMessage,
+      child: AFMenuItem(
+        isDisabled: isDisabled,
+        onTap: onTap,
+        title: Text(
+          label,
+          style: theme.textStyle.body.standard(
+            color: isDisabled
+                ? theme.textColorScheme.tertiary
+                : theme.textColorScheme.primary,
           ),
-          iconPadding: 10.0,
-          text: FlowyText(
-            label,
-            figmaLineHeight: 18.0,
-            color: disabled ? Theme.of(context).disabledColor : null,
-          ),
+        ),
+        leading: FlowySvg(
+          leftIcon,
+          size: const Size.square(16.0),
+          color: isDisabled
+              ? theme.iconColorScheme.tertiary
+              : theme.iconColorScheme.primary,
         ),
       ),
     );

@@ -2,6 +2,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/ai/service/ai_prompt_input_bloc.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_input_file_bloc.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -92,7 +93,9 @@ class _ChatFilePreviewState extends State<ChatFilePreview> {
                     children: [
                       Container(
                         decoration: BoxDecoration(
-                          color: AFThemeExtension.of(context).tint1,
+                          color: AppFlowyTheme.of(context)
+                              .paletteColorScheme
+                              .bgColor1,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         height: 32,

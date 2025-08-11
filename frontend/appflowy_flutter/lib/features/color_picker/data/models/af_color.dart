@@ -20,6 +20,8 @@ sealed class AFColor extends Equatable {
   final String value;
 
   Color? toColor(AppFlowyThemeData theme);
+
+  Gradient? toGradient(AppFlowyThemeData theme);
 }
 
 final class BuiltinAFColor extends AFColor {
@@ -74,6 +76,33 @@ final class BuiltinAFColor extends AFColor {
     };
   }
 
+  @override
+  Gradient? toGradient(AppFlowyThemeData theme) {
+    final gradient = switch (value) {
+      "gradient-color-dark-1" => [Color(0xFF6dd5ff), Color(0xFFd0a2ff)],
+      "gradient-color-dark-2" => [Color(0xFFd0a2ff), Color(0xFFff84bf)],
+      "gradient-color-dark-3" => [Color(0xFFff84bf), Color(0xFFffdd7b)],
+      "gradient-color-dark-4" => [Color(0xFFffdd7b), Color(0xFF87ffab)],
+      "gradient-color-dark-5" => [Color(0xFF89d7fe), Color(0xFF7a81ff)],
+      "gradient-color-light-1" => [Color(0xFF00b5ff), Color(0xFF9225ff)],
+      "gradient-color-light-2" => [Color(0xFF9327ff), Color(0xFFe7348a)],
+      "gradient-color-light-3" => [Color(0xFFe3006d), Color(0xFFffbd00)],
+      "gradient-color-light-4" => [Color(0xFFffbd00), Color(0xFF00bc38)],
+      "gradient-color-light-5" => [Color(0xFF1cf8e3), Color(0xFF4b32fe)],
+      _ => null,
+    };
+
+    if (gradient == null) {
+      return null;
+    }
+
+    return LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: gradient,
+    );
+  }
+
   String? get i18n => switch (value) {
         'text-default' || 'bg-default' => LocaleKeys.colors_default.tr(),
         'text-color-1' || 'bg-color-1' => LocaleKeys.colors_rose.tr(),
@@ -110,6 +139,9 @@ final class CustomAFColor extends AFColor {
 
   @override
   Color? toColor(AppFlowyThemeData theme) => _color;
+
+  @override
+  Gradient? toGradient(AppFlowyThemeData theme) => null;
 
   @override
   List<Object?> get props => [value];

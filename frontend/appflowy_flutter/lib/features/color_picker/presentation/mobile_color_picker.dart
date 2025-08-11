@@ -134,7 +134,7 @@ class TextColorSection extends StatelessWidget {
 
   final AFColor? selectedColor;
   final ColorPickerConfig config;
-  final void Function(AFColor color) onSelectColor;
+  final void Function(AFColor? color) onSelectColor;
 
   @override
   Widget build(BuildContext context) {
@@ -165,8 +165,11 @@ class TextColorSection extends StatelessWidget {
                 return MobileColorTile(
                   color: config.defaultColor,
                   colorType: ColorType.text,
-                  isSelected: selectedColor == config.defaultColor,
-                  onSelect: () => onSelectColor(config.defaultColor!),
+                  isSelected: selectedColor == config.defaultColor ||
+                      selectedColor == null,
+                  onSelect: () {
+                    onSelectColor(null);
+                  },
                 );
               }
               final color = config.builtinColors[index - 1];
@@ -174,7 +177,13 @@ class TextColorSection extends StatelessWidget {
                 colorType: ColorType.text,
                 color: color,
                 isSelected: selectedColor == color,
-                onSelect: () => onSelectColor(color),
+                onSelect: () {
+                  if (selectedColor == color) {
+                    onSelectColor(null);
+                  } else {
+                    onSelectColor(color);
+                  }
+                },
               );
             },
             childCount: config.builtinColors.length +
@@ -196,7 +205,7 @@ class BackgroundColorSection extends StatelessWidget {
 
   final AFColor? selectedColor;
   final ColorPickerConfig config;
-  final void Function(AFColor color) onSelectColor;
+  final void Function(AFColor? color) onSelectColor;
 
   @override
   Widget build(BuildContext context) {
@@ -227,8 +236,11 @@ class BackgroundColorSection extends StatelessWidget {
                 return MobileColorTile(
                   color: config.defaultColor,
                   colorType: ColorType.background,
-                  isSelected: selectedColor == config.defaultColor,
-                  onSelect: () => onSelectColor(config.defaultColor!),
+                  isSelected: selectedColor == config.defaultColor ||
+                      selectedColor == null,
+                  onSelect: () {
+                    onSelectColor(null);
+                  },
                 );
               }
               final color = config.builtinColors[index - 1];
@@ -236,7 +248,13 @@ class BackgroundColorSection extends StatelessWidget {
                 colorType: ColorType.background,
                 color: color,
                 isSelected: selectedColor == color,
-                onSelect: () => onSelectColor(color),
+                onSelect: () {
+                  if (selectedColor == color) {
+                    onSelectColor(null);
+                  } else {
+                    onSelectColor(color);
+                  }
+                },
               );
             },
             childCount: config.builtinColors.length +

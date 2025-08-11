@@ -2,7 +2,6 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
-import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/mobile/presentation/setting/font/font_picker_screen.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_style/_page_style_util.dart';
 import 'package:appflowy/shared/feedback_gesture_detector.dart';

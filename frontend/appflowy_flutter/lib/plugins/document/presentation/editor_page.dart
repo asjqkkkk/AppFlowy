@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
 
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_configuration.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/background_color/theme_background_color.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/i18n/editor_i18n.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/document/presentation/editor_style.dart';
@@ -14,6 +14,7 @@ import 'package:appflowy/plugins/inline_actions/handlers/inline_page_reference.d
 import 'package:appflowy/plugins/inline_actions/handlers/reminder_reference.dart';
 import 'package:appflowy/plugins/inline_actions/inline_actions_service.dart';
 import 'package:appflowy/shared/feature_flags.dart';
+import 'package:appflowy/shared/flowy_tint_colors.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/shortcuts/settings_shortcuts_service.dart';
 import 'package:appflowy/workspace/application/user/prelude.dart';
@@ -620,16 +621,9 @@ Color? buildEditorCustomizedColor(
   }
 
   // the color string is from FlowyTint.
-  final tintColor = FlowyTint.values.firstWhereOrNull(
-    (e) => e.id == colorString,
-  );
+  final tintColor = FlowyTint.fromId(colorString);
   if (tintColor != null) {
     return tintColor.color(context);
-  }
-
-  final themeColor = themeBackgroundColors[colorString];
-  if (themeColor != null) {
-    return themeColor.color(context);
   }
 
   if (colorString == optionActionColorDefaultColor) {
@@ -644,7 +638,7 @@ Color? buildEditorCustomizedColor(
   }
 
   try {
-    return colorString.tryToColor();
+    return AFColor.fromValue(colorString).toColor(AppFlowyTheme.of(context));
   } catch (e) {
     return null;
   }

@@ -29,12 +29,13 @@ class ColorPickerBloc extends Bloc<ColorPickerEvent, ColorPickerState> {
 
   @override
   Future<void> close() async {
-    if (_recentColorToSave != null &&
+    if (config.showRecent &&
+        _recentColorToSave != null &&
         _recentColorToSave != config.defaultColor &&
         _recentColorToSave != _initialSelectedColor) {
       final recentColors =
           [_recentColorToSave!, ...state.recentColors].unique();
-      trimColors(recentColors, config.maxColorLimit);
+      trimColors(recentColors, config.recentColorLimit);
       await repository.saveRecentColors(recentColors);
     }
     await super.close();
@@ -56,15 +57,15 @@ class ColorPickerBloc extends Bloc<ColorPickerEvent, ColorPickerState> {
     _initialSelectedColor = selectedColor;
 
     // recent colors
-    trimColors(recentColors, config.maxColorLimit);
+    trimColors(recentColors, config.recentColorLimit);
 
     // custom colors
-    trimColors(customColors, config.maxColorLimit - 1);
+    trimColors(customColors, config.customColorLimit);
     final singleSelectedColor = event.selectedColors.singleOrNull;
     if (singleSelectedColor is CustomAFColor &&
         !customColors.contains(singleSelectedColor)) {
       customColors.insert(0, singleSelectedColor);
-      trimColors(customColors, config.maxColorLimit - 1);
+      trimColors(customColors, config.customColorLimit);
     }
 
     emit(
@@ -110,7 +111,7 @@ class ColorPickerBloc extends Bloc<ColorPickerEvent, ColorPickerState> {
     }
 
     final customColors = [...state.customColors, event.color];
-    trimColors(customColors, config.maxColorLimit - 1, fromStart: true);
+    trimColors(customColors, config.customColorLimit, fromStart: true);
     await repository.saveCustomColors(customColors);
 
     emit(

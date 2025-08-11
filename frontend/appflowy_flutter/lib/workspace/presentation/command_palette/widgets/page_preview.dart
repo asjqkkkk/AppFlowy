@@ -1,14 +1,11 @@
-import 'dart:io';
-
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/mobile/presentation/search/mobile_view_ancestors.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_content.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
-import 'package:appflowy/shared/appflowy_network_image.dart';
-import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/int64_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
@@ -16,10 +13,8 @@ import 'package:appflowy/workspace/application/settings/appearance/appearance_cu
 import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
-import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart' hide TextDirection;
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -118,64 +113,18 @@ class PagePreview extends StatelessWidget {
     final cover = state.cover;
     final type = state.cover.type;
     const height = 80.0;
-    if (type == PageStyleCoverImageType.customImage ||
-        type == PageStyleCoverImageType.unsplashImage) {
-      final userProfile = context.read<UserWorkspaceBloc?>()?.state.userProfile;
-      if (userProfile == null) return null;
 
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: FlowyNetworkImage(
-          url: cover.value,
-          userProfilePB: userProfile,
-        ),
-      );
+    if (type == PageStyleCoverImageType.none) {
+      return null;
     }
 
-    if (type == PageStyleCoverImageType.builtInImage) {
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Image.asset(
-          PageStyleCoverImageType.builtInImagePath(cover.value),
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.pureColor) {
-      final color = FlowyTint.fromId(cover.value)?.color(context) ??
-          cover.value.tryToColor();
-      return Container(
-        height: height,
-        width: double.infinity,
-        color: color,
-      );
-    }
-
-    if (type == PageStyleCoverImageType.gradientColor) {
-      return Container(
-        height: height,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          gradient: FlowyGradientColor.fromId(cover.value).linear,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.localImage) {
-      return SizedBox(
-        height: height,
-        width: double.infinity,
-        child: Image.file(
-          File(cover.value),
-          fit: BoxFit.cover,
-        ),
-      );
-    }
-
-    return null;
+    return CoverContent(
+      type: type,
+      value: cover.value,
+      userProfile: context.read<UserWorkspaceBloc?>()?.state.userProfile,
+      height: height,
+      width: double.infinity,
+    );
   }
 
   Widget buildIcon(AppFlowyThemeData theme, ViewPB view, bool hasCover) {

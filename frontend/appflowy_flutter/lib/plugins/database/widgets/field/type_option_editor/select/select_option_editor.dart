@@ -108,7 +108,8 @@ class _SelectOptionEditorState extends State<SelectOptionEditor> {
         BuiltinAFColor('bg-color-12'),
         BuiltinAFColor('bg-color-20'),
       ],
-      maxColorLimit: 5,
+      recentColorLimit: 5,
+      customColorLimit: 5,
       showCustom: false,
       showRecent: false,
     );

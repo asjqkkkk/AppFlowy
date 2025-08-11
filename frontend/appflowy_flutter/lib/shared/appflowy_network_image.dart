@@ -77,12 +77,23 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
   // This is used to clear the retry count when the widget is disposed in case of the url is the same.
   String? retryTag;
 
-  late final String normalizedUrl;
+  late String normalizedUrl;
 
   @override
   void initState() {
     super.initState();
+    handleUrl();
+  }
 
+  @override
+  void didUpdateWidget(covariant FlowyNetworkImage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.url != widget.url) {
+      handleUrl();
+    }
+  }
+
+  void handleUrl() {
     normalizedUrl = normalizeFileUrl(
       context,
       fileId: widget.url,

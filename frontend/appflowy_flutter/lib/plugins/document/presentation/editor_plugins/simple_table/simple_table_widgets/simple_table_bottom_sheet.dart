@@ -1,18 +1,18 @@
-import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/features/color_picker/color_picker.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/mobile_toolbar_v3/aa_menu/_toolbar_theme.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/_simple_table_bottom_sheet_actions.dart';
+import 'package:appflowy/shared/flowy_tint_colors.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:collection/collection.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/size.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
-
-import '../../base/font_colors.dart';
+import 'package:provider/provider.dart';
 
 enum _SimpleTableBottomSheetMenuState {
   cellActionMenu,
@@ -51,25 +51,32 @@ class _SimpleTableCellBottomSheetState
   _SimpleTableBottomSheetMenuState menuState =
       _SimpleTableBottomSheetMenuState.cellActionMenu;
 
-  Color? selectedTextColor;
-  Color? selectedCellBackgroundColor;
+  AFColor? selectedTextColor;
+  AFColor? selectedCellBackgroundColor;
   TableAlign? selectedAlign;
 
   @override
   void initState() {
     super.initState();
 
-    selectedTextColor = switch (widget.type) {
-      SimpleTableMoreActionType.column =>
-        widget.cellNode.textColorInColumn?.tryToColor(),
-      SimpleTableMoreActionType.row =>
-        widget.cellNode.textColorInRow?.tryToColor(),
+    final textColor = switch (widget.type) {
+      SimpleTableMoreActionType.column => widget.cellNode.textColorInColumn,
+      SimpleTableMoreActionType.row => widget.cellNode.textColorInRow,
     };
+    selectedTextColor = textColor != null
+        ? FlowyTint.fromId(textColor)?.toAFColor() ??
+            AFColor.fromValue(textColor)
+        : null;
 
-    selectedCellBackgroundColor = switch (widget.type) {
+    final bgColor = switch (widget.type) {
       SimpleTableMoreActionType.column =>
         widget.cellNode.buildColumnColor(context),
       SimpleTableMoreActionType.row => widget.cellNode.buildRowColor(context),
+    };
+    selectedCellBackgroundColor = switch (bgColor) {
+      null => null,
+      final color when color == optionActionColorDefaultColor => null,
+      final color => FlowyTint.fromId(color)?.toAFColor(),
     };
 
     selectedAlign = switch (widget.type) {
@@ -157,16 +164,15 @@ class _SimpleTableCellBottomSheetState
   }
 
   List<Widget> _buildContent() {
-    switch (menuState) {
-      case _SimpleTableBottomSheetMenuState.cellActionMenu:
-        return _buildActionButtons();
-      case _SimpleTableBottomSheetMenuState.textColor:
-        return _buildTextColor();
-      case _SimpleTableBottomSheetMenuState.textBackgroundColor:
-        return _buildTextBackgroundColor();
-      default:
-        throw UnimplementedError('Unsupported menu state: $menuState');
-    }
+    final isPro = getIsPro(context);
+
+    return switch (menuState) {
+      _SimpleTableBottomSheetMenuState.cellActionMenu => _buildActionButtons(),
+      _SimpleTableBottomSheetMenuState.textColor => _buildTextColor(isPro),
+      _SimpleTableBottomSheetMenuState.textBackgroundColor =>
+        _buildTextBackgroundColor(isPro),
+      _ => throw UnimplementedError('Unsupported menu state: $menuState')
+    };
   }
 
   List<Widget> _buildActionButtons() {
@@ -218,68 +224,127 @@ class _SimpleTableCellBottomSheetState
     ];
   }
 
-  List<Widget> _buildTextColor() {
+  List<Widget> _buildTextColor(bool isPro) {
+    final theme = AppFlowyTheme.of(context);
+
     return [
       Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-        ),
-        child: FlowyText(
-          LocaleKeys.document_plugins_simpleTable_moreActions_textColor.tr(),
-          fontSize: 14.0,
-        ),
-      ),
-      const VSpace(12.0),
-      Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8.0,
-        ),
-        child: EditorTextColorWidget(
-          onSelectedColor: _onTextColorSelected,
+        padding: EdgeInsets.all(theme.spacing.xl),
+        child: TextColorSection(
+          onSelectColor: _onTextColorSelected,
           selectedColor: selectedTextColor,
+          config: ColorPickerConfig(
+            key: 'simple-table-text',
+            colorType: ColorType.background,
+            title: LocaleKeys.document_plugins_simpleTable_moreActions_textColor
+                .tr(),
+            defaultColor: BuiltinAFColor('text-default'),
+            builtinColors: isPro
+                ? [
+                    BuiltinAFColor('text-color-14'),
+                    BuiltinAFColor('text-color-15'),
+                    BuiltinAFColor('text-color-16'),
+                    BuiltinAFColor('text-color-17'),
+                    BuiltinAFColor('text-color-18'),
+                    BuiltinAFColor('text-color-1'),
+                    BuiltinAFColor('text-color-2'),
+                    BuiltinAFColor('text-color-4'),
+                    BuiltinAFColor('text-color-5'),
+                    BuiltinAFColor('text-color-6'),
+                    BuiltinAFColor('text-color-8'),
+                    BuiltinAFColor('text-color-10'),
+                    BuiltinAFColor('text-color-12'),
+                    BuiltinAFColor('text-color-20'),
+                  ]
+                : [
+                    BuiltinAFColor('text-color-14'),
+                    BuiltinAFColor('text-color-16'),
+                    BuiltinAFColor('text-color-18'),
+                    BuiltinAFColor('text-color-2'),
+                    BuiltinAFColor('text-color-4'),
+                    BuiltinAFColor('text-color-6'),
+                    BuiltinAFColor('text-color-8'),
+                    BuiltinAFColor('text-color-10'),
+                    BuiltinAFColor('text-color-12'),
+                  ],
+            recentColorLimit: 6,
+            customColorLimit: 6,
+            showCustom: false,
+            showRecent: false,
+          ),
         ),
       ),
     ];
   }
 
-  List<Widget> _buildTextBackgroundColor() {
+  List<Widget> _buildTextBackgroundColor(bool isPro) {
+    final theme = AppFlowyTheme.of(context);
+
     return [
       Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 16.0,
-        ),
-        child: FlowyText(
-          LocaleKeys
-              .document_plugins_simpleTable_moreActions_cellBackgroundColor
-              .tr(),
-          fontSize: 14.0,
-        ),
-      ),
-      const VSpace(12.0),
-      Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: 8.0,
-        ),
-        child: EditorBackgroundColors(
-          onSelectedColor: _onCellBackgroundColorSelected,
+        padding: EdgeInsets.all(theme.spacing.xl),
+        child: BackgroundColorSection(
+          onSelectColor: _onCellBackgroundColorSelected,
           selectedColor: selectedCellBackgroundColor,
+          config: ColorPickerConfig(
+            key: 'simple-table-background',
+            colorType: ColorType.background,
+            title: LocaleKeys
+                .document_plugins_simpleTable_moreActions_cellBackgroundColor
+                .tr(),
+            defaultColor: BuiltinAFColor('bg-default'),
+            builtinColors: isPro
+                ? [
+                    BuiltinAFColor('bg-color-14'),
+                    BuiltinAFColor('bg-color-15'),
+                    BuiltinAFColor('bg-color-16'),
+                    BuiltinAFColor('bg-color-17'),
+                    BuiltinAFColor('bg-color-18'),
+                    BuiltinAFColor('bg-color-1'),
+                    BuiltinAFColor('bg-color-2'),
+                    BuiltinAFColor('bg-color-4'),
+                    BuiltinAFColor('bg-color-5'),
+                    BuiltinAFColor('bg-color-6'),
+                    BuiltinAFColor('bg-color-8'),
+                    BuiltinAFColor('bg-color-10'),
+                    BuiltinAFColor('bg-color-12'),
+                    BuiltinAFColor('bg-color-20'),
+                  ]
+                : [
+                    BuiltinAFColor('bg-color-14'),
+                    BuiltinAFColor('bg-color-16'),
+                    BuiltinAFColor('bg-color-18'),
+                    BuiltinAFColor('bg-color-2'),
+                    BuiltinAFColor('bg-color-4'),
+                    BuiltinAFColor('bg-color-6'),
+                    BuiltinAFColor('bg-color-8'),
+                    BuiltinAFColor('bg-color-10'),
+                    BuiltinAFColor('bg-color-12'),
+                  ],
+            recentColorLimit: 6,
+            customColorLimit: 6,
+            showCustom: false,
+            showRecent: false,
+          ),
         ),
       ),
     ];
   }
 
-  void _onTextColorSelected(Color color) {
-    final hex = color.a == 0 ? null : color.toHex();
+  void _onTextColorSelected(AFColor? color) {
+    final savedColor =
+        color != null ? (FlowyTint.fromAFColor(color)?.id ?? color.value) : "";
+
     switch (widget.type) {
       case SimpleTableMoreActionType.column:
         widget.editorState.updateColumnTextColor(
           tableCellNode: widget.cellNode,
-          color: hex ?? '',
+          color: savedColor,
         );
       case SimpleTableMoreActionType.row:
         widget.editorState.updateRowTextColor(
           tableCellNode: widget.cellNode,
-          color: hex ?? '',
+          color: savedColor,
         );
     }
 
@@ -288,18 +353,21 @@ class _SimpleTableCellBottomSheetState
     });
   }
 
-  void _onCellBackgroundColorSelected(Color color) {
-    final hex = color.a == 0 ? null : color.toHex();
+  void _onCellBackgroundColorSelected(AFColor? color) {
+    final savedColor = color != null
+        ? (FlowyTint.fromAFColor(color)?.id ?? optionActionColorDefaultColor)
+        : optionActionColorDefaultColor;
+
     switch (widget.type) {
       case SimpleTableMoreActionType.column:
         widget.editorState.updateColumnBackgroundColor(
           tableCellNode: widget.cellNode,
-          color: hex ?? '',
+          color: savedColor,
         );
       case SimpleTableMoreActionType.row:
         widget.editorState.updateRowBackgroundColor(
           tableCellNode: widget.cellNode,
-          color: hex ?? '',
+          color: savedColor,
         );
     }
 
@@ -325,6 +393,14 @@ class _SimpleTableCellBottomSheetState
     setState(() {
       selectedAlign = align;
     });
+  }
+
+  bool getIsPro(BuildContext context) {
+    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
+
+    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
+    return subscriptionPlan != null &&
+        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
   }
 }
 
@@ -486,157 +562,6 @@ class _SimpleTableBottomSheetState extends State<SimpleTableBottomSheet> {
     widget.editorState.updateTableAlign(
       tableNode: widget.tableNode,
       align: align,
-    );
-  }
-}
-
-class EditorTextColorWidget extends StatelessWidget {
-  EditorTextColorWidget({
-    super.key,
-    this.selectedColor,
-    required this.onSelectedColor,
-  });
-
-  final Color? selectedColor;
-  final void Function(Color color) onSelectedColor;
-
-  final colors = [
-    const Color(0x00FFFFFF),
-    const Color(0xFFDB3636),
-    const Color(0xFFEA8F06),
-    const Color(0xFF18A166),
-    const Color(0xFF205EEE),
-    const Color(0xFFC619C9),
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return GridView.count(
-      crossAxisCount: 6,
-      shrinkWrap: true,
-      padding: EdgeInsets.zero,
-      physics: const NeverScrollableScrollPhysics(),
-      children: colors.mapIndexed(
-        (index, color) {
-          return _TextColorItem(
-            color: color,
-            isSelected:
-                selectedColor == null ? index == 0 : selectedColor == color,
-            onTap: () => onSelectedColor(color),
-          );
-        },
-      ).toList(),
-    );
-  }
-}
-
-class _TextColorItem extends StatelessWidget {
-  const _TextColorItem({
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final VoidCallback onTap;
-  final Color color;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.all(6.0),
-        decoration: BoxDecoration(
-          borderRadius: Corners.s12Border,
-          border: Border.all(
-            width: isSelected ? 2.0 : 1.0,
-            color: isSelected
-                ? const Color(0xff00C6F1)
-                : Theme.of(context).dividerColor,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: FlowyText(
-          'A',
-          fontSize: 24,
-          color: color.a == 0 ? null : color,
-        ),
-      ),
-    );
-  }
-}
-
-class EditorBackgroundColors extends StatelessWidget {
-  const EditorBackgroundColors({
-    super.key,
-    this.selectedColor,
-    required this.onSelectedColor,
-  });
-
-  final Color? selectedColor;
-  final void Function(Color color) onSelectedColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).brightness == Brightness.light
-        ? EditorFontColors.lightColors
-        : EditorFontColors.darkColors;
-    return GridView.count(
-      crossAxisCount: 6,
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      children: colors.mapIndexed(
-        (index, color) {
-          return _BackgroundColorItem(
-            color: color,
-            isSelected:
-                selectedColor == null ? index == 0 : selectedColor == color,
-            onTap: () => onSelectedColor(color),
-          );
-        },
-      ).toList(),
-    );
-  }
-}
-
-class _BackgroundColorItem extends StatelessWidget {
-  const _BackgroundColorItem({
-    required this.color,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final VoidCallback onTap;
-  final Color color;
-  final bool isSelected;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = ToolbarColorExtension.of(context);
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        margin: const EdgeInsets.all(6.0),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: Corners.s12Border,
-          border: Border.all(
-            width: isSelected ? 2.0 : 1.0,
-            color: isSelected
-                ? theme.toolbarMenuItemSelectedBackgroundColor
-                : Theme.of(context).dividerColor,
-          ),
-        ),
-        alignment: Alignment.center,
-        child: isSelected
-            ? const FlowySvg(
-                FlowySvgs.m_blue_check_s,
-                size: Size.square(28.0),
-                blendMode: null,
-              )
-            : null,
-      ),
     );
   }
 }

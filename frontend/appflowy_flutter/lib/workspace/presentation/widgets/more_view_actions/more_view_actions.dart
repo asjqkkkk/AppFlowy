@@ -90,6 +90,9 @@ class _MoreViewActionsState extends State<MoreViewActions> {
         BlocProvider.value(
           value: context.read<PageAccessLevelBloc>(),
         ),
+        BlocProvider.value(
+          value: userWorkspaceBloc,
+        ),
       ],
       child: BlocBuilder<ViewBloc, ViewState>(
         builder: (context, viewState) {

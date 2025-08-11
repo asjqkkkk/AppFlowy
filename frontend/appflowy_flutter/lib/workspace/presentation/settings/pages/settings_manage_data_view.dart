@@ -23,7 +23,6 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -440,7 +439,7 @@ class _CurrentPathState extends State<_CurrentPath> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: AFThemeExtension.of(context).tint7,
+                    color: theme.fillColorScheme.infoLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: EdgeInsets.symmetric(

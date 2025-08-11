@@ -18,6 +18,7 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:protobuf/protobuf.dart';
+
 class MobileSelectOptionEditor extends StatefulWidget {
   const MobileSelectOptionEditor({
     super.key,

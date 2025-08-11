@@ -1,6 +1,5 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -11,31 +10,35 @@ import 'package:provider/provider.dart';
 import '../block_action_option_cubit.dart';
 import 'option_actions.dart';
 
-class DeleteOptionAction extends CustomActionCell {
-  DeleteOptionAction({
+class DeleteOptionButton extends StatelessWidget {
+  const DeleteOptionButton({
+    super.key,
+    required this.controller,
     required this.blockComponentContext,
   });
 
   final BlockComponentContext blockComponentContext;
+  final PopoverController controller;
 
   @override
-  Widget buildWithContext(
-    BuildContext context,
-    PopoverController controller,
-    PopoverMutex? mutex,
-  ) {
+  Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
     return AFGhostButton.normal(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.spacing.m,
+        vertical: theme.spacing.s,
+      ),
       builder: (context, isHovering, disabled) {
         return Row(
-          spacing: 10,
+          spacing: theme.spacing.m,
           children: [
             FlowySvg(
               FlowySvgs.trash_s,
               size: const Size.square(16),
-              color: isHovering ? theme.textColorScheme.error : null,
+              color: isHovering
+                  ? theme.textColorScheme.error
+                  : theme.iconColorScheme.primary,
             ),
             Expanded(
               child: Text(

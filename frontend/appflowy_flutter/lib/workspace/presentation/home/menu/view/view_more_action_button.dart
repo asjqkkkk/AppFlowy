@@ -1,5 +1,6 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
@@ -11,6 +12,7 @@ import 'package:appflowy/workspace/presentation/widgets/more_view_actions/widget
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -171,9 +173,9 @@ class ViewMoreActionTypeWrapper extends CustomActionCell {
     } else if (inner == ViewMoreActionType.created) {
       child = _buildCreated(context);
     } else if (inner == ViewMoreActionType.changeIcon) {
-      child = _buildEmojiActionButton(context, controller);
+      child = _buildEmojiActionButton(context, controller, mutex);
     } else if (inner == ViewMoreActionType.moveTo) {
-      child = _buildMoveToActionButton(context, controller);
+      child = _buildMoveToActionButton(context, controller, mutex);
     } else {
       child = _buildNormalActionButton(context, controller);
     }
@@ -198,13 +200,12 @@ class ViewMoreActionTypeWrapper extends CustomActionCell {
   Widget _buildEmojiActionButton(
     BuildContext context,
     PopoverController controller,
+    PopoverMutex? mutex,
   ) {
-    final child = _buildActionButton(context, null);
-
     return AppFlowyPopover(
       constraints: BoxConstraints.loose(const Size(364, 356)),
       margin: const EdgeInsets.all(0),
-      clickHandler: PopoverClickHandler.gestureDetector,
+      mutex: mutex,
       popupBuilder: (_) => FlowyIconEmojiPicker(
         tabs: const [
           PickerTabType.emoji,
@@ -215,34 +216,38 @@ class ViewMoreActionTypeWrapper extends CustomActionCell {
         initialType: sourceView.icon.toEmojiIconData().type.toPickerTabType(),
         onSelectedEmoji: (result) => onTap(controller, result),
       ),
-      child: child,
+      child: _buildActionButton(
+        context,
+        () {},
+      ),
     );
   }
 
   Widget _buildMoveToActionButton(
     BuildContext context,
     PopoverController controller,
+    PopoverMutex? mutex,
   ) {
-    final userProfile = context.read<SpaceBloc>().userProfile;
+    final currentWorkspaceType =
+        context.read<UserWorkspaceBloc>().state.currentWorkspace?.workspaceType;
     // move to feature doesn't support in local mode
-    if (userProfile.workspaceType != WorkspaceTypePB.ServerW) {
+    if (currentWorkspaceType != WorkspaceTypePB.ServerW) {
       return const SizedBox.shrink();
     }
     return BlocProvider.value(
       value: context.read<SpaceBloc>(),
       child: BlocBuilder<SpaceBloc, SpaceState>(
         builder: (context, state) {
-          final child = _buildActionButton(context, null);
           return AppFlowyPopover(
             constraints: const BoxConstraints(
               maxWidth: 260,
               maxHeight: 345,
             ),
+            mutex: mutex,
             margin: const EdgeInsets.symmetric(
               horizontal: 14.0,
               vertical: 12.0,
             ),
-            clickHandler: PopoverClickHandler.gestureDetector,
             direction:
                 moveActionDirection ?? PopoverDirection.rightWithTopAligned,
             offset: moveActionOffset,
@@ -257,7 +262,10 @@ class ViewMoreActionTypeWrapper extends CustomActionCell {
                 ),
               );
             },
-            child: child,
+            child: _buildActionButton(
+              context,
+              () {},
+            ),
           );
         },
       ),
@@ -265,9 +273,8 @@ class ViewMoreActionTypeWrapper extends CustomActionCell {
   }
 
   Widget _buildDivider() {
-    return const Padding(
-      padding: EdgeInsets.all(8.0),
-      child: FlowyDivider(),
+    return AFDivider(
+      spacing: 8.0,
     );
   }
 
@@ -295,33 +302,42 @@ class ViewMoreActionTypeWrapper extends CustomActionCell {
 
   Widget _buildActionButton(
     BuildContext context,
-    VoidCallback? onTap,
+    VoidCallback onTap,
   ) {
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: FlowyIconTextButton(
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        onTap: onTap,
-        // show the error color when delete is hovered
-        leftIconBuilder: (onHover) => FlowySvg(
-          inner.leftIconSvg,
-          color: inner == ViewMoreActionType.delete && onHover
-              ? Theme.of(context).colorScheme.error
-              : null,
-        ),
-        rightIconBuilder: (_) => inner.rightIcon,
-        iconPadding: 10.0,
-        textBuilder: (onHover) => FlowyText.regular(
-          inner.name,
-          fontSize: 14.0,
-          lineHeight: 1.0,
-          figmaLineHeight: 18.0,
-          color: inner == ViewMoreActionType.delete && onHover
-              ? Theme.of(context).colorScheme.error
-              : null,
-        ),
+    final theme = AppFlowyTheme.of(context);
+
+    return AFGhostButton.normal(
+      onTap: onTap,
+      builder: (context, isHovering, disabled) {
+        return Row(
+          spacing: theme.spacing.m,
+          children: [
+            FlowySvg(
+              inner.leftIconSvg,
+              size: const Size.square(16),
+              color: inner == ViewMoreActionType.delete && isHovering
+                  ? theme.iconColorScheme.errorThick
+                  : null,
+            ),
+            Expanded(
+              child: Text(
+                inner.name,
+                style: theme.textStyle.body.standard(
+                  color: inner == ViewMoreActionType.delete && isHovering
+                      ? theme.textColorScheme.error
+                      : theme.textColorScheme.primary,
+                ),
+              ),
+            ),
+            inner.rightIcon,
+          ],
+        );
+      },
+      padding: EdgeInsets.symmetric(
+        horizontal: theme.spacing.m,
+        vertical: theme.spacing.s,
       ),
+      borderRadius: theme.spacing.m,
     );
   }
 }

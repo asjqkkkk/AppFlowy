@@ -2123,6 +2123,7 @@
         "networkUrlInvalid": "Invalid URL. Check the URL and try again.",
         "networkAction": "Embed",
         "fileTooBigError": "File size is too big, please upload a file with size less than 10MB",
+        "noImages": "No images selected. Please try again.",
         "renameFile": {
           "title": "Rename file",
           "description": "Enter the new name for this file",

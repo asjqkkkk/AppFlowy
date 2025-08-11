@@ -6,6 +6,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/custom_image_block_component/custom_image_block_component.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_placeholder.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/resizeable_image.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image_menu.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_editor/appflowy_editor.dart'
@@ -50,7 +51,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byType(UploadImageMenu), findsOneWidget);
+      expect(find.byType(DesktopImageSelector), findsOneWidget);
 
       final image = await rootBundle.load('assets/test/images/sample.jpeg');
       final tempDirectory = await getTemporaryDirectory();
@@ -63,9 +64,7 @@ void main() {
       );
 
       await getIt<KeyValueStorage>().set(KVKeys.kCloudType, '0');
-      await tester.tapButtonWithName(
-        LocaleKeys.document_imageBlock_upload_placeholder.tr(),
-      );
+      await tester.tapButton(find.byType(FileDropZone));
       await tester.pumpAndSettle();
       expect(find.byType(ResizableImage), findsOneWidget);
       final node = tester.editor.getCurrentEditorState().getNodeAtPath([0])!;
@@ -100,7 +99,7 @@ void main() {
         ),
         findsOneWidget,
       );
-      expect(find.byType(UploadImageMenu), findsOneWidget);
+      expect(find.byType(DesktopImageSelector), findsOneWidget);
 
       final firstImage =
           await rootBundle.load('assets/test/images/sample.jpeg');
@@ -119,9 +118,7 @@ void main() {
       mockPickFilePaths(paths: [firstImagePath, secondImagePath]);
 
       await getIt<KeyValueStorage>().set(KVKeys.kCloudType, '0');
-      await tester.tapButtonWithName(
-        LocaleKeys.document_imageBlock_upload_placeholder.tr(),
-      );
+      await tester.tapButton(find.byType(FileDropZone));
       await tester.pumpAndSettle();
 
       expect(find.byType(ResizableImage), findsNWidgets(2));

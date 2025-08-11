@@ -347,11 +347,11 @@ class _WorkspaceInfo extends StatelessWidget {
                     ),
                   ),
                 if (workspace.workspaceType == WorkspaceTypePB.Vault)
-                  FlowyText.regular(
+                  Text(
                     LocaleKeys.workspace_vaultWorkspace.tr(),
-                    fontSize: 10.0,
-                    figmaLineHeight: 12.0,
-                    color: Theme.of(context).hintColor,
+                    style: theme.textStyle.caption.standard(
+                      color: theme.textColorScheme.secondary,
+                    ),
                   ),
               ],
             ),

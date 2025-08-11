@@ -9,7 +9,6 @@ import 'package:easy_localization/easy_localization.dart';
 export 'align_option_action.dart';
 export 'color_option_action.dart';
 export 'depth_option_action.dart';
-export 'divider_option_action.dart';
 export 'turn_into_option_action.dart';
 
 enum EditorOptionActionType {

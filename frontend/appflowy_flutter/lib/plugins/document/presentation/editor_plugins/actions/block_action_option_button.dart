@@ -1,9 +1,11 @@
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/block_action_option_cubit.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/option/option_actions.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
-import 'package:appflowy_popover/appflowy_popover.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
+import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -35,6 +37,7 @@ class _BlockOptionButtonState extends State<BlockOptionButton> {
   // for example, when the user is selecting the color, the turn into option
   // should not be shown.
   final mutex = PopoverMutex();
+  final controller = PopoverController();
 
   @override
   Widget build(BuildContext context) {
@@ -49,27 +52,47 @@ class _BlockOptionButtonState extends State<BlockOptionButton> {
         blockComponentBuilder: widget.blockComponentBuilder,
       ),
       child: BlocBuilder<BlockActionOptionCubit, BlockActionOptionState>(
-        builder: (context, _) => PopoverActionList<PopoverAction>(
-          actions: _buildPopoverActions(context),
-          animationDuration: Durations.short3,
-          slideDistance: 5,
-          beginScaleFactor: 1.0,
-          beginOpacity: 0.8,
-          direction: direction,
-          onPopupBuilder: _onPopoverBuilder,
-          onClosed: () => _onPopoverClosed(context),
-          onSelected: (action, controller) => _onActionSelected(
-            context,
-            action,
-            controller,
-          ),
-          buildChild: (controller) => DraggableOptionButton(
+        builder: (context, _) {
+          return AppFlowyPopover(
+            popupBuilder: (popoverContext) {
+              _onPopoverBuilder();
+
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(
+                    value: context.read<BlockActionOptionCubit>(),
+                  ),
+                  BlocProvider.value(
+                    value: context.read<UserWorkspaceBloc>(),
+                  ),
+                ],
+                child: IntrinsicHeight(
+                  child: Column(
+                    children: _buildPopoverActions(context),
+                  ),
+                ),
+              );
+            },
+            animationDuration: Durations.short3,
             controller: controller,
-            editorState: widget.editorState,
-            blockComponentContext: widget.blockComponentContext,
-            blockComponentBuilder: widget.blockComponentBuilder,
-          ),
-        ),
+            beginScaleFactor: 1.0,
+            beginOpacity: 0.8,
+            direction: direction,
+            triggerActions: PopoverTriggerFlags.none,
+            constraints: BoxConstraints(
+              maxWidth: 240,
+              maxHeight: 700,
+            ),
+            margin: EdgeInsets.all(AppFlowyTheme.of(context).spacing.m),
+            onClose: () => _onPopoverClosed(context),
+            child: DraggableOptionButton(
+              controller: controller,
+              editorState: widget.editorState,
+              blockComponentContext: widget.blockComponentContext,
+              blockComponentBuilder: widget.blockComponentBuilder,
+            ),
+          );
+        },
       ),
     );
   }
@@ -77,37 +100,60 @@ class _BlockOptionButtonState extends State<BlockOptionButton> {
   @override
   void dispose() {
     mutex.dispose();
-
     super.dispose();
   }
 
-  List<PopoverAction> _buildPopoverActions(BuildContext context) {
+  List<Widget> _buildPopoverActions(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
     return widget.actions.map((e) {
-      switch (e) {
-        case OptionAction.divider:
-          return DividerOptionAction();
-        case OptionAction.color:
-          return ColorOptionAction(
+      return switch (e) {
+        OptionAction.divider => AFDivider(
+            spacing: theme.spacing.m,
+          ),
+        OptionAction.color => ColorOptionButton(
             editorState: widget.editorState,
+            controller: controller,
             mutex: mutex,
-          );
-        case OptionAction.align:
-          return AlignOptionAction(editorState: widget.editorState);
-        case OptionAction.depth:
-          return DepthOptionAction(editorState: widget.editorState);
-        case OptionAction.turnInto:
-          return TurnIntoOptionAction(
+          ),
+        OptionAction.align => AlignOptionButton(
+            editorState: widget.editorState,
+            controller: controller,
+            mutex: mutex,
+          ),
+        OptionAction.depth => DepthOptionButton(
+            editorState: widget.editorState,
+            controller: controller,
+            mutex: mutex,
+          ),
+        OptionAction.turnInto => TurnIntoButton(
             editorState: widget.editorState,
             blockComponentBuilder: widget.blockComponentBuilder,
             mutex: mutex,
-          );
-        case OptionAction.delete:
-          return DeleteOptionAction(
+          ),
+        OptionAction.delete => DeleteOptionButton(
+            controller: controller,
             blockComponentContext: widget.blockComponentContext,
-          );
-        default:
-          return OptionActionWrapper(e);
-      }
+          ),
+        _ => AFMenuItem(
+            leading: FlowySvg(
+              e.svg,
+              color: theme.iconColorScheme.primary,
+            ),
+            title: Text(
+              e.description,
+              style: theme.textStyle.body.standard(
+                color: theme.textColorScheme.primary,
+              ),
+            ),
+            onTap: () {
+              context
+                  .read<BlockActionOptionCubit>()
+                  .handleAction(e, widget.blockComponentContext.node);
+              controller.close();
+            },
+          ),
+      };
     }).toList();
   }
 
@@ -124,21 +170,5 @@ class _BlockOptionButtonState extends State<BlockOptionButton> {
     });
 
     PopoverContainer.maybeOf(context)?.closeAll();
-  }
-
-  void _onActionSelected(
-    BuildContext context,
-    PopoverAction action,
-    PopoverController controller,
-  ) {
-    if (action is! OptionActionWrapper) {
-      return;
-    }
-
-    context.read<BlockActionOptionCubit>().handleAction(
-          action.inner,
-          widget.blockComponentContext.node,
-        );
-    controller.close();
   }
 }

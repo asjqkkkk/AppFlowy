@@ -4,6 +4,7 @@ import 'package:appflowy/plugins/local_file/local_file.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
@@ -316,7 +317,7 @@ class AttachedFilePreview extends StatelessWidget {
   Widget _fileIcon(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AFThemeExtension.of(context).tint1,
+        color: AppFlowyTheme.of(context).paletteColorScheme.bgColor1,
         borderRadius: BorderRadius.circular(8),
       ),
       height: 32,

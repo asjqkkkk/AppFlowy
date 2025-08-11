@@ -1,4 +1,5 @@
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/shared/feedback_gesture_detector.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -76,6 +77,7 @@ class _ColorTileState extends State<ColorTile> {
 
   Widget? child(AppFlowyThemeData theme) {
     final rgbColor = widget.color?.toColor(theme);
+    final gradient = widget.color?.toGradient(theme);
 
     return switch (widget.colorType) {
       ColorType.text => Text(
@@ -86,6 +88,11 @@ class _ColorTileState extends State<ColorTile> {
             fontWeight: FontWeight.w500,
             height: 1.0,
             color: rgbColor,
+            foreground: gradient != null
+                ? (Paint()
+                  ..shader =
+                      gradient.createShader(Offset.zero & Size.square(24)))
+                : null,
           ),
         ),
       ColorType.background when widget.isSelected => Container(
@@ -93,6 +100,7 @@ class _ColorTileState extends State<ColorTile> {
           decoration: BoxDecoration(
             color: rgbColor,
             borderRadius: BorderRadius.circular(3.0),
+            gradient: gradient,
           ),
         ),
       ColorType.background => Container(
@@ -100,6 +108,7 @@ class _ColorTileState extends State<ColorTile> {
           decoration: BoxDecoration(
             color: rgbColor,
             borderRadius: BorderRadius.circular(4.0),
+            gradient: gradient,
           ),
         ),
     };
@@ -124,9 +133,8 @@ class MobileColorTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
-    return GestureDetector(
+    return FeedbackGestureDetector(
       onTap: onSelect,
-      behavior: HitTestBehavior.opaque,
       child: Container(
         constraints: BoxConstraints.tight(Size.square(48)),
         padding: EdgeInsets.zero,
@@ -153,6 +161,7 @@ class MobileColorTile extends StatelessWidget {
 
   Widget? _child(AppFlowyThemeData theme) {
     final rgbColor = color?.toColor(theme);
+    final gradient = color?.toGradient(theme);
 
     return switch (colorType) {
       ColorType.text => Text(
@@ -169,9 +178,47 @@ class MobileColorTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: rgbColor,
             borderRadius: BorderRadius.circular(5.0),
+            gradient: gradient,
           ),
         ),
     };
+  }
+}
+
+class ColorTileIcon extends StatelessWidget {
+  const ColorTileIcon({
+    super.key,
+    required this.color,
+  });
+
+  final AFColor? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+    final rgbColor = color?.toColor(theme);
+    final gradient = switch (color) {
+      final BuiltinAFColor color => color.toGradient(theme),
+      _ => null,
+    };
+
+    return Container(
+      width: 20.0,
+      height: 20.0,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(theme.spacing.xs),
+        border: Border.all(color: theme.borderColorScheme.primary),
+      ),
+      child: Container(
+        constraints: BoxConstraints.tight(Size.square(12)),
+        decoration: BoxDecoration(
+          color: rgbColor,
+          borderRadius: BorderRadius.circular(2.0),
+          gradient: gradient,
+        ),
+      ),
+    );
   }
 }
 

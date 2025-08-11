@@ -7,10 +7,10 @@ import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.
 import 'package:appflowy/mobile/application/recent/recent_view_bloc.dart';
 import 'package:appflowy/mobile/presentation/base/animated_gesture.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_content.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
-import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
@@ -339,50 +339,17 @@ class _ViewCover extends StatelessWidget {
 
   Widget _buildCoverV2(BuildContext context, String value, Widget placeholder) {
     final type = coverTypeV2;
+
     if (type == null) {
       return placeholder;
     }
-    if (type == PageStyleCoverImageType.customImage ||
-        type == PageStyleCoverImageType.unsplashImage) {
-      final userProfilePB = Provider.of<UserProfilePB?>(context);
-      return FlowyNetworkImage(
-        url: value,
-        userProfilePB: userProfilePB,
-      );
-    }
 
-    if (type == PageStyleCoverImageType.builtInImage) {
-      return Image.asset(
-        PageStyleCoverImageType.builtInImagePath(value),
-        fit: BoxFit.cover,
-      );
-    }
-
-    if (type == PageStyleCoverImageType.pureColor) {
-      final color = value.coverColor(context);
-      if (color != null) {
-        return ColoredBox(
-          color: color,
-        );
-      }
-    }
-
-    if (type == PageStyleCoverImageType.gradientColor) {
-      return Container(
-        decoration: BoxDecoration(
-          gradient: FlowyGradientColor.fromId(value).linear,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.localImage) {
-      return Image.file(
-        File(value),
-        fit: BoxFit.cover,
-      );
-    }
-
-    return placeholder;
+    return CoverContent(
+      type: type,
+      value: value,
+      userProfile: Provider.of<UserProfilePB?>(context),
+      fallback: placeholder,
+    );
   }
 
   Widget _buildCoverV1(BuildContext context, String value, Widget placeholder) {
@@ -412,7 +379,7 @@ class _ViewCover extends StatelessWidget {
         return Container(
           color: color,
         );
-      case CoverType.none:
+      default:
         return placeholder;
     }
   }

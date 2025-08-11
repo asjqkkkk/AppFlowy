@@ -1,11 +1,11 @@
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/extensions/flowy_tint_extension.dart';
+import 'package:appflowy/shared/flowy_tint_colors.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
-import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_editor/appflowy_editor.dart' hide ColorPicker;
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/extension.dart';
 import 'package:flutter/material.dart';
@@ -97,61 +97,67 @@ class TableColorOptionAction extends PopoverActionCell {
     BuildContext context,
     PopoverController parentController,
     PopoverController controller,
-  ) get builder => (context, parentController, controller) {
-        int row = 0, col = position;
-        if (dir == TableDirection.row) {
-          col = 0;
-          row = position;
-        }
+  ) get builder {
+    return (context, parentController, controller) {
+      int row = 0, col = position;
+      if (dir == TableDirection.row) {
+        col = 0;
+        row = position;
+      }
 
-        final cell = node.children.firstWhereOrNull(
-          (n) =>
-              n.attributes[TableCellBlockKeys.colPosition] == col &&
-              n.attributes[TableCellBlockKeys.rowPosition] == row,
-        );
-        final key = dir == TableDirection.col
-            ? TableCellBlockKeys.colBackgroundColor
-            : TableCellBlockKeys.rowBackgroundColor;
-        final bgColor = cell?.attributes[key] as String?;
-        final selectedColor = bgColor?.tryToColor();
-        // get default background color from themeExtension
-        final defaultColor = AFThemeExtension.of(context).tableCellBGColor;
-        final colors = [
-          // reset to default background color
-          FlowyColorOption(
-            color: defaultColor,
-            i18n: LocaleKeys.document_plugins_optionAction_defaultColor.tr(),
-            id: tableCellDefaultColor,
-          ),
-          ...FlowyTint.values.map(
-            (e) => FlowyColorOption(
-              color: e.color(context),
-              i18n: e.tintName(AppFlowyEditorL10n.current),
-              id: e.id,
-            ),
-          ),
-        ];
+      final cell = node.children.firstWhereOrNull(
+        (n) =>
+            n.attributes[TableCellBlockKeys.colPosition] == col &&
+            n.attributes[TableCellBlockKeys.rowPosition] == row,
+      );
+      final key = dir == TableDirection.col
+          ? TableCellBlockKeys.colBackgroundColor
+          : TableCellBlockKeys.rowBackgroundColor;
 
-        return FlowyColorPicker(
-          colors: colors,
-          selected: selectedColor,
-          border: Border.all(
-            color: AFThemeExtension.of(context).onBackground,
-          ),
-          onTap: (option, index) async {
-            final backgroundColor =
-                selectedColor != option.color ? option.id : '';
-            TableActions.setBgColor(
-              node,
-              position,
-              editorState,
-              backgroundColor,
-              dir,
-            );
+      final bgColor = cell?.attributes[key] as String?;
 
-            controller.close();
-            parentController.close();
-          },
-        );
-      };
+      final colorPickerConfig = getColorPickerConfig();
+
+      return ColorPicker(
+        config: colorPickerConfig,
+        selectedColors: bgColor == null ? [] : [AFColor.fromValue(bgColor)],
+        onSelectColor: (color) {
+          final savedColor =
+              color == null ? '' : FlowyTint.fromAFColor(color)?.id ?? '';
+
+          TableActions.setBgColor(
+            node,
+            position,
+            editorState,
+            savedColor,
+            dir,
+          );
+        },
+      );
+    };
+  }
+
+  ColorPickerConfig getColorPickerConfig() {
+    return ColorPickerConfig(
+      key: 'table-background',
+      colorType: ColorType.background,
+      title: LocaleKeys.document_toolbar_backgroundColor.tr(),
+      defaultColor: BuiltinAFColor('bg-default'),
+      builtinColors: [
+        BuiltinAFColor('bg-color-14'),
+        BuiltinAFColor('bg-color-16'),
+        BuiltinAFColor('bg-color-18'),
+        BuiltinAFColor('bg-color-2'),
+        BuiltinAFColor('bg-color-4'),
+        BuiltinAFColor('bg-color-6'),
+        BuiltinAFColor('bg-color-8'),
+        BuiltinAFColor('bg-color-10'),
+        BuiltinAFColor('bg-color-12'),
+      ],
+      recentColorLimit: 5,
+      customColorLimit: 4,
+      showRecent: false,
+      showCustom: false,
+    );
+  }
 }

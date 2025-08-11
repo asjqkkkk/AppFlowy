@@ -221,6 +221,15 @@ class EditorMigration {
             },
           };
           break;
+        case CoverType.gradient:
+          extra = {
+            ViewExtKeys.coverKey: {
+              ViewExtKeys.coverTypeKey:
+                  PageStyleCoverImageType.gradientColor.toString(),
+              ViewExtKeys.coverValueKey: coverDetails,
+            },
+          };
+          break;
         case CoverType.file:
           if (isURL(coverDetails)) {
             if (coverDetails.contains('unsplash')) {

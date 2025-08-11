@@ -20,7 +20,6 @@ import 'package:appflowy/mobile/presentation/setting/language/language_picker_sc
 import 'package:appflowy/mobile/presentation/setting/launch_settings_page.dart';
 import 'package:appflowy/mobile/presentation/setting/workspace/add_members_screen.dart';
 import 'package:appflowy/mobile/presentation/setting/workspace/invite_members_screen.dart';
-import 'package:appflowy/plugins/base/color/color_picker_screen.dart';
 import 'package:appflowy/plugins/base/emoji/emoji_picker_screen.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/code_block/code_language_screen.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_picker_screen.dart';
@@ -88,9 +87,6 @@ GoRouter generateRouter(Widget child) {
         // emoji picker
         _mobileEmojiPickerPageRoute(),
         _mobileImagePickerPageRoute(),
-
-        // color picker
-        _mobileColorPickerPageRoute(),
 
         // code language picker
         _mobileCodeLanguagePickerPageRoute(),
@@ -377,21 +373,6 @@ GoRoute _mobileEmojiPickerPageRoute() {
                 documentId: documentId,
               ),
         name: MobileEmojiPickerScreen.routeName,
-      );
-    },
-  );
-}
-
-GoRoute _mobileColorPickerPageRoute() {
-  return GoRoute(
-    parentNavigatorKey: AppGlobals.rootNavKey,
-    path: MobileColorPickerScreen.routeName,
-    pageBuilder: (context, state) {
-      final title =
-          state.uri.queryParameters[MobileColorPickerScreen.pageTitle] ?? '';
-      return MaterialExtendedPage(
-        child: MobileColorPickerScreen(title: title),
-        name: MobileColorPickerScreen.routeName,
       );
     },
   );

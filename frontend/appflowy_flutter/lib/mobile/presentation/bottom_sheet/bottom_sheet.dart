@@ -1,5 +1,6 @@
 export 'bottom_sheet_action_widget.dart';
 export 'bottom_sheet_add_new_page.dart';
+export 'bottom_sheet_buttons.dart';
 export 'bottom_sheet_drag_handler.dart';
 export 'bottom_sheet_rename_widget.dart';
 export 'bottom_sheet_view_item.dart';
