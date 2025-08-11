@@ -1492,7 +1492,7 @@
       "recoverLocationTooltips": "Reset to @:appName's default data directory",
       "exportFileSuccess": "Export file successfully!",
       "exportFileFail": "Export file failed!",
-      "backupWorkspaceLabel": "Backup your workspace to AppFlowy workspace file (.zip)",
+      "backupWorkspaceLabel": "Back up your AppFlowy workspace to a ZIP file",
       "backupButtonLabel": "Backup",
       "cloudWorkspaceNotSupported": "Cloud workspace is not supported yet (coming soon)",
       "backingUpWorkspace": "Backing up workspace...",

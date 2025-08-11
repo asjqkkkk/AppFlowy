@@ -571,6 +571,19 @@ class _ImportMenu extends StatelessWidget {
                 color: theme.textColorScheme.primary,
               ),
             ),
+            trailing: (context, isHovering, disabled) => FlowyTooltip(
+              message: LocaleKeys.workspace_learnMore.tr(),
+              child: AFGhostButton.normal(
+                padding: EdgeInsets.all(theme.spacing.xs),
+                onTap: () => afLaunchUrlString(
+                  'https://appflowy.com/guide/import-from-AppFlowy',
+                ),
+                builder: (context, isHovering, disabled) => const FlowySvg(
+                  FlowySvgs.information_s,
+                  size: Size.square(16.0),
+                ),
+              ),
+            ),
             onTap: () async {
               controller.hide();
               PopoverContainer.of(context).closeAll();
