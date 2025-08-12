@@ -419,8 +419,8 @@ impl StreamInterpreter {
           Some((start_pos, selected_name, selected_tag, selected_style, tag_len)) => {
             if selected_name != section_name {
               // If it's a new section, process the current one
-              let content = self.section_buffer[..start_pos].to_string();
-              self.section_buffer = self.section_buffer[start_pos + tag_len..].to_string();
+              let content: String = self.section_buffer.chars().take(start_pos).collect();
+              self.section_buffer = self.section_buffer.chars().skip(start_pos + tag_len).collect();
               self.section = Some(selected_name.clone());
               self.tag_style = Some(selected_style.clone());
               self.start_tag = Some(selected_tag.clone());
@@ -438,8 +438,17 @@ impl StreamInterpreter {
           None => {
             // do not take all the section buffer, because the current buffer might contain
             // a uncompleted tag
-            let content = self.section_buffer[..section_name.len()].to_string();
-            self.section_buffer = self.section_buffer[section_name.len()..].to_string();
+            let section_name_chars = section_name.chars().count();
+            let content: String = self
+              .section_buffer
+              .chars()
+              .take(section_name_chars)
+              .collect();
+            self.section_buffer = self
+              .section_buffer
+              .chars()
+              .skip(section_name_chars)
+              .collect();
             self.create_value_from_content(content, &section_name, section_mapping)
           },
         }
@@ -470,17 +479,17 @@ impl StreamInterpreter {
 
         // Skip past the start tag
         let start = start_pos + tag_len;
-        if start < self.section_buffer.len() {
-          self.section_buffer = self.section_buffer[start..].to_string();
+        if start < self.section_buffer.chars().count() {
+          self.section_buffer = self.section_buffer.chars().skip(start).collect();
           return match self.find_end_tag(&self.section_buffer, &selected_name, &selected_style) {
             None => {
               let trimmed_content = self.section_buffer.to_string();
               self.create_value_from_content(trimmed_content, &selected_name, section_mapping)
             },
             Some((end_pos, end_len)) => {
-              let content = self.section_buffer[..end_pos].to_string();
+              let content: String = self.section_buffer.chars().take(end_pos).collect();
 
-              self.section_buffer = self.section_buffer[end_pos + end_len..].to_string();
+              self.section_buffer = self.section_buffer.chars().skip(end_pos + end_len).collect();
               self.section = None;
               self.start_tag = None;
 
@@ -515,5 +524,33 @@ impl StreamInterpreter {
         self.create_value_from_content(content, &section_name, section_mapping)
       },
     }
+  }
+}
+
+#[cfg(test)]
+mod test {
+  use super::*;
+
+  #[test]
+  fn test_stream_interpreter_unicode_handling() {
+    let mut interpreter = StreamInterpreter::new();
+    let mut mapping = HashMap::new();
+    mapping.insert("Improved".to_string(), "content".to_string());
+
+    let _ =
+      interpreter.post_process_output(&json!({ "message": { "content": "<Improved" }}), &mapping);
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": ">" }}), &mapping);
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": "He" }}), &mapping);
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": " wasn" }}), &mapping);
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": "’" }}), &mapping);
+    assert_eq!(interpreter.section_buffer, "He wasn’");
+
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": "t" }}), &mapping);
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": " a" }}), &mapping);
+    let _ =
+      interpreter.post_process_output(&json!({ "message": { "content": " grizz" }}), &mapping);
+    let _ = interpreter.post_process_output(&json!({ "message": { "content": "led" }}), &mapping);
+    
+    assert_eq!(interpreter.section_buffer, "t a grizzled");
   }
 }
