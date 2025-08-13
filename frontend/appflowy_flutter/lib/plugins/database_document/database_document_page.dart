@@ -39,6 +39,7 @@ class DatabaseDocumentPage extends StatefulWidget {
     super.key,
     required this.view,
     required this.databaseId,
+    required this.databaseViewId,
     required this.rowId,
     required this.documentId,
     required this.pageAccessLevelBloc,
@@ -49,6 +50,7 @@ class DatabaseDocumentPage extends StatefulWidget {
   final String databaseId;
   final String rowId;
   final String documentId;
+  final String databaseViewId;
   final Selection? initialSelection;
   final PageAccessLevelBloc pageAccessLevelBloc;
 
@@ -67,7 +69,8 @@ class _DatabaseDocumentPageState extends State<DatabaseDocumentPage> {
         BlocProvider.value(value: widget.pageAccessLevelBloc),
         BlocProvider(
           create: (_) => DocumentBloc(
-            databaseViewId: widget.databaseId,
+            databaseViewId: widget.databaseViewId,
+            databaseId: widget.databaseId,
             rowId: widget.rowId,
             documentId: widget.documentId,
           )..add(const DocumentEvent.initial()),

@@ -21,12 +21,14 @@ import 'presentation/database_document_title.dart';
 class DatabaseDocumentContext {
   DatabaseDocumentContext({
     required this.view,
+    required this.databaseViewId,
     required this.databaseId,
     required this.rowId,
     required this.documentId,
   });
 
   final ViewPB view;
+  final String databaseViewId;
   final String databaseId;
   final String rowId;
   final String documentId;
@@ -71,6 +73,7 @@ class DatabaseDocumentPlugin extends Plugin {
   PluginWidgetBuilder get widgetBuilder => DatabaseDocumentPluginWidgetBuilder(
         view: data.view,
         databaseId: data.databaseId,
+        databaseViewId: data.databaseViewId,
         rowId: data.rowId,
         documentId: data.documentId,
         pageAccessLevelBloc: _pageAccessLevelBloc,
@@ -100,6 +103,7 @@ class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
   DatabaseDocumentPluginWidgetBuilder({
     required this.view,
     required this.databaseId,
+    required this.databaseViewId,
     required this.rowId,
     required this.documentId,
     required this.pageAccessLevelBloc,
@@ -110,6 +114,7 @@ class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
   final String databaseId;
   final String rowId;
   final String documentId;
+  final String databaseViewId;
   final PageAccessLevelBloc pageAccessLevelBloc;
   final Selection? initialSelection;
 
@@ -130,6 +135,7 @@ class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
         key: ValueKey(documentId),
         view: view,
         databaseId: databaseId,
+        databaseViewId: databaseViewId,
         documentId: documentId,
         rowId: rowId,
         pageAccessLevelBloc: pageAccessLevelBloc,

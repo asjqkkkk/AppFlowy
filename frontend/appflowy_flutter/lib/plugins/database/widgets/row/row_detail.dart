@@ -218,6 +218,7 @@ class _RowDetailPageState extends State<RowDetailPage> {
                     plugin: DatabaseDocumentPlugin(
                       data: DatabaseDocumentContext(
                         view: widget.databaseController.view,
+                        databaseViewId: widget.databaseController.viewId,
                         databaseId: databaseId,
                         rowId: widget.rowController.rowId,
                         documentId: documentId,
