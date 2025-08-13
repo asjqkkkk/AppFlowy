@@ -83,6 +83,7 @@ void main() {
     testWidgets('create some nested pages, and move them', (tester) async {
       await tester.initializeAppFlowy();
       await tester.tapAnonymousSignInButton();
+      await tester.expectToSeeHomePageWithGetStartedPage();
 
       final names = [1, 2, 3, 4].map((e) => 'document_$e').toList();
       for (var i = 0; i < names.length; i++) {

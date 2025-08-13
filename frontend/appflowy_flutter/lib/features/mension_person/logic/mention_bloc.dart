@@ -86,6 +86,8 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     } else {
       views = await readAllViews();
     }
+    views =
+        views.where((e) => !e.isSpace && e.parentViewId.isNotEmpty).toList();
     final viewItems = _getPageItems(query, views);
     final itemMap = state.itemMap
         .clearItems(MentionMenuType.values)

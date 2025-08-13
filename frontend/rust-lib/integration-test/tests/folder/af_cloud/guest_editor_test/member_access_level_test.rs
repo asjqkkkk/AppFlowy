@@ -111,9 +111,9 @@ async fn owner_has_access_to_invited_private_views_test() {
 
   // owner has no permission to view the private space and private page
   let error = owner.get_view(&private_space.id).await;
-  assert!(error.is_err());
+  assert!(error.is_err(), "{:?}", error);
   let error = owner.get_view(&private_page.id).await;
-  assert!(error.is_err());
+  assert!(error.is_err(), "{:?}", error);
 
   // member shares private page with the owner
   member
