@@ -21,9 +21,8 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
   Future<FlowyResult<SharedUsers, FlowyError>> getSharedUsersInPage({
     required String pageId,
   }) async {
-    final request = GetSharedUsersPayloadPB(
-      viewId: pageId,
-    );
+    final request =
+        GetSharedUsersPayloadPB(viewId: pageId, isFetchFromCloud: true);
     final result = await FolderEventGetSharedUsers(request).send();
 
     return result.fold(

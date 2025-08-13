@@ -34,9 +34,11 @@ class BottomSheetDoneButton extends StatelessWidget {
   const BottomSheetDoneButton({
     super.key,
     this.onDone,
+    this.text,
   });
 
   final VoidCallback? onDone;
+  final String? text;
 
   @override
   Widget build(BuildContext context) {

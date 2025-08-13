@@ -57,7 +57,9 @@ final customLinkItem = ToolbarItem(
   id: ToolbarId.link.id,
   group: 4,
   isActive: (state) =>
-      !isNarrowWindow(state) && onlyShowInSingleSelectionAndTextType(state),
+      !isNarrowWindow(state) &&
+      onlyShowInSingleSelectionAndTextType(state) &&
+      !containsMentionByEditorState(state),
   builder: (context, editorState, highlightColor, iconColor, tooltipBuilder) {
     final selection = editorState.selection!;
     final nodes = editorState.getNodesInSelection(selection);

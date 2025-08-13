@@ -180,3 +180,36 @@ pub fn load_text_file_content(name: &str) -> String {
     panic!("Failed to read asset file: {}", name);
   })
 }
+
+/// A helper function create 2 clients
+pub async fn create_2_clients() -> (EventIntegrationTest, EventIntegrationTest) {
+  let client_1 = EventIntegrationTest::new().await;
+  client_1.af_cloud_sign_up().await;
+  let client_2 = EventIntegrationTest::new().await;
+  client_2.af_cloud_sign_up().await;
+  (client_1, client_2)
+}
+
+/// A helper function to create a owner and a member
+pub async fn create_owner_and_member() -> (EventIntegrationTest, EventIntegrationTest) {
+  let owner = EventIntegrationTest::new().await;
+  owner.af_cloud_sign_up().await;
+  let member = EventIntegrationTest::new().await;
+  member.af_cloud_sign_up().await;
+  (owner, member)
+}
+
+/// A helper function to create a owner, a member and a guest
+pub async fn create_owner_member_and_guest() -> (
+  EventIntegrationTest,
+  EventIntegrationTest,
+  EventIntegrationTest,
+) {
+  let owner = EventIntegrationTest::new().await;
+  owner.af_cloud_sign_up().await;
+  let member = EventIntegrationTest::new().await;
+  member.af_cloud_sign_up().await;
+  let guest = EventIntegrationTest::new().await;
+  guest.af_cloud_sign_up().await;
+  (owner, member, guest)
+}

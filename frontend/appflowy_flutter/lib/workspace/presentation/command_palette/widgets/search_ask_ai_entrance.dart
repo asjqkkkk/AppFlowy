@@ -41,7 +41,7 @@ class _AskAIFor extends StatelessWidget {
       child: AFBaseButton(
         borderRadius: spaceM,
         padding: EdgeInsets.all(spaceL),
-        backgroundColor: (context, isHovering, disable) {
+        backgroundColor: (context, isHovering, disable, _) {
           if (isHovering) {
             return theme.fillColorScheme.contentHover;
           }

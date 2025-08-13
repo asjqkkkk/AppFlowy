@@ -1,21 +1,21 @@
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 
 extension MenuExtension on EditorState {
   MenuPosition? calculateMenuOffset({
     Rect? rect,
-    required double menuWidth,
-    required double menuHeight,
+    required Size menuSize,
     Offset menuOffset = const Offset(0, 10),
   }) {
-    final selectionService = service.selectionService;
-    final selectionRects = selectionService.selectionRects;
+    final menuHeight = menuSize.height, menuWidth = menuSize.width;
+    final rects = selectionRects();
     late Rect startRect;
     if (rect != null) {
       startRect = rect;
     } else {
-      if (selectionRects.isEmpty) return null;
-      startRect = selectionRects.first;
+      if (rects.isEmpty) return null;
+      startRect = rects.first;
     }
 
     final editorOffset = renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
@@ -98,13 +98,16 @@ class MenuPosition {
   }
 }
 
-class LTRB {
-  LTRB({this.left, this.top, this.right, this.bottom});
+class LTRB extends Equatable {
+  const LTRB({this.left, this.top, this.right, this.bottom});
 
   final double? left;
   final double? top;
   final double? right;
   final double? bottom;
+
+  @override
+  List<Object?> get props => [left, top, right, bottom];
 
   Positioned buildPositioned({required Widget child}) => Positioned(
         left: left,

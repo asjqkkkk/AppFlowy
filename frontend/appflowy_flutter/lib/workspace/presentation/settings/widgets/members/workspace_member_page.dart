@@ -523,7 +523,7 @@ class _MemberMoreActionListState extends State<_MemberMoreActionList> {
             horizontal: theme.spacing.m,
             vertical: theme.spacing.s,
           ),
-          backgroundColor: (context, isHovering, disabled) => isHovering
+          backgroundColor: (context, isHovering, disabled, _) => isHovering
               ? theme.fillColorScheme.contentHover
               : theme.fillColorScheme.content,
           borderColor: (context, isHovering, disabled, isFocused) =>

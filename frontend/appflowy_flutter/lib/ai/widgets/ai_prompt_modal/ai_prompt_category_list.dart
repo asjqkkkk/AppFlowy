@@ -124,7 +124,7 @@ class AiPromptFeaturedSection extends StatelessWidget {
       ),
       borderColor: (context, isHovering, disabled, isFocused) =>
           Colors.transparent,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, isFocused) {
         if (isSelected) {
           return theme.fillColorScheme.themeSelect;
         }
@@ -174,7 +174,7 @@ class AiPromptCustomPromptSection extends StatelessWidget {
               ),
               borderColor: (context, isHovering, disabled, isFocused) =>
                   Colors.transparent,
-              backgroundColor: (context, isHovering, disabled) {
+              backgroundColor: (context, isHovering, disabled, isFocused) {
                 if (isSelected) {
                   return theme.fillColorScheme.themeSelect;
                 }
@@ -234,7 +234,7 @@ class AiPromptCategoryItem extends StatelessWidget {
           ),
           borderColor: (context, isHovering, disabled, isFocused) =>
               Colors.transparent,
-          backgroundColor: (context, isHovering, disabled) {
+          backgroundColor: (context, isHovering, disabled, isFocused) {
             if (isSelected) {
               return theme.fillColorScheme.themeSelect;
             }

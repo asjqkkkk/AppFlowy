@@ -134,7 +134,7 @@ class _HighlightColorPickerWidgetState
       borderColor: (context, isHovering, disabled, isFocused) =>
           Colors.transparent,
       borderRadius: theme.spacing.m,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         if (isHovering || popoverController.isOpen) {
           return theme.fillColorScheme.contentHover;
         }

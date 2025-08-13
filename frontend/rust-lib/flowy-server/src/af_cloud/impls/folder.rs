@@ -4,7 +4,8 @@ use client_api::entity::guest_dto::{
 use client_api::entity::workspace_dto::{AddRecentPagesParams, PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CollabParams, CreateExportTask, CreateExportTaskResponse, CreateImportTaskType,
-  PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams,
+  MentionablePerson, MentionablePersons, PageMentionUpdate, PublishCollabItem,
+  PublishCollabMetadata, QueryCollab, QueryCollabParams,
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
@@ -339,6 +340,44 @@ where
     Ok(resp)
   }
 
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .list_workspace_mentionable_persons(workspace_id)
+      .await?;
+    Ok(resp)
+  }
+
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_workspace_mentionable_person(workspace_id, person_id)
+      .await?;
+    Ok(resp)
+  }
+
+  async fn update_page_mention(
+    &self,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    _view_ancestors: Vec<String>,
+    page_mention: &PageMentionUpdate,
+  ) -> Result<(), FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    // TODO: use the view_ancestors to update the page mention
+    try_get_client?
+      .update_page_mention(workspace_id, view_id, page_mention)
+      .await
+      .map_err(FlowyError::from)?;
+    Ok(())
+  }
   async fn get_recent_views(
     &self,
     workspace_id: &Uuid,
@@ -386,6 +425,6 @@ where
       .remove_recent_pages(*workspace_id, view_ids)
       .await
       .map_err(FlowyError::from)?;
-    todo!()
+    Ok(())
   }
 }

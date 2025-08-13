@@ -12,8 +12,9 @@ use client_api::entity::server_info_dto::ServerInfo;
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CompleteTextParams, CompletedPartRequest, CreateCollabParams, CreateExportTask,
-  CreateExportTaskResponse, CreateImportTaskType, CreateUploadResponse, ModelList, PublishInfo,
-  QueryCollab, RepeatedRelatedQuestion, ResponseFormat, TranslateRowResponse, UploadPartResponse,
+  CreateExportTaskResponse, CreateImportTaskType, CreateUploadResponse, MentionablePerson,
+  MentionablePersons, ModelList, PageMentionUpdate, PublishInfo, QueryCollab,
+  RepeatedRelatedQuestion, ResponseFormat, TranslateRowResponse, UploadPartResponse,
 };
 use client_api::v2::TokenProvider;
 use collab::entity::EncodedCollab;
@@ -524,6 +525,38 @@ impl FolderCloudService for ServerProvider {
       .await
   }
 
+  async fn get_workspace_mentionable_persons(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePersons, FlowyError> {
+    self
+      .get_folder_service()?
+      .get_workspace_mentionable_persons(workspace_id)
+      .await
+  }
+  async fn get_workspace_mentionable_person(
+    &self,
+    workspace_id: &Uuid,
+    person_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    self
+      .get_folder_service()?
+      .get_workspace_mentionable_person(workspace_id, person_id)
+      .await
+  }
+
+  async fn update_page_mention(
+    &self,
+    workspace_id: &Uuid,
+    view_id: &Uuid,
+    view_ancestors: Vec<String>,
+    page_mention: &PageMentionUpdate,
+  ) -> Result<(), FlowyError> {
+    self
+      .get_folder_service()?
+      .update_page_mention(workspace_id, view_id, view_ancestors, page_mention)
+      .await
+  }
   async fn get_recent_views(
     &self,
     workspace_id: &Uuid,

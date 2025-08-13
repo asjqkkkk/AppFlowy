@@ -264,6 +264,32 @@ class ViewBackendService {
     return FolderEventGetAllViewsWithPermission().send();
   }
 
+  static Future<FlowyResult<GetMentionablePersonsResponsePB, FlowyError>>
+      getWorkspaceMentionablePersons() async {
+    return FolderEventGetWorkspaceMentionablePersons().send();
+  }
+
+  static Future<FlowyResult<void, FlowyError>> updatePageMention({
+    required String viewId,
+    required String viewName,
+    required String personId,
+    required String ancestorId,
+    String? blockId,
+    required bool requireNotification,
+  }) async {
+    if (viewId.isEmpty || personId.isEmpty) {
+      Log.error('ViewId or PersonId is empty while updating page mention');
+    }
+    final payload = PageMentionUpdateInfoPB.create()
+      ..viewId = viewId
+      ..viewName = viewName
+      ..personId = personId
+      ..blockId = blockId ?? ''
+      ..ancestorId = ancestorId
+      ..requireNotification = requireNotification;
+    return FolderEventUpdatePageMention(payload).send();
+  }
+
   static Future<FlowyResult<ViewPB, FlowyError>> getView(
     String viewId,
   ) async {

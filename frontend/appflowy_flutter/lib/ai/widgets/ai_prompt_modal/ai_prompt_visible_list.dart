@@ -491,7 +491,8 @@ class _AiPromptListItemState extends State<_AiPromptListItem> {
                             ),
                           );
                         },
-                        backgroundColor: (context, isHovering, disabled) {
+                        backgroundColor:
+                            (context, isHovering, disabled, isFocused) {
                           if (isHovering) {
                             return surfacePrimaryHover;
                           }

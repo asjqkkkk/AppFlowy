@@ -142,9 +142,10 @@ class _DeleteTag extends StatelessWidget {
         borderRadius: theme.spacing.m,
         borderColor: (context, isHovering, disabled, isFocused) =>
             Colors.transparent,
-        backgroundColor: (context, isHovering, disabled) => isHovering
-            ? theme.fillColorScheme.contentHover
-            : theme.fillColorScheme.content,
+        backgroundColor: (context, isHovering, disabled, isFocused) =>
+            isHovering
+                ? theme.fillColorScheme.contentHover
+                : theme.fillColorScheme.content,
         builder: (context, isHovering, disabled) {
           return Row(
             spacing: theme.spacing.m,

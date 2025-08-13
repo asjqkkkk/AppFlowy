@@ -14,6 +14,7 @@ pub mod view_operation;
 mod manager_init;
 mod manager_observer;
 
+mod manager_notification;
 pub mod publish_util;
 pub mod share;
 mod util;

@@ -32,6 +32,7 @@ import 'package:appflowy_editor/appflowy_editor.dart'
         TextInsert,
         TextTransaction,
         paragraphNode;
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
@@ -423,12 +424,13 @@ class _MentionPageBlockContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final text = _getDisplayText(context, view, content);
+    final theme = AppFlowyTheme.of(context);
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         ..._buildPrefixIcons(context, view, content, isChildPage),
-        const HSpace(4),
+        HSpace(theme.spacing.xs),
         Flexible(
           child: FlowyText(
             text,
@@ -450,7 +452,7 @@ class _MentionPageBlockContent extends StatelessWidget {
             decorationColor: AFThemeExtension.of(context).textColor,
           ),
         ],
-        const HSpace(4),
+        HSpace(theme.spacing.m),
       ],
     );
   }
@@ -474,7 +476,6 @@ class _MentionPageBlockContent extends StatelessWidget {
     // if the block is from the same doc, display the paragraph mark icon '¶'
     if (isSameDocument && !isBlockContentEmpty) {
       return [
-        const HSpace(2),
         FlowySvg(
           FlowySvgs.paragraph_mark_s,
           size: Size.square(iconSize - 2.0),
@@ -483,13 +484,13 @@ class _MentionPageBlockContent extends StatelessWidget {
       ];
     } else if (shouldDisplayViewName) {
       return [
-        const HSpace(4),
         Stack(
           children: [
             view.icon.value.isNotEmpty
-                ? EmojiIconWidget(
+                ? RawEmojiIconWidget(
                     emoji: view.icon.toEmojiIconData(),
                     emojiSize: emojiSize,
+                    lineHeight: textStyle?.height ?? 1.0,
                   )
                 : view.defaultIcon(size: Size.square(iconSize + 2.0)),
             if (!isChildPage) ...[

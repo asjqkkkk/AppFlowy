@@ -39,7 +39,7 @@ class AFFilledIconTextButton extends StatelessWidget {
       size: size,
       padding: padding,
       borderRadius: borderRadius,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.tertiary;
@@ -74,7 +74,7 @@ class AFFilledIconTextButton extends StatelessWidget {
       size: size,
       padding: padding,
       borderRadius: borderRadius,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.tertiary;
@@ -108,7 +108,7 @@ class AFFilledIconTextButton extends StatelessWidget {
       size: size,
       padding: padding,
       borderRadius: borderRadius,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         return theme.fillColorScheme.tertiary;
       },
@@ -137,7 +137,7 @@ class AFFilledIconTextButton extends StatelessWidget {
       size: size,
       padding: padding,
       borderRadius: borderRadius,
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return Colors.transparent;
@@ -166,7 +166,7 @@ class AFFilledIconTextButton extends StatelessWidget {
   final AFFilledIconBuilder iconBuilder;
 
   final AFBaseButtonColorBuilder? textColor;
-  final AFBaseButtonColorBuilder? backgroundColor;
+  final AFBaseButtonBorderColorBuilder? backgroundColor;
 
   @override
   Widget build(BuildContext context) {

@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:appflowy/plugins/document/presentation/editor_plugins/callout/callout_block_component.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_block.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/toggle/toggle_block_component.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -55,6 +56,29 @@ bool enableSuggestions(EditorState editorState) {
 bool isNarrowWindow(EditorState editorState) {
   final editorSize = editorState.renderBox?.size ?? Size.zero;
   if (editorSize.width < 650) return true;
+  return false;
+}
+
+bool containsMentionByEditorState(EditorState editorState) {
+  final selection = editorState.selection;
+  if (selection == null || !selection.isSingle) return false;
+  final node = editorState.getNodeAtPath(selection.start.path);
+  if (node == null) return false;
+  return containsMention(selection, node);
+}
+
+bool containsMention(Selection selection, Node node) {
+  if (!selection.isSingle) return false;
+  final delta = node.delta?.slice(selection.startIndex, selection.endIndex);
+  if (delta == null) return false;
+  for (final i in delta) {
+    if (i is TextInsert) {
+      if (i.text == MentionBlockKeys.mentionChar &&
+          i.attributes?[MentionBlockKeys.mention] != null) {
+        return true;
+      }
+    }
+  }
   return false;
 }
 

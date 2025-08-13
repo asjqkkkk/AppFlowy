@@ -8,6 +8,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
     required super.text,
     required super.onTap,
     this.borderColor,
+    super.showFocusRing,
     super.textStyle,
     super.textColor,
     super.backgroundColor,
@@ -27,9 +28,10 @@ class AFOutlinedTextButton extends AFBaseTextButton {
     EdgeInsetsGeometry? padding,
     double? borderRadius,
     bool disabled = false,
+    bool showFocusRing = false,
     Alignment? alignment,
     TextStyle? textStyle,
-    AFBaseButtonColorBuilder? backgroundColor,
+    AFBaseButtonBorderColorBuilder? backgroundColor,
   }) {
     return AFOutlinedTextButton._(
       key: key,
@@ -37,6 +39,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
       onTap: onTap,
       size: size,
       padding: padding,
+      showFocusRing: showFocusRing,
       borderRadius: borderRadius,
       disabled: disabled,
       alignment: alignment,
@@ -52,7 +55,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         return theme.borderColorScheme.primary;
       },
       backgroundColor: backgroundColor ??
-          (context, isHovering, disabled) {
+          (context, isHovering, disabled, isFocused) {
             final theme = AppFlowyTheme.of(context);
             if (disabled) {
               return theme.fillColorScheme.content;
@@ -84,6 +87,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
     EdgeInsetsGeometry? padding,
     double? borderRadius,
     bool disabled = false,
+    bool showFocusRing = false,
     Alignment? alignment,
     TextStyle? textStyle,
   }) {
@@ -94,6 +98,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
       size: size,
       padding: padding,
       borderRadius: borderRadius,
+      showFocusRing: showFocusRing,
       disabled: disabled,
       alignment: alignment,
       textStyle: textStyle,
@@ -107,7 +112,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         }
         return theme.fillColorScheme.errorThick;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.errorThick;
@@ -162,7 +167,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         }
         return theme.borderColorScheme.primary;
       },
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, isFocused) {
         final theme = AppFlowyTheme.of(context);
         if (disabled) {
           return theme.fillColorScheme.content;
@@ -192,6 +197,7 @@ class AFOutlinedTextButton extends AFBaseTextButton {
         padding: padding ?? size.buildPadding(context),
         borderRadius: borderRadius ?? size.buildBorderRadius(context),
         onTap: onTap,
+        showFocusRing: showFocusRing,
         builder: (context, isHovering, disabled) {
           final textColor =
               this.textColor?.call(context, isHovering, disabled) ??

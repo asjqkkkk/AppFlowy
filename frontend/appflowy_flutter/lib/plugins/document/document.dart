@@ -1,6 +1,9 @@
 library;
 
+import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
+import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/presentation.dart';
@@ -12,6 +15,7 @@ import 'package:appflowy/plugins/util.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/plugin/plugin.dart';
+
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view_info/view_info_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/home_stack.dart';
@@ -162,16 +166,32 @@ class DocumentPluginWidgetBuilder extends PluginWidgetBuilder
         BlocProvider<PageAccessLevelBloc>.value(
           value: pageAccessLevelBloc,
         ),
+        BlocProvider(
+          key: ValueKey(bloc.view.id),
+          create: (context) => PersonBloc(
+            documentId: bloc.view.id,
+            workspaceId: context
+                    .read<UserWorkspaceBloc>()
+                    .state
+                    .currentWorkspace
+                    ?.workspaceId ??
+                '',
+            repository: RustMentionRepository(),
+          )..add(PersonEvent.initial()),
+        ),
       ],
-      child: BlocBuilder<DocumentAppearanceCubit, DocumentAppearance>(
-        builder: (_, state) => DocumentPage(
-          key: ValueKey(view.id),
-          view: view,
-          onDeleted: () => context.onDeleted?.call(view, deletedViewIndex),
-          initialSelection: initialSelection,
-          initialBlockId: blockId,
-          fixedTitle: fixedTitle,
-          tabs: tabs,
+      child: MultiBlocListener(
+        listeners: [...PersonBloc.buildBlocToastListener()],
+        child: BlocBuilder<DocumentAppearanceCubit, DocumentAppearance>(
+          builder: (_, state) => DocumentPage(
+            key: ValueKey(view.id),
+            view: view,
+            onDeleted: () => context.onDeleted?.call(view, deletedViewIndex),
+            initialSelection: initialSelection,
+            initialBlockId: blockId,
+            fixedTitle: fixedTitle,
+            tabs: tabs,
+          ),
         ),
       ),
     );

@@ -1,3 +1,7 @@
+import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
+import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/database_controller.dart';
@@ -70,6 +74,7 @@ class _RowDetailPageState extends State<RowDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final viewId = widget.databaseController.viewId;
     return FlowyDialog(
       child: ChangeNotifierProvider.value(
         value: dropManagerState,
@@ -82,63 +87,87 @@ class _RowDetailPageState extends State<RowDetailPage> {
               ),
             ),
             BlocProvider.value(value: getIt<ReminderBloc>()),
+            BlocProvider(
+              create: (_) =>
+                  PageAccessLevelBloc(view: widget.databaseController.view)
+                    ..add(PageAccessLevelEvent.initial()),
+            ),
+            BlocProvider(
+              key: ValueKey(viewId),
+              create: (context) => PersonBloc(
+                documentId: viewId,
+                workspaceId: context
+                        .read<UserWorkspaceBloc>()
+                        .state
+                        .currentWorkspace
+                        ?.workspaceId ??
+                    '',
+                repository: RustMentionRepository(),
+              )..add(PersonEvent.initial()),
+            ),
           ],
-          child: BlocBuilder<RowDetailBloc, RowDetailState>(
-            builder: (context, state) => Stack(
-              fit: StackFit.expand,
-              children: [
-                Positioned.fill(
-                  child: NestedScrollView(
-                    controller: scrollController,
-                    headerSliverBuilder:
-                        (BuildContext context, bool innerBoxIsScrolled) {
-                      return <Widget>[
-                        SliverToBoxAdapter(
-                          child: Column(
-                            children: [
-                              RowBanner(
-                                databaseController: widget.databaseController,
-                                rowController: widget.rowController,
-                                cellBuilder: cellBuilder,
-                                allowOpenAsFullPage: widget.allowOpenAsFullPage,
-                                userProfile: widget.userProfile,
-                              ),
-                              const VSpace(16),
-                              Padding(
-                                padding:
-                                    const EdgeInsets.only(left: 40, right: 60),
-                                child: RowPropertyList(
+          child: MultiBlocListener(
+            listeners: [...PersonBloc.buildBlocToastListener()],
+            child: BlocBuilder<RowDetailBloc, RowDetailState>(
+              builder: (context, state) => Stack(
+                fit: StackFit.expand,
+                children: [
+                  Positioned.fill(
+                    child: NestedScrollView(
+                      controller: scrollController,
+                      headerSliverBuilder:
+                          (BuildContext context, bool innerBoxIsScrolled) {
+                        return <Widget>[
+                          SliverToBoxAdapter(
+                            child: Column(
+                              children: [
+                                RowBanner(
+                                  databaseController: widget.databaseController,
+                                  rowController: widget.rowController,
                                   cellBuilder: cellBuilder,
-                                  viewId: widget.databaseController.viewId,
-                                  fieldController:
-                                      widget.databaseController.fieldController,
+                                  allowOpenAsFullPage:
+                                      widget.allowOpenAsFullPage,
+                                  userProfile: widget.userProfile,
                                 ),
-                              ),
-                              const VSpace(20),
-                              const Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 60),
-                                child: Divider(height: 1.0),
-                              ),
-                              const VSpace(20),
-                            ],
+                                const VSpace(16),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 40,
+                                    right: 60,
+                                  ),
+                                  child: RowPropertyList(
+                                    cellBuilder: cellBuilder,
+                                    viewId: widget.databaseController.viewId,
+                                    fieldController: widget
+                                        .databaseController.fieldController,
+                                  ),
+                                ),
+                                const VSpace(20),
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 60),
+                                  child: Divider(height: 1.0),
+                                ),
+                                const VSpace(20),
+                              ],
+                            ),
                           ),
-                        ),
-                      ];
-                    },
-                    body: RowDocument(
-                      viewId: widget.rowController.viewId,
-                      rowId: widget.rowController.rowId,
+                        ];
+                      },
+                      body: RowDocument(
+                        viewId: widget.rowController.viewId,
+                        rowId: widget.rowController.rowId,
+                      ),
                     ),
                   ),
-                ),
-                Positioned(
-                  top: calculateActionsOffset(
-                    state.rowMeta.cover.data.isNotEmpty,
+                  Positioned(
+                    top: calculateActionsOffset(
+                      state.rowMeta.cover.data.isNotEmpty,
+                    ),
+                    right: 12,
+                    child: Row(children: actions(context)),
                   ),
-                  right: 12,
-                  child: Row(children: actions(context)),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),

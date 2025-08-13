@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:appflowy_ui/src/theme/appflowy_theme.dart';
 import 'package:appflowy_ui/src/theme/definition/theme_data.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -56,6 +58,7 @@ class AFAvatar extends StatelessWidget {
     this.backgroundColor,
     this.child,
     this.colorHash,
+    this.radius,
   });
 
   /// The name of the avatar. Used for initials if [child] and [url] are not provided.
@@ -80,6 +83,9 @@ class AFAvatar extends StatelessWidget {
 
   /// The hash value used to pick the color. If it's not provided, the name hash will be used.
   final String? colorHash;
+
+  /// Optional radius for the avatar. If provided, the avatar will be circular with this radius.
+  final double? radius;
 
   @override
   Widget build(BuildContext context) {
@@ -113,8 +119,10 @@ class AFAvatar extends StatelessWidget {
     required Color bgColor,
     required TextStyle textStyle,
   }) {
+    final borderRadius = radius ?? avatarSize / 2;
     if (child != null) {
-      return ClipOval(
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
         child: SizedBox(
           width: avatarSize,
           height: avatarSize,
@@ -122,7 +130,8 @@ class AFAvatar extends StatelessWidget {
         ),
       );
     } else if (url != null && url!.isNotEmpty) {
-      return ClipOval(
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(borderRadius),
         child: CachedNetworkImage(
           imageUrl: url!,
           width: avatarSize,
@@ -146,18 +155,27 @@ class AFAvatar extends StatelessWidget {
   }
 
   Widget _buildInitialsCircle(double size, Color bgColor, TextStyle textStyle) {
-    final initial = _getInitials(name);
+    final avatarUrl = url ?? '';
+    final isEmojiAvatarUrl =
+        avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
+    final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
+    final borderRadius = radius ?? size / 2;
+    final text = Text(initial, style: textStyle, textAlign: TextAlign.justify);
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
-        shape: BoxShape.circle,
+        borderRadius: BorderRadius.circular(borderRadius),
       ),
       alignment: Alignment.center,
-      child: Text(
-        initial,
-        style: textStyle,
-        textAlign: TextAlign.center,
-      ),
+
+      /// https://github.com/flutter/flutter/issues/119623
+      /// Workaround for text alignment issue on Android
+      child: isEmojiAvatarUrl && !Platform.isAndroid
+          ? SizedBox(
+              width: textStyle.fontSize,
+              child: text,
+            )
+          : text,
     );
   }
 
@@ -165,7 +183,7 @@ class AFAvatar extends StatelessWidget {
     if (name == null || name.trim().isEmpty) return '';
 
     // Always return just the first letter of the name
-    return name.trim()[0].toUpperCase();
+    return Characters(name.trim()).first.toUpperCase();
   }
 
   /// Deterministically pick a color index (1-20) based on the user name

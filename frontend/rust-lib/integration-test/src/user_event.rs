@@ -1,17 +1,22 @@
+use anyhow::anyhow;
 use bytes::Bytes;
-use flowy_folder::entities::{RepeatedViewPB, WorkspacePB};
+use flowy_folder::entities::{AFAccessLevelPB, RepeatedViewPB, ViewPB, WorkspacePB};
 use protobuf::ProtobufError;
 use rand::Rng;
 use std::collections::HashMap;
 use std::convert::TryFrom;
+use std::str::FromStr;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::broadcast::{channel, Sender};
+use tokio::sync::mpsc::Receiver;
+use tokio::time::timeout;
+use tracing::debug;
 use uuid::Uuid;
 
 use crate::event_builder::EventBuilder;
-use crate::EventIntegrationTest;
+use crate::{retry_with_backoff, EventIntegrationTest};
 use flowy_folder::event_map::FolderEvent;
 use flowy_notification::entities::SubscribeObject;
 use flowy_notification::NotificationSender;
@@ -26,6 +31,7 @@ use flowy_user::entities::{
 };
 use flowy_user::errors::{ErrorCode, FlowyError, FlowyResult};
 use flowy_user::event_map::UserEvent;
+use flowy_user::protobuf::UserNotification;
 use flowy_user_pub::entities::WorkspaceType;
 use lib_dispatch::prelude::{AFPluginDispatcher, AFPluginRequest, ToBytes};
 
@@ -234,6 +240,155 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .try_parse::<UserProfilePB>()
+  }
+  pub async fn get_email(&self) -> String {
+    self.get_user_profile().await.unwrap().email
+  }
+
+  pub async fn wait_for_sync(&self, view_id: &str) {
+    retry_with_backoff(|| async {
+      let result = self.get_view(view_id).await;
+      if let Ok(view) = result {
+        debug!("synced view: {:?}", view);
+      } else {
+        return Err(anyhow!("Failed to get view: {}", view_id));
+      }
+      Ok(())
+    })
+    .await
+    .unwrap();
+  }
+
+  pub async fn create_and_open_workspace(&self, workspace_name: String) -> UserWorkspacePB {
+    // 1. create a workspace
+    let workspace = self
+      .create_workspace(&workspace_name, WorkspaceType::Cloud)
+      .await;
+    // 2. open the workspace
+
+    self
+      .open_workspace(&workspace.workspace_id, workspace.workspace_type)
+      .await;
+
+    workspace
+  }
+
+  async fn invite_member_to_workspace(
+    &self,
+    workspace: &UserWorkspacePB,
+    user: &EventIntegrationTest,
+  ) -> UserWorkspacePB {
+    // 1. invite the member to the workspace
+    self
+      .add_workspace_member(&workspace.workspace_id, user)
+      .await;
+
+    // 2. get the synced workspaces
+    let _ = user.get_synced_workspaces().await;
+
+    // 3. open the workspace
+    user
+      .open_workspace(&workspace.workspace_id, workspace.workspace_type)
+      .await;
+
+    workspace.clone()
+  }
+
+  pub async fn create_a_workspace_and_invite_member(
+    &self,
+    user: &EventIntegrationTest,
+    workspace_name: String,
+  ) -> UserWorkspacePB {
+    let workspace = self.create_and_open_workspace(workspace_name).await;
+    self.invite_member_to_workspace(&workspace, user).await
+  }
+
+  pub async fn create_a_public_space_and_a_page(
+    &self,
+    workspace: &UserWorkspacePB,
+    space_name: Option<String>,
+    page_name: Option<String>,
+  ) -> (ViewPB, ViewPB) {
+    let current_workspace_uuid = Uuid::from_str(&workspace.workspace_id).unwrap();
+    let public_space = self
+      .create_public_space(
+        current_workspace_uuid,
+        space_name.unwrap_or("Public Space".to_string()),
+      )
+      .await;
+    let public_page = self
+      .create_view(
+        &public_space.id,
+        page_name.unwrap_or("Public Page".to_string()),
+      )
+      .await;
+    (public_space, public_page)
+  }
+
+  pub async fn create_a_private_space_and_a_page(
+    &self,
+    workspace: &UserWorkspacePB,
+    space_name: Option<String>,
+    page_name: Option<String>,
+  ) -> (ViewPB, ViewPB) {
+    let current_workspace_uuid = Uuid::from_str(&workspace.workspace_id).unwrap();
+    let private_space = self
+      .create_private_space(
+        current_workspace_uuid,
+        space_name.unwrap_or("Private Space".to_string()),
+      )
+      .await;
+    let private_page = self
+      .create_view(
+        &private_space.id,
+        page_name.unwrap_or("Private Page".to_string()),
+      )
+      .await;
+    (private_space, private_page)
+  }
+
+  pub async fn get_synced_workspaces(&self) -> Vec<UserWorkspacePB> {
+    let workspaces = self.get_all_workspaces().await.items;
+    let sub_id = self.get_user_profile().await.unwrap().id.to_string();
+    let rx = self
+      .notification_sender
+      .subscribe::<RepeatedUserWorkspacePB>(
+        &sub_id,
+        UserNotification::DidUpdateUserWorkspaces as i32,
+      );
+    if let Some(result) = receive_with_timeout(rx, Duration::from_secs(10)).await {
+      result.items
+    } else {
+      workspaces
+    }
+  }
+
+  pub async fn open_invited_workspace(&self, workspace_id: &str) -> UserWorkspacePB {
+    let synced_workspaces = self.get_synced_workspaces().await;
+    let workspace = synced_workspaces
+      .iter()
+      .find(|w| w.workspace_id == workspace_id);
+    if let Some(workspace) = workspace {
+      self
+        .open_workspace(workspace_id, workspace.workspace_type)
+        .await;
+      workspace.clone()
+    } else {
+      panic!("Workspace not found: {}", workspace_id);
+    }
+  }
+
+  pub async fn preload_access_level(&self, view_id: &str) -> AFAccessLevelPB {
+    let _ = self.get_shared_views().await;
+    let shared_users = self.get_shared_users(view_id).await.unwrap();
+    let user_email = self.get_email().await;
+    if !shared_users.items.iter().any(|u| u.email == user_email) {
+      panic!("User not found in shared users: {}", user_email);
+    }
+    self
+      .get_user_access_level(view_id, &user_email)
+      .await
+      .unwrap()
   }
 
   pub async fn update_user_profile(&self, params: UpdateUserProfilePayloadPB) {
@@ -578,4 +733,8 @@ fn random_sleep_duration(min_secs: u64, max_secs: u64) -> Duration {
   let mut rng = rand::thread_rng();
   let sleep_secs = rng.gen_range(min_secs..=max_secs);
   Duration::from_secs(sleep_secs)
+}
+
+pub async fn receive_with_timeout<T>(mut receiver: Receiver<T>, duration: Duration) -> Option<T> {
+  timeout(duration, receiver.recv()).await.ok()?
 }

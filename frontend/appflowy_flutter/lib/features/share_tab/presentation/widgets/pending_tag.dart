@@ -9,7 +9,7 @@ class PendingTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
     return AFBaseButton(
-      backgroundColor: (context, isHovering, disabled) {
+      backgroundColor: (context, isHovering, disabled, _) {
         return theme.fillColorScheme.content;
       },
       borderColor: (context, isHovering, disabled, isFocused) {

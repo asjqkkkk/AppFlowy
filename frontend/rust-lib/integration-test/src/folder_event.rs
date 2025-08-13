@@ -434,7 +434,7 @@ impl EventIntegrationTest {
       .parse::<ViewPB>()
   }
 
-  pub async fn get_recent_section(&self) -> RepeatedRecentViewPB {
+  pub async fn get_recent_views(&self) -> RepeatedRecentViewPB {
     EventBuilder::new(self.clone())
       .event(FolderEvent::ReadRecentViews)
       .payload(ReadRecentViewsPB {
@@ -444,6 +444,15 @@ impl EventIntegrationTest {
       .async_send()
       .await
       .parse_or_panic::<RepeatedRecentViewPB>()
+  }
+
+  pub async fn get_workspace_mentionable_persons(&self) -> Vec<MentionablePersonPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetWorkspaceMentionablePersons)
+      .async_send()
+      .await
+      .parse_or_panic::<GetMentionablePersonsResponsePB>()
+      .persons
   }
 
   pub async fn open_view(&self, view_id: &str) {
@@ -613,6 +622,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
         view_id: view_id.to_string(),
+        is_fetch_from_cloud: true,
       })
       .async_send()
       .await
@@ -626,6 +636,7 @@ impl EventIntegrationTest {
       .event(FolderEvent::GetSharedUsers)
       .payload(GetSharedUsersPayloadPB {
         view_id: view_id.to_string(),
+        is_fetch_from_cloud: true,
       })
       .async_send()
       .await

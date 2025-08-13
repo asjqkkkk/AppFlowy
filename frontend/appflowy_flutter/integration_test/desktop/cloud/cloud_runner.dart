@@ -31,8 +31,8 @@ Future<void> main() async {
     preset_af_cloud_env_test.main();
     sidebar_move_page_test.main();
     sidebar_rename_untitled_test.main();
-    sidebar_icon_test.main();
     sidebar_search_test.main();
+    sidebar_icon_test.main();
   }
 
   // database

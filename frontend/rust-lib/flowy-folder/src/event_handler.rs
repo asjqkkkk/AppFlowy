@@ -557,7 +557,9 @@ pub(crate) async fn get_shared_users_handler(
   let folder = upgrade_folder(folder)?;
   let params = data.into_inner();
   let view_id = Uuid::from_str(&params.view_id)?;
-  let shared_users = folder.get_shared_page_details(&view_id, true).await?;
+  let shared_users = folder
+    .get_shared_page_details(&view_id, params.is_fetch_from_cloud)
+    .await?;
   data_result_ok(shared_users.into())
 }
 
@@ -649,6 +651,25 @@ pub(crate) async fn get_all_views_with_permission_handler(
   let folder = upgrade_folder(folder)?;
   let views = folder.get_all_view_pbs_with_permission().await?;
   data_result_ok(RepeatedViewPB::from(views))
+}
+
+#[tracing::instrument(level = "debug", skip(folder))]
+pub(crate) async fn get_workspace_mentionable_persons_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<GetMentionablePersonsResponsePB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let mentionable_persons = folder.get_workspace_mentionable_persons().await?;
+  data_result_ok(mentionable_persons)
+}
+
+#[tracing::instrument(level = "debug", skip(data, folder), err)]
+pub(crate) async fn update_page_mention_handler(
+  data: AFPluginData<PageMentionUpdateInfoPB>,
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> Result<(), FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let info = &data.into_inner();
+  folder.update_page_mention(info).await
 }
 
 #[tracing::instrument(level = "debug", skip(data, folder), err)]

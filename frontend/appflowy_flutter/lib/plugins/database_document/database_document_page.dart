@@ -1,3 +1,7 @@
+import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
+import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/row/related_row_detail_bloc.dart';
 import 'package:appflowy/plugins/database/grid/application/row/row_detail_bloc.dart';
@@ -37,6 +41,7 @@ class DatabaseDocumentPage extends StatefulWidget {
     required this.databaseId,
     required this.rowId,
     required this.documentId,
+    required this.pageAccessLevelBloc,
     this.initialSelection,
   });
 
@@ -45,6 +50,7 @@ class DatabaseDocumentPage extends StatefulWidget {
   final String rowId;
   final String documentId;
   final Selection? initialSelection;
+  final PageAccessLevelBloc pageAccessLevelBloc;
 
   @override
   State<DatabaseDocumentPage> createState() => _DatabaseDocumentPageState();
@@ -57,9 +63,8 @@ class _DatabaseDocumentPageState extends State<DatabaseDocumentPage> {
   Widget build(BuildContext context) {
     return MultiBlocProvider(
       providers: [
-        BlocProvider.value(
-          value: getIt<ActionNavigationBloc>(),
-        ),
+        BlocProvider.value(value: getIt<ActionNavigationBloc>()),
+        BlocProvider.value(value: widget.pageAccessLevelBloc),
         BlocProvider(
           create: (_) => DocumentBloc(
             databaseViewId: widget.databaseId,
@@ -71,39 +76,55 @@ class _DatabaseDocumentPageState extends State<DatabaseDocumentPage> {
           create: (_) =>
               ViewBloc(view: widget.view)..add(const ViewEvent.initial()),
         ),
+        BlocProvider(
+          key: ValueKey(widget.view.id),
+          create: (context) => PersonBloc(
+            documentId: widget.view.id,
+            workspaceId: context
+                    .read<UserWorkspaceBloc>()
+                    .state
+                    .currentWorkspace
+                    ?.workspaceId ??
+                '',
+            repository: RustMentionRepository(),
+          )..add(PersonEvent.initial()),
+        ),
       ],
-      child: BlocBuilder<DocumentBloc, DocumentState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const Center(child: CircularProgressIndicator.adaptive());
-          }
+      child: MultiBlocListener(
+        listeners: [...PersonBloc.buildBlocToastListener()],
+        child: BlocBuilder<DocumentBloc, DocumentState>(
+          builder: (context, state) {
+            if (state.isLoading) {
+              return const Center(child: CircularProgressIndicator.adaptive());
+            }
 
-          final editorState = state.editorState;
-          this.editorState = editorState;
-          final error = state.error;
-          if (error != null || editorState == null) {
-            Log.error(error);
-            return Center(
-              child: AppFlowyErrorPage(
-                error: error,
+            final editorState = state.editorState;
+            this.editorState = editorState;
+            final error = state.error;
+            if (error != null || editorState == null) {
+              Log.error(error);
+              return Center(
+                child: AppFlowyErrorPage(
+                  error: error,
+                ),
+              );
+            }
+
+            if (state.forceClose) {
+              return const SizedBox.shrink();
+            }
+
+            return BlocListener<ActionNavigationBloc, ActionNavigationState>(
+              listener: _onNotificationAction,
+              listenWhen: (_, curr) => curr.action != null,
+              child: AiWriterScrollWrapper(
+                viewId: widget.view.id,
+                editorState: editorState,
+                child: _buildEditorPage(context, state),
               ),
             );
-          }
-
-          if (state.forceClose) {
-            return const SizedBox.shrink();
-          }
-
-          return BlocListener<ActionNavigationBloc, ActionNavigationState>(
-            listener: _onNotificationAction,
-            listenWhen: (_, curr) => curr.action != null,
-            child: AiWriterScrollWrapper(
-              viewId: widget.view.id,
-              editorState: editorState,
-              child: _buildEditorPage(context, state),
-            ),
-          );
-        },
+          },
+        ),
       ),
     );
   }

@@ -1,9 +1,6 @@
-use crate::folder::af_cloud::guest_editor_test::util::{
-  create_owner_and_member, create_owner_member_and_guest, AccessLevelTest,
-};
+use crate::util::{create_owner_and_member, create_owner_member_and_guest};
 use event_integration_test::user_event::use_localhost_af_cloud;
 use flowy_folder::entities::AFAccessLevelPB;
-
 // ------ Member + Owner ------
 
 // 1. owner creates a workspace
@@ -295,7 +292,7 @@ async fn member_share_a_private_page_with_owner_test() {
 
   // owner get the recent section and check the private shared page is in the recent section
   owner.open_view(&private_page.id).await;
-  let recent_section = owner.get_recent_section().await;
+  let recent_section = owner.get_recent_views().await;
   let first_item = recent_section.items.first().unwrap();
   assert_eq!(first_item.item.id, private_page.id);
   assert_eq!(first_item.item.name, private_page.name);

@@ -1,5 +1,6 @@
 library;
 
+import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
@@ -63,8 +64,8 @@ class DatabaseDocumentPlugin extends Plugin {
 
   final DatabaseDocumentContext data;
   final PluginType _pluginType;
-
   final Selection? initialSelection;
+  late final PageAccessLevelBloc _pageAccessLevelBloc;
 
   @override
   PluginWidgetBuilder get widgetBuilder => DatabaseDocumentPluginWidgetBuilder(
@@ -72,6 +73,7 @@ class DatabaseDocumentPlugin extends Plugin {
         databaseId: data.databaseId,
         rowId: data.rowId,
         documentId: data.documentId,
+        pageAccessLevelBloc: _pageAccessLevelBloc,
         initialSelection: initialSelection,
       );
 
@@ -80,6 +82,17 @@ class DatabaseDocumentPlugin extends Plugin {
 
   @override
   PluginId get id => data.rowId;
+
+  @override
+  void init() {
+    _pageAccessLevelBloc = PageAccessLevelBloc(view: data.view)
+      ..add(const PageAccessLevelEvent.initial());
+  }
+
+  @override
+  void dispose() {
+    _pageAccessLevelBloc.close();
+  }
 }
 
 class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
@@ -89,6 +102,7 @@ class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
     required this.databaseId,
     required this.rowId,
     required this.documentId,
+    required this.pageAccessLevelBloc,
     this.initialSelection,
   });
 
@@ -96,6 +110,7 @@ class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
   final String databaseId;
   final String rowId;
   final String documentId;
+  final PageAccessLevelBloc pageAccessLevelBloc;
   final Selection? initialSelection;
 
   @override
@@ -117,6 +132,7 @@ class DatabaseDocumentPluginWidgetBuilder extends PluginWidgetBuilder
         databaseId: databaseId,
         documentId: documentId,
         rowId: rowId,
+        pageAccessLevelBloc: pageAccessLevelBloc,
         initialSelection: initialSelection,
       ),
     );

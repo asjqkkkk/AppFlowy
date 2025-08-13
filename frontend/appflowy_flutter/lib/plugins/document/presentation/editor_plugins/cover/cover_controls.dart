@@ -101,7 +101,7 @@ class _CoverControlsState extends State<CoverControls> {
               );
             },
             child: AFBaseButton(
-              backgroundColor: (context, isHovering, disabled) {
+              backgroundColor: (context, isHovering, disabled, isFocused) {
                 if (isHovering) {
                   return theme.surfaceColorScheme.primaryHover;
                 }
@@ -155,7 +155,7 @@ class DeleteCoverButton extends StatelessWidget {
       message: LocaleKeys.document_plugins_cover_removeCover.tr(),
       preferBelow: false,
       child: AFBaseButton(
-        backgroundColor: (context, isHovering, disabled) {
+        backgroundColor: (context, isHovering, disabled, isFocused) {
           if (isHovering) {
             return theme.surfaceColorScheme.primaryHover;
           }

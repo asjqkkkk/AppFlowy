@@ -1,7 +1,10 @@
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
-use client_api::entity::{AFAccessLevel, AFRole};
+use client_api::entity::{
+  AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
+  MentionablePersonWithLastMentionedTime, PageMentionUpdate,
+};
 use collab_folder::{View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
@@ -963,6 +966,8 @@ impl From<SharedViewDetails> for RepeatedSharedUserPB {
 pub struct GetSharedUsersPayloadPB {
   #[pb(index = 1)]
   pub view_id: String,
+  #[pb(index = 2)]
+  pub is_fetch_from_cloud: bool,
 }
 
 #[derive(Default, ProtoBuf, Clone, Debug)]
@@ -1009,6 +1014,143 @@ pub struct GetAccessLevelPayloadPB {
 pub struct GetAccessLevelResponsePB {
   #[pb(index = 1)]
   pub access_level: AFAccessLevelPB,
+}
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetMentionablePersonsResponsePB {
+  #[pb(index = 1)]
+  pub persons: Vec<MentionablePersonPB>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct GetMentionablePersonsWithAccessPB {
+  #[pb(index = 1)]
+  pub persons: Vec<MentionablePersonWithAccessPB>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonWithAccessPB {
+  #[pb(index = 1)]
+  pub person: MentionablePersonPB,
+  #[pb(index = 2)]
+  pub can_access_page: bool,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonPB {
+  #[pb(index = 1)]
+  pub uuid: String,
+  #[pb(index = 2)]
+  pub name: String,
+  #[pb(index = 3)]
+  pub email: String,
+  #[pb(index = 4)]
+  pub role: MentionablePersonTypePB,
+  #[pb(index = 5, one_of)]
+  pub avatar_url: Option<String>,
+  #[pb(index = 6, one_of)]
+  pub cover_image_url: Option<String>,
+  #[pb(index = 7, one_of)]
+  pub description: Option<String>,
+  #[pb(index = 8)]
+  pub invited: bool,
+  #[pb(index = 9, one_of)]
+  pub last_mentioned_at: Option<i64>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct MentionablePersonChangeSetPB {
+  #[pb(index = 1)]
+  pub updated: Vec<MentionablePersonPB>,
+  #[pb(index = 2)]
+  pub removed: Vec<String>,
+}
+
+#[derive(Default, ProtoBuf, Clone, Debug)]
+pub struct PageMentionUpdateInfoPB {
+  #[pb(index = 1)]
+  pub view_id: String,
+  #[pb(index = 2)]
+  pub person_id: String,
+  #[pb(index = 3)]
+  pub require_notification: bool,
+  #[pb(index = 4, one_of)]
+  pub block_id: Option<String>,
+  #[pb(index = 5)]
+  pub view_name: String,
+  #[pb(index = 6)]
+  pub ancestor_id: String,
+}
+
+impl From<PageMentionUpdateInfoPB> for PageMentionUpdate {
+  fn from(person: PageMentionUpdateInfoPB) -> Self {
+    PageMentionUpdate {
+      person_id: Uuid::from_str(&person.person_id).unwrap(),
+      require_notification: person.require_notification,
+      block_id: person.block_id.clone(),
+      view_name: person.view_name,
+    }
+  }
+}
+
+impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
+  fn from(person: MentionablePersonWithLastMentionedTime) -> Self {
+    MentionablePersonPB {
+      uuid: person.person_id.to_string(),
+      email: person.email,
+      name: person.name,
+      role: person.role.into(),
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      description: person.description,
+      invited: person.invited,
+      last_mentioned_at: person
+        .last_mentioned_at
+        .map(|datetime| datetime.timestamp()),
+    }
+  }
+}
+
+impl From<MentionablePerson> for MentionablePersonPB {
+  fn from(person: MentionablePerson) -> Self {
+    MentionablePersonPB {
+      uuid: person.person_id.to_string(),
+      email: person.email,
+      name: person.name,
+      role: person.role.into(),
+      avatar_url: person.avatar_url,
+      cover_image_url: person.cover_image_url,
+      description: person.description,
+      invited: person.invited,
+      last_mentioned_at: None,
+    }
+  }
+}
+
+impl From<MentionablePersonWithAccess> for MentionablePersonWithAccessPB {
+  fn from(person: MentionablePersonWithAccess) -> Self {
+    MentionablePersonWithAccessPB {
+      person: person.person.into(),
+      can_access_page: person.can_access_page,
+    }
+  }
+}
+
+#[derive(Eq, PartialEq, Hash, Debug, ProtoBuf_Enum, Clone, Default)]
+pub enum MentionablePersonTypePB {
+  #[default]
+  WorkspaceMember = 0,
+  WorkspaceGuest = 1,
+  Contact = 2,
+}
+
+impl From<MentionablePersonType> for MentionablePersonTypePB {
+  fn from(value: MentionablePersonType) -> Self {
+    match value {
+      MentionablePersonType::WorkspaceMember => MentionablePersonTypePB::WorkspaceMember,
+      MentionablePersonType::WorkspaceGuest => MentionablePersonTypePB::WorkspaceGuest,
+      MentionablePersonType::Contact => MentionablePersonTypePB::Contact,
+    }
+  }
 }
 
 // impl<'de> Deserialize<'de> for ViewDataType {
