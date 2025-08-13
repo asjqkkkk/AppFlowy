@@ -1,4 +1,5 @@
 use crate::entities::icon::UpdateViewIconParams;
+use crate::entities::view::convert_view_layout_to_dto_view_layout;
 use crate::entities::{
   AFAccessLevelPB, CreateViewParams, DeletedViewPB, DuplicateViewParams, ExportRequest,
   FolderSnapshotPB, GetMentionablePersonsResponsePB, MentionablePersonPB, MoveNestedViewParams,
@@ -26,7 +27,8 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, PublishInfo,
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, PageMentionAncestorViewInfo,
+  PageMentionUpdate, PublishInfo,
 };
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
@@ -3317,9 +3319,11 @@ impl FolderManager {
     let workspace_id = self.user.workspace_id()?;
     let view_id = Uuid::from_str(&page_mention.view_id)?;
     let ancestors = self
-      .get_view_ancestors(&page_mention.view_id)
+      .get_view_ancestors(&page_mention.ancestor_id)
       .await
       .unwrap_or_default();
+    let view = self.get_view(&page_mention.view_id).await?;
+    let is_row_document = view.parent_view_id == page_mention.view_id;
     let mut db = self.user.sqlite_connection(self.user.user_id()?)?;
     debug!(
       "update page mention for user:{}, workspace_id:{}, view_id:{},",
@@ -3332,19 +3336,45 @@ impl FolderManager {
       Utc::now(),
     )?;
 
-    match self
+    let person_id = Uuid::from_str(&page_mention.person_id).map_err(FlowyError::from)?;
+    let ancestor_views = ancestors
+      .iter()
+      .map(
+        |ancestor_view| -> Result<PageMentionAncestorViewInfo, FlowyError> {
+          let view_id = Uuid::parse_str(&ancestor_view.id).map_err(FlowyError::from)?;
+          let is_space = ancestor_view
+            .space_info()
+            .map(|info| info.is_space)
+            .unwrap_or(false);
+          Ok(PageMentionAncestorViewInfo {
+            view_id,
+            view_name: ancestor_view.name.clone(),
+            is_space,
+            view_layout: convert_view_layout_to_dto_view_layout(&ancestor_view.layout),
+          })
+        },
+      )
+      .collect::<Result<Vec<_>, _>>()?;
+
+    let page_mention_update = PageMentionUpdate {
+      person_id,
+      block_id: page_mention.block_id.clone(),
+      require_notification: page_mention.require_notification,
+      view_name: page_mention.view_name.clone(),
+      view_layout: Some(convert_view_layout_to_dto_view_layout(&view.layout)),
+      ancestors: Some(ancestor_views),
+      is_row_document: Some(is_row_document),
+    };
+
+    self
       .cloud_service()?
       .update_page_mention(
         &workspace_id,
         &view_id,
-        ancestors.iter().map(|v| v.id.clone()).collect(), // TODO: adjust the type when backend add the new field.
-        &page_mention.clone().into(),
+        ancestors.iter().map(|v| v.id.clone()).collect(),
+        &page_mention_update,
       )
       .await
-    {
-      Ok(_) => Ok(()),
-      Err(err) => Err(err),
-    }
   }
 
   /// Export the entire workspace to a specified output path.

@@ -3,7 +3,7 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::{
   AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
-  MentionablePersonWithLastMentionedTime, PageMentionUpdate,
+  MentionablePersonWithLastMentionedTime,
 };
 use collab_folder::{View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
@@ -228,6 +228,18 @@ impl From<client_api::entity::workspace_dto::ViewLayout> for ViewLayoutPB {
       client_api::entity::workspace_dto::ViewLayout::Calendar => ViewLayoutPB::Calendar,
       client_api::entity::workspace_dto::ViewLayout::Chat => ViewLayoutPB::Chat,
     }
+  }
+}
+
+pub fn convert_view_layout_to_dto_view_layout(
+  view_layout: &ViewLayout,
+) -> client_api::entity::workspace_dto::ViewLayout {
+  match view_layout {
+    ViewLayout::Document => client_api::entity::workspace_dto::ViewLayout::Document,
+    ViewLayout::Grid => client_api::entity::workspace_dto::ViewLayout::Grid,
+    ViewLayout::Board => client_api::entity::workspace_dto::ViewLayout::Board,
+    ViewLayout::Calendar => client_api::entity::workspace_dto::ViewLayout::Calendar,
+    ViewLayout::Chat => client_api::entity::workspace_dto::ViewLayout::Chat,
   }
 }
 
@@ -1079,17 +1091,6 @@ pub struct PageMentionUpdateInfoPB {
   pub view_name: String,
   #[pb(index = 6)]
   pub ancestor_id: String,
-}
-
-impl From<PageMentionUpdateInfoPB> for PageMentionUpdate {
-  fn from(person: PageMentionUpdateInfoPB) -> Self {
-    PageMentionUpdate {
-      person_id: Uuid::from_str(&person.person_id).unwrap(),
-      require_notification: person.require_notification,
-      block_id: person.block_id.clone(),
-      view_name: person.view_name,
-    }
-  }
 }
 
 impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {

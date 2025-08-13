@@ -106,6 +106,12 @@ pub struct StreamInterpreter {
   tag_style: Option<TagStyle>,
 }
 
+impl Default for StreamInterpreter {
+  fn default() -> Self {
+    Self::new()
+  }
+}
+
 impl StreamInterpreter {
   /// Creates a new StreamInterpreter
   pub fn new() -> Self {
