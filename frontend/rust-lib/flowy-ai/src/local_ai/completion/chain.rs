@@ -1,13 +1,12 @@
 use crate::local_ai::chat::llm::AFLLM;
-use crate::local_ai::completion::stream_interpreter::stream_interpreter_for_completion;
+use crate::local_ai::completion::stream_interpreter::interpret_completion_stream;
 use crate::local_ai::completion::writer::{
   AskAiWriter, CompletionWriterContext, ContinueWriteWriter, CustomWriter, ExplainWriter,
   ImproveWritingWriter, MakeLongerWriter, SpellingGrammarWriter, SummaryWriter,
 };
 use crate::local_ai::prompt::{format_prompt, history_prompt};
-use client_api::entity::{
-  CompletionMetadata, CompletionStreamValue, CompletionType, CustomPrompt, ResponseFormat,
-};
+use client_api::entity::chat_dto::CompletionStreamValue;
+use client_api::entity::{CompletionMetadata, CompletionType, CustomPrompt, ResponseFormat};
 use flowy_error::FlowyError;
 use futures_util::StreamExt;
 use langchain_rust::language_models::llm::LLM;
@@ -84,9 +83,16 @@ impl CompletionChain {
       .await
       .map_err(|e| FlowyError::local_ai().with_context(e))?;
 
-    let stream = stream_interpreter_for_completion(raw_stream, ty)
-      .map(|res| res.map_err(|e| FlowyError::local_ai().with_context(e)))
-      .boxed();
+    // Transform the stream from StreamData to CompletionStreamValue
+    let transformed_stream = raw_stream.map(|result| {
+      result
+        .map(|stream_data| CompletionStreamValue::Answer {
+          value: stream_data.content,
+        })
+        .map_err(|e| FlowyError::local_ai().with_context(e))
+    });
+
+    let stream = interpret_completion_stream(transformed_stream, ty).boxed();
 
     // Spawn the forwarding task
     let (tx, rx) = mpsc::channel(32);

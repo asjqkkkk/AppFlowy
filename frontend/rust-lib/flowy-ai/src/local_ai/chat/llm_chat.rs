@@ -13,7 +13,8 @@ use crate::local_ai::chat::retriever::{
 };
 use crate::local_ai::chat::summary_memory::SummaryMemory;
 use async_trait::async_trait;
-use client_api::entity::{QuestionStreamValue, ResponseFormat};
+use client_api::entity::ResponseFormat;
+use client_api::entity::chat_dto::QuestionStreamValue;
 use flowy_ai_pub::cloud::StreamAnswer;
 use flowy_ai_pub::entities::{EmbeddingDimension, RAG_IDS, SOURCE_ID, WORKSPACE_ID};
 use flowy_ai_pub::persistence::{ChatLocalFileTable, upsert_chat_local_file};

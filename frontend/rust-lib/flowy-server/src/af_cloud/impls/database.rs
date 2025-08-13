@@ -163,10 +163,10 @@ where
     &self,
     workspace_id: &Uuid,
     _object_id: &Uuid,
-    _summary_row: SummaryRowContent,
+    summary_row: SummaryRowContent,
   ) -> Result<String, FlowyError> {
     let try_get_client = self.inner.try_get_client();
-    let map: Map<String, Value> = _summary_row
+    let map: Map<String, Value> = summary_row
       .into_iter()
       .map(|(key, value)| (key, Value::String(value)))
       .collect();
@@ -174,7 +174,7 @@ where
       workspace_id: *workspace_id,
       data: SummarizeRowData::Content(map),
     };
-    let data = try_get_client?.summarize_row(params).await?;
+    let data = try_get_client?.summarize_row(params, None).await?;
     Ok(data.text)
   }
 
@@ -192,7 +192,7 @@ where
     };
 
     let params = TranslateRowParams {
-      workspace_id: workspace_id.to_string(),
+      workspace_id: *workspace_id,
       data,
     };
     let data = try_get_client?.translate_row(params).await?;

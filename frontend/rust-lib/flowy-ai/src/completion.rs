@@ -1,9 +1,8 @@
 use crate::entities::{CompleteTextPB, CompleteTextTaskPB, CompletionTypePB};
 use crate::stream_message::StreamMessage;
 use allo_isolate::Isolate;
-use client_api::entity::{
-  CompleteTextParams, CompletionMetadata, CompletionStreamValue, CompletionType, CustomPrompt,
-};
+use client_api::entity::chat_dto::CompletionStreamValue;
+use client_api::entity::{CompleteTextParams, CompletionMetadata, CompletionType, CustomPrompt};
 use dashmap::DashMap;
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService};
 use flowy_ai_pub::user_service::AIUserService;
@@ -107,7 +106,7 @@ impl CompletionTask {
       let mut sink = IsolateSink::new(Isolate::new(self.context.stream_port));
 
       if let Some(cloud_service) = self.cloud_service.upgrade() {
-        let complete_type = match self.context.completion_type {
+        let completion_type = match self.context.completion_type {
           CompletionTypePB::ImproveWriting => CompletionType::ImproveWriting,
           CompletionTypePB::SpellingAndGrammar => CompletionType::SpellingAndGrammar,
           CompletionTypePB::MakeShorter => CompletionType::MakeShorter,
@@ -124,7 +123,7 @@ impl CompletionTask {
         if let Ok(object_id) = Uuid::from_str(&self.context.object_id) {
           let params = CompleteTextParams {
             text: self.context.text,
-            completion_type: Some(complete_type),
+            completion_type,
             metadata: Some(CompletionMetadata {
               object_id,
               workspace_id: Some(self.workspace_id),

@@ -7,8 +7,8 @@ use crate::middleware::chat_service_mw::ChatServiceMiddleware;
 use crate::notification::{ChatNotification, chat_notification_builder};
 use crate::stream_message::{AIFollowUpData, StreamMessage};
 use allo_isolate::Isolate;
-use client_api::entity::chat_dto::{ChatMessage, MessageCursor};
-use client_api::entity::{QuestionStreamValue, ResponseFormat};
+use client_api::entity::ResponseFormat;
+use client_api::entity::chat_dto::{ChatMessage, MessageCursor, QuestionStreamValue};
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService, CreatedChatMessage};
 use flowy_ai_pub::persistence::{
   ChatMessageTable, select_answer_where_match_reply_message_id, select_chat_messages,
@@ -256,6 +256,7 @@ impl Chat {
                       .send(StreamMessage::OnProcess(value).to_string())
                       .await;
                   },
+                  QuestionStreamValue::Reasoning { .. } => {},
                 }
               },
               Err(err) => {
