@@ -14,7 +14,7 @@ class RustProfileSettingRepository implements ProfileSettingRepository {
     final result =
         await ViewBackendService.getWorkspaceMentionablePerson(userId);
     return result.fold((p) {
-      final customCoverUrl = p.customCoverImageUrl;
+      // final customCoverUrl = p.customCoverImageUrl;
       return FlowyResult.success(
         Profile(
           id: p.uuid,
@@ -24,9 +24,9 @@ class RustProfileSettingRepository implements ProfileSettingRepository {
           aboutMe: p.description,
           role: Profile.fromProtoToShareRole(p.role),
           banner: BannerData.fromUrl(p.coverImageUrl),
-          customBanner: customCoverUrl.isEmpty
-              ? null
-              : NetworkImageBanner(url: customCoverUrl),
+          // customBanner: customCoverUrl.isEmpty
+          //     ? null
+          //     : NetworkImageBanner(url: customCoverUrl),
         ),
       );
     }, (e) {

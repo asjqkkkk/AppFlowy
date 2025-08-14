@@ -5,7 +5,8 @@ import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/widgets/card/card.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_banner.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_controls.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image.dart';
 import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
@@ -102,9 +103,7 @@ void main() {
       );
 
       // Tab on the upload button
-      await tester.tapButtonWithName(
-        LocaleKeys.document_imageBlock_upload_placeholder.tr(),
-      );
+      await tester.tapButton(find.byType(FileDropZone));
 
       // Expect one cover
       expect(find.byType(RowCover), findsOneWidget);

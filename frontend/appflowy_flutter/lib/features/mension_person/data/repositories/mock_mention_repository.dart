@@ -1,15 +1,17 @@
 import 'dart:math';
 
 import 'package:appflowy/features/mension_person/data/models/invite.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
+
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'mention_repository.dart';
 
 class MockMentionRepository extends MentionRepository {
   @override
-  Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
+  Future<FlowyResult<List<MentionablePersonPB>, FlowyError>>
+      getWorkspacePersons({
     required String workspaceId,
     required String query,
   }) async {
@@ -27,9 +29,9 @@ class MockMentionRepository extends MentionRepository {
     }
     return FlowySuccess(persons);
   }
-  
+
   @override
-  Future<FlowyResult<Person, FlowyError>> invitePerson({
+  Future<FlowyResult<MentionablePersonPB, FlowyError>> invitePerson({
     required String workspaceId,
     required InviteInfo info,
   }) async {
@@ -47,6 +49,7 @@ class MockMentionRepository extends MentionRepository {
   Future<FlowyResult<void, FlowyError>> mentionPerson({
     required String documentId,
     required String personId,
+    required String ancestorId,
     required bool requireNotification,
     String? blockId,
   }) async {
@@ -64,57 +67,54 @@ class _MockState {
     return _instance!;
   }
 
-  final List<Person> persons = [
-    Person(
-      id: '1',
+  final List<MentionablePersonPB> persons = [
+    MentionablePersonPB(
+      uuid: '1',
       name: 'Andrew Christian',
-      role: PersonRole.member,
+      role: MentionablePersonTypePB.WorkspaceMember,
       email: 'andrewchristian@appflowy.io',
       coverImageUrl: _coverImageUrl,
       avatarUrl: 'https://avatar.iran.liara.run/public',
-      deleted: true,
     ),
-    Person(
-      id: '2',
+    MentionablePersonPB(
+      uuid: '2',
       name: 'Andrew Tate',
-      role: PersonRole.member,
+      role: MentionablePersonTypePB.WorkspaceMember,
       email: 'andrewtate@appflowy.io',
       description: 'A famous internet personality ',
       coverImageUrl: _coverImageUrl,
       avatarUrl: 'https://avatar.iran.liara.run/public/boy',
     ),
-    Person(
-      id: '3',
+    MentionablePersonPB(
+      uuid: '3',
       name: 'Emma Johnson',
-      role: PersonRole.member,
+      role: MentionablePersonTypePB.WorkspaceMember,
       email: 'emmajohnson@appflowy.io',
       avatarUrl: 'https://avatar.iran.liara.run/public/girl',
-      deleted: true,
     ),
-    Person(
-      id: '4',
+    MentionablePersonPB(
+      uuid: '4',
       name: 'Michael Brown',
-      role: PersonRole.member,
+      role: MentionablePersonTypePB.WorkspaceMember,
       email: 'michaelbrown@appflowy.io',
       avatarUrl: 'https://avatar.iran.liara.run/public/boy/13',
     ),
-    Person(
-      id: '5',
+    MentionablePersonPB(
+      uuid: '5',
       name: 'Nathan Brooks',
-      role: PersonRole.member,
+      role: MentionablePersonTypePB.WorkspaceMember,
       email: 'nathanbrooks@appflowy.io',
       avatarUrl: 'https://avatar.iran.liara.run/public/boy/10',
-      deleted: true,
     ),
   ];
 
-  Person invitePerson(InviteInfo info) {
+  MentionablePersonPB invitePerson(InviteInfo info) {
     final index = persons.indexWhere((p) => p.email == info.email);
     if (index != -1) {
       throw FormatException('Person with email ${info.email} already exists');
     }
-    final person = Person(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
+    final person = MentionablePersonPB(
+      uuid: DateTime.now().millisecondsSinceEpoch.toString(),
       name: info.contactDetail?.name ?? info.email,
       role: info.role,
       email: info.email,

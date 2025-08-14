@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/header/document_cover_widget.dart';
+import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/recent_icons.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -43,17 +44,11 @@ void main() {
 
       // Insert a document cover
       await tester.editor.tapOnAddCover();
-      tester.expectToSeeDocumentCover(CoverType.asset);
+      tester.expectToSeeDocumentCover(PageStyleCoverImageType.pureColor);
 
       // Hover over the cover to show the 'Change Cover' and delete buttons
       await tester.editor.hoverOnCover();
       tester.expectChangeCoverAndDeleteButton();
-
-      // Change cover to a solid color background
-      await tester.editor.tapOnChangeCover();
-      await tester.editor.switchSolidColorBackground();
-      await tester.editor.dismissCoverPicker();
-      tester.expectToSeeDocumentCover(CoverType.color);
 
       // Change cover to a network image
       const imageUrl =
@@ -61,7 +56,15 @@ void main() {
       await tester.editor.hoverOnCover();
       await tester.editor.tapOnChangeCover();
       await tester.editor.addNetworkImageCover(imageUrl);
-      tester.expectToSeeDocumentCover(CoverType.file);
+      await tester.editor.dismissCoverPicker();
+      tester.expectToSeeDocumentCover(PageStyleCoverImageType.customImage);
+
+      // Change cover to a solid color background
+      await tester.editor.hoverOnCover();
+      await tester.editor.tapOnChangeCover();
+      await tester.editor.switchSolidColorBackground();
+      await tester.editor.dismissCoverPicker();
+      tester.expectToSeeDocumentCover(PageStyleCoverImageType.pureColor);
 
       // Remove the cover
       await tester.editor.hoverOnCover();
@@ -80,7 +83,7 @@ void main() {
 
       // Insert a document cover
       await tester.editor.tapOnAddCover();
-      tester.expectToSeeDocumentCover(CoverType.asset);
+      tester.expectToSeeDocumentCover(PageStyleCoverImageType.pureColor);
 
       // Hover over the cover to show the 'Change Cover' and delete buttons
       await tester.editor.hoverOnCover();
@@ -96,18 +99,15 @@ void main() {
       await tester.editor.hoverOnCover();
       await tester.editor.tapOnChangeCover();
 
-      final uploadButton = find.findTextInFlowyText(
+      final uploadButton = find.text(
         LocaleKeys.document_imageBlock_upload_label.tr(),
       );
       await tester.tapButton(uploadButton);
 
       mockPickFilePaths(paths: [localImagePath]);
-      await tester.tapButtonWithName(
-        LocaleKeys.document_imageBlock_upload_placeholder.tr(),
-      );
-
-      await tester.pumpAndSettle();
-      tester.expectToSeeDocumentCover(CoverType.file);
+      await tester.tapButton(find.byType(FileDropZone));
+      await tester.editor.dismissCoverPicker();
+      tester.expectToSeeDocumentCover(PageStyleCoverImageType.localImage);
 
       // Remove the cover
       await tester.editor.hoverOnCover();
@@ -172,7 +172,7 @@ void main() {
 
       // Expect to see the icon and cover at the same time
       tester.expectToSeeDocumentIcon('😀');
-      tester.expectToSeeDocumentCover(CoverType.asset);
+      tester.expectToSeeDocumentCover(PageStyleCoverImageType.pureColor);
 
       // Hover over the cover toolbar and see that neither icons are shown
       await tester.editor.hoverOnCoverToolbar();

@@ -1,48 +1,63 @@
-import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'dart:typed_data';
+
+import 'package:appflowy/core/notification/folder_notification.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
+import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/application/workspace/workspace_mentionable_listener.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/notification.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_result/appflowy_result.dart';
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'person_event.dart';
-export 'person_event.dart';
 import 'person_state.dart';
+
+export 'person_event.dart';
 export 'person_state.dart';
 
 class PersonBloc extends Bloc<PersonEvent, PersonState> {
   PersonBloc({
     required this.documentId,
     required this.workspaceId,
-    required this.personListCache,
+    this.initialSharedUserFromServer = false,
     required this.repository,
-  })  : _listener = WorkspaceMentionableListener(workspaceId: workspaceId),
+  })  : _workspaceListener =
+            WorkspaceMentionableListener(workspaceId: workspaceId),
         super(PersonState.initial()) {
+    _workspaceListener.start(
+      mentionablePersonsChanged: onMentionablePersonsChanged,
+      mentionablePersonsReloaded: onMentionablePersonsReloaded,
+    );
+    _folderNotificationListener = FolderNotificationListener(
+      objectId: documentId,
+      handler: _onNotification,
+    );
     on<InitialEvent>(_onInitial);
     on<NotifyPersonEvent>(_onNotifyPersonEvent);
-    on<UpdatePersonEvent>(_onUpdatePersonEvent);
     on<UpdatePersonsEvent>(_onUpdatePersonsEvent);
+    on<ReloadPersonsEvent>(_onReloadPersonsEvent);
+    on<RemovePersonsEvent>(_onRemovePersonsEvent);
     on<UpdateAvailableEmailsEvent>(_onUpdateAvailableEmailsEvent);
-    _listener.start(
-      mentionablePersonChanged: onMentionablePersonChanged,
-      mentionablePersonsChanged: onMentionablePersonsChanged,
-      sharedUsersChanged: onSharedUsersChanged,
-    );
   }
 
   final String documentId;
   final String workspaceId;
-  final PersonListMemoryCache personListCache;
+  final bool initialSharedUserFromServer;
   final MentionRepository repository;
-  final WorkspaceMentionableListener _listener;
+  final WorkspaceMentionableListener _workspaceListener;
+  late final FolderNotificationListener _folderNotificationListener;
 
   @override
   Future<void> close() async {
-    await _listener.stop();
+    await _workspaceListener.stop();
+    await _folderNotificationListener.stop();
     return super.close();
   }
 
@@ -50,12 +65,9 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     InitialEvent event,
     Emitter<PersonState> emit,
   ) async {
-    final localPersons = personListCache.getPersons(workspaceId) ?? [];
-    if (localPersons.isNotEmpty) {
-      emit(state.copyWith(persons: localPersons, status: PersonStatus.idle));
-    }
-
-    final availableEmails = await _getFolderEventGetSharedUsers();
+    final availableEmails = await _getFolderEventGetSharedUsers(
+      isFetchFromCloud: initialSharedUserFromServer,
+    );
     final personsResult = await repository.getWorkspacePersons(
       workspaceId: workspaceId,
       query: '',
@@ -69,9 +81,7 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
             status: PersonStatus.idle,
           ),
         );
-        personListCache.updatePersonList(workspaceId, s);
       }, (e) {
-        Log.error('Failed to fetch persons: $e');
         emit(
           state.copyWith(
             status: PersonStatus.error,
@@ -95,15 +105,23 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     final result = await ViewBackendService.updatePageMention(
       viewId: documentId,
       viewName: view.nameOrDefault,
-      personId: event.person.id,
+      personId: event.person.uuid,
+      ancestorId: event.ancestorId,
       requireNotification: true,
       blockId: event.blockId,
     );
-    result.fold((s) {
-      personListCache.movePersonToTop(workspaceId, event.person.id);
+    await result.fold((s) async {
+      // Refresh the persons list after successful notification
+      final personsResult = await repository.getWorkspacePersons(
+        workspaceId: workspaceId,
+        query: '',
+      );
+
+      final persons = personsResult.toNullable() ?? state.persons;
       if (!isClosed) {
         emit(
           state.copyWith(
+            persons: persons,
             mentionedSucceedPerson: PersonWithNotifyTimes(
               person: event.person,
               notifyTimes: (state.mentionedSucceedPerson?.notifyTimes ?? 0) + 1,
@@ -126,26 +144,49 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     });
   }
 
-  Future<void> _onUpdatePersonEvent(
-    UpdatePersonEvent event,
-    Emitter<PersonState> emit,
-  ) async {
-    personListCache.updatePerson(workspaceId, event.person);
-    final availableEmails = await _getFolderEventGetSharedUsers();
-    final newPersons = personListCache.getPersons(workspaceId);
-    emit(
-      state.copyWith(persons: newPersons, availableEmails: availableEmails),
-    );
-  }
-
   Future<void> _onUpdatePersonsEvent(
     UpdatePersonsEvent event,
     Emitter<PersonState> emit,
   ) async {
-    personListCache.updatePersonList(workspaceId, event.persons);
+    // Upsert persons in the current state
+    final List<MentionablePersonPB> currentPersons = List.of(state.persons);
+    for (final person in event.persons) {
+      final index = currentPersons.indexWhere((p) => p.uuid == person.uuid);
+      if (index != -1) {
+        currentPersons[index] = person;
+      } else {
+        currentPersons.add(person);
+      }
+    }
     final availableEmails = await _getFolderEventGetSharedUsers();
     emit(
-      state.copyWith(persons: event.persons, availableEmails: availableEmails),
+      state.copyWith(
+        persons: currentPersons,
+        availableEmails: availableEmails,
+      ),
+    );
+  }
+
+  Future<void> _onReloadPersonsEvent(
+    ReloadPersonsEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    emit(state.copyWith(persons: event.persons));
+  }
+
+  Future<void> _onRemovePersonsEvent(
+    RemovePersonsEvent event,
+    Emitter<PersonState> emit,
+  ) async {
+    // Remove persons from the current state
+    final List<MentionablePersonPB> currentPersons = List.of(state.persons);
+    currentPersons.removeWhere((p) => event.personIds.contains(p.uuid));
+    final availableEmails = await _getFolderEventGetSharedUsers();
+    emit(
+      state.copyWith(
+        persons: currentPersons,
+        availableEmails: availableEmails,
+      ),
     );
   }
 
@@ -156,9 +197,14 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
     emit(state.copyWith(availableEmails: event.emails));
   }
 
-  Future<List<String>> _getFolderEventGetSharedUsers() async {
+  Future<List<String>> _getFolderEventGetSharedUsers({
+    bool isFetchFromCloud = false,
+  }) async {
     final documentUsersResult = await FolderEventGetSharedUsers(
-      GetSharedUsersPayloadPB(viewId: documentId, isFetchFromCloud: false),
+      GetSharedUsersPayloadPB(
+        viewId: documentId,
+        isFetchFromCloud: isFetchFromCloud,
+      ),
     ).send();
 
     final users = documentUsersResult.fold(
@@ -170,28 +216,78 @@ class PersonBloc extends Bloc<PersonEvent, PersonState> {
 
   void onMentionablePersonsChanged(MentionablePersonsNotifyValue v) {
     v.fold((v) {
-      final persons = v.map((e) => Person.fromProto(e)).toList();
-      if (!isClosed) add(PersonEvent.updatePersons(persons));
+      final updatedPersons = v.updated;
+      final removedPersonIds = v.removed;
+      if (!isClosed) {
+        if (updatedPersons.isNotEmpty) {
+          add(PersonEvent.updatePersons(updatedPersons));
+        }
+        if (removedPersonIds.isNotEmpty) {
+          add(PersonEvent.removePersons(removedPersonIds));
+        }
+      }
     }, (e) {
       Log.error('Failed to notify mentionable persons: $e');
     });
   }
 
-  void onMentionablePersonChanged(MentionablePersonNotifyValue v) {
+  void onMentionablePersonsReloaded(MentionablePersonsReloadedNotifyValue v) {
     v.fold((v) {
-      if (!isClosed) add(PersonEvent.updatePerson(Person.fromProto(v)));
+      final persons = v.persons;
+      if (!isClosed) {
+        add(PersonEvent.reloadPersons(persons));
+      }
     }, (e) {
-      Log.error('Failed to notify mentionable person: $e');
+      Log.error('Failed to reload mentionable persons: $e');
     });
   }
 
-  void onSharedUsersChanged(SharedUsersNotifyValue v) {
-    v.fold((v) {
-      if (!isClosed) {
-        add(PersonEvent.updateAvailableEmails(v.map((e) => e.email).toList()));
-      }
-    }, (e) {
-      Log.error('Failed to notify shared users: $e');
-    });
+  void _onNotification(
+    FolderNotification notification,
+    FlowyResult<Uint8List, FlowyError> result,
+  ) {
+    if (notification == FolderNotification.DidUpdateSharedUsers) {
+      result.fold(
+        (payload) {
+          final sharedUsers = RepeatedSharedUserPB.fromBuffer(payload).items;
+          final availableEmails = sharedUsers.map((e) => e.email).toList();
+          if (!isClosed) {
+            add(PersonEvent.updateAvailableEmails(availableEmails));
+          }
+        },
+        (error) => null,
+      );
+    }
+  }
+
+  static List<BlocListener> buildBlocToastListener() {
+    return [
+      BlocListener<PersonBloc, PersonState>(
+        listener: (context, state) {
+          final person = state.mentionedErrorPerson;
+          if (person != null) {
+            showToastNotification(
+              message: LocaleKeys.document_mentionMenu_notifedToFailed.tr(),
+              type: ToastificationType.error,
+            );
+          }
+        },
+        listenWhen: (previous, current) =>
+            previous.mentionedErrorPerson != current.mentionedErrorPerson,
+      ),
+      BlocListener<PersonBloc, PersonState>(
+        listener: (context, state) {
+          final person = state.mentionedSucceedPerson;
+          if (person != null) {
+            showToastNotification(
+              message: LocaleKeys.document_mentionMenu_notifedTo
+                  .tr(args: [person.name]),
+            );
+          }
+        },
+        listenWhen: (previous, current) =>
+            previous.mentionedSucceedPerson != current.mentionedSucceedPerson,
+      ),
+    ];
   }
 }

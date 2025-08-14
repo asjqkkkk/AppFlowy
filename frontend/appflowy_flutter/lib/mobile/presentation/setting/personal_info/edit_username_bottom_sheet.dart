@@ -84,7 +84,6 @@ class _EditUsernameBottomSheetState extends State<EditUsernameBottomSheet> {
               controller: textEditingController,
               keyboardType: TextInputType.text,
               maxLength: 72,
-              counterText: '',
               validator: (controller) {
                 final value = controller.text.trim();
                 if (value.isEmpty) {

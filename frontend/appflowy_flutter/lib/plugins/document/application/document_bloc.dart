@@ -48,13 +48,14 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
   DocumentBloc({
     required this.documentId,
     this.databaseViewId,
+    this.databaseId,
     this.rowId,
     bool saveToBlocMap = true,
   })  : _saveToBlocMap = saveToBlocMap,
         _documentListener = DocumentListener(id: documentId),
         _syncStateListener = DocumentSyncStateListener(id: documentId),
         super(DocumentState.initial()) {
-    _viewListener = databaseViewId == null && rowId == null
+    _viewListener = databaseId == null && rowId == null
         ? ViewListener(viewId: documentId)
         : null;
     on<DocumentEvent>(_onDocumentEvent);
@@ -66,7 +67,12 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
   /// For a normal document, the document id is the same as the view id
   final String documentId;
 
+  /// Database id is NOT the database view id. It's a collab id.
+  final String? databaseId;
+
+  /// Database view id. It's a view id.
   final String? databaseViewId;
+
   final String? rowId;
 
   final bool _saveToBlocMap;
@@ -179,14 +185,14 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
         emit(state.copyWith(isDeleted: false));
       },
       deletePermanently: () async {
-        if (databaseViewId == null && rowId == null) {
+        if (databaseId == null && rowId == null) {
           final result = await _trashService.deleteViews([documentId]);
           final forceClose = result.fold((l) => true, (r) => false);
           emit(state.copyWith(forceClose: forceClose));
         }
       },
       restorePage: () async {
-        if (databaseViewId == null && rowId == null) {
+        if (databaseId == null && rowId == null) {
           final result = await TrashService.putback(documentId);
           final isDeleted = result.fold((l) => false, (r) => true);
           emit(state.copyWith(isDeleted: isDeleted));

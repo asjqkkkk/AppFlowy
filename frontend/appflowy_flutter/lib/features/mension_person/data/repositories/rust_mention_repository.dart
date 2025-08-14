@@ -1,13 +1,12 @@
 import 'package:appflowy/features/mension_person/data/models/invite.dart';
 
-import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
-import 'package:appflowy/workspace/application/view/view_service.dart';
-
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:easy_localization/easy_localization.dart';
 
@@ -15,7 +14,8 @@ import 'mention_repository.dart';
 
 class RustMentionRepository extends MentionRepository {
   @override
-  Future<FlowyResult<List<Person>, FlowyError>> getWorkspacePersons({
+  Future<FlowyResult<List<MentionablePersonPB>, FlowyError>>
+      getWorkspacePersons({
     required String workspaceId,
     required String query,
   }) async {
@@ -25,7 +25,6 @@ class RustMentionRepository extends MentionRepository {
       (r) {
         return FlowyResult.success(
           r.persons
-              .map((e) => Person.fromProto(e))
               .where(
                 (p) =>
                     p.name.toLowerCase().contains(formatedQuery) ||
@@ -39,9 +38,9 @@ class RustMentionRepository extends MentionRepository {
       },
     );
   }
-  
+
   @override
-  Future<FlowyResult<Person, FlowyError>> invitePerson({
+  Future<FlowyResult<MentionablePersonPB, FlowyError>> invitePerson({
     required String workspaceId,
     required InviteInfo info,
   }) {
@@ -53,6 +52,7 @@ class RustMentionRepository extends MentionRepository {
   Future<FlowyResult<void, FlowyError>> mentionPerson({
     required String documentId,
     required String personId,
+    required String ancestorId,
     required bool requireNotification,
     String? blockId,
   }) async {
@@ -66,6 +66,7 @@ class RustMentionRepository extends MentionRepository {
       viewId: documentId,
       viewName: view.nameOrDefault,
       personId: personId,
+      ancestorId: ancestorId,
       requireNotification: requireNotification,
       blockId: blockId,
     );

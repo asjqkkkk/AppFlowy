@@ -54,7 +54,6 @@ class _ProfileDisplayNameState extends State<ProfileDisplayName> {
                 child: AFTextField(
                   size: AFTextFieldSize.m,
                   controller: controller,
-                  counterText: '',
                   maxLength: 72,
                   onChanged: (v) {
                     if (v.trim().isNotEmpty) {

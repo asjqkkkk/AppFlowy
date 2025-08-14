@@ -8,6 +8,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -121,7 +122,7 @@ extension PersonInviteEditorStateExtension on EditorState {
         mSelection,
       );
       serviceInfo.onDismiss.call(this.selection);
-      final isContact = person.role == PersonRole.contact;
+      final isContact = person.role == MentionablePersonTypePB.Contact;
       if (isContact) {
         showToastNotification(
           message: LocaleKeys.document_mentionMenu_addContactToast

@@ -290,7 +290,7 @@ class _BoardContentState extends State<_BoardContent> {
             0.0;
     return BlocProvider(
       create: (_) => PageAccessLevelBloc(view: widget.view)
-        ..add(const PageAccessLevelEvent.initial()),
+        ..add(PageAccessLevelEvent.initial(requestSharedUsers: false)),
       child: MultiBlocListener(
         listeners: [
           BlocListener<BoardBloc, BoardState>(

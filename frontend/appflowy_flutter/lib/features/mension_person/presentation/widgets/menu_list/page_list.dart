@@ -50,12 +50,31 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
     } else if (item is AddViewMenuItem) {
       return MentionMenuItemAutoScrollTag(
         id: id,
-        child: AFTextMenuItem(
-          selected:
-              mentionState.selectedId == id && UniversalPlatform.isDesktop,
-          title: LocaleKeys.inlineActions_createPage
-              .tr(args: [mentionState.query]),
-          maxTitleLine: 1,
+        child: AFMenuItem(
+          title: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(
+                  LocaleKeys.document_mentionMenu_create
+                      .tr(args: [mentionState.query]),
+                  style: theme.textStyle.body.standard(
+                    color: theme.textColorScheme.primary,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Text(
+                LocaleKeys.document_mentionMenu_subPage.tr(),
+                style: theme.textStyle.body.standard(
+                  color: theme.textColorScheme.primary,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
+          ),
           leading: SizedBox.square(
             dimension: 24,
             child: Center(
@@ -66,8 +85,10 @@ extension MentionMenuItemPageWidgetsExtension on MentionMenuItem {
               ),
             ),
           ),
-          backgroundColor: context.mentionItemBGColor,
+          selected:
+              mentionState.selectedId == id && UniversalPlatform.isDesktop,
           onTap: () => mentionBloc.add(MentionEvent.executeItem(this)),
+          backgroundColor: context.mentionItemBGColor,
         ),
       );
     }

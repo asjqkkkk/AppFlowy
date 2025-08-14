@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -151,17 +149,7 @@ class HiddenGroupList extends StatelessWidget {
           ready: (state) => ReorderableListView.builder(
             proxyDecorator: (child, index, animation) => Material(
               color: Colors.transparent,
-              child: Stack(
-                children: [
-                  child,
-                  MouseRegion(
-                    cursor: Platform.isWindows
-                        ? SystemMouseCursors.click
-                        : SystemMouseCursors.grabbing,
-                    child: const SizedBox.expand(),
-                  ),
-                ],
-              ),
+              child: child,
             ),
             shrinkWrap: shrinkWrap,
             buildDefaultDragHandles: false,

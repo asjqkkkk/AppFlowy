@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:appflowy_ui/src/theme/appflowy_theme.dart';
 import 'package:appflowy_ui/src/theme/definition/theme_data.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -163,11 +165,7 @@ class AFAvatar extends StatelessWidget {
         avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
     final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
     final borderRadius = radius ?? size / 2;
-    final text = Text(
-      initial,
-      style: textStyle,
-      textAlign: TextAlign.center,
-    );
+    final text = Text(initial, style: textStyle, textAlign: TextAlign.justify);
     return Container(
       width: size,
       height: size,
@@ -176,7 +174,10 @@ class AFAvatar extends StatelessWidget {
         borderRadius: BorderRadius.circular(borderRadius),
       ),
       alignment: Alignment.center,
-      child: isEmojiAvatarUrl
+
+      /// https://github.com/flutter/flutter/issues/119623
+      /// Workaround for text alignment issue on Android
+      child: isEmojiAvatarUrl && !Platform.isAndroid
           ? SizedBox(
               width: textStyle.fontSize,
               child: text,
@@ -195,10 +196,18 @@ class AFAvatar extends StatelessWidget {
   /// Deterministically pick a color index (1-20) based on the user name
   int _pickColorIndexFromName(String? name) {
     if (name == null || name.isEmpty) return 1;
+
     int hash = 0;
-    for (int i = 0; i < name.length; i++) {
-      hash = name.codeUnitAt(i) + ((hash << 5) - hash);
+    for (var i = 0; i < name.length; i++) {
+      hash = (hash << 5) - hash + name.codeUnitAt(i);
+      hash = hash & 0xFFFFFFFF; // Keep it within unsigned 32-bit range
+
+      // If the 31st bit is set (sign bit), convert to negative signed 32-bit equivalent
+      if ((hash & 0x80000000) != 0) {
+        hash = hash - 0x100000000;
+      }
     }
+
     return (hash.abs() % 20) + 1;
   }
 

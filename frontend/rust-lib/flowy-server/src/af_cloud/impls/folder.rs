@@ -3,8 +3,9 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::workspace_dto::{AddRecentPagesParams, PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CollabParams, CreateImportTaskType, MentionablePerson, MentionablePersons, PageMentionUpdate,
-  PublishCollabItem, PublishCollabMetadata, QueryCollab, QueryCollabParams, WorkspaceMemberProfile,
+  CollabParams, CreateExportTask, CreateExportTaskResponse, CreateImportTaskType,
+  MentionablePerson, MentionablePersons, PageMentionUpdate, PublishCollabItem,
+  PublishCollabMetadata, QueryCollab, QueryCollabParams, WorkspaceMemberProfile,
 };
 use client_api::entity::{PatchPublishedCollab, PublishInfo};
 use collab_entity::CollabType;
@@ -277,6 +278,17 @@ where
     Ok(())
   }
 
+  async fn create_export(
+    &self,
+    workspace_id: &Uuid,
+    req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError> {
+    let client = self.inner.try_get_client()?;
+    let response = client.create_export(workspace_id, req).await?;
+    check_request_workspace_id_is_match(workspace_id, &self.logged_user, "create export")?;
+    Ok(response)
+  }
+
   async fn share_page_with_user(
     &self,
     workspace_id: &Uuid,
@@ -355,9 +367,11 @@ where
     &self,
     workspace_id: &Uuid,
     view_id: &Uuid,
+    _view_ancestors: Vec<String>,
     page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError> {
     let try_get_client = self.inner.try_get_client();
+    // TODO: use the view_ancestors to update the page mention
     try_get_client?
       .update_page_mention(workspace_id, view_id, page_mention)
       .await

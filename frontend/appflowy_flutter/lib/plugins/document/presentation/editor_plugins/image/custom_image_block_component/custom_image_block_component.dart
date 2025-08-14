@@ -113,6 +113,10 @@ class CustomImageBlockComponentBuilder extends BlockComponentBuilder {
       actionBuilder: (_, state) => actionBuilder(blockComponentContext, state),
       showMenu: showMenu,
       menuBuilder: menuBuilder,
+      actionTrailingBuilder: (_, state) => actionTrailingBuilder(
+        blockComponentContext,
+        state,
+      ),
     );
   }
 

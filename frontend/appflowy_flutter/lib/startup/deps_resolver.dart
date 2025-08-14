@@ -2,7 +2,6 @@ import 'package:appflowy/ai/service/appflowy_ai_service.dart';
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/network_monitor.dart';
 import 'package:appflowy/env/cloud_env.dart';
-import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/mobile/presentation/search/view_ancestor_cache.dart';
 import 'package:appflowy/plugins/document/application/prelude.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/copy_and_paste/clipboard_service.dart';
@@ -133,9 +132,6 @@ void _resolveUserDeps(GetIt getIt, IntegrationMode mode) {
   getIt.registerFactory<SplashBloc>(() => SplashBloc());
   getIt.registerLazySingleton<NetworkListener>(() => NetworkListener());
   getIt.registerLazySingleton<ViewAncestorCache>(() => ViewAncestorCache());
-  getIt.registerLazySingleton<PersonListMemoryCache>(
-    () => PersonListMemoryCache(),
-  );
   getIt.registerLazySingleton<SubscriptionSuccessListenable>(
     () => SubscriptionSuccessListenable(),
   );

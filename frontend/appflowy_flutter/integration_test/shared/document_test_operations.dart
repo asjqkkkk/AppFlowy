@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui';
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/view_page/app_bar_buttons.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_mobile_quick_action_button.dart';
@@ -9,12 +10,12 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/bl
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/block_action_option_button.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/drag_to_reorder/draggable_option_button.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/option/option_actions.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_controls.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/document_immersive_cover.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/header/cover_editor.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/cover_title.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/header/document_cover_widget.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/header/document_header.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/widgets/embed_image_url_widget.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/embed_image_url.dart';
 import 'package:appflowy/shared/icon_emoji_picker/emoji_skin_tone.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
@@ -91,7 +92,7 @@ class EditorOperations {
   Future<void> tapGettingStartedIcon() async {
     await tester.tapButton(
       find.descendant(
-        of: find.byType(DocumentCoverWidget),
+        of: find.byType(DocumentHeader),
         matching: find.findTextInFlowyText('⭐️'),
       ),
     );
@@ -137,35 +138,34 @@ class EditorOperations {
   }
 
   Future<void> switchSolidColorBackground() async {
-    final findPurpleButton = find.byWidgetPredicate(
-      (widget) => widget is ColorItem && widget.option.name == 'Purple',
-    );
+    final findPurpleButton =
+        find.byWidgetPredicate((widget) => widget is ColorTile).first;
     await tester.tapButton(findPurpleButton);
   }
 
   Future<void> addNetworkImageCover(String imageUrl) async {
-    final embedLinkButton = find.findTextInFlowyText(
+    final embedLinkButton = find.text(
       LocaleKeys.document_imageBlock_embedLink_label.tr(),
     );
     await tester.tapButton(embedLinkButton);
 
     final imageUrlTextField = find.descendant(
-      of: find.byType(EmbedImageUrlWidget),
+      of: find.byType(EmbedImageUrl),
       matching: find.byType(TextField),
     );
     await tester.enterText(imageUrlTextField, imageUrl);
     await tester.pumpAndSettle();
     await tester.tapButton(
       find.descendant(
-        of: find.byType(EmbedImageUrlWidget),
-        matching: find.findTextInFlowyText(
+        of: find.byType(EmbedImageUrl),
+        matching: find.text(
           LocaleKeys.document_imageBlock_embedLink_label.tr(),
         ),
       ),
     );
   }
 
-  Future<void> tapOnRemoveCover() async =>
+  Future<void> tapOnRemoveCover() =>
       tester.tapButton(find.byType(DeleteCoverButton));
 
   /// A cover must be present in the document to function properly since this
@@ -304,11 +304,7 @@ class EditorOperations {
   Future<void> openTurnIntoMenu(Path path) async {
     await hoverAndClickOptionMenuButton(path);
     await tester.tapButton(
-      find
-          .findTextInFlowyText(
-            LocaleKeys.document_plugins_optionAction_turnInto.tr(),
-          )
-          .first,
+      find.text(LocaleKeys.document_plugins_optionAction_turnInto.tr()).first,
     );
     await tester.pumpUntilFound(find.byType(TurnIntoOptionMenu));
   }
@@ -317,7 +313,7 @@ class EditorOperations {
   Future<void> copyLinkToBlock(Path path) async {
     await hoverAndClickOptionMenuButton(path);
     await tester.tapButton(
-      find.findTextInFlowyText(
+      find.text(
         LocaleKeys.document_plugins_optionAction_copyLinkToBlock.tr(),
       ),
     );
@@ -326,7 +322,7 @@ class EditorOperations {
   Future<void> openDepthMenu(Path path) async {
     await hoverAndClickOptionMenuButton(path);
     await tester.tapButton(
-      find.findTextInFlowyText(
+      find.text(
         LocaleKeys.document_plugins_optionAction_depth.tr(),
       ),
     );

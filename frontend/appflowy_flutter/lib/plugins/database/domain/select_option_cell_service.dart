@@ -36,18 +36,6 @@ class SelectOptionCellBackendService {
     return DatabaseEventInsertOrUpdateSelectOption(payload).send();
   }
 
-  Future<FlowyResult<void, FlowyError>> update({
-    required SelectOptionPB option,
-  }) {
-    final payload = RepeatedSelectOptionPayload()
-      ..items.add(option)
-      ..viewId = viewId
-      ..fieldId = fieldId
-      ..rowId = rowId;
-
-    return DatabaseEventInsertOrUpdateSelectOption(payload).send();
-  }
-
   Future<FlowyResult<void, FlowyError>> delete({
     required Iterable<SelectOptionPB> options,
   }) {

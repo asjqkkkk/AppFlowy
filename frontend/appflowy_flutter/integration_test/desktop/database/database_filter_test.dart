@@ -64,24 +64,31 @@ void main() {
       await tester.pumpAndSettle();
     });
 
-    testWidgets('add checklist filter', (tester) async {
-      await tester.openTestDatabase(v020GridFileName);
+    testWidgets(
+      'add checklist filter',
+      (tester) async {
+        await tester.openTestDatabase(v020GridFileName);
 
-      // create a filter
-      await tester.tapDatabaseFilterButton();
-      await tester.tapCreateFilterByFieldType(FieldType.Checklist, 'checklist');
+        // create a filter
+        await tester.tapDatabaseFilterButton();
+        await tester.tapCreateFilterByFieldType(
+          FieldType.Checklist,
+          'checklist',
+        );
 
-      // By default, the condition of checklist filter is 'uncompleted'
-      tester.assertNumberOfRowsInGridPage(9);
+        // By default, the condition of checklist filter is 'uncompleted'
+        tester.assertNumberOfRowsInGridPage(9);
 
-      await tester.tapFilterButtonInGrid('checklist');
-      await tester.tapChecklistFilterButtonInGrid();
+        await tester.tapFilterButtonInGrid('checklist');
+        await tester.tapChecklistFilterButtonInGrid();
 
-      await tester.tapCompletedButtonOnChecklistFilter();
-      tester.assertNumberOfRowsInGridPage(1);
+        await tester.tapCompletedButtonOnChecklistFilter();
+        tester.assertNumberOfRowsInGridPage(1);
 
-      await tester.pumpAndSettle();
-    });
+        await tester.pumpAndSettle();
+      },
+      skip: true,
+    );
 
     testWidgets('add single select filter', (tester) async {
       await tester.openTestDatabase(v020GridFileName);

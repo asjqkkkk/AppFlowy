@@ -3,7 +3,9 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 
 enum OptionAlignType {
@@ -12,85 +14,109 @@ enum OptionAlignType {
   right;
 
   static OptionAlignType fromString(String? value) {
-    switch (value) {
-      case 'left':
-        return OptionAlignType.left;
-      case 'center':
-        return OptionAlignType.center;
-      case 'right':
-        return OptionAlignType.right;
-      default:
-        return OptionAlignType.center;
-    }
+    return switch (value) {
+      'left' => OptionAlignType.left,
+      'center' => OptionAlignType.center,
+      'right' => OptionAlignType.right,
+      _ => OptionAlignType.center
+    };
   }
 
   FlowySvgData get svg {
-    switch (this) {
-      case OptionAlignType.left:
-        return FlowySvgs.table_align_left_s;
-      case OptionAlignType.center:
-        return FlowySvgs.table_align_center_s;
-      case OptionAlignType.right:
-        return FlowySvgs.table_align_right_s;
-    }
+    return switch (this) {
+      OptionAlignType.left => FlowySvgs.table_align_left_s,
+      OptionAlignType.center => FlowySvgs.table_align_center_s,
+      OptionAlignType.right => FlowySvgs.table_align_right_s
+    };
   }
 
   String get description {
-    switch (this) {
-      case OptionAlignType.left:
-        return LocaleKeys.document_plugins_optionAction_left.tr();
-      case OptionAlignType.center:
-        return LocaleKeys.document_plugins_optionAction_center.tr();
-      case OptionAlignType.right:
-        return LocaleKeys.document_plugins_optionAction_right.tr();
-    }
+    return switch (this) {
+      OptionAlignType.left =>
+        LocaleKeys.document_plugins_optionAction_left.tr(),
+      OptionAlignType.center =>
+        LocaleKeys.document_plugins_optionAction_center.tr(),
+      OptionAlignType.right =>
+        LocaleKeys.document_plugins_optionAction_right.tr()
+    };
   }
 }
 
-class AlignOptionAction extends PopoverActionCell {
-  AlignOptionAction({
+class AlignOptionButton extends StatefulWidget {
+  const AlignOptionButton({
+    super.key,
     required this.editorState,
+    required this.mutex,
+    required this.controller,
   });
 
   final EditorState editorState;
+  final PopoverMutex mutex;
+  final PopoverController controller;
 
   @override
-  Widget? leftIcon(Color iconColor) {
-    return FlowySvg(
-      align.svg,
-      size: const Size.square(18),
-    );
-  }
+  State<AlignOptionButton> createState() => _AlignOptionButtonState();
+}
+
+class _AlignOptionButtonState extends State<AlignOptionButton> {
+  final innerController = PopoverController();
+  bool isOpen = false;
 
   @override
-  String get name {
-    return LocaleKeys.document_plugins_optionAction_align.tr();
-  }
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
 
-  @override
-  PopoverActionCellBuilder get builder =>
-      (context, parentController, controller) {
-        final selection = editorState.selection?.normalized;
-        if (selection == null) {
-          return const SizedBox.shrink();
-        }
-        final node = editorState.getNodeAtPath(selection.start.path);
-        if (node == null) {
-          return const SizedBox.shrink();
-        }
-        final children = buildAlignOptions(context, (align) async {
-          await onAlignChanged(align);
-          controller.close();
-          parentController.close();
-        });
+    return AppFlowyPopover(
+      mutex: widget.mutex,
+      controller: innerController,
+      clickHandler: PopoverClickHandler.gestureDetector,
+      animationDuration: Durations.short3,
+      beginScaleFactor: 1.0,
+      beginOpacity: 0.8,
+      onOpen: () => isOpen = true,
+      onClose: () => isOpen = false,
+      popupBuilder: (popoverContext) {
         return IntrinsicHeight(
           child: IntrinsicWidth(
             child: Column(
-              children: children,
+              children: buildAlignOptions(
+                context,
+                (align) async {
+                  await onAlignChanged(align);
+                  if (popoverContext.mounted) {
+                    PopoverContainer.of(popoverContext).closeAll();
+                  }
+                },
+              ),
             ),
           ),
         );
-      };
+      },
+      child: AFMenuItem(
+        onTap: () {
+          if (!isOpen) {
+            innerController.show();
+            isOpen = true;
+          }
+        },
+        leading: FlowySvg(
+          align.svg,
+          size: Size.square(16),
+        ),
+        title: Text(
+          LocaleKeys.document_plugins_optionAction_align.tr(),
+          style: theme.textStyle.body.standard(
+            color: theme.textColorScheme.primary,
+          ),
+        ),
+        trailing: (context, isHovering, disabled) => FlowySvg(
+          FlowySvgs.toolbar_arrow_right_m,
+          color: theme.iconColorScheme.tertiary,
+          size: Size.square(20),
+        ),
+      ),
+    );
+  }
 
   List<Widget> buildAlignOptions(
     BuildContext context,
@@ -114,11 +140,11 @@ class AlignOptionAction extends PopoverActionCell {
   }
 
   OptionAlignType get align {
-    final selection = editorState.selection;
+    final selection = widget.editorState.selection;
     if (selection == null) {
       return OptionAlignType.center;
     }
-    final node = editorState.getNodeAtPath(selection.start.path);
+    final node = widget.editorState.getNodeAtPath(selection.start.path);
     final align = node?.type == SimpleTableBlockKeys.type
         ? node?.tableAlign.key
         : node?.attributes[blockComponentAlign];
@@ -129,27 +155,27 @@ class AlignOptionAction extends PopoverActionCell {
     if (align == this.align) {
       return;
     }
-    final selection = editorState.selection;
+    final selection = widget.editorState.selection;
     if (selection == null) {
       return;
     }
-    final node = editorState.getNodeAtPath(selection.start.path);
+    final node = widget.editorState.getNodeAtPath(selection.start.path);
     if (node == null) {
       return;
     }
     // the align attribute for simple table is not same as the align type,
     // so we need to convert the align type to the align attribute
     if (node.type == SimpleTableBlockKeys.type) {
-      await editorState.updateTableAlign(
+      await widget.editorState.updateTableAlign(
         tableNode: node,
         align: TableAlign.fromString(align.name),
       );
     } else {
-      final transaction = editorState.transaction;
+      final transaction = widget.editorState.transaction;
       transaction.updateNode(node, {
         blockComponentAlign: align.name,
       });
-      await editorState.apply(transaction);
+      await widget.editorState.apply(transaction);
     }
   }
 }

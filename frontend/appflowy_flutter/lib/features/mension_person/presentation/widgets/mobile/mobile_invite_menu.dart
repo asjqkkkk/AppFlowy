@@ -1,5 +1,4 @@
 import 'package:appflowy/features/mension_person/data/models/invite.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
 import 'package:appflowy/features/mension_person/presentation/menu_extension.dart';
@@ -11,6 +10,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
@@ -127,7 +127,7 @@ class _MobileInviteMenuState extends State<MobileInviteMenu> {
       showRemoveButton: false,
       title: LocaleKeys.document_mentionMenu_invitePerson.tr(),
       doneButtonBuilder: (context) {
-        final isContact = info.role == PersonRole.contact;
+        final isContact = info.role == MentionablePersonTypePB.Contact;
         return BottomSheetDoneButton(
           text: isContact
               ? LocaleKeys.button_add.tr()
@@ -172,8 +172,8 @@ class _MobileInviteMenuState extends State<MobileInviteMenu> {
 
   List<Widget> buildRoles() {
     final theme = AppFlowyTheme.of(context), spacing = theme.spacing;
-    final items = List.generate(PersonRole.values.length, (index) {
-      final role = PersonRole.values[index];
+    final items = List.generate(MentionablePersonTypePB.values.length, (index) {
+      final role = MentionablePersonTypePB.values[index];
       return _RoleItem(
         selected: info.role == role,
         role: role,
@@ -197,7 +197,7 @@ class _MobileInviteMenuState extends State<MobileInviteMenu> {
   }
 
   void onApply() {
-    final isContact = info.role == PersonRole.contact;
+    final isContact = info.role == MentionablePersonTypePB.Contact;
     final email = info.email.trim();
     if (email.isEmpty || !isEmail(email)) {
       emailKey.currentState?.syncError(
@@ -229,7 +229,7 @@ class _RoleItem extends StatelessWidget {
     required this.onTap,
   });
   final bool selected;
-  final PersonRole role;
+  final MentionablePersonTypePB role;
   final VoidCallback onTap;
 
   @override

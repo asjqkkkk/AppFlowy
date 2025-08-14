@@ -1,51 +1,32 @@
 use anyhow::Error;
-use client_api::entity::auth_dto::{UpdateUserParams, UserMetaData};
 use client_api::entity::{AFRole, AFUserProfile, AFWorkspaceInvitationStatus, AFWorkspaceMember};
 
+use client_api::entity::auth_dto::UserMetaData;
 use flowy_user_pub::entities::{
-  AuthProvider, Role, USER_METADATA_ICON_URL, UpdateUserProfileParams, UserProfile,
-  WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
+  AuthProvider, Role, UserProfile, WorkspaceInvitationStatus, WorkspaceMember, WorkspaceType,
 };
-
-pub fn af_update_from_update_params(update: UpdateUserProfileParams) -> UpdateUserParams {
-  let mut user_metadata = UserMetaData::new();
-
-  if let Some(icon_url) = update.icon_url {
-    user_metadata.insert(USER_METADATA_ICON_URL, icon_url);
-  }
-
-  UpdateUserParams {
-    name: update.name,
-    email: update.email,
-    password: update.password,
-    metadata: Some(user_metadata),
-  }
-}
 
 pub fn user_profile_from_af_profile(
   token: String,
   profile: AFUserProfile,
   auth_type: AuthProvider,
 ) -> Result<UserProfile, Error> {
-  let icon_url = {
-    profile
-      .metadata
-      .map(|m| {
-        m.get(USER_METADATA_ICON_URL)
-          .map(|v| v.as_str().map(|s| s.to_string()).unwrap_or_default())
-      })
-      .unwrap_or_default()
-  };
   let workspace_type = WorkspaceType::from(&auth_type);
+  let metadata = profile
+    .metadata
+    .as_ref()
+    .and_then(|json_value| serde_json::from_value::<UserMetaData>(json_value.clone()).ok())
+    .unwrap_or_default();
+
   Ok(UserProfile {
     email: profile.email.unwrap_or("".to_string()),
     name: profile.name.unwrap_or("".to_string()),
     token,
-    icon_url: icon_url.unwrap_or_default(),
     auth_type: AuthProvider::Cloud,
     uid: profile.uid,
     updated_at: profile.updated_at,
     workspace_type,
+    metadata,
   })
 }
 

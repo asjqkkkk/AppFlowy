@@ -291,4 +291,7 @@ pub enum FolderEvent {
 
   #[event(input = "ImportWorkspaceRequestPB")]
   ImportWorkspace = 151,
+
+  #[event(input = "CreateExportRequestPB", output = "CreateExportResponsePB")]
+  CreateExportTask = 152,
 }

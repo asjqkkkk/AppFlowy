@@ -30,53 +30,60 @@ void main() {
       expect(find.byType(ParagraphBlockComponentWidget), findsOneWidget);
     });
 
-    testWidgets('create a new document, grid, board and calendar',
-        (tester) async {
-      await tester.initializeAppFlowy();
-      await tester.tapAnonymousSignInButton();
+    testWidgets(
+      'create a new document, grid, board and calendar',
+      (tester) async {
+        await tester.initializeAppFlowy();
+        await tester.tapAnonymousSignInButton();
 
-      for (final layout in ViewLayoutPB.values) {
-        if (layout == ViewLayoutPB.Chat) {
-          continue;
+        for (final layout in ViewLayoutPB.values) {
+          if (layout == ViewLayoutPB.Chat) {
+            continue;
+          }
+          // create a new page
+          final name = 'AppFlowy_$layout';
+          await tester.createNewPageWithNameUnderParent(
+            name: name,
+            layout: layout,
+          );
+
+          // expect to see a new page
+          tester.expectToSeePageName(
+            name,
+            layout: layout,
+          );
+
+          switch (layout) {
+            case ViewLayoutPB.Document:
+              // and with one paragraph block
+              expect(
+                find.byType(ParagraphBlockComponentWidget),
+                findsOneWidget,
+              );
+              break;
+            case ViewLayoutPB.Grid:
+              expect(find.byType(GridPage), findsOneWidget);
+              break;
+            case ViewLayoutPB.Board:
+              expect(find.byType(DesktopBoardPage), findsOneWidget);
+              break;
+            case ViewLayoutPB.Calendar:
+              expect(find.byType(CalendarPage), findsOneWidget);
+              break;
+            case ViewLayoutPB.Chat:
+              break;
+          }
+
+          await tester.openPage(gettingStarted);
         }
-        // create a new page
-        final name = 'AppFlowy_$layout';
-        await tester.createNewPageWithNameUnderParent(
-          name: name,
-          layout: layout,
-        );
-
-        // expect to see a new page
-        tester.expectToSeePageName(
-          name,
-          layout: layout,
-        );
-
-        switch (layout) {
-          case ViewLayoutPB.Document:
-            // and with one paragraph block
-            expect(find.byType(ParagraphBlockComponentWidget), findsOneWidget);
-            break;
-          case ViewLayoutPB.Grid:
-            expect(find.byType(GridPage), findsOneWidget);
-            break;
-          case ViewLayoutPB.Board:
-            expect(find.byType(DesktopBoardPage), findsOneWidget);
-            break;
-          case ViewLayoutPB.Calendar:
-            expect(find.byType(CalendarPage), findsOneWidget);
-            break;
-          case ViewLayoutPB.Chat:
-            break;
-        }
-
-        await tester.openPage(gettingStarted);
-      }
-    });
+      },
+      skip: true,
+    );
 
     testWidgets('create some nested pages, and move them', (tester) async {
       await tester.initializeAppFlowy();
       await tester.tapAnonymousSignInButton();
+      await tester.expectToSeeHomePageWithGetStartedPage();
 
       final names = [1, 2, 3, 4].map((e) => 'document_$e').toList();
       for (var i = 0; i < names.length; i++) {

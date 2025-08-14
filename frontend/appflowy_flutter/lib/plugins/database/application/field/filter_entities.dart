@@ -10,7 +10,7 @@ import 'package:appflowy/plugins/database/grid/presentation/widgets/filter/choic
 import 'package:appflowy/plugins/database/grid/presentation/widgets/filter/choicechip/number.dart';
 import 'package:appflowy/plugins/database/grid/presentation/widgets/filter/choicechip/select_option/condition_list.dart';
 import 'package:appflowy/plugins/database/grid/presentation/widgets/filter/choicechip/text.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy/util/int64_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -405,7 +405,6 @@ final class SelectOptionFilter extends DatabaseFilter {
         itemCount: options.length,
         itemBuilder: (context, index) => SelectOptionTag(
           option: options[index],
-          fontSize: 14,
           borderRadius: BorderRadius.circular(9),
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         ),

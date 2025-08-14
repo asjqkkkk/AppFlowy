@@ -6,3 +6,4 @@ export 'textfield/textfield.dart';
 export 'avatar/avatar.dart';
 export 'menu/menu.dart';
 export 'popover/popover.dart';
+export 'tag/tag.dart';

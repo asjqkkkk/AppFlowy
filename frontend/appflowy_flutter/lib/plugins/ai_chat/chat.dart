@@ -81,7 +81,7 @@ class AIChatPagePlugin extends Plugin {
     _viewInfoBloc = ViewInfoBloc(view: notifier.view)
       ..add(const ViewInfoEvent.started());
     _pageAccessLevelBloc = PageAccessLevelBloc(view: notifier.view)
-      ..add(const PageAccessLevelEvent.initial());
+      ..add(PageAccessLevelEvent.initial(requestSharedUsers: false));
   }
 
   @override
@@ -192,7 +192,7 @@ class AIChatPagePluginWidgetBuilder extends PluginWidgetBuilder
                   customActions: [
                     CustomViewAction(
                       view: notifier.view,
-                      disabled: !state.enabled,
+                      isDisabled: !state.enabled,
                       leftIcon: FlowySvgs.ai_add_to_page_s,
                       label: LocaleKeys.moreAction_saveAsNewPage.tr(),
                       tooltipMessage: state.enabled

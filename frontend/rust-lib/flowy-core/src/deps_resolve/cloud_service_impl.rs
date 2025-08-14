@@ -11,11 +11,13 @@ use client_api::entity::search_dto::{
 use client_api::entity::server_info_dto::ServerInfo;
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CompleteTextParams, CompletedPartRequest, CreateCollabParams, CreateImportTaskType,
-  CreateUploadResponse, MentionablePerson, MentionablePersons, ModelList, PageMentionUpdate,
-  PublishInfo, QueryCollab, RepeatedRelatedQuestion, ResponseFormat, TranslateRowResponse,
-  UploadPartResponse, WorkspaceMemberProfile,
+  CompleteTextParams, CompletedPartRequest, CreateCollabParams, CreateExportTask,
+  CreateExportTaskResponse, CreateImportTaskType, CreateUploadResponse, MentionablePerson,
+  MentionablePersons, ModelList, PageMentionUpdate, PublishInfo, QueryCollab,
+  RepeatedRelatedQuestion, ResponseFormat, TranslateRowResponse, UploadPartResponse,
+  WorkspaceMemberProfile,
 };
+use client_api::v2::TokenProvider;
 use collab::entity::EncodedCollab;
 use collab_entity::CollabType;
 use flowy_ai_pub::cloud::{
@@ -169,17 +171,9 @@ impl UserServerProvider for ServerProvider {
     Ok(())
   }
 
-  fn get_access_token(&self) -> Option<String> {
-    let server = self.get_server().ok()?;
-    server.get_access_token()
-  }
-
-  fn notify_access_token_invalid(&self) {
-    if let Ok(server) = self.get_server() {
-      tokio::spawn(async move {
-        server.refresh_access_token("access token invalid").await;
-      });
-    }
+  fn get_token_provider(&self) -> FlowyResult<Arc<dyn TokenProvider>> {
+    let server = self.get_server()?;
+    Ok(server.get_token_provider())
   }
 
   fn set_ai_model(&self, ai_model: &str) -> Result<(), FlowyError> {
@@ -557,11 +551,12 @@ impl FolderCloudService for ServerProvider {
     &self,
     workspace_id: &Uuid,
     view_id: &Uuid,
+    view_ancestors: Vec<String>,
     page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError> {
     self
       .get_folder_service()?
-      .update_page_mention(workspace_id, view_id, page_mention)
+      .update_page_mention(workspace_id, view_id, view_ancestors, page_mention)
       .await
   }
 
@@ -607,6 +602,17 @@ impl FolderCloudService for ServerProvider {
     self
       .get_folder_service()?
       .delete_recent_views(workspace_id, view_ids)
+      .await
+  }
+
+  async fn create_export(
+    &self,
+    workspace_id: &Uuid,
+    req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError> {
+    self
+      .get_folder_service()?
+      .create_export(workspace_id, req)
       .await
   }
 }

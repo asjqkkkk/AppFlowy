@@ -6,6 +6,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/multi_image_block_component/layouts/image_browser_layout.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/multi_image_block_component/multi_image_placeholder.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image_menu.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/startup/startup.dart';
@@ -52,7 +53,7 @@ void main() {
       await tester.tap(find.byType(MultiImagePlaceholder));
       await tester.pumpAndSettle();
 
-      expect(find.byType(UploadImageMenu), findsOneWidget);
+      expect(find.byType(DesktopImageSelector), findsOneWidget);
 
       final firstImage =
           await rootBundle.load('assets/test/images/sample.jpeg');
@@ -71,9 +72,7 @@ void main() {
       mockPickFilePaths(paths: [firstImagePath, secondImagePath]);
 
       await getIt<KeyValueStorage>().set(KVKeys.kCloudType, '0');
-      await tester.tapButtonWithName(
-        LocaleKeys.document_imageBlock_upload_placeholder.tr(),
-      );
+      await tester.tapButton(find.byType(FileDropZone));
       await tester.pumpAndSettle();
       expect(find.byType(ImageBrowserLayout), findsOneWidget);
       final node = tester.editor.getCurrentEditorState().getNodeAtPath([0])!;

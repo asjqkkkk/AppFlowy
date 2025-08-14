@@ -11,10 +11,15 @@ class RustWorkspaceExportRepositoryImpl implements WorkspaceExportRepository {
     required String workspaceId,
     required String exportPath,
     required String exportName,
+    bool? includeFileAttachments,
   }) async {
     final request = ExportWorkspaceRequestPB()
       ..workspaceId = workspaceId
       ..outputPath = exportPath;
+    if (includeFileAttachments != null) {
+      request.includeFileAttachments = includeFileAttachments;
+    }
+
     final result = await FolderEventExportWorkspace(request).send();
     return result.fold(
       (response) {

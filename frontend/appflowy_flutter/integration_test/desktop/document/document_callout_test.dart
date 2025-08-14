@@ -4,8 +4,10 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/base/icon/icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/emoji_picker_button.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/callout/callout_block_component.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/callout/callout_block_shortcuts.dart';
 import 'package:appflowy/shared/icon_emoji_picker/icon_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/recent_icons.dart';
+import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -63,5 +65,45 @@ void main() {
     expect(iconWidgetData.svgString, iconData.svgString);
     expect(iconWidgetData.iconName, iconData.iconName);
     expect(iconWidgetData.groupName, iconData.groupName);
+  });
+
+  testWidgets('insert new line in the middle of the sentence', (tester) async {
+    await tester.initializeAppFlowy();
+    await tester.tapAnonymousSignInButton();
+    await tester.createNewPageWithNameUnderParent();
+
+    await tester.editor.tapLineOfEditorAt(0);
+    await tester.editor.showSlashMenu();
+    await tester.pumpAndSettle();
+    await tester.editor.tapSlashMenuItemWithName(
+      LocaleKeys.document_slashMenu_name_callout.tr(),
+    );
+
+    // insert a new line
+    await tester.editor.tapLineOfEditorAt(0);
+    await tester.ime.insertText('Hello World');
+
+    // focus on the middle of the sentence
+    await tester.editor.updateSelection(
+      Selection.collapsed(
+        Position(
+          path: [0],
+          offset: 5,
+        ),
+      ),
+    );
+
+    // enter and check the result
+    await insertNewLineInCalloutBlock.execute(
+      tester.editor.getCurrentEditorState(),
+    );
+    // wait for the transaction to be applied
+    await tester.pumpAndSettle();
+    final node = tester.editor.getCurrentEditorState().getNodeAtPath([0]);
+    expect(node?.type, CalloutBlockKeys.type);
+    expect(node?.delta?.toPlainText(), 'Hello');
+    final child = node?.children.first;
+    expect(child?.type, ParagraphBlockKeys.type);
+    expect(child?.delta?.toPlainText(), ' World');
   });
 }

@@ -13,21 +13,20 @@ import 'package:appflowy/plugins/database/widgets/cell/editable_cell_builder.dar
 import 'package:appflowy/plugins/database/widgets/cell/editable_cell_skeleton/text.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_action.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_controls.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image_menu.dart';
 import 'package:appflowy/plugins/shared/cover_type_ext.dart';
 import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
+import 'package:appflowy/shared/flowy_tint_colors.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart' hide UploadImageMenu;
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
-import 'package:flowy_infra_ui/widget/rounded_button.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -125,8 +124,11 @@ class _RowBannerState extends State<RowBanner> {
                           rowId: widget.rowController.rowId,
                           cover: state.rowMeta.cover,
                           userProfile: widget.userProfile,
-                          onCoverChanged: (type, details, uploadType) {
+                          onCoverChanged: (type, details) {
                             if (details != null) {
+                              final uploadType = isLocalMode
+                                  ? FileUploadTypePB.LocalFile
+                                  : FileUploadTypePB.CloudFile;
                               context.read<RowBannerBloc>().add(
                                     RowBannerEvent.setCover(
                                       RowCoverPB(
@@ -212,11 +214,7 @@ class RowCover extends StatefulWidget {
   final String rowId;
   final RowCoverPB cover;
   final UserProfilePB? userProfile;
-  final void Function(
-    CoverType type,
-    String? details,
-    FileUploadTypePB? uploadType,
-  ) onCoverChanged;
+  final void Function(CoverType type, String? details) onCoverChanged;
   final bool isLocalMode;
 
   @override
@@ -224,117 +222,34 @@ class RowCover extends StatefulWidget {
 }
 
 class _RowCoverState extends State<RowCover> {
-  final popoverController = PopoverController();
-  bool isOverlayButtonsHidden = true;
-  bool isPopoverOpen = false;
+  bool isHovered = false;
+  bool isOpen = false;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
       height: rowCoverHeight,
       child: MouseRegion(
-        onEnter: (_) => setState(() => isOverlayButtonsHidden = false),
-        onExit: (_) => setState(() => isOverlayButtonsHidden = true),
+        onEnter: (_) => setState(() => isHovered = true),
+        onExit: (_) => setState(() => isHovered = false),
         child: Stack(
           children: [
-            SizedBox(
-              width: double.infinity,
+            SizedBox.expand(
               child: DesktopRowCover(
                 cover: widget.cover,
                 userProfile: widget.userProfile,
               ),
             ),
-            if (!isOverlayButtonsHidden || isPopoverOpen)
-              _buildCoverOverlayButtons(context),
+            if (isHovered || isOpen)
+              CoverControls(
+                isLocalMode: widget.isLocalMode,
+                cover: (widget.cover.coverType.into(), widget.cover.data),
+                onCoverChanged: onCoverChanged,
+                onOpen: () => isOpen = true,
+                onClose: () => isOpen = false,
+              ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildCoverOverlayButtons(BuildContext context) {
-    return Positioned(
-      bottom: 20,
-      right: 50,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AppFlowyPopover(
-            controller: popoverController,
-            triggerActions: PopoverTriggerFlags.none,
-            offset: const Offset(0, 8),
-            direction: PopoverDirection.bottomWithCenterAligned,
-            constraints: const BoxConstraints(
-              maxWidth: 540,
-              maxHeight: 360,
-              minHeight: 80,
-            ),
-            margin: EdgeInsets.zero,
-            onClose: () => setState(() => isPopoverOpen = false),
-            child: IntrinsicWidth(
-              child: RoundedTextButton(
-                height: 28.0,
-                onPressed: () => popoverController.show(),
-                hoverColor: Theme.of(context).colorScheme.surface,
-                textColor: Theme.of(context).colorScheme.tertiary,
-                fillColor: Theme.of(context)
-                    .colorScheme
-                    .surface
-                    .withValues(alpha: 0.5),
-                title: LocaleKeys.document_plugins_cover_changeCover.tr(),
-              ),
-            ),
-            popupBuilder: (BuildContext popoverContext) {
-              isPopoverOpen = true;
-
-              return UploadImageMenu(
-                limitMaximumImageSize: !widget.isLocalMode,
-                supportTypes: const [
-                  UploadImageType.color,
-                  UploadImageType.local,
-                  UploadImageType.url,
-                  UploadImageType.unsplash,
-                ],
-                onSelectedAIImage: (_) => throw UnimplementedError(),
-                onSelectedLocalImages: (files) {
-                  popoverController.close();
-                  if (files.isEmpty) {
-                    return;
-                  }
-
-                  final item = files.map((file) => file.path).first;
-                  onCoverChanged(
-                    CoverType.file,
-                    item,
-                    widget.isLocalMode
-                        ? FileUploadTypePB.LocalFile
-                        : FileUploadTypePB.CloudFile,
-                  );
-                },
-                onSelectedNetworkImage: (url) {
-                  popoverController.close();
-                  onCoverChanged(
-                    CoverType.file,
-                    url,
-                    FileUploadTypePB.NetworkFile,
-                  );
-                },
-                onSelectedColor: (color) {
-                  popoverController.close();
-                  onCoverChanged(
-                    CoverType.color,
-                    color,
-                    FileUploadTypePB.LocalFile,
-                  );
-                },
-              );
-            },
-          ),
-          const HSpace(10),
-          DeleteCoverButton(
-            onTap: () => widget.onCoverChanged(CoverType.none, null, null),
-          ),
-        ],
       ),
     );
   }
@@ -342,32 +257,28 @@ class _RowCoverState extends State<RowCover> {
   Future<void> onCoverChanged(
     CoverType type,
     String? details,
-    FileUploadTypePB? uploadType,
   ) async {
     if (type == CoverType.file && details != null && !isURL(details)) {
       if (widget.isLocalMode) {
         details = await saveImageToLocalStorage(details);
       } else {
-        // else we should save the image to cloud storage
         (details, _) = await saveImageToCloudStorage(details, widget.rowId);
       }
     }
-    widget.onCoverChanged(type, details, uploadType);
+
+    widget.onCoverChanged(type, details);
   }
 }
 
-class DesktopRowCover extends StatefulWidget {
-  const DesktopRowCover({super.key, required this.cover, this.userProfile});
+class DesktopRowCover extends StatelessWidget {
+  const DesktopRowCover({
+    super.key,
+    required this.cover,
+    this.userProfile,
+  });
 
   final RowCoverPB cover;
   final UserProfilePB? userProfile;
-
-  @override
-  State<DesktopRowCover> createState() => _DesktopRowCoverState();
-}
-
-class _DesktopRowCoverState extends State<DesktopRowCover> {
-  RowCoverPB get cover => widget.cover;
 
   @override
   Widget build(BuildContext context) {
@@ -378,7 +289,7 @@ class _DesktopRowCoverState extends State<DesktopRowCover> {
         child: AFImage(
           url: cover.data,
           uploadType: cover.uploadType,
-          userProfile: widget.userProfile,
+          userProfile: userProfile,
         ),
       );
     }
@@ -409,7 +320,7 @@ class _DesktopRowCoverState extends State<DesktopRowCover> {
         height: rowCoverHeight,
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: FlowyGradientColor.fromId(cover.data).linear,
+          gradient: FlowyGradient.fromId(cover.data)?.toGradient(context),
         ),
       );
     }
@@ -483,11 +394,8 @@ class _RowHeaderToolbarState extends State<RowHeaderToolbar> {
                     ),
                     onTap: () => widget.onCoverChanged(
                       RowCoverPB(
-                        data: isDesktop ? '1' : '0xffe8e0ff',
-                        uploadType: FileUploadTypePB.LocalFile,
-                        coverType: isDesktop
-                            ? CoverTypePB.AssetCover
-                            : CoverTypePB.ColorCover,
+                        data: FlowyTint.tint1.id,
+                        coverType: CoverTypePB.ColorCover,
                       ),
                     ),
                   ),

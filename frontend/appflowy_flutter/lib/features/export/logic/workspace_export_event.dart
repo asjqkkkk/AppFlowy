@@ -35,11 +35,13 @@ class WorkspaceExportStartEvent extends WorkspaceExportEvent {
     required this.workspaceId,
     required this.exportPath,
     required this.exportName,
+    this.includeFileAttachments = true,
   });
 
   final String workspaceId;
   final String exportPath;
   final String exportName;
+  final bool includeFileAttachments;
 }
 
 /// Updates the export progress.

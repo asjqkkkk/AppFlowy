@@ -292,27 +292,20 @@ class _DocumentPageState extends State<DocumentPage>
     }
 
     if (UniversalPlatform.isMobile) {
-      Widget child = DocumentImmersiveCover(
-        fixedTitle: widget.fixedTitle,
-        view: widget.view,
-        tabs: widget.tabs,
-        userProfilePB: userProfilePB,
+      return IgnorePointer(
+        ignoring: !context.read<PageAccessLevelBloc>().state.isEditable,
+        child: DocumentImmersiveCover(
+          fixedTitle: widget.fixedTitle,
+          view: widget.view,
+          tabs: widget.tabs,
+          userProfilePB: userProfilePB,
+        ),
       );
-
-      final isEditable = context.read<PageAccessLevelBloc>().state.isEditable;
-
-      child = IgnorePointer(
-        ignoring: !isEditable,
-        child: child,
-      );
-
-      return child;
     }
 
-    final page = editorState.document.root;
-    return DocumentCoverWidget(
-      node: page,
-      tabs: widget.tabs,
+    return DocumentHeader(
+      node: editorState.document.root,
+      iconTabs: widget.tabs,
       editorState: editorState,
       view: widget.view,
       onIconChanged: (icon) async => ViewBackendService.updateViewIcon(

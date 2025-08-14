@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:appflowy/workspace/application/view/view_ext.dart';
+import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -32,6 +33,11 @@ Future<List<SectionViewPB>> readRecentViews() async {
       return [];
     },
   );
+}
+
+Future<List<ViewPB>> readAllViews() async {
+  final viewResult = await ViewBackendService.getAllViewsWithPermissionCheck();
+  return viewResult.toNullable()?.items ?? [];
 }
 
 Future<List<SectionViewPB>> removeRecentViews(List<String> viewIds) async {

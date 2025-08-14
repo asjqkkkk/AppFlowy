@@ -77,7 +77,7 @@ class ColumnsBlockComponent extends BlockComponentStatefulWidget {
 }
 
 class ColumnsBlockComponentState extends State<ColumnsBlockComponent>
-    with SelectableMixin, BlockComponentConfigurable {
+    with SelectableMixin, BlockComponentConfigurable, WidgetsBindingObserver {
   @override
   BlockComponentConfiguration get configuration => widget.configuration;
 
@@ -98,6 +98,11 @@ class ColumnsBlockComponentState extends State<ColumnsBlockComponent>
   void initState() {
     super.initState();
     _updateColumnsBlock();
+  }
+
+  @override
+  void didChangeMetrics() {
+    updateHeightValueNotifier();
   }
 
   @override
@@ -140,10 +145,7 @@ class ColumnsBlockComponentState extends State<ColumnsBlockComponent>
 
     // the columns block does not support the block actions and selection
     // because the columns block is a layout wrapper, it does not have a content
-    return NotificationListener<SizeChangedLayoutNotification>(
-      onNotification: (v) => updateHeightValueNotifier(v),
-      child: SizeChangedLayoutNotifier(child: child),
-    );
+    return SizeChangedLayoutNotifier(child: child);
   }
 
   List<Widget> _buildChildren() {
@@ -202,14 +204,13 @@ class ColumnsBlockComponentState extends State<ColumnsBlockComponent>
     }
   }
 
-  bool updateHeightValueNotifier(SizeChangedLayoutNotification notification) {
-    if (!mounted) return true;
+  void updateHeightValueNotifier() {
+    if (!mounted) return;
     final height = _renderBox?.size.height;
-    if (heightValueNotifier.value == height) return true;
+    if (heightValueNotifier.value == height) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       heightValueNotifier.value = height;
     });
-    return true;
   }
 
   @override

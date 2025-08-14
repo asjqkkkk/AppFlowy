@@ -341,7 +341,7 @@ void main() {
       await tester.hoverOnWidget(
         title,
         onHover: () async {
-          expect(find.byType(DocumentCoverWidget), findsOneWidget);
+          expect(find.byType(DocumentHeader), findsOneWidget);
         },
       );
 

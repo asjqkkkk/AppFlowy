@@ -1,85 +1,60 @@
+import 'package:appflowy/features/color_picker/color_picker.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 
-enum FlowyGradientColor {
-  gradient1,
-  gradient2,
-  gradient3,
-  gradient4,
-  gradient5,
-  gradient6,
-  gradient7;
+enum FlowyGradient {
+  gradient1('appflowy_them_color_gradient1'),
+  gradient2('appflowy_them_color_gradient2'),
+  gradient3('appflowy_them_color_gradient3'),
+  gradient4('appflowy_them_color_gradient4'),
+  gradient5('appflowy_them_color_gradient5'),
+  gradient6('appflowy_them_color_gradient6'),
+  gradient7('appflowy_them_color_gradient7'),
+  gradient8('appflowy_them_color_gradient8'),
+  gradient9('appflowy_them_color_gradient9'),
+  gradient10('appflowy_them_color_gradient10');
 
-  static FlowyGradientColor fromId(String id) {
-    return FlowyGradientColor.values.firstWhere(
-      (element) => element.id == id,
-      orElse: () => FlowyGradientColor.gradient1,
-    );
+  const FlowyGradient(this.id);
+
+  final String id;
+
+  static FlowyGradient? fromId(String id) {
+    return values.firstWhereOrNull((element) => element.id == id);
   }
 
-  String get id {
-    // DON'T change this name because it's saved in the database!
-    switch (this) {
-      case FlowyGradientColor.gradient1:
-        return 'appflowy_them_color_gradient1';
-      case FlowyGradientColor.gradient2:
-        return 'appflowy_them_color_gradient2';
-      case FlowyGradientColor.gradient3:
-        return 'appflowy_them_color_gradient3';
-      case FlowyGradientColor.gradient4:
-        return 'appflowy_them_color_gradient4';
-      case FlowyGradientColor.gradient5:
-        return 'appflowy_them_color_gradient5';
-      case FlowyGradientColor.gradient6:
-        return 'appflowy_them_color_gradient6';
-      case FlowyGradientColor.gradient7:
-        return 'appflowy_them_color_gradient7';
-    }
+  Gradient toGradient(BuildContext context) {
+    return toAFColor().toGradient(AppFlowyTheme.of(context))!;
   }
 
-  LinearGradient get linear {
-    switch (this) {
-      case FlowyGradientColor.gradient1:
-        return const LinearGradient(
-          begin: Alignment(-0.35, -0.94),
-          end: Alignment(0.35, 0.94),
-          colors: [Color(0xFF34BDAF), Color(0xFFB682D4)],
-        );
-      case FlowyGradientColor.gradient2:
-        return const LinearGradient(
-          begin: Alignment(0.00, -1.00),
-          end: Alignment(0, 1),
-          colors: [Color(0xFF4CC2CC), Color(0xFFE17570)],
-        );
-      case FlowyGradientColor.gradient3:
-        return const LinearGradient(
-          begin: Alignment(0.00, -1.00),
-          end: Alignment(0, 1),
-          colors: [Color(0xFFAF70E0), Color(0xFFED7196)],
-        );
-      case FlowyGradientColor.gradient4:
-        return const LinearGradient(
-          begin: Alignment(0.00, -1.00),
-          end: Alignment(0, 1),
-          colors: [Color(0xFFA348D6), Color(0xFF44A7DE)],
-        );
-      case FlowyGradientColor.gradient5:
-        return const LinearGradient(
-          begin: Alignment(0.38, -0.93),
-          end: Alignment(-0.38, 0.93),
-          colors: [Color(0xFF5749C9), Color(0xFFBB4997)],
-        );
-      case FlowyGradientColor.gradient6:
-        return const LinearGradient(
-          begin: Alignment(0.00, -1.00),
-          end: Alignment(0, 1),
-          colors: [Color(0xFF036FFA), Color(0xFF00B8E5)],
-        );
-      case FlowyGradientColor.gradient7:
-        return const LinearGradient(
-          begin: Alignment(0.62, -0.79),
-          end: Alignment(-0.62, 0.79),
-          colors: [Color(0xFFF0C6CF), Color(0xFFDECCE2), Color(0xFFCAD3F9)],
-        );
-    }
+  static FlowyGradient? fromAFColor(AFColor color) {
+    return switch (color.value) {
+      'gradient-color-dark-1' => gradient1,
+      'gradient-color-dark-2' => gradient2,
+      'gradient-color-dark-3' => gradient3,
+      'gradient-color-dark-4' => gradient4,
+      'gradient-color-dark-5' => gradient5,
+      'gradient-color-light-1' => gradient6,
+      'gradient-color-light-2' => gradient7,
+      'gradient-color-light-3' => gradient8,
+      'gradient-color-light-4' => gradient9,
+      'gradient-color-light-5' => gradient10,
+      _ => null,
+    };
+  }
+
+  AFColor toAFColor() {
+    return switch (this) {
+      gradient1 => BuiltinAFColor('gradient-color-dark-1'),
+      gradient2 => BuiltinAFColor('gradient-color-dark-2'),
+      gradient3 => BuiltinAFColor('gradient-color-dark-3'),
+      gradient4 => BuiltinAFColor('gradient-color-dark-4'),
+      gradient5 => BuiltinAFColor('gradient-color-dark-5'),
+      gradient6 => BuiltinAFColor('gradient-color-light-1'),
+      gradient7 => BuiltinAFColor('gradient-color-light-2'),
+      gradient8 => BuiltinAFColor('gradient-color-light-3'),
+      gradient9 => BuiltinAFColor('gradient-color-light-4'),
+      gradient10 => BuiltinAFColor('gradient-color-light-5'),
+    };
   }
 }

@@ -1,19 +1,19 @@
-import 'person.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 
 class InviteInfo {
   InviteInfo({
     required this.email,
-    this.role = PersonRole.member,
+    this.role = MentionablePersonTypePB.WorkspaceMember,
     this.contactDetail,
   });
 
   final String email;
-  final PersonRole role;
   final ContactDetail? contactDetail;
-
+  final MentionablePersonTypePB role;
+  
   InviteInfo copyWith({
     String? email,
-    PersonRole? role,
+    MentionablePersonTypePB? role,
     ContactDetail? contactDetail,
   }) {
     return InviteInfo(

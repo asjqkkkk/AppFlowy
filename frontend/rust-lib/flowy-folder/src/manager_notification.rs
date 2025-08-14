@@ -1,4 +1,4 @@
-use crate::entities::MentionablePersonPB;
+use crate::entities::MentionablePersonChangeSetPB;
 use crate::manager::FolderManager;
 use crate::notification::{FolderNotification, folder_notification_builder};
 use chrono::{DateTime, Utc};
@@ -54,7 +54,7 @@ impl FolderManager {
         self.fetch_single_mentionable_person(user_uuid).await
       },
       WorkspaceNotification::MentionablePersonListChangedRemovedMember { user_uuid } => {
-        self.delete_mentionable_person(user_uuid)
+        self.delete_mentionable_person(user_uuid).await
       },
       _ => Ok(()),
     }
@@ -71,19 +71,29 @@ impl FolderManager {
         let mut db = self.user.sqlite_connection(uid)?;
         let row = MentionablePersonTable::from_mention_person(person, workspace_id);
         upsert_mentionable_person(&mut db, &row)?;
+        let row_entity = row.to_entity();
         self
-          .send_update_mentionable_person_notification(row.to_entity().into())
+          .send_update_mentionable_person_notification(MentionablePersonChangeSetPB {
+            updated: vec![row_entity.into()],
+            removed: vec![],
+          })
           .await;
       }
     }
     Ok(())
   }
 
-  fn delete_mentionable_person(&self, user_uuid: Uuid) -> FlowyResult<()> {
+  async fn delete_mentionable_person(&self, user_uuid: Uuid) -> FlowyResult<()> {
     let uid = self.user.user_id()?;
     let workspace_id = self.user.workspace_id()?.to_string();
     let mut db = self.user.sqlite_connection(uid)?;
     delete_workspace_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?;
+    self
+      .send_update_mentionable_person_notification(MentionablePersonChangeSetPB {
+        updated: vec![],
+        removed: vec![user_uuid.to_string()],
+      })
+      .await;
     Ok(())
   }
 
@@ -120,53 +130,36 @@ impl FolderManager {
   async fn handle_member_list_changed_notification(
     &self,
     user_uuid: Uuid,
-    mentioned_at: Option<DateTime<Utc>>,
+    mentioned_at: Option<i64>,
     role: Option<AFRole>,
   ) -> FlowyResult<()> {
     let uid = self.user.user_id()?;
     let workspace_id = self.user.workspace_id()?.to_string();
     let mut db = self.user.sqlite_connection(uid)?;
-    let mut updated_person = None;
 
     // Handle role update
     if let Some(role) = role {
-      if let Some(person) =
-        select_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?
-      {
-        update_role(
-          &mut db,
-          &workspace_id,
-          &user_uuid.to_string(),
-          MentionablePersonType::from(role),
-        )?;
-        updated_person = Some(person.to_entity().into());
-      } else {
-        debug!(
-          "Mentionable person not found for role update, ignoring: {}",
-          user_uuid
-        );
-      }
+      update_role(
+        &mut db,
+        &workspace_id,
+        &user_uuid.to_string(),
+        MentionablePersonType::from(role),
+      )?;
     }
 
     // Handle mention update
-    if let Some(mentioned_at) = mentioned_at {
-      if let Some(person) =
-        select_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?
-      {
-        update_last_mentioned_at(&mut db, &workspace_id, &user_uuid.to_string(), mentioned_at)?;
-        updated_person = Some(person.to_entity().into());
-      } else {
-        debug!(
-          "Mentionable person not found for mention update, ignoring: {}",
-          user_uuid
-        );
-      }
+    if let Some(mentioned_at) = mentioned_at.and_then(|v| DateTime::<Utc>::from_timestamp(v, 0)) {
+      update_last_mentioned_at(&mut db, &workspace_id, &user_uuid.to_string(), mentioned_at)?;
     }
 
     // Send notification only once if we have an updated person
-    if let Some(person) = updated_person {
+    if let Some(person) = select_mentionable_person(&mut db, &workspace_id, &user_uuid.to_string())?
+    {
       self
-        .send_update_mentionable_person_notification(person)
+        .send_update_mentionable_person_notification(MentionablePersonChangeSetPB {
+          updated: vec![person.to_entity().into()],
+          removed: vec![],
+        })
         .await;
     }
 
@@ -175,14 +168,14 @@ impl FolderManager {
 
   pub(crate) async fn send_update_mentionable_person_notification(
     &self,
-    person: MentionablePersonPB,
+    person_changeset: MentionablePersonChangeSetPB,
   ) {
     if let Ok(workspace_id) = self.user.workspace_id() {
       folder_notification_builder(
         workspace_id.to_string(),
-        FolderNotification::DidUpdateMentionablePerson,
+        FolderNotification::DidUpdateMentionablePersons,
       )
-      .payload(person)
+      .payload(person_changeset)
       .send();
     }
   }

@@ -16,11 +16,11 @@ class CustomAvatarClipper extends CustomClipper<Path> {
 class PathWidgetMask extends StatelessWidget {
   const PathWidgetMask({
     super.key,
-    required this.child,
+    this.child,
     this.path = avatarPath,
   });
 
-  final Widget child;
+  final Widget? child;
   final String path;
 
   @override

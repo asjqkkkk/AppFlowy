@@ -1,11 +1,10 @@
 import 'dart:collection';
 
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
-import 'package:flowy_infra/size.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-
-import 'extension.dart';
 
 class SelectOptionTextField extends StatefulWidget {
   const SelectOptionTextField({
@@ -21,7 +20,6 @@ class SelectOptionTextField extends StatefulWidget {
     required this.onPaste,
     required this.onRemove,
     this.scrollController,
-    this.onClick,
   });
 
   final List<SelectOptionPB> options;
@@ -36,7 +34,6 @@ class SelectOptionTextField extends StatefulWidget {
   final Function(String) newText;
   final Function(List<String>, String) onPaste;
   final Function(String) onRemove;
-  final VoidCallback? onClick;
 
   @override
   State<SelectOptionTextField> createState() => _SelectOptionTextFieldState();
@@ -77,25 +74,12 @@ class _SelectOptionTextFieldState extends State<SelectOptionTextField> {
 
   @override
   Widget build(BuildContext context) {
-    return TextField(
+    return AFTextField(
       controller: widget.textController,
       focusNode: widget.focusNode,
-      onTap: widget.onClick,
       onSubmitted: (_) => widget.onSubmitted(),
-      style: Theme.of(context).textTheme.bodyMedium,
-      decoration: InputDecoration(
-        enabledBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.outline),
-          borderRadius: Corners.s10Border,
-        ),
-        isDense: true,
-        prefixIcon: _renderTags(context),
-        prefixIconConstraints: BoxConstraints(maxWidth: widget.distanceToText),
-        focusedBorder: OutlineInputBorder(
-          borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-          borderRadius: Corners.s10Border,
-        ),
-      ),
+      prefixIconConstraints: BoxConstraints(maxWidth: widget.distanceToText),
+      prefixIconBuilder: _renderTags,
     );
   }
 
@@ -138,10 +122,6 @@ class _SelectOptionTextFieldState extends State<SelectOptionTextField> {
           (option) => SelectOptionTag(
             option: option,
             onRemove: (option) => widget.onRemove(option),
-            padding: const EdgeInsets.symmetric(
-              horizontal: 8,
-              vertical: 4,
-            ),
           ),
         )
         .toList();
@@ -151,7 +131,7 @@ class _SelectOptionTextFieldState extends State<SelectOptionTextField> {
       child: MouseRegion(
         cursor: SystemMouseCursors.basic,
         child: Padding(
-          padding: const EdgeInsets.all(8.0),
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: ScrollConfiguration(
             behavior: ScrollConfiguration.of(context).copyWith(
               dragDevices: {

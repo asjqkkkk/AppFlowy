@@ -70,17 +70,7 @@ class _DatabasePropertyListState extends State<DatabasePropertyList> {
           return ReorderableListView(
             proxyDecorator: (child, index, _) => Material(
               color: Colors.transparent,
-              child: Stack(
-                children: [
-                  child,
-                  MouseRegion(
-                    cursor: Platform.isWindows
-                        ? SystemMouseCursors.click
-                        : SystemMouseCursors.grabbing,
-                    child: const SizedBox.expand(),
-                  ),
-                ],
-              ),
+              child: child,
             ),
             buildDefaultDragHandles: false,
             shrinkWrap: true,

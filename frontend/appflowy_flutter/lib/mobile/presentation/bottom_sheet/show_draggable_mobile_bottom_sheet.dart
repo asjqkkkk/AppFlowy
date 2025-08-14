@@ -92,6 +92,7 @@ class BottomSheetHeaderV2 extends StatelessWidget {
     this.showDivider = true,
     this.leading,
     this.trailing,
+    this.padding,
   });
 
   final String title;
@@ -99,6 +100,7 @@ class BottomSheetHeaderV2 extends StatelessWidget {
   final bool showDivider;
   final Widget? leading;
   final Widget? trailing;
+  final EdgeInsetsGeometry? padding;
 
   @override
   Widget build(BuildContext context) {
@@ -112,9 +114,10 @@ class BottomSheetHeaderV2 extends StatelessWidget {
           constraints: const BoxConstraints.tightFor(
             height: 52.0,
           ),
-          padding: EdgeInsets.symmetric(
-            horizontal: theme.spacing.xl,
-          ),
+          padding: padding ??
+              EdgeInsets.symmetric(
+                horizontal: theme.spacing.xl,
+              ),
           child: Stack(
             alignment: AlignmentDirectional.center,
             children: [

@@ -6,6 +6,7 @@ use crate::local_server::template::create_workspace::{
 };
 use crate::local_server::uid::IDGenerator;
 use anyhow::Context;
+use client_api::entity::auth_dto::{MetadataKey, UpdateUserParams};
 use client_api::entity::{AFWorkspaceSettings, AFWorkspaceSettingsChange, GotrueTokenResponse};
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
@@ -142,10 +143,15 @@ impl UserAuthService for LocalServerUserServiceImpl {
 
 #[async_trait]
 impl UserProfileService for LocalServerUserServiceImpl {
-  async fn update_user(&self, params: UpdateUserProfileParams) -> Result<(), FlowyError> {
+  async fn update_user(&self, uid: i64, params: UpdateUserParams) -> Result<(), FlowyError> {
     let uid = self.logged_user.user_id()?;
     let mut conn = self.logged_user.get_sqlite_db(uid)?;
-    let changeset = UserTableChangeset::new(params);
+    let changeset = UserTableChangeset {
+      id: uid.to_string(),
+      name: params.name,
+      email: params.email,
+      metadata: None,
+    };
     update_user_profile(&mut conn, changeset)?;
     Ok(())
   }
@@ -278,7 +284,7 @@ impl UserWorkspaceService for LocalServerUserServiceImpl {
             email: profile.email.to_string(),
             role: Role::Owner as i32,
             name: profile.name.to_string(),
-            avatar_url: Some(profile.icon_url),
+            avatar_url: profile.metadata.get_typed(MetadataKey::IconUrl),
             uid,
             workspace_id: workspace_id.to_string(),
             updated_at: chrono::Utc::now().naive_utc(),

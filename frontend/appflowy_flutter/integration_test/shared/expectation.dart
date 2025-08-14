@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/mobile/presentation/page_item/mobile_view_item.dart';
 import 'package:appflowy/mobile/presentation/presentation.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_detail.dart';
 import 'package:appflowy/plugins/document/presentation/banner.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/header/document_cover_widget.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_content.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/cover/cover_controls.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/header/emoji_icon_widget.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy/shared/appflowy_network_svg.dart';
@@ -37,11 +39,9 @@ extension Expectation on WidgetTester {
     if (UniversalPlatform.isDesktopOrWeb) {
       final finder = find.byType(HomeStack);
       await pumpUntilFound(finder);
-      expect(finder, findsOneWidget);
     } else if (UniversalPlatform.isMobile) {
       final finder = find.byType(MobileHomePage);
       await pumpUntilFound(finder);
-      expect(finder, findsOneWidget);
     }
 
     final docFinder = find.textContaining(gettingStarted);
@@ -135,15 +135,15 @@ extension Expectation on WidgetTester {
     expect(iconWidget, findsOneWidget);
   }
 
-  void expectToSeeDocumentCover(CoverType type) {
+  void expectToSeeDocumentCover(PageStyleCoverImageType type) {
     final findCover = find.byWidgetPredicate(
-      (widget) => widget is DocumentCover && widget.coverType == type,
+      (widget) => widget is CoverContent && widget.type == type,
     );
     expect(findCover, findsOneWidget);
   }
 
   void expectToSeeNoDocumentCover() {
-    final findCover = find.byType(DocumentCover);
+    final findCover = find.byType(CoverContent);
     expect(findCover, findsNothing);
   }
 

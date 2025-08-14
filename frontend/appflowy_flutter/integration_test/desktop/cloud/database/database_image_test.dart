@@ -5,6 +5,7 @@ import 'package:appflowy/core/config/kv_keys.dart';
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/resizeable_image.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart'
@@ -63,9 +64,7 @@ void main() {
         );
 
         await getIt<KeyValueStorage>().set(KVKeys.kCloudType, '0');
-        await tester.tapButtonWithName(
-          LocaleKeys.document_imageBlock_upload_placeholder.tr(),
-        );
+        await tester.tapButton(find.byType(FileDropZone));
         await tester.pumpAndSettle();
         expect(find.byType(ResizableImage), findsOneWidget);
         final node = tester.editor.getCurrentEditorState().getNodeAtPath([0])!;

@@ -5,7 +5,7 @@ mod summary_test;
 mod test_utils;
 mod translate_test;
 
-use client_api::entity::{ContextSuggestedQuestion, QuestionStreamValue};
+use client_api::entity::chat_dto::{ContextSuggestedQuestion, QuestionStreamValue};
 use flowy_ai::SqliteVectorStore;
 use flowy_ai::embeddings::indexer::LocalEmbeddingModel;
 use flowy_ai::local_ai::chat::LLMChatInfo;
@@ -154,6 +154,7 @@ pub async fn collect_stream(stream: StreamAnswer) -> StreamResult {
           println!("[Test] Got progress: {}", value);
           progress.push(value);
         },
+        QuestionStreamValue::Reasoning { .. } => {},
       },
       Err(e) => {
         eprintln!("[Test] Stream error: {}", e);

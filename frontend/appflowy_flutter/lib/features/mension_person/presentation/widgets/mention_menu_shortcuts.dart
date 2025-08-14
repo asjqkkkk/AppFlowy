@@ -213,6 +213,7 @@ class _MentionMenuShortcutsState extends State<MentionMenuShortcuts> {
     }
     scrollController.scrollToIndex(
       to,
+      duration: Durations.short1,
       preferPosition: AutoScrollPosition.middle,
     );
   }

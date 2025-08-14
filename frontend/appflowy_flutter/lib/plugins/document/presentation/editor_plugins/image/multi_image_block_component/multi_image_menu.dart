@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
+import 'package:appflowy/plugins/document/presentation/editor_drop_manager.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/block_menu/block_menu_button.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
@@ -17,6 +18,7 @@ import 'package:appflowy/workspace/presentation/widgets/image_viewer/image_provi
 import 'package:appflowy/workspace/presentation/widgets/image_viewer/interactive_image_viewer.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_editor/appflowy_editor.dart' hide UploadImageMenu;
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/size.dart';
@@ -114,25 +116,30 @@ class _MultiImageMenuState extends State<MultiImageMenu> {
           AppFlowyPopover(
             controller: controller,
             direction: PopoverDirection.bottomWithRightAligned,
-            onClose: allowMenuClose,
-            constraints: const BoxConstraints(
-              maxWidth: 540,
-              maxHeight: 360,
+            onOpen: () => enableDocumentDragNotifier.value = false,
+            onClose: () {
+              allowMenuClose();
+              enableDocumentDragNotifier.value = true;
+            },
+            constraints: BoxConstraints(
+              maxWidth: 400,
+              maxHeight: 366,
               minHeight: 80,
             ),
-            offset: const Offset(0, 10),
+            margin: EdgeInsets.zero,
+            offset: const Offset(0, 2),
             popupBuilder: (context) {
               preventMenuClose();
-              return UploadImageMenu(
+              return DesktopImageSelector(
                 allowMultipleImages: true,
-                supportTypes: const [
+                supportedTypes: const [
                   UploadImageType.local,
                   UploadImageType.url,
                   UploadImageType.unsplash,
                 ],
-                onSelectedLocalImages: insertLocalImages,
-                onSelectedAIImage: insertAIImage,
-                onSelectedNetworkImage: insertNetworkImage,
+                onSelectLocalImages: insertLocalImages,
+                onSelectAIImage: insertAIImage,
+                onSelectNetworkImage: insertNetworkImage,
               );
             },
             child: MenuBlockButton(
@@ -201,11 +208,8 @@ class _MultiImageMenuState extends State<MultiImageMenu> {
             ),
           ],
           const _Divider(),
-          MenuBlockButton(
-            tooltip: LocaleKeys.document_plugins_photoGallery_deleteBlockTooltip
-                .tr(),
-            iconData: FlowySvgs.delete_s,
-            onTap: deleteImage,
+          _DeleteWholeGallery(
+            onDelete: deleteImage,
           ),
           const HSpace(4),
         ],
@@ -436,6 +440,42 @@ class _LayoutSelector extends StatelessWidget {
             ),
           )
           .toList(),
+    );
+  }
+}
+
+class _DeleteWholeGallery extends StatefulWidget {
+  const _DeleteWholeGallery({
+    required this.onDelete,
+  });
+
+  final VoidCallback onDelete;
+
+  @override
+  State<_DeleteWholeGallery> createState() => _DeleteWholeGalleryState();
+}
+
+class _DeleteWholeGalleryState extends State<_DeleteWholeGallery> {
+  bool isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
+    return FlowyTooltip(
+      message: LocaleKeys.document_plugins_photoGallery_deleteBlockTooltip.tr(),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => isHovered = true),
+        onExit: (_) => setState(() => isHovered = false),
+        child: FlowyButton(
+          useIntrinsicWidth: true,
+          onTap: widget.onDelete,
+          text: FlowySvg(
+            FlowySvgs.delete_s,
+            color: isHovered ? theme.iconColorScheme.errorThick : null,
+          ),
+        ),
+      ),
     );
   }
 }

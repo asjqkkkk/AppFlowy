@@ -347,11 +347,11 @@ class _WorkspaceInfo extends StatelessWidget {
                     ),
                   ),
                 if (workspace.workspaceType == WorkspaceTypePB.Vault)
-                  FlowyText.regular(
+                  Text(
                     LocaleKeys.workspace_vaultWorkspace.tr(),
-                    fontSize: 10.0,
-                    figmaLineHeight: 12.0,
-                    color: Theme.of(context).hintColor,
+                    style: theme.textStyle.caption.standard(
+                      color: theme.textColorScheme.secondary,
+                    ),
                   ),
               ],
             ),
@@ -569,6 +569,19 @@ class _ImportMenu extends StatelessWidget {
               LocaleKeys.workspace_importFromAppFlowy.tr(),
               style: theme.textStyle.body.standard(
                 color: theme.textColorScheme.primary,
+              ),
+            ),
+            trailing: (context, isHovering, disabled) => FlowyTooltip(
+              message: LocaleKeys.workspace_learnMore.tr(),
+              child: AFGhostButton.normal(
+                padding: EdgeInsets.all(theme.spacing.xs),
+                onTap: () => afLaunchUrlString(
+                  'https://appflowy.com/guide/import-from-AppFlowy',
+                ),
+                builder: (context, isHovering, disabled) => const FlowySvg(
+                  FlowySvgs.information_s,
+                  size: Size.square(16.0),
+                ),
               ),
             ),
             onTap: () async {

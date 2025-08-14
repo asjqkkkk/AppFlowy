@@ -3,6 +3,7 @@ import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy/shared/appflowy_network_svg.dart';
+import 'package:appflowy/shared/patterns/common_patterns.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:flutter/material.dart';
@@ -69,12 +70,13 @@ class LinkInfo {
 
   LinkInfo({
     required this.url,
-    this.siteName,
-    this.title,
+    String? siteName,
+    String? title,
     this.description,
     this.imageUrl,
     this.faviconUrl,
-  });
+  })  : title = title?.replaceAll(emptyLineRegex, ' ').trim(),
+        siteName = siteName?.replaceAll(emptyLineRegex, ' ').trim();
 
   final String url;
   final String? siteName;

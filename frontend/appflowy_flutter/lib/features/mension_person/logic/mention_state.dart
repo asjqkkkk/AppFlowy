@@ -18,7 +18,7 @@ class MentionState {
     this.executedItem,
   });
 
-  final List<Person> persons;
+  final List<MentionablePersonPB> persons;
   final List<ViewPB> views;
   final List<ViewPB> filterViews;
   final bool sendNotification;
@@ -32,7 +32,7 @@ class MentionState {
   final MentionMenuItem? executedItem;
 
   MentionState copyWith({
-    List<Person>? persons,
+    List<MentionablePersonPB>? persons,
     List<ViewPB>? views,
     List<ViewPB>? filterViews,
     bool? sendNotification,

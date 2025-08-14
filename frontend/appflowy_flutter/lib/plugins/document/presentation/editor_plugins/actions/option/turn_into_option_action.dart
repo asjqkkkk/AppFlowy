@@ -3,42 +3,16 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/block_action_option_cubit.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/toolbar_item/text_suggestions_toolbar_item.dart';
-import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_editor/appflowy_editor.dart'
     hide QuoteBlockKeys, quoteNode;
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-class TurnIntoOptionAction extends CustomActionCell {
-  TurnIntoOptionAction({
-    required this.editorState,
-    required this.blockComponentBuilder,
-    required this.mutex,
-  });
-
-  final EditorState editorState;
-  final Map<String, BlockComponentBuilder> blockComponentBuilder;
-  final PopoverController innerController = PopoverController();
-  final PopoverMutex mutex;
-
-  @override
-  Widget buildWithContext(
-    BuildContext context,
-    PopoverController controller,
-    PopoverMutex? mutex,
-  ) {
-    return TurnInfoButton(
-      editorState: editorState,
-      blockComponentBuilder: blockComponentBuilder,
-      mutex: this.mutex,
-    );
-  }
-}
-
-class TurnInfoButton extends StatefulWidget {
-  const TurnInfoButton({
+class TurnIntoButton extends StatefulWidget {
+  const TurnIntoButton({
     super.key,
     required this.editorState,
     required this.blockComponentBuilder,
@@ -50,21 +24,22 @@ class TurnInfoButton extends StatefulWidget {
   final PopoverMutex mutex;
 
   @override
-  State<TurnInfoButton> createState() => _TurnInfoButtonState();
+  State<TurnIntoButton> createState() => _TurnIntoButtonState();
 }
 
-class _TurnInfoButtonState extends State<TurnInfoButton> {
-  final PopoverController innerController = PopoverController();
+class _TurnIntoButtonState extends State<TurnIntoButton> {
+  final innerController = PopoverController();
   bool isOpen = false;
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
     return AppFlowyPopover(
       asBarrier: true,
       controller: innerController,
       mutex: widget.mutex,
       popupBuilder: (context) {
-        isOpen = true;
         return BlocProvider<BlockActionOptionCubit>(
           create: (context) => BlockActionOptionCubit(
             editorState: widget.editorState,
@@ -75,21 +50,34 @@ class _TurnInfoButtonState extends State<TurnInfoButton> {
           ),
         );
       },
+      onOpen: () => isOpen = true,
       onClose: () => isOpen = false,
       direction: PopoverDirection.rightWithCenterAligned,
       animationDuration: Durations.short3,
       beginScaleFactor: 1.0,
       beginOpacity: 0.8,
-      child: HoverButton(
-        itemHeight: ActionListSizes.itemHeight,
-        // todo(lucas): replace the svg with the correct one
-        leftIcon: const FlowySvg(FlowySvgs.turninto_s),
-        name: LocaleKeys.document_plugins_optionAction_turnInto.tr(),
+      child: AFMenuItem(
         onTap: () {
           if (!isOpen) {
+            isOpen = true;
             innerController.show();
           }
         },
+        leading: FlowySvg(
+          FlowySvgs.turninto_s,
+          color: theme.iconColorScheme.primary,
+        ),
+        title: Text(
+          LocaleKeys.document_plugins_optionAction_turnInto.tr(),
+          style: theme.textStyle.body.standard(
+            color: theme.textColorScheme.primary,
+          ),
+        ),
+        trailing: (context, isHovering, disabled) => FlowySvg(
+          FlowySvgs.toolbar_arrow_right_m,
+          color: theme.iconColorScheme.tertiary,
+          size: Size.square(20),
+        ),
       ),
     );
   }

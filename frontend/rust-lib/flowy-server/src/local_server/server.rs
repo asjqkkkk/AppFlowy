@@ -7,6 +7,8 @@ use crate::local_server::impls::{
 };
 use crate::{AppFlowyServer, EmbeddingWriter};
 use anyhow::Error;
+use client_api::error::{AppResponseError, ErrorCode};
+use client_api::v2::TokenProvider;
 use flowy_ai::local_ai::controller::LocalAIController;
 use flowy_ai_pub::cloud::ChatCloudService;
 use flowy_database_pub::cloud::{DatabaseAIService, DatabaseCloudService};
@@ -63,12 +65,8 @@ impl AppFlowyServer for LocalServer {
     Ok(())
   }
 
-  fn get_access_token(&self) -> Option<String> {
-    None
-  }
-
-  async fn refresh_access_token(&self, _reason: &str) {
-    // do nothing
+  fn get_token_provider(&self) -> Arc<dyn TokenProvider> {
+    Arc::new(LocalServerTokenProvider)
   }
 
   async fn set_tanvity_state(&self, state: Option<Weak<RwLock<DocumentTantivyState>>>) {
@@ -142,5 +140,17 @@ impl AppFlowyServer for LocalServer {
 
   fn file_storage(&self) -> Option<Arc<dyn StorageCloudService>> {
     None
+  }
+}
+
+struct LocalServerTokenProvider;
+
+#[async_trait]
+impl TokenProvider for LocalServerTokenProvider {
+  async fn get_access_token(&self) -> Result<String, AppResponseError> {
+    Err(AppResponseError::new(
+      ErrorCode::Internal,
+      "local server does not support token provider".to_string(),
+    ))
   }
 }

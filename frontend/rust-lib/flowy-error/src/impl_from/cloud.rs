@@ -61,6 +61,7 @@ impl From<AppResponseError> for FlowyError {
       AppErrorCode::MissingView => ErrorCode::Internal,
       AppErrorCode::AccessRequestAlreadyExists => ErrorCode::Internal,
       AppErrorCode::TooManyImportTask => ErrorCode::Internal,
+      AppErrorCode::TooManyExportTask => ErrorCode::Internal,
       AppErrorCode::ServiceTemporaryUnavailable => ErrorCode::Internal,
       AppErrorCode::DecodeUpdateError => ErrorCode::Internal,
       AppErrorCode::ApplyUpdateError => ErrorCode::Internal,

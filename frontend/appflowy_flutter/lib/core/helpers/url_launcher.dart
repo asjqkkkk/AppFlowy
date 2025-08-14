@@ -224,7 +224,18 @@ Future<bool> _afLaunchLocalUri(
 }) async {
   final decodedUrl = Uri.decodeComponent(uri.toString());
   // open the file with the OpenfileX
-  var result = await OpenFilex.open(decodedUrl);
+  OpenResult result;
+  if (UniversalPlatform.isMacOS) {
+    // use -R to open the file in the Finder without unzipping
+    final process = await Process.start('open', ['-R', decodedUrl]);
+    final exitCode = await process.exitCode;
+    result = OpenResult(
+      type: exitCode == 0 ? ResultType.done : ResultType.error,
+      message: '',
+    );
+  } else {
+    result = await OpenFilex.open(decodedUrl);
+  }
   if (result.type != ResultType.done) {
     // For the file cant be opened, fallback to open the folder
     final parentFolder = Directory(decodedUrl).parent.path;

@@ -1,4 +1,4 @@
-import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:equatable/equatable.dart';
 
 class PersonState {
@@ -12,7 +12,7 @@ class PersonState {
     this.mentionedSucceedPerson,
   });
 
-  final List<Person> persons;
+  final List<MentionablePersonPB> persons;
   final List<String> availableEmails;
   final PersonStatus status;
   final PersonWithNotifyTimes? mentionedErrorPerson;
@@ -23,8 +23,12 @@ class PersonState {
 
   bool hasAccess(String email) => availableEmails.contains(email);
 
+  bool isDeleted(MentionablePersonPB person) {
+    return !persons.any((p) => p.uuid == person.uuid);
+  }
+
   PersonState copyWith({
-    List<Person>? persons,
+    List<MentionablePersonPB>? persons,
     List<String>? availableEmails,
     PersonStatus? status,
     PersonWithNotifyTimes? mentionedErrorPerson,
@@ -49,7 +53,7 @@ class PersonWithNotifyTimes extends Equatable {
     required this.notifyTimes,
   });
 
-  final Person person;
+  final MentionablePersonPB person;
   final int notifyTimes;
 
   String get name => person.name;

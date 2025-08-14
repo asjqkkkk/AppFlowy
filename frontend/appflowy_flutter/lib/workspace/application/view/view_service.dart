@@ -273,6 +273,7 @@ class ViewBackendService {
     required String viewId,
     required String viewName,
     required String personId,
+    required String ancestorId,
     String? blockId,
     required bool requireNotification,
   }) async {
@@ -284,6 +285,7 @@ class ViewBackendService {
       ..viewName = viewName
       ..personId = personId
       ..blockId = blockId ?? ''
+      ..ancestorId = ancestorId
       ..requireNotification = requireNotification;
     return FolderEventUpdatePageMention(payload).send();
   }

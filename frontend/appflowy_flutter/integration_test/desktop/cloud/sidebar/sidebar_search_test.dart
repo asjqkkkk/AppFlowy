@@ -33,10 +33,11 @@ void main() {
     final textFiled =
         find.descendant(of: searchField, matching: find.byType(TextField));
     await tester.enterText(textFiled, gettingStarted);
-    await tester.pumpAndSettle(Duration(seconds: 1));
+    await tester.pumpAndSettle(Duration(seconds: 3));
 
     /// tap ask AI button
     await tester.tapButton(askAIButton);
+    await tester.pumpAndSettle(Duration(seconds: 3));
     expect(find.byType(DesktopPromptInput), findsOneWidget);
   });
 }

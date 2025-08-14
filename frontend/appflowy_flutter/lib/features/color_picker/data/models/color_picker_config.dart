@@ -8,7 +8,8 @@ final class ColorPickerConfig {
     required this.colorType,
     required this.title,
     required this.builtinColors,
-    required this.maxColorLimit,
+    required this.recentColorLimit,
+    required this.customColorLimit,
     this.defaultColor,
     this.showRecent = true,
     this.showCustom = true,
@@ -19,7 +20,8 @@ final class ColorPickerConfig {
   final String key;
   final String innerKey;
   final List<BuiltinAFColor> builtinColors;
-  final int maxColorLimit;
+  final int recentColorLimit;
+  final int customColorLimit;
   final AFColor? defaultColor;
   final bool showRecent;
   final bool showCustom;

@@ -19,8 +19,8 @@ import 'package:appflowy/plugins/database/widgets/cell/editable_cell_builder.dar
 import 'package:appflowy/plugins/database/widgets/cell/editable_cell_skeleton/text.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_property.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_upload_menu.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_util.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/upload_image_menu.dart';
 import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/file_entities.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/row_entities.pb.dart';
@@ -136,6 +136,8 @@ class _MobileRowDetailPageState extends State<MobileRowDetailPage> {
   }
 
   void _showCardActions(BuildContext context) {
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.6;
+
     showMobileBottomSheet(
       context,
       showDragHandle: true,
@@ -156,49 +158,54 @@ class _MobileRowDetailPageState extends State<MobileRowDetailPage> {
               showHeader: true,
               showCloseButton: true,
               showDragHandle: true,
-              builder: (dialogContext) => Container(
-                margin: const EdgeInsets.only(top: 12),
-                constraints: const BoxConstraints(
-                  maxHeight: 340,
-                  minHeight: 80,
-                ),
-                child: FileUploadMenu(
-                  onInsertLocalFile: (files) async {
-                    context
-                      ..pop()
-                      ..pop();
+              showDivider: false,
+              builder: (dialogContext) {
+                return ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: maxHeight,
+                  ),
+                  child: MobileImageSelector(
+                    supportedTypes: [
+                      UploadImageType.local,
+                      UploadImageType.url,
+                    ],
+                    onSelectLocalImages: (files) async {
+                      context
+                        ..pop()
+                        ..pop();
 
-                    if (_bloc.state.currentRowId == null) {
-                      return;
-                    }
+                      if (_bloc.state.currentRowId == null) {
+                        return;
+                      }
 
-                    await insertLocalFiles(
-                      context,
-                      files,
-                      userProfile: _bloc.userProfile,
-                      documentId: _bloc.state.currentRowId!,
-                      onUploadSuccess: (file, path, isLocalMode) {
-                        _bloc.add(
-                          MobileRowDetailEvent.addCover(
-                            RowCoverPB(
-                              data: path,
-                              uploadType: isLocalMode
-                                  ? FileUploadTypePB.LocalFile
-                                  : FileUploadTypePB.CloudFile,
-                              coverType: CoverTypePB.FileCover,
+                      await insertLocalFiles(
+                        context,
+                        files,
+                        userProfile: _bloc.userProfile,
+                        documentId: _bloc.state.currentRowId!,
+                        onUploadSuccess: (file, path, isLocalMode) {
+                          _bloc.add(
+                            MobileRowDetailEvent.addCover(
+                              RowCoverPB(
+                                data: path,
+                                uploadType: isLocalMode
+                                    ? FileUploadTypePB.LocalFile
+                                    : FileUploadTypePB.CloudFile,
+                                coverType: CoverTypePB.FileCover,
+                              ),
                             ),
-                          ),
-                        );
-                      },
-                    );
-                  },
-                  onInsertNetworkFile: (url) async =>
-                      _onInsertNetworkFile(url, context),
-                ),
-              ),
+                          );
+                        },
+                      );
+                    },
+                    onSelectNetworkImage: (url) async =>
+                        _onInsertNetworkFile(url, context),
+                  ),
+                );
+              },
             ),
-            icon: FlowySvgs.add_cover_s,
-            text: 'Add cover',
+            icon: FlowySvgs.slash_menu_image_m,
+            text: LocaleKeys.document_plugins_cover_addCover.tr(),
           ),
           const MobileQuickActionDivider(),
           MobileQuickActionButton(

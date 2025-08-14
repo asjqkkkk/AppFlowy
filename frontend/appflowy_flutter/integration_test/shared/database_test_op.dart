@@ -50,7 +50,6 @@ import 'package:appflowy/plugins/database/widgets/cell/editable_cell_skeleton/ur
 import 'package:appflowy/plugins/database/widgets/cell_editor/checklist_cell_editor.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/checklist_progress_bar.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/date_cell_editor.dart';
-import 'package:appflowy/plugins/database/widgets/cell_editor/extension.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/media_cell_editor.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_text_field.dart';
@@ -59,6 +58,7 @@ import 'package:appflowy/plugins/database/widgets/field/field_editor.dart';
 import 'package:appflowy/plugins/database/widgets/field/field_type_list.dart';
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/date/date_time_format.dart';
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/number.dart';
+import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy/plugins/database/widgets/row/accessory/cell_accessory.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_action.dart';
 import 'package:appflowy/plugins/database/widgets/row/row_banner.dart';
@@ -1066,6 +1066,7 @@ extension AppFlowyDatabaseTest on WidgetTester {
   }
 
   Future<void> tapDatabaseFilterButton() async {
+    await pumpUntilFound(find.byType(FilterButton));
     await tapButton(find.byType(FilterButton));
   }
 

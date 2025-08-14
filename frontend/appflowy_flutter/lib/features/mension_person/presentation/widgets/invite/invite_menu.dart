@@ -6,6 +6,7 @@ import 'package:appflowy/features/mension_person/presentation/mention_menu_servi
 import 'package:appflowy/features/mension_person/presentation/menu_extension.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -21,7 +22,7 @@ class PersonRoleDropDownMenuItem with AFDropDownMenuMixin {
     required this.role,
   });
 
-  final PersonRole role;
+  final MentionablePersonTypePB role;
 
   @override
   String get label => role.displayName;
@@ -240,7 +241,7 @@ class _InviteMenuState extends State<InviteMenu> {
   }
 
   Widget buildAddButton() {
-    final isContact = info.role == PersonRole.contact;
+    final isContact = info.role == MentionablePersonTypePB.Contact;
     return AFFilledTextButton.primary(
       text: isContact
           ? LocaleKeys.button_add.tr()
@@ -250,7 +251,7 @@ class _InviteMenuState extends State<InviteMenu> {
   }
 
   List<PersonRoleDropDownMenuItem> roleItems() =>
-      PersonRole.values.map((role) => role.buildItem()).toList();
+      MentionablePersonTypePB.values.map((role) => role.buildItem()).toList();
 
   Future<void> onBack() async {
     final serviceInfo = context.read<MentionMenuServiceInfo?>();
@@ -287,7 +288,7 @@ class _InviteMenuState extends State<InviteMenu> {
   }
 
   void onApply() {
-    final isContact = info.role == PersonRole.contact;
+    final isContact = info.role == MentionablePersonTypePB.Contact;
     final email = info.email.trim();
 
     if (email.isEmpty || !isEmail(email)) {
@@ -337,30 +338,32 @@ class _InviteMenuState extends State<InviteMenu> {
   }
 }
 
-extension PersonRoleExtension on PersonRole {
+extension PersonRoleExtension on MentionablePersonTypePB {
   PersonRoleDropDownMenuItem buildItem() {
     return PersonRoleDropDownMenuItem(role: this);
   }
 
   String get displayName {
     switch (this) {
-      case PersonRole.member:
+      case MentionablePersonTypePB.WorkspaceMember:
         return LocaleKeys.document_mentionMenu_member.tr();
-      case PersonRole.guest:
+      case MentionablePersonTypePB.WorkspaceGuest:
         return LocaleKeys.document_mentionMenu_guest.tr();
-      case PersonRole.contact:
+      case MentionablePersonTypePB.Contact:
         return LocaleKeys.document_mentionMenu_contact.tr();
     }
+    return '';
   }
 
   String get description {
     switch (this) {
-      case PersonRole.member:
+      case MentionablePersonTypePB.WorkspaceMember:
         return LocaleKeys.document_mentionMenu_memberDescription.tr();
-      case PersonRole.guest:
+      case MentionablePersonTypePB.WorkspaceGuest:
         return LocaleKeys.document_mentionMenu_guestDescription.tr();
-      case PersonRole.contact:
+      case MentionablePersonTypePB.Contact:
         return LocaleKeys.document_mentionMenu_contactDescription.tr();
     }
+    return '';
   }
 }

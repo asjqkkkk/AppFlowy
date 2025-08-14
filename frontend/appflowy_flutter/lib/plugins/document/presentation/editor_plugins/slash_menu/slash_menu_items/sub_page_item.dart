@@ -31,10 +31,13 @@ SelectionMenuItem buildSubpageSlashMenuItem({FlowySvgData? svg}) =>
       updateSelection: (editorState, path, __, ___) {
         final context = editorState.document.root.context;
         if (context != null) {
-          final isInDatabase =
+          final isInDatabaseRowPage =
               context.read<SharedEditorContext>().isInDatabaseRowPage;
-          if (isInDatabase) {
-            Navigator.of(context).pop();
+          if (isInDatabaseRowPage) {
+            final navigator = Navigator.of(context);
+            if (navigator.canPop()) {
+              navigator.pop();
+            }
           }
         }
         return Selection.collapsed(Position(path: path));

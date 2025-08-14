@@ -82,7 +82,6 @@ class _EditDescriptionBottomSheetState
                 maxLines: null,
                 expands: true,
                 maxLength: 190,
-                counterText: '',
                 textAlignVertical: TextAlignVertical.top,
                 keyboardType: TextInputType.multiline,
                 onEditingComplete: submitDescription,

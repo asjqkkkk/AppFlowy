@@ -1,13 +1,13 @@
 import 'dart:math';
 
 import 'package:appflowy/core/helpers/url_launcher.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_role_badge.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -32,7 +32,7 @@ class PersonProfileCard extends StatefulWidget {
 
   final Size triggerSize;
   final bool showAtBottom;
-  final Person person;
+  final MentionablePersonPB person;
   final String? blockId;
   final PointerEnterEventListener? onEnter;
   final PointerExitEventListener? onExit;
@@ -44,7 +44,7 @@ class PersonProfileCard extends StatefulWidget {
 class _PersonProfileCardState extends State<PersonProfileCard> {
   final popoverController = PopoverController();
 
-  Person get person => widget.person;
+  MentionablePersonPB get person => widget.person;
 
   @override
   void dispose() {
@@ -96,7 +96,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
     final theme = AppFlowyTheme.of(context), xxl = theme.spacing.xxl;
     final personState = context.read<PersonBloc>().state;
     if (!personState.isIdle) return const SizedBox.shrink();
-    if (person.deleted) {
+    if (personState.isDeleted(person)) {
       return context.buildDeletedPerson();
     }
 
@@ -151,14 +151,16 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 
   Widget buildPersonInfo(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
+    final personState = context.read<PersonBloc>().state;
+    final isDeleted = personState.isDeleted(person);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        context.buildPersonName(person),
-        context.buildPersonEmail(person),
-        context.buildPersonDescription(person),
+        context.buildPersonName(person, isDeleted),
+        context.buildPersonEmail(person, isDeleted),
+        context.buildPersonDescription(person, isDeleted),
         VSpace(theme.spacing.xxl),
         buildActions(context),
       ],
@@ -196,7 +198,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
     );
   }
 
-  void openEmailApp(Person person) {
+  void openEmailApp(MentionablePersonPB person) {
     afLaunchUrlString('mailto:${person.email}');
   }
 
@@ -206,7 +208,7 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 }
 
 extension PersonProfileCardWidgetExtension on BuildContext {
-  Widget buildPersonName(Person person) {
+  Widget buildPersonName(MentionablePersonPB person, bool isDeleted) {
     final theme = AppFlowyTheme.of(this);
     final suffixIcon = buildSuffixIcon(person);
     return Row(
@@ -216,7 +218,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           child: Text(
             person.name,
             style: theme.textStyle.title.prominent(
-              color: person.deleted
+              color: isDeleted
                   ? theme.textColorScheme.tertiary
                   : theme.textColorScheme.primary,
             ),
@@ -229,12 +231,12 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget buildPersonEmail(Person person) {
+  Widget buildPersonEmail(MentionablePersonPB person, bool isDeleted) {
     final theme = AppFlowyTheme.of(this);
     return Text(
       person.email,
       style: theme.textStyle.body.standard(
-        color: person.deleted
+        color: isDeleted
             ? theme.textColorScheme.tertiary
             : theme.textColorScheme.secondary,
       ),
@@ -243,9 +245,9 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget buildPersonDescription(Person person) {
+  Widget buildPersonDescription(MentionablePersonPB person, bool isDeleted) {
     final description = person.description;
-    if (description?.isEmpty ?? true) return const SizedBox.shrink();
+    if (description.isEmpty) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(this);
     return Container(
       margin: EdgeInsets.only(top: theme.spacing.m),
@@ -258,9 +260,9 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         child: Padding(
           padding: EdgeInsets.all(theme.spacing.l),
           child: Text(
-            description!,
+            description,
             style: theme.textStyle.caption.standard(
-              color: person.deleted
+              color: isDeleted
                   ? theme.textColorScheme.tertiary
                   : theme.textColorScheme.primary,
             ),
@@ -270,10 +272,9 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     );
   }
 
-  Widget? buildSuffixIcon(Person person) {
+  Widget? buildSuffixIcon(MentionablePersonPB person) {
     final theme = AppFlowyTheme.of(this);
-    if (person.isEmpty) return null;
-    if (person.role == PersonRole.contact) {
+    if (person.role == MentionablePersonTypePB.Contact) {
       return FlowySvg(
         FlowySvgs.contact_suffix_icon_m,
         color: theme.iconColorScheme.tertiary,
@@ -284,12 +285,12 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     return null;
   }
 
-  Widget buildNotificationButton(Person person, String? blockId) {
+  Widget buildNotificationButton(MentionablePersonPB person, String? blockId) {
     final theme = AppFlowyTheme.of(this);
     final personBloc = read<PersonBloc>();
-    if (person.isEmpty || person.deleted) return const SizedBox.shrink();
+    if (personBloc.state.isDeleted(person)) return const SizedBox.shrink();
     final hasAccess = personBloc.state.hasAccess(person.email),
-        isContact = person.role == PersonRole.contact;
+        isContact = person.role == MentionablePersonTypePB.Contact;
     if (isContact) {
       return FlowyTooltip(
         message: LocaleKeys.document_mentionMenu_emailButtonTooltip.tr(),
@@ -328,21 +329,28 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           );
         },
         onTap: () {
-          personBloc
-              .add(PersonEvent.notifyPerson(blockId: blockId, person: person));
+          personBloc.add(
+            PersonEvent.notifyPerson(
+              blockId: blockId,
+              person: person,
+              ancestorId: '',
+            ),
+          );
         },
       ),
     );
   }
 
-  Widget buildAvatar(Person person) {
-    final hasAccess = read<PersonBloc>().state.hasAccess(person.email);
-    final url = person.avatarUrl ?? '',
-        noAccess =
-            !person.deleted && !hasAccess && person.role != PersonRole.contact;
+  Widget buildAvatar(MentionablePersonPB person) {
+    final personState = read<PersonBloc>().state;
+    final hasAccess = personState.hasAccess(person.email);
+    final url = person.avatarUrl,
+        noAccess = !personState.isDeleted(person) &&
+            !hasAccess &&
+            person.role != MentionablePersonTypePB.Contact;
     final isEmojiAvatar = url.isNotEmpty && !url.startsWith('http');
     final theme = AppFlowyTheme.of(this);
-    const size = 90.0, radius = 41.0;
+    const size = 90.0;
     Widget avatar = SizedBox.square(
       dimension: size,
       child: PathWidgetMask(
@@ -365,18 +373,19 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           child: Stack(
             children: [
               avatar,
-              Container(
-                width: size,
-                height: size,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(radius),
-                  color: theme.surfaceColorScheme.overlay,
-                ),
-                child: Center(
-                  child: FlowySvg(
-                    FlowySvgs.profile_card_avatar_no_access_m,
-                    size: Size.square(20),
-                    color: theme.iconColorScheme.onFill,
+              PathWidgetMask(
+                child: Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: theme.surfaceColorScheme.overlay,
+                  ),
+                  child: Center(
+                    child: FlowySvg(
+                      FlowySvgs.profile_card_avatar_no_access_m,
+                      size: Size.square(20),
+                      color: theme.iconColorScheme.onFill,
+                    ),
                   ),
                 ),
               ),
@@ -475,7 +484,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
 
   Widget buildActions({
     required ProfileCardMoreButton moreButton,
-    required Person person,
+    required MentionablePersonPB person,
     String? blockId,
   }) {
     final state = read<PersonBloc>().state;
@@ -484,7 +493,11 @@ extension PersonProfileCardWidgetExtension on BuildContext {
 
     return Row(
       children: [
-        PersonRoleBadge(person: person, access: state.hasAccess(person.email)),
+        PersonRoleBadge(
+          person: person,
+          access: state.hasAccess(person.email),
+          isDeleted: state.isDeleted(person),
+        ),
         Spacer(),
         buildNotificationButton(person, blockId),
         HSpace(theme.spacing.m),

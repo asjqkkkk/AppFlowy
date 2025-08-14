@@ -40,7 +40,7 @@ class AFTextField extends StatefulWidget {
     this.maxLines = 1,
     this.readOnly = false,
     this.maxLength,
-    this.counterText,
+    this.counterText = '',
     this.inputFormatters,
     this.onEditingComplete,
   });

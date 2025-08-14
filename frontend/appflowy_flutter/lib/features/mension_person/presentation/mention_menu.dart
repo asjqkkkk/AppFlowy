@@ -1,6 +1,5 @@
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
-import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/models/mention_menu_item.dart';
 import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
@@ -63,7 +62,6 @@ class MentionMenu extends StatelessWidget {
               workspaceId: workspaceId,
               query: query,
               sendNotification: sendNotification,
-              personListCache: getIt<PersonListMemoryCache>(),
             )..add(MentionEvent.init()),
           ),
           BlocProvider(
@@ -140,36 +138,41 @@ class MentionMenu extends StatelessWidget {
       listener: (context, state) => onItemExecuted(context, state),
       listenWhen: (previous, current) =>
           previous.executedItem?.id != current.executedItem?.id,
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: maxHeight),
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.surfaceColorScheme.primary,
-            borderRadius: BorderRadius.circular(theme.borderRadius.l),
-            border: Border.all(
-              color: theme.borderColorScheme.primary,
-            ),
-            boxShadow: theme.shadow.medium,
-          ),
-          width: width,
-          padding: EdgeInsets.zero,
-          child: FlowyScrollbar(
-            controller: controller,
-            child: ListView(
-              controller: controller,
+      child: BlocBuilder<MentionBloc, MentionState>(
+        builder: (context, state) {
+          return ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: maxHeight),
+            child: Container(
+              decoration: BoxDecoration(
+                color: theme.surfaceColorScheme.primary,
+                borderRadius: BorderRadius.circular(theme.borderRadius.l),
+                border: Border.all(
+                  color: theme.borderColorScheme.primary,
+                ),
+                boxShadow: theme.shadow.medium,
+              ),
+              width: width,
               padding: EdgeInsets.zero,
-              shrinkWrap: true,
-              physics: const ClampingScrollPhysics(),
-              children: [
-                ..._buildPersonList(context),
-                if (hasPersons && (hasPages || hasDateOrReminders)) AFDivider(),
-                ..._buildPageList(context),
-                if (hasDateOrReminders && hasPages) AFDivider(),
-                ..._buildDateAndReminders(context),
-              ],
+              child: FlowyScrollbar(
+                controller: controller,
+                child: ListView(
+                  controller: controller,
+                  padding: EdgeInsets.zero,
+                  shrinkWrap: true,
+                  physics: const ClampingScrollPhysics(),
+                  children: [
+                    ..._buildPersonList(context),
+                    if (hasPersons && (hasPages || hasDateOrReminders))
+                      AFDivider(),
+                    ..._buildPageList(context),
+                    if (hasDateOrReminders && hasPages) AFDivider(),
+                    ..._buildDateAndReminders(context),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
+          );
+        },
       ),
     );
   }

@@ -95,29 +95,11 @@ impl SelectOptionTypeOptionTransformHelper {
           shared.mut_options().push(uncheck_option);
         }
       },
-      FieldType::MultiSelect => {
+      FieldType::SingleSelect | FieldType::MultiSelect => {
         let options = SelectTypeOption::from(old_type_option_data).options;
-        options.iter().for_each(|new_option| {
-          if !shared
-            .options()
-            .iter()
-            .any(|option| option.name == new_option.name)
-          {
-            shared.mut_options().push(new_option.clone());
-          }
-        })
-      },
-      FieldType::SingleSelect => {
-        let options = SelectTypeOption::from(old_type_option_data).options;
-        options.iter().for_each(|new_option| {
-          if !shared
-            .options()
-            .iter()
-            .any(|option| option.name == new_option.name)
-          {
-            shared.mut_options().push(new_option.clone());
-          }
-        })
+        let shared_options = shared.mut_options();
+        shared_options.clear();
+        shared_options.extend(options);
       },
       _ => {},
     }

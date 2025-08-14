@@ -1,9 +1,9 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/default_profile_banner.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -17,7 +17,7 @@ class MobilePersonProfileCard extends StatefulWidget {
     this.blockId,
   });
 
-  final Person person;
+  final MentionablePersonPB person;
   final String? blockId;
 
   @override
@@ -28,7 +28,7 @@ class MobilePersonProfileCard extends StatefulWidget {
 class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
   final popoverController = PopoverController();
 
-  Person get person => widget.person;
+  MentionablePersonPB get person => widget.person;
 
   @override
   void dispose() {
@@ -48,7 +48,7 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
       return Center(child: CircularProgressIndicator.adaptive());
     }
 
-    if (person.deleted) {
+    if (personState.isDeleted(person)) {
       return context.buildDeletedPerson();
     }
     return buildNormalPerson();
@@ -88,15 +88,16 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
   Widget buildCover(BuildContext context) => DefaultAssetProfileBanner();
 
   Widget buildPersonInfo(BuildContext context) {
-    final theme = AppFlowyTheme.of(context);
+    final theme = AppFlowyTheme.of(context),
+        isDeleted = context.read<PersonBloc>().state.isDeleted(person);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        context.buildPersonName(person),
-        context.buildPersonEmail(person),
-        context.buildPersonDescription(person),
+        context.buildPersonName(person, isDeleted),
+        context.buildPersonEmail(person, isDeleted),
+        context.buildPersonDescription(person, isDeleted),
         VSpace(theme.spacing.xxl),
         context.buildActions(
           moreButton: ProfileCardMoreButton(
@@ -131,7 +132,7 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
     );
   }
 
-  void openEmailApp(Person person) {
+  void openEmailApp(MentionablePersonPB person) {
     afLaunchUrlString('mailto:${person.email}');
   }
 

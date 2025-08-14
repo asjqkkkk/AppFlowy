@@ -11,15 +11,6 @@ class AFThemeExtension extends ThemeExtension<AFThemeExtension> {
   const AFThemeExtension({
     required this.warning,
     required this.success,
-    required this.tint1,
-    required this.tint2,
-    required this.tint3,
-    required this.tint4,
-    required this.tint5,
-    required this.tint6,
-    required this.tint7,
-    required this.tint8,
-    required this.tint9,
     required this.greyHover,
     required this.greySelect,
     required this.lightGreyHover,
@@ -47,16 +38,6 @@ class AFThemeExtension extends ThemeExtension<AFThemeExtension> {
 
   final Color? warning;
   final Color? success;
-
-  final Color tint1;
-  final Color tint2;
-  final Color tint3;
-  final Color tint4;
-  final Color tint5;
-  final Color tint6;
-  final Color tint7;
-  final Color tint8;
-  final Color tint9;
 
   final Color textColor;
   final Color secondaryTextColor;
@@ -94,15 +75,6 @@ class AFThemeExtension extends ThemeExtension<AFThemeExtension> {
   AFThemeExtension copyWith({
     Color? warning,
     Color? success,
-    Color? tint1,
-    Color? tint2,
-    Color? tint3,
-    Color? tint4,
-    Color? tint5,
-    Color? tint6,
-    Color? tint7,
-    Color? tint8,
-    Color? tint9,
     Color? textColor,
     Color? secondaryTextColor,
     Color? strongText,
@@ -130,15 +102,6 @@ class AFThemeExtension extends ThemeExtension<AFThemeExtension> {
       AFThemeExtension(
         warning: warning ?? this.warning,
         success: success ?? this.success,
-        tint1: tint1 ?? this.tint1,
-        tint2: tint2 ?? this.tint2,
-        tint3: tint3 ?? this.tint3,
-        tint4: tint4 ?? this.tint4,
-        tint5: tint5 ?? this.tint5,
-        tint6: tint6 ?? this.tint6,
-        tint7: tint7 ?? this.tint7,
-        tint8: tint8 ?? this.tint8,
-        tint9: tint9 ?? this.tint9,
         textColor: textColor ?? this.textColor,
         secondaryTextColor: secondaryTextColor ?? this.secondaryTextColor,
         strongText: strongText ?? this.strongText,
@@ -174,15 +137,6 @@ class AFThemeExtension extends ThemeExtension<AFThemeExtension> {
     return AFThemeExtension(
       warning: Color.lerp(warning, other.warning, t),
       success: Color.lerp(success, other.success, t),
-      tint1: Color.lerp(tint1, other.tint1, t)!,
-      tint2: Color.lerp(tint2, other.tint2, t)!,
-      tint3: Color.lerp(tint3, other.tint3, t)!,
-      tint4: Color.lerp(tint4, other.tint4, t)!,
-      tint5: Color.lerp(tint5, other.tint5, t)!,
-      tint6: Color.lerp(tint6, other.tint6, t)!,
-      tint7: Color.lerp(tint7, other.tint7, t)!,
-      tint8: Color.lerp(tint8, other.tint8, t)!,
-      tint9: Color.lerp(tint9, other.tint9, t)!,
       textColor: Color.lerp(textColor, other.textColor, t)!,
       secondaryTextColor: Color.lerp(
         secondaryTextColor,
@@ -223,60 +177,4 @@ class AFThemeExtension extends ThemeExtension<AFThemeExtension> {
           Color.lerp(toolbarHoverColor, other.toolbarHoverColor, t)!,
     );
   }
-}
-
-enum FlowyTint {
-  tint1,
-  tint2,
-  tint3,
-  tint4,
-  tint5,
-  tint6,
-  tint7,
-  tint8,
-  tint9;
-
-  String toJson() => name;
-  static FlowyTint fromJson(String json) {
-    try {
-      return FlowyTint.values.byName(json);
-    } catch (_) {
-      return FlowyTint.tint1;
-    }
-  }
-
-  static FlowyTint? fromId(String id) {
-    for (final value in FlowyTint.values) {
-      if (value.id == id) {
-        return value;
-      }
-    }
-    return null;
-  }
-
-  Color color(BuildContext context, {AFThemeExtension? theme}) =>
-      switch (this) {
-        FlowyTint.tint1 => theme?.tint1 ?? AFThemeExtension.of(context).tint1,
-        FlowyTint.tint2 => theme?.tint2 ?? AFThemeExtension.of(context).tint2,
-        FlowyTint.tint3 => theme?.tint3 ?? AFThemeExtension.of(context).tint3,
-        FlowyTint.tint4 => theme?.tint4 ?? AFThemeExtension.of(context).tint4,
-        FlowyTint.tint5 => theme?.tint5 ?? AFThemeExtension.of(context).tint5,
-        FlowyTint.tint6 => theme?.tint6 ?? AFThemeExtension.of(context).tint6,
-        FlowyTint.tint7 => theme?.tint7 ?? AFThemeExtension.of(context).tint7,
-        FlowyTint.tint8 => theme?.tint8 ?? AFThemeExtension.of(context).tint8,
-        FlowyTint.tint9 => theme?.tint9 ?? AFThemeExtension.of(context).tint9,
-      };
-
-  String get id => switch (this) {
-        // DON'T change this name because it's saved in the database!
-        FlowyTint.tint1 => 'appflowy_them_color_tint1',
-        FlowyTint.tint2 => 'appflowy_them_color_tint2',
-        FlowyTint.tint3 => 'appflowy_them_color_tint3',
-        FlowyTint.tint4 => 'appflowy_them_color_tint4',
-        FlowyTint.tint5 => 'appflowy_them_color_tint5',
-        FlowyTint.tint6 => 'appflowy_them_color_tint6',
-        FlowyTint.tint7 => 'appflowy_them_color_tint7',
-        FlowyTint.tint8 => 'appflowy_them_color_tint8',
-        FlowyTint.tint9 => 'appflowy_them_color_tint9',
-      };
 }

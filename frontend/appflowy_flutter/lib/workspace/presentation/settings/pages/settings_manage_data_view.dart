@@ -23,7 +23,6 @@ import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/file_picker/file_picker_service.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -43,6 +42,7 @@ class SettingsManageDataView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
     return BlocProvider<DataLocationBloc>(
       create: (_) => DataLocationBloc(
         repository: const RustSettingsRepositoryImpl(),
@@ -121,22 +121,60 @@ class SettingsManageDataView extends StatelessWidget {
                           title: LocaleKeys
                               .workspaceImport_settings_importWorkspace_title
                               .tr(),
-                          tooltip: LocaleKeys
-                              .workspaceImport_settings_importWorkspace_tooltip
-                              .tr(),
+                          withSpacer: false,
+                          actions: [
+                            HSpace(theme.spacing.xs),
+                            FlowyTooltip(
+                              message: LocaleKeys.workspace_learnMore.tr(),
+                              child: AFGhostButton.normal(
+                                padding: EdgeInsets.zero,
+                                builder: (context, isHovering, disabled) {
+                                  return FlowySvg(
+                                    FlowySvgs.ai_explain_m,
+                                    size: Size.square(20),
+                                  );
+                                },
+                                onTap: () {
+                                  afLaunchUrlString(
+                                    'https://appflowy.com/guide/import-from-AppFlowy',
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
                           children: const [_ImportWorkspaceField()],
                         ),
-                      SettingsCategory(
-                        title: LocaleKeys
-                            .workspaceImport_settings_backupWorkspace_title
-                            .tr(),
-                        tooltip: LocaleKeys
-                            .workspaceImport_settings_backupWorkspace_tooltip
-                            .tr(),
-                        children: const [
-                          SettingsExportFileWidget(),
-                        ],
-                      ),
+                      // only owner can export workspace
+                      if (workspace.role == AFRolePB.Owner)
+                        SettingsCategory(
+                          title: LocaleKeys
+                              .workspaceImport_settings_backupWorkspace_title
+                              .tr(),
+                          withSpacer: false,
+                          actions: [
+                            HSpace(theme.spacing.xs),
+                            FlowyTooltip(
+                              message: LocaleKeys.workspace_learnMore.tr(),
+                              child: AFGhostButton.normal(
+                                padding: EdgeInsets.zero,
+                                builder: (context, isHovering, disabled) {
+                                  return FlowySvg(
+                                    FlowySvgs.ai_explain_m,
+                                    size: Size.square(20),
+                                  );
+                                },
+                                onTap: () {
+                                  afLaunchUrlString(
+                                    'https://appflowy.com/guide/back-up-your-data',
+                                  );
+                                },
+                              ),
+                            ),
+                          ],
+                          children: const [
+                            SettingsExportFileWidget(),
+                          ],
+                        ),
                     ]
                   : [
                       SettingsCategory(
@@ -158,14 +196,9 @@ class SettingsManageDataView extends StatelessWidget {
                         LocaleKeys.workspace_errorActions_exportLogFiles.tr(),
                     buttonLabel: LocaleKeys.settings_files_export.tr(),
                     onPressed: () async {
-                      final customPath =
-                          await getIt<FilePickerService>().getDirectoryPath();
-                      if (customPath != null && context.mounted) {
-                        await shareLogFiles(
-                          context,
-                          customExportPath: customPath,
-                        );
-                      }
+                      await shareLogFiles(
+                        context,
+                      );
                     },
                   ),
                 ],
@@ -406,7 +439,7 @@ class _CurrentPathState extends State<_CurrentPath> {
               children: [
                 Container(
                   decoration: BoxDecoration(
-                    color: AFThemeExtension.of(context).tint7,
+                    color: theme.fillColorScheme.infoLight,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   padding: EdgeInsets.symmetric(

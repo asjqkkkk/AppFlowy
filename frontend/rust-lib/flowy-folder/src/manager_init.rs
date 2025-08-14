@@ -131,7 +131,7 @@ impl FolderManager {
       Arc::downgrade(&self.user),
     );
 
-    self.sync_mentionable_persons(*workspace_id, uid, None);
+    self.sync_mentionable_persons(*workspace_id, uid, vec![], None);
     Ok(())
   }
 

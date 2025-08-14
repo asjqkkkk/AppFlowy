@@ -1,8 +1,8 @@
-import 'package:appflowy/core/helpers/url_launcher.dart';
-import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileCardMoreButton extends StatelessWidget {
   const ProfileCardMoreButton({
@@ -24,7 +25,7 @@ class ProfileCardMoreButton extends StatelessWidget {
   final PointerEnterEventListener? onEnter;
   final PointerExitEventListener? onExit;
   final PopoverController popoverController;
-  final Person person;
+  final MentionablePersonPB person;
 
   @override
   Widget build(BuildContext context) {
@@ -90,7 +91,7 @@ class ProfileCardMoreButton extends StatelessWidget {
 class _Menu extends StatelessWidget {
   const _Menu(this.person);
 
-  final Person person;
+  final MentionablePersonPB person;
 
   @override
   Widget build(BuildContext context) {
@@ -99,9 +100,9 @@ class _Menu extends StatelessWidget {
     final theme = AppFlowyTheme.of(context);
     final role = person.role;
     List<Widget> children = [];
-    if (role == PersonRole.member) {
+    if (role == MentionablePersonTypePB.WorkspaceMember) {
       children = buildMemberItems(person, context);
-    } else if (role == PersonRole.guest) {
+    } else if (role == MentionablePersonTypePB.WorkspaceGuest) {
       children = buildGuestItems(person, context);
     } else {
       children = buildContactItems(person, context);
@@ -124,7 +125,10 @@ class _Menu extends StatelessWidget {
     );
   }
 
-  List<Widget> buildMemberItems(Person person, BuildContext context) {
+  List<Widget> buildMemberItems(
+    MentionablePersonPB person,
+    BuildContext context,
+  ) {
     return [
       context._buildItem(
         title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
@@ -158,7 +162,10 @@ class _Menu extends StatelessWidget {
     // ];
   }
 
-  List<Widget> buildGuestItems(Person person, BuildContext context) {
+  List<Widget> buildGuestItems(
+    MentionablePersonPB person,
+    BuildContext context,
+  ) {
     return [
       context._buildItem(
         title: context._title(LocaleKeys.document_mentionMenu_sendEmail.tr()),
@@ -197,7 +204,10 @@ class _Menu extends StatelessWidget {
     // ];
   }
 
-  List<Widget> buildContactItems(Person person, BuildContext context) {
+  List<Widget> buildContactItems(
+    MentionablePersonPB person,
+    BuildContext context,
+  ) {
     final invited = person.invited == true;
     return [
       context._buildItem(
@@ -231,8 +241,14 @@ class _Menu extends StatelessWidget {
     ];
   }
 
-  void sendEmail(Person person) {
-    afLaunchUrlString('mailto:${person.email}');
+  Future<void> sendEmail(MentionablePersonPB person) async {
+    final url = Uri.parse('mailto:${person.email}');
+    if (!await launchUrl(url)) {
+      showToastNotification(
+        message: LocaleKeys.document_mentionMenu_openEmailClientErrorToast.tr(),
+        type: ToastificationType.error,
+      );
+    }
   }
 }
 

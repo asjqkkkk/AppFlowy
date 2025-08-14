@@ -5,6 +5,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/application/document_service.dart';
+import 'package:appflowy/plugins/document/presentation/editor_drop_manager.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/mobile_block_action_buttons.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/common.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
@@ -92,35 +93,38 @@ class MultiImagePlaceholderState extends State<MultiImagePlaceholder> {
       return AppFlowyPopover(
         controller: controller,
         direction: PopoverDirection.bottomWithCenterAligned,
-        constraints: const BoxConstraints(
-          maxWidth: 540,
-          maxHeight: 360,
+        constraints: BoxConstraints(
+          maxWidth: 400,
+          maxHeight: 366,
           minHeight: 80,
         ),
         clickHandler: PopoverClickHandler.gestureDetector,
+        margin: EdgeInsets.zero,
+        onOpen: () => enableDocumentDragNotifier.value = false,
+        onClose: () => enableDocumentDragNotifier.value = true,
         popupBuilder: (_) {
-          return UploadImageMenu(
+          return DesktopImageSelector(
             allowMultipleImages: true,
             limitMaximumImageSize: !_isLocalMode(),
-            supportTypes: const [
+            supportedTypes: const [
               UploadImageType.local,
               UploadImageType.url,
               UploadImageType.unsplash,
             ],
-            onSelectedLocalImages: (files) {
+            onSelectLocalImages: (files) {
               controller.close();
               WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
                 final paths = files.map((file) => file.path).toList();
                 await insertLocalImages(paths);
               });
             },
-            onSelectedAIImage: (url) {
+            onSelectAIImage: (url) {
               controller.close();
               WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
                 await insertAIImage(url);
               });
             },
-            onSelectedNetworkImage: (url) {
+            onSelectNetworkImage: (url) {
               controller.close();
               WidgetsBinding.instance.addPostFrameCallback((timeStamp) async {
                 await insertNetworkImage(url);
@@ -168,47 +172,49 @@ class MultiImagePlaceholderState extends State<MultiImagePlaceholder> {
   void showUploadImageMenu() {
     if (UniversalPlatform.isDesktopOrWeb) {
       controller.show();
-    } else {
-      final isLocalMode = _isLocalMode();
-      showMobileBottomSheet(
-        context,
-        title: LocaleKeys.editor_image.tr(),
-        showHeader: true,
-        showCloseButton: true,
-        showDragHandle: true,
-        builder: (context) {
-          return Container(
-            margin: const EdgeInsets.only(top: 12.0),
-            constraints: const BoxConstraints(
-              maxHeight: 340,
-              minHeight: 80,
-            ),
-            child: UploadImageMenu(
-              limitMaximumImageSize: !isLocalMode,
-              allowMultipleImages: true,
-              supportTypes: const [
-                UploadImageType.local,
-                UploadImageType.url,
-                UploadImageType.unsplash,
-              ],
-              onSelectedLocalImages: (files) async {
-                context.pop();
-                final items = files.map((file) => file.path).toList();
-                await insertLocalImages(items);
-              },
-              onSelectedAIImage: (url) async {
-                context.pop();
-                await insertAIImage(url);
-              },
-              onSelectedNetworkImage: (url) async {
-                context.pop();
-                await insertNetworkImage(url);
-              },
-            ),
-          );
-        },
-      );
+      return;
     }
+
+    final isLocalMode = _isLocalMode();
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.6;
+
+    showMobileBottomSheet(
+      context,
+      title: LocaleKeys.editor_image.tr(),
+      showHeader: true,
+      showCloseButton: true,
+      showDivider: false,
+      showDragHandle: true,
+      builder: (context) {
+        return ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: maxHeight,
+          ),
+          child: MobileImageSelector(
+            limitMaximumImageSize: !isLocalMode,
+            allowMultipleImages: true,
+            supportedTypes: const [
+              UploadImageType.local,
+              UploadImageType.url,
+              UploadImageType.unsplash,
+            ],
+            onSelectLocalImages: (files) {
+              context.pop();
+              final items = files.map((file) => file.path).toList();
+              insertLocalImages(items);
+            },
+            onSelectAIImage: (url) {
+              context.pop();
+              insertAIImage(url);
+            },
+            onSelectNetworkImage: (url) {
+              context.pop();
+              insertNetworkImage(url);
+            },
+          ),
+        );
+      },
+    );
   }
 
   Future<void> insertLocalImages(List<String?> urls) async {

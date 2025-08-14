@@ -27,26 +27,40 @@ class MobileSignInScreen extends StatelessWidget {
         final theme = AppFlowyTheme.of(context);
         return Scaffold(
           resizeToAvoidBottomInset: false,
-          body: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 38, horizontal: 40),
-            child: Column(
-              children: [
-                const Spacer(),
-                FlowyLogoTitle(title: LocaleKeys.welcomeText.tr()),
-                VSpace(theme.spacing.xxl),
-                isLocalAuthEnabled
-                    ? const SignInAnonymousButtonV3()
-                    : const ContinueWithEmailAndPassword(),
-                VSpace(theme.spacing.xxl),
-                if (isAuthEnabled) ...[
-                  _buildThirdPartySignInButtons(context),
-                  VSpace(theme.spacing.xxl),
-                ],
-                const SignInAgreement(),
-                const Spacer(),
-                _buildSettingsButton(context),
-              ],
-            ),
+          body: LayoutBuilder(
+            builder: (context, constraints) {
+              return SingleChildScrollView(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                  child: IntrinsicHeight(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        vertical: 38,
+                        horizontal: 40,
+                      ),
+                      child: Column(
+                        children: [
+                          const Spacer(),
+                          FlowyLogoTitle(title: LocaleKeys.welcomeText.tr()),
+                          VSpace(theme.spacing.xxl),
+                          isLocalAuthEnabled
+                              ? const SignInAnonymousButtonV3()
+                              : const ContinueWithEmailAndPassword(),
+                          VSpace(theme.spacing.xxl),
+                          if (isAuthEnabled) ...[
+                            _buildThirdPartySignInButtons(context),
+                            VSpace(theme.spacing.xxl),
+                          ],
+                          const SignInAgreement(),
+                          const Spacer(),
+                          _buildSettingsButton(context),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
           ),
         );
       },

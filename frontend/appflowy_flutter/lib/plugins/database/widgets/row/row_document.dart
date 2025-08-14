@@ -51,6 +51,7 @@ class RowDocument extends StatelessWidget {
             ),
             finish: () => _RowEditor(
               view: state.viewPB!,
+              databaseViewId: viewId,
               onIsEmptyChanged: (isEmpty) => context
                   .read<RowDocumentBloc>()
                   .add(RowDocumentEvent.updateIsEmpty(isEmpty)),
@@ -65,10 +66,12 @@ class RowDocument extends StatelessWidget {
 class _RowEditor extends StatelessWidget {
   const _RowEditor({
     required this.view,
+    required this.databaseViewId,
     this.onIsEmptyChanged,
   });
 
   final ViewPB view;
+  final String databaseViewId;
   final void Function(bool)? onIsEmptyChanged;
 
   @override
@@ -76,8 +79,10 @@ class _RowEditor extends StatelessWidget {
     return MultiBlocProvider(
       providers: [
         BlocProvider(
-          create: (_) => DocumentBloc(documentId: view.id)
-            ..add(const DocumentEvent.initial()),
+          create: (_) => DocumentBloc(
+            documentId: view.id,
+            databaseViewId: databaseViewId,
+          )..add(const DocumentEvent.initial()),
         ),
         BlocProvider(
           create: (_) => ViewBloc(view: view)..add(const ViewEvent.initial()),

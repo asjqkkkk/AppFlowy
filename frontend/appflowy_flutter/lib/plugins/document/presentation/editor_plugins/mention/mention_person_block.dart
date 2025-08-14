@@ -1,4 +1,3 @@
-import 'package:appflowy/features/mension_person/data/models/person.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/hover_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/mobile/mobile_person_profile_card.dart';
@@ -6,6 +5,7 @@ import 'package:appflowy/features/mension_person/presentation/widgets/person/per
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -98,9 +98,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
             child: BlocBuilder<PersonBloc, PersonState>(
               builder: (context, state) => PersonProfileCard(
                 person: bloc.state.persons.firstWhere(
-                  (e) => e.id == personId,
-                  orElse: () =>
-                      Person.empty().copyWith(id: personId, deleted: true),
+                  (e) => e.uuid == personId,
+                  orElse: () => MentionablePersonPB(),
                 ),
                 triggerSize: triggerSize,
                 showAtBottom: showAtBottom,
@@ -118,8 +117,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   Widget buildPerson(BuildContext context) {
     final bloc = context.read<PersonBloc>(), state = bloc.state;
     final person = state.persons.firstWhere(
-      (p) => p.id == personId,
-      orElse: () => Person.empty().copyWith(id: personId, deleted: true),
+      (p) => p.uuid == personId,
+      orElse: () => MentionablePersonPB(),
     );
     final theme = AppFlowyTheme.of(context);
     final color = theme.textColorScheme.secondary;
@@ -136,9 +135,9 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
     }
 
     Widget richText;
-    if (person.deleted) {
+    if (state.isDeleted(person)) {
       richText = buildDeletedPerson(context);
-    } else if (person.isEmpty) {
+    } else if (person.uuid.isEmpty) {
       richText = buildErrorPerson(context);
     } else {
       richText = buildNormalPerson(context, person.name);

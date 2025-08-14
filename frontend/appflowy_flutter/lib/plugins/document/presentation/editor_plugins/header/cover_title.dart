@@ -210,15 +210,19 @@ class _InnerCoverTitleState extends State<_InnerCoverTitle> {
         if (!mounted) {
           return;
         }
-        if (context.read<ViewBloc>().state.view.name !=
-            titleTextController.text) {
-          context
-              .read<ViewBloc>()
-              .add(ViewEvent.rename(titleTextController.text));
+
+        final viewBloc = context.read<ViewBloc>();
+        final viewInfoBloc = context.read<ViewInfoBloc>();
+
+        if (viewBloc.isClosed || viewInfoBloc.isClosed) {
+          return;
         }
-        context
-            .read<ViewInfoBloc?>()
-            ?.add(ViewInfoEvent.titleChanged(titleTextController.text));
+
+        if (viewBloc.state.view.name != titleTextController.text) {
+          viewBloc.add(ViewEvent.rename(titleTextController.text));
+        }
+
+        viewInfoBloc.add(ViewInfoEvent.titleChanged(titleTextController.text));
 
         updatingViewName = false;
       },

@@ -400,10 +400,13 @@ class SubPageBlockComponentState extends State<SubPageBlockComponent>
     required ViewPB view,
   }) {
     if (UniversalPlatform.isDesktop) {
-      final isInDatabase =
+      final isInDatabaseRowPage =
           context.read<SharedEditorContext>().isInDatabaseRowPage;
-      if (isInDatabase) {
-        Navigator.of(context).pop();
+      if (isInDatabaseRowPage) {
+        final navigator = Navigator.of(context);
+        if (navigator.canPop()) {
+          navigator.pop();
+        }
       }
 
       getIt<TabsBloc>().add(

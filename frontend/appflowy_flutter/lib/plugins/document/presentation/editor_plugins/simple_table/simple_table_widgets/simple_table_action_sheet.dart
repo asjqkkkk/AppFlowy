@@ -1,9 +1,11 @@
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/simple_table_feedback.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 
 class SimpleTableMobileDraggableReorderButton extends StatelessWidget {
@@ -203,8 +205,16 @@ class _SimpleTableMobileReorderButtonState
       showDragHandle: true,
       showDivider: false,
       enablePadding: false,
-      builder: (context) => Provider.value(
-        value: simpleTableContext,
+      barrierColor: Colors.transparent,
+      builder: (_) => MultiBlocProvider(
+        providers: [
+          Provider.value(
+            value: simpleTableContext,
+          ),
+          Provider.value(
+            value: context.read<UserWorkspaceBloc>(),
+          ),
+        ],
         child: SimpleTableCellBottomSheet(
           type: widget.type,
           cellNode: widget.node,

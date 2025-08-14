@@ -1,3 +1,4 @@
+import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/mobile/presentation/base/animated_gesture.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/actions/block_action_option_cubit.dart';
@@ -7,6 +8,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_tab
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -763,8 +765,8 @@ class SimpleTableContentActions extends ISimpleTableBottomSheetActions {
   final VoidCallback onCellBackgroundColorSelected;
   final ValueChanged<TableAlign> onAlignTap;
 
-  final Color? selectedTextColor;
-  final Color? selectedCellBackgroundColor;
+  final AFColor? selectedTextColor;
+  final AFColor? selectedCellBackgroundColor;
   final TableAlign? selectedAlign;
 
   @override
@@ -874,10 +876,14 @@ class SimpleTableContentTextColorAction extends StatelessWidget {
   });
 
   final VoidCallback onTap;
-  final Color? selectedTextColor;
+  final AFColor? selectedTextColor;
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
+    final previewColor = selectedTextColor?.toColor(theme);
+
     return Expanded(
       child: SimpleTableContentActionDecorator(
         child: AnimatedGestureDetector(
@@ -887,7 +893,7 @@ class SimpleTableContentTextColorAction extends StatelessWidget {
             children: [
               FlowySvg(
                 FlowySvgs.m_table_text_color_m,
-                color: selectedTextColor,
+                color: previewColor,
               ),
               const HSpace(10),
               const FlowySvg(
@@ -910,10 +916,14 @@ class SimpleTableContentCellBackgroundColorAction extends StatelessWidget {
   });
 
   final VoidCallback onTap;
-  final Color? selectedCellBackgroundColor;
+  final AFColor? selectedCellBackgroundColor;
 
   @override
   Widget build(BuildContext context) {
+    final theme = AppFlowyTheme.of(context);
+
+    final previewColor = selectedCellBackgroundColor?.toColor(theme);
+
     return Expanded(
       child: SimpleTableContentActionDecorator(
         enableRightBorder: true,
@@ -922,31 +932,27 @@ class SimpleTableContentCellBackgroundColorAction extends StatelessWidget {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _buildTextBackgroundColorPreview(),
+              Container(
+                width: 24,
+                height: 24,
+                decoration: ShapeDecoration(
+                  color: previewColor,
+                  shape: RoundedRectangleBorder(
+                    side: BorderSide(
+                      color: theme.borderColorScheme.primary,
+                    ),
+                    borderRadius: BorderRadius.circular(100),
+                  ),
+                ),
+              ),
               const HSpace(10),
               FlowySvg(
                 FlowySvgs.m_aa_arrow_right_s,
                 size: const Size.square(12),
-                color: selectedCellBackgroundColor,
+                color: Color(0xFFCFD3D9),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextBackgroundColorPreview() {
-    return Container(
-      width: 24,
-      height: 24,
-      decoration: ShapeDecoration(
-        color: selectedCellBackgroundColor ?? const Color(0xFFFFE6FD),
-        shape: RoundedRectangleBorder(
-          side: const BorderSide(
-            color: Color(0xFFCFD3D9),
-          ),
-          borderRadius: BorderRadius.circular(100),
         ),
       ),
     );

@@ -40,10 +40,10 @@ pub enum FolderNotification {
 
   DidUpdateSharedViews = 40,
   DidUpdateSharedUsers = 41,
-  /// Trigger when a single mentionable person is updated (role changes, new mentions, etc.)
-  DidUpdateMentionablePerson = 42,
   /// Trigger when all mentionable persons are refreshed from remote server
-  DidUpdateMentionablePersons = 43,
+  DidUpdateMentionablePersons = 42,
+  /// Trigger when the mentionable persons are reloaded. Receivers should remove its cached mentionable persons and reload them.
+  DidReloadMentionablePersons = 43,
 }
 
 #[tracing::instrument(level = "trace", skip_all)]

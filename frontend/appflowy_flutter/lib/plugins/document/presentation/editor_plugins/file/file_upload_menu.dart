@@ -1,6 +1,7 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/patterns/common_patterns.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:dotted_border/dotted_border.dart';
@@ -172,8 +173,9 @@ class _FileUploadLocalState extends State<_FileUploadLocal> {
               isSelected: () => isDragging,
               style: HoverStyle(
                 borderRadius: BorderRadius.circular(10),
-                hoverColor:
-                    isDragging ? AFThemeExtension.of(context).tint9 : null,
+                hoverColor: isDragging
+                    ? AppFlowyTheme.of(context).fillColorScheme.infoLight
+                    : null,
               ),
               child: Container(
                 height: 172,

@@ -2,8 +2,8 @@ use crate::entities::PublishPayload;
 pub use anyhow::Error;
 use client_api::entity::workspace_dto::RecentViewItem;
 use client_api::entity::{
-  CreateImportTaskType, MentionablePerson, MentionablePersons, PageMentionUpdate, PublishInfo,
-  WorkspaceMemberProfile,
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, MentionablePerson,
+  MentionablePersons, PageMentionUpdate, PublishInfo, WorkspaceMemberProfile,
   guest_dto::{
     RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedViewDetails, SharedViews,
   },
@@ -100,6 +100,12 @@ pub trait FolderCloudService: Send + Sync + 'static {
     task_type: CreateImportTaskType,
   ) -> Result<(), FlowyError>;
 
+  async fn create_export(
+    &self,
+    workspace_id: &Uuid,
+    req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError>;
+
   /// Share a page with a user (member or guest)
   async fn share_page_with_user(
     &self,
@@ -143,6 +149,7 @@ pub trait FolderCloudService: Send + Sync + 'static {
     &self,
     workspace_id: &Uuid,
     view_id: &Uuid,
+    view_ancestors: Vec<String>,
     page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError>;
 

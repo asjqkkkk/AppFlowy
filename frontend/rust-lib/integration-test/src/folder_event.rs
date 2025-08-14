@@ -434,6 +434,37 @@ impl EventIntegrationTest {
       .parse::<ViewPB>()
   }
 
+  pub async fn get_recent_views(&self) -> RepeatedRecentViewPB {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::ReadRecentViews)
+      .payload(ReadRecentViewsPB {
+        start: 0,
+        limit: 100,
+      })
+      .async_send()
+      .await
+      .parse_or_panic::<RepeatedRecentViewPB>()
+  }
+
+  pub async fn get_workspace_mentionable_persons(&self) -> Vec<MentionablePersonPB> {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::GetWorkspaceMentionablePersons)
+      .async_send()
+      .await
+      .parse_or_panic::<GetMentionablePersonsResponsePB>()
+      .persons
+  }
+
+  pub async fn open_view(&self, view_id: &str) {
+    EventBuilder::new(self.clone())
+      .event(FolderEvent::OpenView)
+      .payload(ViewIdPB {
+        value: view_id.to_string(),
+      })
+      .async_send()
+      .await;
+  }
+
   pub async fn import_data(&self, data: ImportPayloadPB) -> FlowyResult<RepeatedViewPB> {
     EventBuilder::new(self.clone())
       .event(FolderEvent::ImportData)

@@ -1,19 +1,24 @@
-import 'package:appflowy/features/mension_person/data/models/person.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 
 sealed class PersonEvent {
   const PersonEvent();
 
   const factory PersonEvent.initial() = InitialEvent;
 
-  const factory PersonEvent.updatePerson(Person person) = UpdatePersonEvent;
+  const factory PersonEvent.removePersons(List<String> personIds) =
+      RemovePersonsEvent;
 
   const factory PersonEvent.notifyPerson({
     String? blockId,
-    required Person person,
+    required MentionablePersonPB person,
+    required String ancestorId,
   }) = NotifyPersonEvent;
 
-  const factory PersonEvent.updatePersons(List<Person> persons) =
+  const factory PersonEvent.updatePersons(List<MentionablePersonPB> persons) =
       UpdatePersonsEvent;
+
+  const factory PersonEvent.reloadPersons(List<MentionablePersonPB> persons) =
+      ReloadPersonsEvent;
 
   const factory PersonEvent.updateAvailableEmails(List<String> emails) =
       UpdateAvailableEmailsEvent;
@@ -23,15 +28,19 @@ class InitialEvent implements PersonEvent {
   const InitialEvent();
 }
 
-class UpdatePersonEvent implements PersonEvent {
-  const UpdatePersonEvent(this.person);
-
-  final Person person;
-}
-
 class UpdatePersonsEvent implements PersonEvent {
   const UpdatePersonsEvent(this.persons);
-  final List<Person> persons;
+  final List<MentionablePersonPB> persons;
+}
+
+class ReloadPersonsEvent implements PersonEvent {
+  const ReloadPersonsEvent(this.persons);
+  final List<MentionablePersonPB> persons;
+}
+
+class RemovePersonsEvent implements PersonEvent {
+  const RemovePersonsEvent(this.personIds);
+  final List<String> personIds;
 }
 
 class UpdateAvailableEmailsEvent implements PersonEvent {
@@ -43,7 +52,10 @@ class NotifyPersonEvent implements PersonEvent {
   const NotifyPersonEvent({
     this.blockId,
     required this.person,
+    required this.ancestorId,
   });
+
   final String? blockId;
-  final Person person;
+  final String ancestorId;
+  final MentionablePersonPB person;
 }

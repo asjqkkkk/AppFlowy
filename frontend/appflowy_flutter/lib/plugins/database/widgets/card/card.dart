@@ -7,11 +7,11 @@ import 'package:appflowy/plugins/database/application/row/row_controller.dart';
 import 'package:appflowy/plugins/database/grid/presentation/widgets/row/action.dart';
 import 'package:appflowy/shared/af_image.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
+import 'package:appflowy/shared/flowy_tint_colors.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:collection/collection.dart';
-import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flowy_infra_ui/style_widget/hover.dart';
 import 'package:flutter/material.dart';
@@ -411,7 +411,7 @@ class CardCover extends StatelessWidget {
         height: height,
         width: double.infinity,
         decoration: BoxDecoration(
-          gradient: FlowyGradientColor.fromId(cover.data).linear,
+          gradient: FlowyGradient.fromId(cover.data)?.toGradient(context),
         ),
       );
     }

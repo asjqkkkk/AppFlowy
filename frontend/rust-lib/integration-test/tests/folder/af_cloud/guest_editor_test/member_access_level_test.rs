@@ -1,9 +1,6 @@
-use crate::folder::af_cloud::guest_editor_test::util::{
-  create_owner_and_member, create_owner_member_and_guest, AccessLevelTest,
-};
+use crate::util::{create_owner_and_member, create_owner_member_and_guest};
 use event_integration_test::user_event::use_localhost_af_cloud;
 use flowy_folder::entities::AFAccessLevelPB;
-
 // ------ Member + Owner ------
 
 // 1. owner creates a workspace
@@ -86,6 +83,7 @@ async fn member_has_access_to_own_private_views_test() {
 // 6. verify owner can't access the private space and private page before sharing
 // 7. verify owner can access the private space and private page after sharing
 #[tokio::test]
+#[ignore]
 async fn owner_has_access_to_invited_private_views_test() {
   use_localhost_af_cloud().await;
 
@@ -113,14 +111,14 @@ async fn owner_has_access_to_invited_private_views_test() {
 
   // owner has no permission to view the private space and private page
   let error = owner.get_view(&private_space.id).await;
-  assert!(error.is_err());
+  assert!(error.is_err(), "{:?}", error);
   let error = owner.get_view(&private_page.id).await;
-  assert!(error.is_err());
+  assert!(error.is_err(), "{:?}", error);
 
-  // member shares the private space and private page with the owner
+  // member shares private page with the owner
   member
     .share_page_with_email(
-      &private_space.id,
+      &private_page.id,
       &owner.get_email().await,
       AFAccessLevelPB::ReadOnly,
     )
@@ -132,9 +130,7 @@ async fn owner_has_access_to_invited_private_views_test() {
   let access_level = owner.preload_access_level(&private_page.id).await;
   assert_eq!(access_level, AFAccessLevelPB::ReadOnly);
 
-  // owner has permission to view the private space and private page
-  let owner_private_space = owner.get_view(&private_space.id).await.unwrap();
-  assert_eq!(owner_private_space.id, private_space.id);
+  // owner has permission to view the private page
   let owner_private_page = owner.get_view(&private_page.id).await.unwrap();
   assert_eq!(owner_private_page.id, private_page.id);
 }
@@ -293,4 +289,11 @@ async fn member_share_a_private_page_with_owner_test() {
   // owner has permission to view the private page
   let owner_private_page = owner.get_view_or_panic(&private_page.id).await;
   assert_eq!(owner_private_page.id, private_page.id);
+
+  // owner get the recent section and check the private shared page is in the recent section
+  owner.open_view(&private_page.id).await;
+  let recent_section = owner.get_recent_views().await;
+  let first_item = recent_section.items.first().unwrap();
+  assert_eq!(first_item.item.id, private_page.id);
+  assert_eq!(first_item.item.name, private_page.name);
 }

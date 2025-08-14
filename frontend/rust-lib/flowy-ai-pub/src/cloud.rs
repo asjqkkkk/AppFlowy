@@ -1,9 +1,9 @@
 use client_api::entity::chat_dto::{
-  ChatMessage, ChatMessageType, ChatSettings, MessageCursor, RepeatedChatMessage, UpdateChatParams,
+  ChatMessage, ChatMessageType, ChatSettings, CompletionStreamValue, MessageCursor,
+  QuestionStreamValue, RepeatedChatMessage, UpdateChatParams,
 };
 use client_api::entity::{
-  AvailableModel, CompleteTextParams, CompletionStreamValue, ModelList, QuestionStreamValue,
-  RepeatedRelatedQuestion, ResponseFormat,
+  AvailableModel, CompleteTextParams, ModelList, RepeatedRelatedQuestion, ResponseFormat,
 };
 use client_api::error::AppResponseError;
 use flowy_error::FlowyError;
@@ -45,12 +45,12 @@ impl From<AvailableModel> for AIModel {
     let desc = value
       .metadata
       .as_ref()
-      .and_then(|v| v.get("desc").map(|v| v.as_str().unwrap_or("")))
+      .map(|v| v.desc.as_ref())
       .unwrap_or("");
     Self {
       name: value.name,
       is_local: false,
-      desc: desc.to_string(),
+      desc: desc.into(),
     }
   }
 }

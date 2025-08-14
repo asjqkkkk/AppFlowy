@@ -3,9 +3,8 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra_ui/style_widget/button.dart';
-import 'package:flowy_infra_ui/style_widget/text.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -36,24 +35,22 @@ class _LockPageActionState extends State<LockPageAction> {
   Widget _buildTextButton(
     BuildContext context,
   ) {
-    return Container(
-      height: 34,
-      padding: const EdgeInsets.symmetric(vertical: 2.0),
-      child: FlowyIconTextButton(
-        margin: const EdgeInsets.symmetric(horizontal: 6),
-        onTap: () => _toggle(context),
-        leftIconBuilder: (onHover) => FlowySvg(
-          FlowySvgs.lock_page_s,
-          size: const Size.square(16.0),
+    final theme = AppFlowyTheme.of(context);
+
+    return AFMenuItem(
+      onTap: () => _toggle(context),
+      title: Text(
+        LocaleKeys.disclosureAction_lockPage.tr(),
+        style: theme.textStyle.body.standard(
+          color: theme.textColorScheme.primary,
         ),
-        iconPadding: 10.0,
-        textBuilder: (onHover) => FlowyText(
-          LocaleKeys.disclosureAction_lockPage.tr(),
-          figmaLineHeight: 18.0,
-        ),
-        rightIconBuilder: (_) => _buildSwitch(
-          context,
-        ),
+      ),
+      leading: FlowySvg(
+        FlowySvgs.lock_page_s,
+        size: const Size.square(16.0),
+      ),
+      trailing: (context, _, __) => _buildSwitch(
+        context,
       ),
     );
   }

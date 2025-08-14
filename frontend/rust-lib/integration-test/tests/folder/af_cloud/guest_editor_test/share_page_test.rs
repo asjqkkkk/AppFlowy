@@ -1,7 +1,7 @@
 use event_integration_test::user_event::use_localhost_af_cloud;
 use flowy_folder::entities::{AFAccessLevelPB, RepeatedSharedUserPB};
 
-use crate::folder::af_cloud::guest_editor_test::util::{create_2_clients, AccessLevelTest};
+use crate::util::create_2_clients;
 
 // Helper function to assert shared users and their access levels
 fn assert_shared_users(

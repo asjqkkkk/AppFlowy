@@ -26,9 +26,10 @@ extension DateReminderItemExtension on MentionMenuItem {
       );
     } else if (item.id ==
         LocaleKeys.document_mentionMenu_reminderTomorrow9Am.tr()) {
+      final now = DateTime.now();
       await _onReminderInsert(
         context,
-        DateTime.now().add(const Duration(days: 1, hours: 9)),
+        DateTime(now.year, now.month, now.day + 1, 9),
         true,
       );
     } else if (item.id == LocaleKeys.document_mentionMenu_reminder1Week.tr()) {

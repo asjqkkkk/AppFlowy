@@ -14,6 +14,7 @@ class SettingsCategory extends StatelessWidget {
     this.descriptionColor,
     this.tooltip,
     this.actions,
+    this.withSpacer = true,
     required this.children,
   });
 
@@ -23,6 +24,7 @@ class SettingsCategory extends StatelessWidget {
   final String? tooltip;
   final List<Widget>? actions;
   final List<Widget> children;
+  final bool withSpacer;
 
   @override
   Widget build(BuildContext context) {
@@ -47,7 +49,7 @@ class SettingsCategory extends StatelessWidget {
                 child: const FlowySvg(FlowySvgs.information_s),
               ),
             ],
-            const Spacer(),
+            if (withSpacer) const Spacer(),
             if (actions != null) ...actions!,
           ],
         ),

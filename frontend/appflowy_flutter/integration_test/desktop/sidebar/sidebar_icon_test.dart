@@ -340,6 +340,7 @@ void main() {
           return loader.file.path.endsWith('.svg');
         }),
       );
+      await tester.pumpUntilFound(imageInTitle);
       expect(imageInTitle, findsOneWidget);
     }
   });

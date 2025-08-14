@@ -9,8 +9,8 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CreateImportTaskType, MentionablePerson, MentionablePersons, PageMentionUpdate, PublishInfo,
-  WorkspaceMemberProfile,
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, MentionablePerson,
+  MentionablePersons, PageMentionUpdate, PublishInfo, WorkspaceMemberProfile,
 };
 use collab::core::collab::CollabOptions;
 use collab::core::origin::CollabOrigin;
@@ -190,6 +190,14 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
     Err(FlowyError::local_version_not_support())
   }
 
+  async fn create_export(
+    &self,
+    _workspace_id: &Uuid,
+    _req: CreateExportTask,
+  ) -> Result<CreateExportTaskResponse, FlowyError> {
+    Err(FlowyError::local_version_not_support())
+  }
+
   async fn share_page_with_user(
     &self,
     workspace_id: &Uuid,
@@ -237,9 +245,10 @@ impl FolderCloudService for LocalServerFolderCloudServiceImpl {
 
   async fn update_page_mention(
     &self,
-    workspace_id: &Uuid,
-    view_id: &Uuid,
-    page_mention: &PageMentionUpdate,
+    _workspace_id: &Uuid,
+    _view_id: &Uuid,
+    _view_ancestors: Vec<String>,
+    _page_mention: &PageMentionUpdate,
   ) -> Result<(), FlowyError> {
     Err(FlowyError::local_version_not_support())
   }

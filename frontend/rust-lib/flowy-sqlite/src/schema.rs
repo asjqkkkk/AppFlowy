@@ -79,7 +79,7 @@ diesel::table! {
 }
 
 diesel::table! {
-    mentionable_person (person_id) {
+    mentionable_person (person_id, workspace_id) {
         person_id -> Text,
         workspace_id -> Text,
         name -> Text,
@@ -143,6 +143,7 @@ diesel::table! {
         email -> Text,
         auth_type -> Integer,
         updated_at -> BigInt,
+        metadata -> Nullable<Text>,
     }
 }
 

@@ -11,7 +11,7 @@ use uuid::Uuid;
 
 #[derive(Queryable, Insertable, AsChangeset, Debug, Clone)]
 #[diesel(table_name = mentionable_person)]
-#[diesel(primary_key(person_id))]
+#[diesel(primary_key(person_id, workspace_id))]
 pub struct MentionablePersonTable {
   pub person_id: String,
   pub workspace_id: String,
@@ -94,9 +94,9 @@ impl MentionablePersonTable {
       name: self.name.clone(),
       email: self.email.clone(),
       role: match self.role {
-        0 => MentionablePersonType::WorkspaceMember,
-        1 => MentionablePersonType::WorkspaceGuest,
-        2 => MentionablePersonType::Contact,
+        1 => MentionablePersonType::WorkspaceMember,
+        2 => MentionablePersonType::WorkspaceGuest,
+        3 => MentionablePersonType::Contact,
         _ => MentionablePersonType::WorkspaceMember, // Default fallback
       },
       avatar_url: self.avatar_url.clone(),
@@ -111,18 +111,6 @@ impl MentionablePersonTable {
   }
 }
 
-/// Insert a new mentionable person
-pub fn insert_mentionable_person(
-  conn: &mut SqliteConnection,
-  person: &MentionablePersonTable,
-) -> FlowyResult<()> {
-  insert_into(mentionable_person::table)
-    .values(person)
-    .execute(conn)?;
-
-  Ok(())
-}
-
 pub fn upsert_mentionable_person(
   conn: &mut SqliteConnection,
   person: &MentionablePersonTable,
@@ -130,10 +118,12 @@ pub fn upsert_mentionable_person(
   // Use insert_or_ignore to avoid duplicates
   insert_into(mentionable_person::table)
     .values(person)
-    .on_conflict(mentionable_person::person_id)
+    .on_conflict((
+      mentionable_person::person_id,
+      mentionable_person::workspace_id,
+    ))
     .do_update()
     .set((
-      mentionable_person::workspace_id.eq(&person.workspace_id),
       mentionable_person::name.eq(&person.name),
       mentionable_person::email.eq(&person.email),
       mentionable_person::role.eq(&person.role),
@@ -220,13 +210,13 @@ pub fn select_mentionable_person(
 
 /// Select all mentionable persons for a workspace
 pub fn select_all_mentionable_persons(
-  mut conn: DBConnection,
+  conn: &mut SqliteConnection,
   workspace_id: &str,
 ) -> FlowyResult<Vec<MentionablePersonTable>> {
   let persons = dsl::mentionable_person
     .filter(mentionable_person::workspace_id.eq(workspace_id))
-    .order(mentionable_person::name.asc())
-    .load::<MentionablePersonTable>(&mut conn)?;
+    .order(mentionable_person::last_mentioned_at.desc())
+    .load::<MentionablePersonTable>(conn)?;
 
   Ok(persons)
 }
@@ -240,7 +230,7 @@ pub fn select_mentionable_persons_by_role(
   let persons = dsl::mentionable_person
     .filter(mentionable_person::workspace_id.eq(workspace_id))
     .filter(mentionable_person::role.eq(role as i32))
-    .order(mentionable_person::name.asc())
+    .order(mentionable_person::last_mentioned_at.desc())
     .load::<MentionablePersonTable>(&mut conn)?;
 
   Ok(persons)
@@ -279,7 +269,7 @@ pub fn insert_mentionable_persons_from_entities(
 ) -> FlowyResult<()> {
   for person in persons {
     let table_person = MentionablePersonTable::from_entity(person, workspace_id);
-    insert_mentionable_person(conn, &table_person)?;
+    upsert_mentionable_person(conn, &table_person)?;
   }
 
   Ok(())

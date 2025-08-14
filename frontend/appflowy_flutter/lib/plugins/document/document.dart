@@ -1,6 +1,5 @@
 library;
 
-import 'package:appflowy/features/mension_person/data/cache/person_list_cache.dart';
 import 'package:appflowy/features/mension_person/data/repositories/rust_mention_repository.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
@@ -16,11 +15,9 @@ import 'package:appflowy/plugins/util.dart';
 import 'package:appflowy/shared/feature_flags.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/startup/plugin/plugin.dart';
-import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view_info/view_info_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/home_stack.dart';
-import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/favorite_button.dart';
 import 'package:appflowy/workspace/presentation/widgets/more_view_actions/more_view_actions.dart';
 import 'package:appflowy/workspace/presentation/widgets/tab_bar_item.dart';
@@ -178,63 +175,21 @@ class DocumentPluginWidgetBuilder extends PluginWidgetBuilder
                     .currentWorkspace
                     ?.workspaceId ??
                 '',
-            personListCache: getIt<PersonListMemoryCache>(),
             repository: RustMentionRepository(),
           )..add(PersonEvent.initial()),
         ),
       ],
       child: MultiBlocListener(
-        listeners: [
-          BlocListener<PersonBloc, PersonState>(
-            listener: (context, state) {
-              final person = state.mentionedErrorPerson;
-              if (person != null) {
-                showToastNotification(
-                  message: LocaleKeys.document_mentionMenu_notifedToFailed.tr(),
-                  type: ToastificationType.error,
-                );
-              }
-            },
-            listenWhen: (previous, current) =>
-                previous.mentionedErrorPerson != current.mentionedErrorPerson,
-          ),
-          BlocListener<PersonBloc, PersonState>(
-            listener: (context, state) {
-              final person = state.mentionedSucceedPerson;
-              if (person != null) {
-                showToastNotification(
-                  message: LocaleKeys.document_mentionMenu_notifedTo
-                      .tr(args: [person.name]),
-                );
-              }
-            },
-            listenWhen: (previous, current) =>
-                previous.mentionedSucceedPerson !=
-                current.mentionedSucceedPerson,
-          ),
-        ],
-        child: BlocListener<PersonBloc, PersonState>(
-          listener: (context, state) {
-            final person = state.mentionedErrorPerson;
-            if (person != null) {
-              showToastNotification(
-                message: LocaleKeys.document_mentionMenu_notifedTo
-                    .tr(args: [person.name]),
-              );
-            }
-          },
-          listenWhen: (previous, current) =>
-              previous.mentionedErrorPerson != current.mentionedErrorPerson,
-          child: BlocBuilder<DocumentAppearanceCubit, DocumentAppearance>(
-            builder: (_, state) => DocumentPage(
-              key: ValueKey(view.id),
-              view: view,
-              onDeleted: () => context.onDeleted?.call(view, deletedViewIndex),
-              initialSelection: initialSelection,
-              initialBlockId: blockId,
-              fixedTitle: fixedTitle,
-              tabs: tabs,
-            ),
+        listeners: [...PersonBloc.buildBlocToastListener()],
+        child: BlocBuilder<DocumentAppearanceCubit, DocumentAppearance>(
+          builder: (_, state) => DocumentPage(
+            key: ValueKey(view.id),
+            view: view,
+            onDeleted: () => context.onDeleted?.call(view, deletedViewIndex),
+            initialSelection: initialSelection,
+            initialBlockId: blockId,
+            fixedTitle: fixedTitle,
+            tabs: tabs,
           ),
         ),
       ),

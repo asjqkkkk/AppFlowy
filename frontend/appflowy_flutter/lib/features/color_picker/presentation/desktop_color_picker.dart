@@ -111,8 +111,8 @@ class _ColorPickerState extends State<ColorPicker> {
     return ConstrainedBox(
       constraints: BoxConstraints(
         maxWidth: (theme.spacing.m + theme.spacing.s) * 2 +
-            widget.config.maxColorLimit * 28.0 +
-            (widget.config.maxColorLimit - 1) * theme.spacing.m,
+            widget.config.recentColorLimit * 28.0 +
+            (widget.config.recentColorLimit - 1) * theme.spacing.m,
       ),
       child: MainColorPicker(
         config: widget.config,
@@ -339,9 +339,9 @@ class CustomColorSection extends StatelessWidget {
                   color: theme.textColorScheme.tertiary,
                 ),
               ),
-              Row(
+              Wrap(
                 spacing: theme.spacing.m,
-                mainAxisSize: MainAxisSize.min,
+                runSpacing: theme.spacing.m,
                 children: [
                   for (final color in state.customColors)
                     ColorTile(

@@ -109,6 +109,8 @@ enum FeatureFlag {
       FeatureFlag.inlineSubPageMention,
       // release this feature in version 0.9.4
       FeatureFlag.sharedSection,
+      // release this feature in version 0.9.7
+      FeatureFlag.exportImport,
     ].contains(this)) {
       return true;
     }
@@ -125,9 +127,9 @@ enum FeatureFlag {
       case FeatureFlag.inlineSubPageMention:
       case FeatureFlag.collaborativeWorkspace:
       case FeatureFlag.membersSettings:
+      case FeatureFlag.exportImport:
         return true;
       case FeatureFlag.sharedSection:
-      case FeatureFlag.exportImport:
       case FeatureFlag.unknown:
         return false;
     }

@@ -73,9 +73,16 @@ void main() {
       await tester.pumpAndSettle();
     });
 
+    // put an empty test here to prevent the below tests from failing
+    testWidgets('empty test', (tester) async {
+      await tester.initializeAppFlowy();
+      await tester.tapAnonymousSignInButton();
+    });
+
     testWidgets('number', (tester) async {
       await tester.initializeAppFlowy();
       await tester.tapAnonymousSignInButton();
+      await tester.pumpAndSettle();
 
       await tester.createNewPageWithNameUnderParent(layout: ViewLayoutPB.Grid);
 

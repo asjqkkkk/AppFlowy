@@ -201,6 +201,11 @@ class WorkspaceMemberBloc
         ),
       ),
     );
+
+    result.fold(
+      (s) => Log.info('Invited workspace member by email: $email'),
+      (e) => Log.error('Failed to invite workspace member by email: $email'),
+    );
   }
 
   Future<void> _onRemoveWorkspaceMemberByEmail(
@@ -231,6 +236,11 @@ class WorkspaceMemberBloc
           result: result,
         ),
       ),
+    );
+
+    result.fold(
+      (s) => Log.info('Removed workspace member by email: $email'),
+      (e) => Log.error('Failed to remove workspace member by email: $email'),
     );
   }
 
@@ -319,6 +329,11 @@ class WorkspaceMemberBloc
           result: result,
         ),
       ),
+    );
+
+    result.fold(
+      (s) => Log.info('Updated workspace member role: $email'),
+      (e) => Log.error('Failed to update workspace member role: $email'),
     );
   }
 

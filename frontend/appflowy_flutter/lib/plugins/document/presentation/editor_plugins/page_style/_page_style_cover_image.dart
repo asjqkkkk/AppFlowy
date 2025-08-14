@@ -1,6 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 
+import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
@@ -9,15 +10,12 @@ import 'package:appflowy/mobile/application/base/mobile_view_page_bloc.dart';
 import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/image/image_util.dart';
-import 'package:appflowy/plugins/document/presentation/editor_plugins/image/unsplash_image_widget.dart';
+import 'package:appflowy/plugins/document/presentation/editor_plugins/image/upload_image_menu/unsplash_image.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_style/_page_cover_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/page_style/_page_style_util.dart';
-import 'package:appflowy/shared/appflowy_network_image.dart';
 import 'package:appflowy/shared/feedback_gesture_detector.dart';
-import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/permission/permission_checker.dart';
 import 'package:appflowy/user/application/user_service.dart';
-import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
@@ -28,6 +26,8 @@ import 'package:flowy_infra_ui/style_widget/snap_bar.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+
+import '../cover/cover_content.dart';
 
 class PageStyleCoverImage extends StatelessWidget {
   PageStyleCoverImage({
@@ -108,48 +108,11 @@ class PageStyleCoverImage extends StatelessWidget {
     final value = cover.value;
     final type = cover.type;
 
-    Widget preview = const SizedBox.shrink();
-
-    if (type == PageStyleCoverImageType.customImage ||
-        type == PageStyleCoverImageType.unsplashImage) {
-      final userProfilePB =
-          context.read<MobileViewPageBloc>().state.userProfilePB;
-      preview = FlowyNetworkImage(
-        url: value,
-        userProfilePB: userProfilePB,
-      );
-    }
-
-    if (type == PageStyleCoverImageType.builtInImage) {
-      preview = Image.asset(
-        PageStyleCoverImageType.builtInImagePath(value),
-        fit: BoxFit.cover,
-      );
-    }
-
-    if (type == PageStyleCoverImageType.pureColor) {
-      final color = value.coverColor(context);
-      if (color != null) {
-        preview = ColoredBox(
-          color: color,
-        );
-      }
-    }
-
-    if (type == PageStyleCoverImageType.gradientColor) {
-      preview = Container(
-        decoration: BoxDecoration(
-          gradient: FlowyGradientColor.fromId(value).linear,
-        ),
-      );
-    }
-
-    if (type == PageStyleCoverImageType.localImage) {
-      preview = Image.file(
-        File(value),
-        fit: BoxFit.cover,
-      );
-    }
+    final preview = CoverContent(
+      type: type,
+      value: value,
+      userProfile: context.read<MobileViewPageBloc>().state.userProfilePB,
+    );
 
     return Row(
       children: [
@@ -174,6 +137,7 @@ class PageStyleCoverImage extends StatelessWidget {
 
   void _showPresets(BuildContext context) {
     final pageStyleBloc = context.read<DocumentPageStyleBloc>();
+    final userWorkspaceBloc = context.read<UserWorkspaceBloc>();
 
     context.pop();
 
@@ -194,8 +158,11 @@ class PageStyleCoverImage extends StatelessWidget {
       title: LocaleKeys.pageStyle_presets.tr(),
       backgroundColor: AFThemeExtension.of(context).background,
       builder: (_) {
-        return BlocProvider.value(
-          value: pageStyleBloc,
+        return MultiBlocProvider(
+          providers: [
+            BlocProvider.value(value: pageStyleBloc),
+            BlocProvider.value(value: userWorkspaceBloc),
+          ],
           child: const PageCoverBottomSheet(),
         );
       },
@@ -256,8 +223,8 @@ class PageStyleCoverImage extends StatelessWidget {
 
   void _showUnsplash(BuildContext context) {
     final pageStyleBloc = context.read<DocumentPageStyleBloc>();
-    final backgroundColor = AFThemeExtension.of(context).background;
-    final maxHeight = MediaQuery.of(context).size.height * 0.6;
+    final theme = AppFlowyTheme.of(context);
+    final maxHeight = MediaQuery.sizeOf(context).height * 0.6;
 
     context.pop();
 
@@ -269,7 +236,6 @@ class PageStyleCoverImage extends StatelessWidget {
       showHeader: true,
       showRemoveButton: true,
       title: LocaleKeys.pageStyle_unsplash.tr(),
-      backgroundColor: backgroundColor,
       onRemove: () {
         pageStyleBloc.add(
           DocumentPageStyleEvent.updateCoverImage(
@@ -279,25 +245,25 @@ class PageStyleCoverImage extends StatelessWidget {
       },
       builder: (_) {
         return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxHeight, minHeight: 80),
-          child: BlocProvider.value(
-            value: pageStyleBloc,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: UnsplashImageWidget(
-                type: UnsplashImageType.fullScreen,
-                onSelectUnsplashImage: (url) {
-                  pageStyleBloc.add(
-                    DocumentPageStyleEvent.updateCoverImage(
-                      PageStyleCover(
-                        type: PageStyleCoverImageType.unsplashImage,
-                        value: url,
-                      ),
-                    ),
-                  );
-                },
-              ),
+          constraints: BoxConstraints(
+            maxHeight: maxHeight,
+          ),
+          child: UnsplashImageSelector(
+            textFieldSize: AFTextFieldSize.l,
+            onTapOutside: (context, event) => FocusScope.of(context).unfocus(),
+            gridViewPadding: EdgeInsets.symmetric(
+              horizontal: theme.spacing.xl,
             ),
+            onSelectUnsplashImage: (url) {
+              pageStyleBloc.add(
+                DocumentPageStyleEvent.updateCoverImage(
+                  PageStyleCover(
+                    type: PageStyleCoverImageType.unsplashImage,
+                    value: url,
+                  ),
+                ),
+              );
+            },
           ),
         );
       },

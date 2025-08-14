@@ -1,3 +1,4 @@
+import 'package:appflowy/plugins/document/presentation/editor_page.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_editor_plugins/appflowy_editor_plugins.dart';
@@ -477,13 +478,19 @@ class SimpleTableCellBlockWidgetState extends State<SimpleTableCellBlockWidget>
     }
 
     final columnColor = node.buildColumnColor(context);
-    if (columnColor != null && columnColor != Colors.transparent) {
-      return columnColor;
+    if (columnColor != null) {
+      final color = buildEditorCustomizedColor(context, node, columnColor);
+      if (color != null && color != Colors.transparent) {
+        return color;
+      }
     }
 
     final rowColor = node.buildRowColor(context);
-    if (rowColor != null && rowColor != Colors.transparent) {
-      return rowColor;
+    if (rowColor != null) {
+      final color = buildEditorCustomizedColor(context, node, rowColor);
+      if (color != null && color != Colors.transparent) {
+        return color;
+      }
     }
 
     // Check if the cell is in the header.

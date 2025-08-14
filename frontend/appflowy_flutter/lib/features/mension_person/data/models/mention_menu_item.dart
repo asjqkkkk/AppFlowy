@@ -4,8 +4,6 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:easy_localization/easy_localization.dart';
 
-import 'person.dart';
-
 abstract class MentionMenuItem {
   MentionMenuItem({required this.id, required this.type});
 
@@ -16,11 +14,11 @@ abstract class MentionMenuItem {
 class PersonMentionMenuItem extends MentionMenuItem {
   PersonMentionMenuItem({required this.person})
       : super(
-          id: person.id,
+          id: person.uuid,
           type: MentionMenuType.person,
         );
 
-  final Person person;
+  final MentionablePersonPB person;
 }
 
 class AddPersonMentionMenuItem extends MentionMenuItem {

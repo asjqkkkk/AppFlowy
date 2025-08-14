@@ -14,7 +14,7 @@ use crate::local_ai::completion::chain::CompletionChain;
 use crate::local_ai::database::summary::DatabaseSummaryChain;
 use crate::local_ai::database::translate::DatabaseTranslateChain;
 use client_api::entity::{
-  CompleteTextParams, CompletionType, ResponseFormat, TranslateRowData, TranslateRowResponse,
+  CompleteTextParams, ResponseFormat, TranslateRowData, TranslateRowResponse,
 };
 use dashmap::{DashMap, Entry};
 use flowy_ai_pub::cloud::{StreamAnswer, StreamComplete};
@@ -212,7 +212,7 @@ impl LLMChatController {
 
     let llm = client.build_with_model(model_name);
     let chain = CompletionChain::new(llm);
-    let ty = params.completion_type.unwrap_or(CompletionType::AskAI);
+    let ty = params.completion_type;
     let stream = chain
       .complete(&params.text, ty, params.format, params.metadata)
       .await?

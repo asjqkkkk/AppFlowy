@@ -52,19 +52,9 @@ class _SortEditorState extends State<SortEditor> {
           ),
           proxyDecorator: (child, index, animation) => Material(
             color: Colors.transparent,
-            child: Stack(
-              children: [
-                BlocProvider.value(
-                  value: context.read<SortEditorBloc>(),
-                  child: child,
-                ),
-                MouseRegion(
-                  cursor: Platform.isWindows
-                      ? SystemMouseCursors.click
-                      : SystemMouseCursors.grabbing,
-                  child: const SizedBox.expand(),
-                ),
-              ],
+            child: BlocProvider.value(
+              value: context.read<SortEditorBloc>(),
+              child: child,
             ),
           ),
           shrinkWrap: true,
