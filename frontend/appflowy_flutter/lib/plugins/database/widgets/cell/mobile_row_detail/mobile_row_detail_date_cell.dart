@@ -32,9 +32,8 @@ class MobileRowDetailDateCellSkin extends IEditableDateCellSkin {
       onTap: () => showMobileBottomSheet(
         context,
         builder: (context) {
-          return MobileDateCellEditScreen(
+          return MobileDateCellEditorBottomSheet(
             controller: bloc.cellController,
-            showAsFullScreen: false,
           );
         },
       ),
