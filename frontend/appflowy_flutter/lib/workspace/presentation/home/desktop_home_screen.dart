@@ -1,5 +1,4 @@
-import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/plugins/blank/blank.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/startup/tasks/memory_leak_detector.dart';
@@ -11,7 +10,6 @@ import 'package:appflowy/workspace/application/home/home_setting_bloc.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
-import 'package:appflowy/workspace/application/user/user_workspace_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy/workspace/presentation/command_palette/command_palette.dart';

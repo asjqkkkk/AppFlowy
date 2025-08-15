@@ -1,7 +1,7 @@
 import 'package:appflowy/features/color_picker/color_picker.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/flowy_tint_colors.dart';
-import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';

@@ -1,7 +1,7 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/share_tab/presentation/share_tab.dart'
     as share_section;
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/home/tab/_round_underline_tab_indicator.dart';

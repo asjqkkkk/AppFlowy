@@ -1,5 +1,5 @@
 import 'package:appflowy/features/workspace/data/repositories/workspace_repository.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
