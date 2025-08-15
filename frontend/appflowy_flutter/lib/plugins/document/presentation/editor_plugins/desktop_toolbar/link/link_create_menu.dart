@@ -1,4 +1,4 @@
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/toolbar_item/custom_link_toolbar_item.dart';
 import 'package:appflowy/plugins/shared/share/constants.dart';

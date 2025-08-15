@@ -1,4 +1,4 @@
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/simple_table_feedback.dart';

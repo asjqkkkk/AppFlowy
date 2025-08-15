@@ -1,7 +1,7 @@
 import 'package:appflowy/features/share_tab/data/repositories/rust_share_with_user_repository_impl.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/features/shared_section/presentation/shared_section.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/tab_bar_bloc.dart';
 import 'package:appflowy/plugins/shared/share/_shared.dart';

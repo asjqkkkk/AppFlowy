@@ -1,5 +1,5 @@
 import 'package:appflowy/features/export/logic/workspace_export_bloc.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/single_setting_action.dart';

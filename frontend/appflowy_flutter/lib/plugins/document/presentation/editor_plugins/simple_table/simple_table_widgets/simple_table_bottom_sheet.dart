@@ -1,5 +1,5 @@
 import 'package:appflowy/features/color_picker/color_picker.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';

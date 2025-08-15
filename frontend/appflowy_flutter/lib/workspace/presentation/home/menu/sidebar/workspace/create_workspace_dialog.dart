@@ -1,11 +1,11 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/workspace/logic/personal_subscription_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/appflowy_hosted.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/debounce.dart';
-import 'package:appflowy/workspace/application/user/prelude.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';

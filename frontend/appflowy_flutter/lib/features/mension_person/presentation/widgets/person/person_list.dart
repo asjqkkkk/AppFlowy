@@ -3,7 +3,7 @@ import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/mention_menu_service.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/mention_menu_scroller.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_block.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';

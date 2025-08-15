@@ -1,7 +1,6 @@
 import 'dart:io';
 
-import 'package:appflowy/features/workspace/data/repositories/rust_workspace_repository_impl.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/mobile/presentation/favorite/mobile_favorite_folder.dart';
 import 'package:appflowy/mobile/presentation/home/mobile_home_page_header.dart';
 import 'package:appflowy/startup/startup.dart';

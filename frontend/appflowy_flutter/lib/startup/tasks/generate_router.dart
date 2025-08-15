@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:appflowy/mobile/presentation/chat/mobile_chat_screen.dart';
 import 'package:appflowy/mobile/presentation/database/board/mobile_board_screen.dart';
 import 'package:appflowy/mobile/presentation/database/card/card.dart';
-import 'package:appflowy/mobile/presentation/database/date_picker/mobile_date_picker_screen.dart';
 import 'package:appflowy/mobile/presentation/database/field/mobile_create_field_screen.dart';
 import 'package:appflowy/mobile/presentation/database/field/mobile_edit_field_screen.dart';
 import 'package:appflowy/mobile/presentation/database/mobile_calendar_events_screen.dart';
@@ -73,7 +72,6 @@ GoRouter generateRouter(Widget child) {
         _mobileChatScreenRoute(),
         // card detail page
         _mobileCardDetailScreenRoute(),
-        _mobileDateCellEditScreenRoute(),
         _mobileNewPropertyPageRoute(),
         _mobileEditPropertyPageRoute(),
 
@@ -692,29 +690,6 @@ GoRoute _mobileCardDetailScreenRoute() {
         child: MobileRowDetailPage(
           databaseController: databaseController,
           rowId: rowId,
-        ),
-      );
-    },
-  );
-}
-
-GoRoute _mobileDateCellEditScreenRoute() {
-  return GoRoute(
-    parentNavigatorKey: AppGlobals.rootNavKey,
-    path: MobileDateCellEditScreen.routeName,
-    pageBuilder: (context, state) {
-      final args = state.extra as Map<String, dynamic>;
-      final controller = args[MobileDateCellEditScreen.dateCellController];
-      final fullScreen = args[MobileDateCellEditScreen.fullScreen];
-      return CustomTransitionPage(
-        transitionsBuilder: (_, __, ___, child) => child,
-        fullscreenDialog: true,
-        opaque: false,
-        barrierDismissible: true,
-        barrierColor: Theme.of(context).bottomSheetTheme.modalBarrierColor,
-        child: MobileDateCellEditScreen(
-          controller: controller,
-          showAsFullScreen: fullScreen ?? true,
         ),
       );
     },

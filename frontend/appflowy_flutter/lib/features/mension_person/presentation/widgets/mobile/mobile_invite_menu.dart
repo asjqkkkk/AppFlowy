@@ -4,7 +4,7 @@ import 'package:appflowy/features/mension_person/presentation/mention_menu_servi
 import 'package:appflowy/features/mension_person/presentation/menu_extension.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/invite/invite_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/invite/person_list_invite_item.dart';
-import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet_buttons.dart';
