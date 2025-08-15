@@ -1,6 +1,6 @@
 import 'package:appflowy/env/cloud_env.dart';
+import 'package:appflowy/features/profile_setting/presentation/widgets/profile_display_name.dart';
 import 'package:appflowy/workspace/application/settings/prelude.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/account/account_user_profile.dart';
 import 'package:flowy_infra/uuid.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -22,7 +22,7 @@ void main() {
       await tester.expectToSeeHomePageWithGetStartedPage();
 
       await tester.openSettings();
-      await tester.openSettingsPage(SettingsPage.account);
+      await tester.openSettingsPage(SettingsPage.profile);
 
       await tester.enterUserName(name);
       await tester.pumpAndSettle(const Duration(seconds: 6));
@@ -45,7 +45,7 @@ void main() {
 
     // Verify name
     final profileSetting =
-        tester.widget(find.byType(AccountUserProfile)) as AccountUserProfile;
+        tester.widget(find.byType(ProfileDisplayName)) as ProfileDisplayName;
 
     expect(profileSetting.name, name);
   });

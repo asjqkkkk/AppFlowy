@@ -1,8 +1,7 @@
-import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/features/profile_setting/presentation/widgets/profile_display_name.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/settings/prelude.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/shared/sidebar_setting.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/account/account_user_profile.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_workspace_view.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/sites/domain/domain_settings_dialog.dart';
 import 'package:appflowy/workspace/presentation/settings/settings_dialog.dart';
@@ -10,6 +9,7 @@ import 'package:appflowy/workspace/presentation/settings/widgets/settings_menu_e
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'base.dart';
@@ -75,22 +75,14 @@ extension AppFlowySettings on WidgetTester {
 
   /// Enter user name
   Future<void> enterUserName(String name) async {
-    // Enable editing username
-    final editUsernameFinder = find.descendant(
-      of: find.byType(AccountUserProfile),
-      matching: find.byFlowySvg(FlowySvgs.toolbar_link_edit_m),
-    );
-    await tap(editUsernameFinder, warnIfMissed: false);
-    await pumpAndSettle();
-
     final userNameFinder = find.descendant(
-      of: find.byType(AccountUserProfile),
+      of: find.byType(ProfileDisplayName),
       matching: find.byType(TextField),
     );
     await enterText(userNameFinder, name);
     await pumpAndSettle();
 
-    await tap(find.text(LocaleKeys.button_save.tr()));
+    await simulateKeyEvent(LogicalKeyboardKey.enter);
     await pumpAndSettle();
   }
 

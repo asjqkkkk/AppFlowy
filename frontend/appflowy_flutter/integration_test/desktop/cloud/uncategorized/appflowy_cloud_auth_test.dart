@@ -1,7 +1,7 @@
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/application/settings/prelude.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/account/account.dart';
+import 'package:appflowy/workspace/presentation/settings/widgets/account_and_app/sign_in_out_button.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/setting_appflowy_cloud.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -32,13 +32,8 @@ void main() {
       await tester.openSettings();
       await tester.openSettingsPage(SettingsPage.account);
 
-      // Scroll to sign-out
-      await tester.scrollUntilVisible(
-        find.byType(AccountSignInOutButton),
-        100,
-        scrollable: find.findSettingsScrollable(),
-      );
-      await tester.tapButton(find.byType(AccountSignInOutButton));
+      // Log out
+      await tester.tapButton(find.byType(SignInOutButton));
 
       tester.expectToSeeText(LocaleKeys.button_yes.tr());
       await tester.tapButtonWithName(LocaleKeys.button_yes.tr());
@@ -58,7 +53,7 @@ void main() {
       await tester.openSettings();
       await tester.openSettingsPage(SettingsPage.account);
 
-      await tester.tapButton(find.byType(AccountSignInOutButton));
+      await tester.tapButton(find.byType(SignInOutButton));
 
       tester.expectToSeeGoogleLoginButton();
     });

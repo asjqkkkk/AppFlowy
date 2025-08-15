@@ -24,7 +24,7 @@ void main() {
 
       // rename the name of the anon user
       await tester.openSettings();
-      await tester.openSettingsPage(SettingsPage.account);
+      await tester.openSettingsPage(SettingsPage.profile);
       await tester.pumpAndSettle();
 
       await tester.enterUserName('local_user');
