@@ -103,6 +103,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                 ),
                 triggerSize: triggerSize,
                 showAtBottom: showAtBottom,
+                blockId: blockId,
                 onEnter: onEnter,
                 onExit: onExit,
               ),
@@ -159,7 +160,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                 backgroundColor: theme.surfaceColorScheme.primary,
                 builder: (_) => BlocProvider.value(
                   value: bloc,
-                  child: MobilePersonProfileCard(person: person),
+                  child:
+                      MobilePersonProfileCard(person: person, blockId: blockId),
                 ),
               );
             },
