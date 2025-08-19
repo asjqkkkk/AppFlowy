@@ -425,6 +425,39 @@ pub enum ErrorCode {
 
   #[error("Commercial error")]
   CommercialError = 145,
+
+  #[error("Stripe error")]
+  StripeError = 146,
+
+  #[error("Stripe webhook error")]
+  StripeWebhookError = 147,
+
+  #[error("Invalid subscription plan")]
+  InvalidSubscriptionPlan = 148,
+
+  #[error("Already subscribed")]
+  AlreadySubscribed = 149,
+
+  #[error("User is not a customer")]
+  UserIsNotCustomer = 150,
+
+  #[error("Too many requests")]
+  TooManyRequests = 151,
+
+  #[error("Keygen error")]
+  KeygenError = 152,
+
+  #[error("JSON Web Token error")]
+  JsonWebTokenError = 153,
+
+  #[error("License expired")]
+  LicenseExpired = 154,
+
+  #[error("License deleted")]
+  LicenseDeleted = 155,
+
+  #[error("License reach limit")]
+  LicenseReachLimit = 156,
 }
 
 impl ErrorCode {
