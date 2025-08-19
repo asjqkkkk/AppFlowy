@@ -87,10 +87,36 @@ impl From<UserUpdate> for UserTableChangeset {
 
 pub fn update_user_profile(
   conn: &mut SqliteConnection,
-  changeset: UserTableChangeset,
+  mut changeset: UserTableChangeset,
 ) -> Result<(), FlowyError> {
   trace!("update user profile: {:?}", changeset);
   let user_id = changeset.id.clone();
+
+  // If metadata is being updated, merge with existing metadata
+  if let Some(new_metadata_str) = changeset.metadata.as_ref() {
+    // Get existing user data
+    if let Ok(existing_user) = select_user_table_row(user_id.parse::<i64>().unwrap_or(0), conn) {
+      if let Some(existing_metadata_str) = existing_user.metadata {
+        // Parse both metadata as JSON values and merge
+        if let (Ok(mut existing_json), Ok(new_json)) = (
+          serde_json::from_str::<serde_json::Value>(&existing_metadata_str),
+          serde_json::from_str::<serde_json::Value>(new_metadata_str),
+        ) {
+          // Merge new metadata into existing (shallow merge of top-level keys)
+          if let (Some(existing_obj), Some(new_obj)) =
+            (existing_json.as_object_mut(), new_json.as_object())
+          {
+            for (key, value) in new_obj {
+              existing_obj.insert(key.clone(), value.clone());
+            }
+            // Update changeset with merged metadata
+            changeset.metadata = serde_json::to_string(&existing_json).ok();
+          }
+        }
+      }
+    }
+  }
+
   update(user_table::dsl::user_table.filter(user_table::id.eq(&user_id)))
     .set(changeset)
     .execute(conn)?;

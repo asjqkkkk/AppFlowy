@@ -151,7 +151,7 @@ pub async fn update_user_profile_handler(
 ) -> Result<(), FlowyError> {
   let manager = upgrade_manager(manager)?;
   let params: UpdateUserParams = data.into_inner().try_into()?;
-  manager.update_user_profile(params).await?;
+  manager.patch_user_profile(params).await?;
   Ok(())
 }
 
