@@ -37,7 +37,7 @@ class LinkHoverTrigger extends StatefulWidget {
     required this.selection,
     required this.node,
     required this.attribute,
-    required this.size,
+    required this.rect,
     this.delayToShow = const Duration(milliseconds: 50),
     this.delayToHide = const Duration(milliseconds: 300),
   });
@@ -46,7 +46,7 @@ class LinkHoverTrigger extends StatefulWidget {
   final Selection selection;
   final Node node;
   final Attributes attribute;
-  final Size size;
+  final Rect rect;
   final Duration delayToShow;
   final Duration delayToHide;
 
@@ -62,7 +62,8 @@ class _LinkHoverTriggerState extends State<LinkHoverTrigger> {
   bool isHoverMenuHovering = false;
   bool isHoverTriggerHovering = false;
 
-  Size get size => widget.size;
+  Rect get rect => widget.rect;
+  Size get size => rect.size;
 
   EditorState get editorState => widget.editorState;
 
@@ -71,6 +72,7 @@ class _LinkHoverTriggerState extends State<LinkHoverTrigger> {
   Attributes get attribute => widget.attribute;
 
   late HoverTriggerKey triggerKey = HoverTriggerKey(widget.node.id, selection);
+  final globalKey = GlobalKey();
 
   @override
   void initState() {
@@ -91,6 +93,7 @@ class _LinkHoverTriggerState extends State<LinkHoverTrigger> {
   @override
   Widget build(BuildContext context) {
     final placeHolder = Container(
+      key: globalKey,
       color: Colors.black.withAlpha(1),
       width: size.width,
       height: size.height,
@@ -144,7 +147,9 @@ class _LinkHoverTriggerState extends State<LinkHoverTrigger> {
       popoverDecoration: BoxDecoration(),
       popupBuilder: (context) => LinkHoverMenu(
         attribute: widget.attribute,
-        triggerSize: size,
+        rect: rect,
+        gloablOffset: getGlobalOffset(),
+        editorState: editorState,
         editable: editorState.editable,
         onEnter: (_) {
           isHoverMenuHovering = true;
@@ -195,6 +200,12 @@ class _LinkHoverTriggerState extends State<LinkHoverTrigger> {
       ),
       child: child,
     );
+  }
+
+  Offset getGlobalOffset() {
+    final box = globalKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return Offset.zero;
+    return box.localToGlobal(Offset.zero);
   }
 
   void onToolbarShow() => hoverMenuController.close();
@@ -304,23 +315,27 @@ class LinkHoverMenu extends StatefulWidget {
     required this.onEnter,
     required this.onExit,
     required this.editable,
-    required this.triggerSize,
     required this.onCopyLink,
     required this.onOpenLink,
     required this.onEditLink,
     required this.onRemoveLink,
+    required this.rect,
+    required this.gloablOffset,
+    required this.editorState,
     required this.onConvertTo,
   });
 
   final Attributes attribute;
   final PointerEnterEventListener onEnter;
   final PointerExitEventListener onExit;
-  final Size triggerSize;
   final VoidCallback onCopyLink;
   final VoidCallback onOpenLink;
   final VoidCallback onEditLink;
   final VoidCallback onRemoveLink;
   final bool editable;
+  final Rect rect;
+  final EditorState editorState;
+  final Offset gloablOffset;
   final ValueChanged<LinkConvertMenuCommand> onConvertTo;
 
   @override
@@ -329,11 +344,15 @@ class LinkHoverMenu extends StatefulWidget {
 
 class _LinkHoverMenuState extends State<LinkHoverMenu> {
   ViewPB? currentView;
+  final menuKey = GlobalKey();
   late bool isPage = widget.attribute.isPage;
   late String href = widget.attribute.href ?? '';
   final popoverController = PopoverController();
-  bool isConvertButtonSelected = false;
 
+  Rect get rect => widget.rect;
+  Size get triggerSize => rect.size;
+  EditorState get editorState => widget.editorState;
+  bool isConvertButtonSelected = false;
   bool get editable => widget.editable;
 
   @override
@@ -350,14 +369,25 @@ class _LinkHoverMenuState extends State<LinkHoverMenu> {
 
   @override
   Widget build(BuildContext context) {
+    final editorSize = editorState.renderBox?.size ?? Size.zero;
+    final offset = widget.gloablOffset,
+        editorGlobalOffset =
+            editorState.renderBox?.localToGlobal(Offset.zero) ?? Offset.zero;
+    final leftSpace = offset.dx - editorGlobalOffset.dx - rect.left;
+
+    final menuWidth = max(320.0, triggerSize.width);
+    final marginLeft = menuWidth + rect.left + leftSpace > editorSize.width
+        ? rect.left - (editorSize.width - menuWidth - leftSpace) + 10
+        : 0.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         MouseRegion(
+          key: menuKey,
           onEnter: widget.onEnter,
           onExit: widget.onExit,
           child: SizedBox(
-            width: max(320, widget.triggerSize.width),
+            width: menuWidth,
             height: 48,
             child: Align(
               alignment: Alignment.centerLeft,
@@ -411,16 +441,19 @@ class _LinkHoverMenuState extends State<LinkHoverMenu> {
             ),
           ),
         ),
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          onEnter: widget.onEnter,
-          onExit: widget.onExit,
-          child: GestureDetector(
-            onTap: widget.onOpenLink,
-            child: Container(
-              width: widget.triggerSize.width,
-              height: widget.triggerSize.height,
-              color: Colors.black.withAlpha(1),
+        Padding(
+          padding: EdgeInsets.only(left: marginLeft),
+          child: MouseRegion(
+            cursor: SystemMouseCursors.click,
+            onEnter: widget.onEnter,
+            onExit: widget.onExit,
+            child: GestureDetector(
+              onTap: widget.onOpenLink,
+              child: Container(
+                width: triggerSize.width,
+                height: triggerSize.height,
+                color: Colors.black.withAlpha(1),
+              ),
             ),
           ),
         ),

@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_role_badge.dart';
@@ -8,6 +6,7 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
+import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -24,6 +23,8 @@ class PersonProfileCard extends StatefulWidget {
     super.key,
     required this.triggerSize,
     required this.showAtBottom,
+    required this.globalOffset,
+    required this.editorState,
     required this.person,
     this.blockId,
     this.onEnter,
@@ -32,6 +33,8 @@ class PersonProfileCard extends StatefulWidget {
 
   final Size triggerSize;
   final bool showAtBottom;
+  final Offset globalOffset;
+  final EditorState editorState;
   final MentionablePersonPB person;
   final String? blockId;
   final PointerEnterEventListener? onEnter;
@@ -45,6 +48,9 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
   final popoverController = PopoverController();
 
   MentionablePersonPB get person => widget.person;
+  Offset get globalOffset => widget.globalOffset;
+  EditorState get editorState => widget.editorState;
+  Size get triggerSize => widget.triggerSize;
 
   @override
   void dispose() {
@@ -54,24 +60,56 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 
   @override
   Widget build(BuildContext context) {
+    final editorSize = editorState.renderBox?.size ?? Size.zero,
+        editorOffset =
+            editorState.renderBox?.localToGlobal(Offset.zero) ?? Offset.zero,
+        triggerWidth = triggerSize.width,
+        triggerHeight = triggerSize.height,
+        menuWidth = 280.0;
+    final List<_PlaceHolder> placeHolders = [];
+    final overflowRight =
+        globalOffset.dx + menuWidth >= editorOffset.dx + editorSize.width;
+    if (!overflowRight) {
+      placeHolders.add(_PlaceHolder(triggerSize, true));
+      if (triggerWidth < menuWidth) {
+        placeHolders.add(
+          _PlaceHolder(Size(menuWidth - triggerWidth, triggerHeight), false),
+        );
+      }
+    } else {
+      final startX = editorOffset.dx + editorSize.width - menuWidth;
+      final unhoveredWidth =
+          globalOffset.dx - startX + AppFlowyTheme.of(context).spacing.m;
+      placeHolders
+          .add(_PlaceHolder(Size(unhoveredWidth, triggerHeight), false));
+      placeHolders.add(_PlaceHolder(triggerSize, true));
+      final remianingWidth = menuWidth - unhoveredWidth - triggerWidth;
+      if (remianingWidth > 0) {
+        placeHolders.add(
+          _PlaceHolder(Size(remianingWidth, triggerHeight), false),
+        );
+      }
+    }
+
     final mouseRegionPlaceHolder = Row(
       children: [
-        MouseRegion(
-          cursor: SystemMouseCursors.click,
-          child: Container(
-            width: widget.triggerSize.width,
-            height: widget.triggerSize.height,
-            color: Colors.black.withAlpha(1),
-          ),
-        ),
-        MouseRegion(
-          onEnter: (e) => widget.onExit?.call(PointerExitEvent()),
-          child: Container(
-            width: max(0, 280 - widget.triggerSize.width),
-            height: widget.triggerSize.height,
-            color: Colors.black.withAlpha(1),
-          ),
-        ),
+        ...List.generate(placeHolders.length, (index) {
+          final placeHolder = placeHolders[index],
+              enableHovering = placeHolder.enableHovering;
+          return MouseRegion(
+            cursor: enableHovering
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            onEnter: enableHovering
+                ? null
+                : (e) => widget.onExit?.call(PointerExitEvent()),
+            child: Container(
+              width: placeHolder.size.width,
+              height: placeHolder.size.height,
+              color: Colors.black.withAlpha(1),
+            ),
+          );
+        }),
       ],
     );
     return GestureDetector(
@@ -505,4 +543,10 @@ extension PersonProfileCardWidgetExtension on BuildContext {
       ],
     );
   }
+}
+
+class _PlaceHolder {
+  _PlaceHolder(this.size, this.enableHovering);
+  final Size size;
+  final bool enableHovering;
 }
