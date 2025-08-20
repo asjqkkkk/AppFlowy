@@ -17,6 +17,7 @@ pub struct WorkspaceMemberTable {
   pub workspace_id: String,
   pub updated_at: chrono::NaiveDateTime,
   pub joined_at: Option<i64>,
+  pub is_pending_invitation: bool,
 }
 
 impl From<WorkspaceMemberTable> for WorkspaceMember {
@@ -27,6 +28,7 @@ impl From<WorkspaceMemberTable> for WorkspaceMember {
       name: value.name,
       avatar_url: value.avatar_url,
       joined_at: value.joined_at,
+      is_pending_invitation: value.is_pending_invitation,
     }
   }
 }

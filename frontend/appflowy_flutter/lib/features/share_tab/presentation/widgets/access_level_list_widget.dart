@@ -88,7 +88,8 @@ class AccessLevelListWidget extends StatelessWidget {
               onTap: () => callbacks.onSelectAccessLevel(accessLevel),
             ),
           ),
-          AFDivider(spacing: theme.spacing.m),
+          if (additionalUserManagementOptions.isNotEmpty)
+            AFDivider(spacing: theme.spacing.m),
         ],
 
         // Additional user management options

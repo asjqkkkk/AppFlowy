@@ -615,7 +615,7 @@ class EditorStyleCustomizer {
                     selection: nodeSelection,
                     attribute: textInsert.attributes!,
                     node: node,
-                    size: rect.size,
+                    rect: rect,
                   ),
                 ),
               ),

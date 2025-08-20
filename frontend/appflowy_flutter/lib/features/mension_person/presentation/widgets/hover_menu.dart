@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 typedef HoverMenuBuilder = Widget Function(
   BuildContext context,
+  Offset globalOffset,
   PointerEnterEventListener onEnter,
   PointerExitEventListener onExit,
 );
@@ -45,6 +46,7 @@ class HoverMenu extends StatefulWidget {
 
 class _HoverMenuState extends State<HoverMenu> {
   final controller = PopoverController();
+  final globalKey = GlobalKey();
   bool isHoverMenuShowing = false;
   bool isHovering = false;
   bool enableHovering = true;
@@ -82,6 +84,7 @@ class _HoverMenuState extends State<HoverMenu> {
 
   Widget buildPopover() {
     return AppFlowyPopover(
+      key: globalKey,
       controller: controller,
       direction: widget.direction,
       offset: widget.offset,
@@ -100,7 +103,7 @@ class _HoverMenuState extends State<HoverMenu> {
       decorationColor: Colors.transparent,
       popoverDecoration: BoxDecoration(),
       popupBuilder: (context) => buildHoverMouseRegion(
-        widget.menuBuilder.call(context, onEnter, onExit),
+        widget.menuBuilder.call(context, getGlobalOffset(), onEnter, onExit),
       ),
       child: widget.child,
     );
@@ -116,6 +119,12 @@ class _HoverMenuState extends State<HoverMenu> {
       onExit: onExit,
       child: child,
     );
+  }
+
+  Offset getGlobalOffset() {
+    final box = globalKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null) return Offset.zero;
+    return box.localToGlobal(Offset.zero);
   }
 
   void onEnter(PointerEnterEvent e) {

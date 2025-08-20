@@ -4,6 +4,7 @@ import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy/features/util/extensions.dart';
 import 'package:appflowy/plugins/shared/share/constants.dart';
 import 'package:appflowy/startup/startup.dart';
+import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
@@ -204,5 +205,13 @@ class RustShareWithUserRepositoryImpl extends ShareWithUserRepository {
       viewId: viewId,
       blockId: blockId,
     );
+  }
+
+  @override
+  Future<FlowyResult<WorkspacePersons, FlowyError>> getWorkspacePersons({
+    required String workspaceId,
+  }) async {
+    final result = await ViewBackendService.getWorkspaceMentionablePersons();
+    return result.map((v) => v.persons);
   }
 }

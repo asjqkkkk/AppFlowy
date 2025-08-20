@@ -1443,6 +1443,7 @@
         "emailInvalidError": "Invalid email, please check and try again",
         "emailSent": "Email sent, please check the inbox",
         "members": "members",
+        "pending": "Pending",
         "membersCount": {
           "zero": "{} members",
           "one": "{} member",
@@ -3622,6 +3623,7 @@
     "onlyFullAccessCanInvite": "Only user with full access can invite others",
     "invitationSent": "Invitation sent",
     "emailAlreadyInList": "The email is already in the list",
+    "personAlreadyInList": "The person is already in the list",
     "upgradeToProToInviteMoreGuests": "Please upgrade to a Pro plan to invite more guests",
     "maxGuestsReached": "You have reached the maximum number of guests",
     "removedGuestSuccessfully": "Removed guest successfully",
@@ -3670,6 +3672,10 @@
       "title": "Send the request to workspace owner",
       "description": "Only the workspace owner can do this. Send them a request to upgrade {name} to a member.",
       "send": "Send"
+    },
+    "dropdownMenu": {
+      "notInvitedToPage": "Not invited to page",
+      "keepTyping": "Keep typing an email to invite"
     }
   },
   "shareSection": {

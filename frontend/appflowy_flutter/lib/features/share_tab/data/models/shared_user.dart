@@ -1,8 +1,10 @@
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:equatable/equatable.dart';
 
 typedef SharedUsers = List<SharedUser>;
+typedef WorkspacePersons = List<MentionablePersonPB>;
 
 /// Represents a user with a role on a shared page.
 class SharedUser extends Equatable {

@@ -9,9 +9,11 @@ class WorkspaceNotifyValue {
     this.workspaceId,
     this.email,
     this.initialViewId,
+    this.callback,
   });
 
   final String? workspaceId;
   final String? email;
   final String? initialViewId;
+  final void Function(bool result)? callback;
 }

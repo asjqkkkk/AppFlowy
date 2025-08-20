@@ -25,8 +25,28 @@ extension MobileRouter on BuildContext {
     String? blockId,
     List<String>? tabs,
   }) async {
+    await pushViewId(
+      view.id,
+      arguments: arguments,
+      addInRecent: addInRecent,
+      showMoreButton: showMoreButton,
+      fixedTitle: fixedTitle,
+      blockId: blockId,
+      tabs: tabs,
+    );
+  }
+
+  Future<void> pushViewId(
+    String viewId, {
+    Map<String, dynamic>? arguments,
+    bool addInRecent = true,
+    bool showMoreButton = true,
+    String? fixedTitle,
+    String? blockId,
+    List<String>? tabs,
+  }) async {
     // check the view permission
-    final viewResult = await ViewBackendService.getView(view.id);
+    final viewResult = await ViewBackendService.getView(viewId);
     if (viewResult.isFailure) {
       showToastNotification(
         // todo: i18n
@@ -35,6 +55,11 @@ extension MobileRouter on BuildContext {
       );
       return;
     }
+
+    final view = viewResult.fold(
+      (view) => view,
+      (error) => throw Exception(error.msg),
+    );
 
     // set the current view before pushing the new view
     getIt<MenuSharedState>().latestOpenView = view;

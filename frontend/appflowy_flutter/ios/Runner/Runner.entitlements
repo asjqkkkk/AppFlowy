@@ -15,5 +15,9 @@
 		<string>applinks:test.appflowy.com</string>
 		<string>applinks:test.appflowy.io</string>
 	</array>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.appflowy.widget</string>
+	</array>
 </dict>
 </plist>

@@ -172,6 +172,7 @@ diesel::table! {
         workspace_id -> Text,
         updated_at -> Timestamp,
         joined_at -> Nullable<BigInt>,
+        is_pending_invitation -> Bool,
     }
 }
 

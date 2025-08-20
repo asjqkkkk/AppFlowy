@@ -203,7 +203,10 @@ class WorkspaceMemberBloc
     );
 
     result.fold(
-      (s) => Log.info('Invited workspace member by email: $email'),
+      (s) {
+        Log.info('Invited workspace member by email: $email');
+        if (!isClosed) add(const WorkspaceMemberEvent.getWorkspaceMembers());
+      },
       (e) => Log.error('Failed to invite workspace member by email: $email'),
     );
   }

@@ -144,6 +144,7 @@ impl ContextRelatedQuestionChain {
       )
       .await?;
 
+    // dummy test
     trace!(
       "[embedding] Generating related questions base on: {:?}",
       context,

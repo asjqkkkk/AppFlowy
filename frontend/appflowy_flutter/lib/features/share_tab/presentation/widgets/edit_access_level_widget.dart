@@ -13,6 +13,8 @@ class EditAccessLevelWidget extends StatefulWidget {
     required this.supportedAccessLevels,
     required this.additionalUserManagementOptions,
     this.disabled = false,
+    this.padding,
+    this.suffixIcon,
   });
 
   /// Callbacks
@@ -29,6 +31,12 @@ class EditAccessLevelWidget extends StatefulWidget {
 
   /// Additional user management options
   final List<AdditionalUserManagementOptions> additionalUserManagementOptions;
+
+  /// Padding for the widget
+  final EdgeInsetsGeometry? padding;
+
+  /// Optional suffix icon for the widget
+  final Widget? suffixIcon;
 
   @override
   State<EditAccessLevelWidget> createState() => _EditAccessLevelWidgetState();
@@ -81,12 +89,14 @@ class _EditAccessLevelWidgetState extends State<EditAccessLevelWidget> {
             popoverController.show();
           }
         },
-        padding: EdgeInsets.symmetric(
-          vertical: theme.spacing.s,
-          horizontal: theme.spacing.l,
-        ),
+        padding: widget.padding ??
+            EdgeInsets.symmetric(
+              vertical: theme.spacing.s,
+              horizontal: theme.spacing.l,
+            ),
         builder: (context, isHovering, disabled) {
           return Row(
+            mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 widget.selectedAccessLevel.title,
@@ -98,10 +108,11 @@ class _EditAccessLevelWidgetState extends State<EditAccessLevelWidget> {
               ),
               if (!widget.disabled) ...[
                 HSpace(theme.spacing.xs),
-                FlowySvg(
-                  FlowySvgs.arrow_down_s,
-                  color: theme.textColorScheme.secondary,
-                ),
+                widget.suffixIcon ??
+                    FlowySvg(
+                      FlowySvgs.arrow_down_s,
+                      color: theme.textColorScheme.secondary,
+                    ),
               ],
             ],
           );

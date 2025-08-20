@@ -78,6 +78,14 @@ impl From<AppResponseError> for FlowyError {
       AppErrorCode::InvalidGuest => ErrorCode::InvalidGuest,
       AppErrorCode::PaidPlanGuestLimitExceeded => ErrorCode::PaidPlanGuestLimitExceeded,
       AppErrorCode::CommercialError => ErrorCode::CommercialError,
+      AppErrorCode::InvalidSubscriptionPlan => ErrorCode::InvalidSubscriptionPlan,
+      AppErrorCode::AlreadySubscribed => ErrorCode::AlreadySubscribed,
+      AppErrorCode::UserIsNotCustomer => ErrorCode::UserIsNotCustomer,
+      AppErrorCode::TooManyRequests => ErrorCode::TooManyRequests,
+      AppErrorCode::JsonWebTokenError => ErrorCode::JsonWebTokenError,
+      AppErrorCode::LicenseExpired => ErrorCode::LicenseExpired,
+      AppErrorCode::LicenseDeleted => ErrorCode::LicenseDeleted,
+      AppErrorCode::LicenseReachLimit => ErrorCode::LicenseReachLimit,
     };
 
     FlowyError::new(code, error.message)

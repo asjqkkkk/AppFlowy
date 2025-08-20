@@ -10,13 +10,13 @@ class WidgetTestWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     final brightness = Theme.of(context).brightness;
     final themeBuilder = AppFlowyDefaultTheme();
-    return ToastificationWrapper(
-      child: MaterialApp(
-        home: Material(
-          child: AppFlowyTheme(
-            data: brightness == Brightness.light
-                ? themeBuilder.light()
-                : themeBuilder.dark(),
+    return AppFlowyTheme(
+      data: brightness == Brightness.light
+          ? themeBuilder.light()
+          : themeBuilder.dark(),
+      child: ToastificationWrapper(
+        child: MaterialApp(
+          home: Material(
             child: child,
           ),
         ),

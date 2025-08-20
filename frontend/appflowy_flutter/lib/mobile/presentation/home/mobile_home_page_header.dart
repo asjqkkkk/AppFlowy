@@ -1,6 +1,7 @@
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/mobile/presentation/base/animated_gesture.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/home/workspaces/workspace_menu_bottom_sheet.dart';
@@ -11,7 +12,10 @@ import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/built_in_svgs.dart';
 import 'package:appflowy/workspace/application/user/settings_user_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/workspace_notifier.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -96,12 +100,34 @@ class _MobileUser extends StatelessWidget {
   }
 }
 
-class _MobileWorkspace extends StatelessWidget {
+class _MobileWorkspace extends StatefulWidget {
   const _MobileWorkspace({
     required this.userProfile,
   });
 
   final UserProfilePB userProfile;
+
+  @override
+  State<_MobileWorkspace> createState() => _MobileWorkspaceState();
+}
+
+class _MobileWorkspaceState extends State<_MobileWorkspace> {
+  int retryCount = 0;
+  int maxRetryCount = 3;
+
+  @override
+  void initState() {
+    super.initState();
+
+    openWorkspaceNotifier.addListener(_openWorkspace);
+  }
+
+  @override
+  void dispose() {
+    openWorkspaceNotifier.removeListener(_openWorkspace);
+
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -179,7 +205,7 @@ class _MobileWorkspace extends StatelessWidget {
                 return const SizedBox.shrink();
               }
               return MobileWorkspaceMenu(
-                userProfile: userProfile,
+                userProfile: widget.userProfile,
                 currentWorkspace: currentWorkspace,
                 workspaces: workspaces,
                 onWorkspaceSelected: (workspace) {
@@ -202,6 +228,81 @@ class _MobileWorkspace extends StatelessWidget {
         );
       },
     );
+  }
+
+  void _openWorkspace() {
+    final value = openWorkspaceNotifier.value;
+    if (value == null) {
+      return;
+    }
+
+    final workspaceId = value.workspaceId;
+
+    if (workspaceId == null) {
+      Log.info('No workspace id to open');
+      return;
+    }
+
+    final state = context.read<UserWorkspaceBloc>().state;
+    final currentWorkspace = state.currentWorkspace;
+    // if the user is already in the workspace, we should open the initial view directly
+    if (currentWorkspace?.workspaceId == workspaceId) {
+      Log.info('Already in the workspace, opening the initial view');
+      final initialViewId = value.initialViewId;
+      if (initialViewId != null) {
+        context.pushViewId(initialViewId);
+      }
+      value.callback?.call(true);
+      openWorkspaceNotifier.value = null;
+      return;
+    }
+
+    final openWorkspace = state.workspaces.firstWhereOrNull(
+      (workspace) => workspace.workspaceId == workspaceId,
+    );
+
+    if (openWorkspace == null) {
+      Log.error('Workspace not found, try to fetch workspaces');
+
+      context.read<UserWorkspaceBloc>().add(
+            UserWorkspaceEvent.fetchWorkspaces(
+              initialWorkspaceId: workspaceId,
+            ),
+          );
+
+      Future.delayed(
+        Duration(milliseconds: 250 + retryCount * 250),
+        () {
+          if (retryCount >= maxRetryCount) {
+            value.callback?.call(false);
+            openWorkspaceNotifier.value = null;
+            retryCount = 0;
+            Log.error(
+              'Failed to open workspace from invitation, clear the notifier',
+            );
+            return;
+          }
+
+          retryCount++;
+          _openWorkspace();
+        },
+      );
+
+      return;
+    }
+
+    Log.info(
+      'Open workspace from invitation: $workspaceId, name: ${openWorkspace.name}',
+    );
+
+    context.read<UserWorkspaceBloc>().add(
+          UserWorkspaceEvent.openWorkspace(
+            workspaceId: workspaceId,
+            workspaceType: openWorkspace.workspaceType,
+          ),
+        );
+
+    value.callback?.call(true);
   }
 }
 

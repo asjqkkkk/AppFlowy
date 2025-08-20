@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:appflowy/features/share_tab/data/models/models.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 
@@ -67,6 +68,19 @@ class LocalShareWithUserRepositoryImpl extends ShareWithUserRepository {
       role: ShareRole.member,
       avatarUrl: 'https://avatar.iran.liara.run/public/boy/13',
     ),
+  ];
+
+  final _workspacePersons = [
+    MentionablePersonPB()
+      ..uuid = '1'
+      ..name = 'John Doe'
+      ..email = 'john.doe@example.com'
+      ..role = MentionablePersonTypePB.WorkspaceMember,
+    MentionablePersonPB()
+      ..uuid = '2'
+      ..name = 'Jane Smith'
+      ..email = 'jane.smith@example.com'
+      ..role = MentionablePersonTypePB.WorkspaceMember,
   ];
 
   final SharedUsers _availableSharedUsers = [
@@ -213,5 +227,12 @@ class LocalShareWithUserRepositoryImpl extends ShareWithUserRepository {
     String? blockId,
   }) {
     return 'https://appflowy.io/share/$workspaceId/$viewId';
+  }
+
+  @override
+  Future<FlowyResult<WorkspacePersons, FlowyError>> getWorkspacePersons({
+    required String workspaceId,
+  }) async {
+    return FlowySuccess(_workspacePersons);
   }
 }

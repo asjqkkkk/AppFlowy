@@ -55,17 +55,7 @@ class ViewExtKeys {
 }
 
 extension MinimalViewExtension on FolderViewMinimalPB {
-  Widget defaultIcon({Size? size}) => FlowySvg(
-        switch (layout) {
-          ViewLayoutPB.Board => FlowySvgs.icon_board_s,
-          ViewLayoutPB.Calendar => FlowySvgs.icon_calendar_s,
-          ViewLayoutPB.Grid => FlowySvgs.icon_grid_s,
-          ViewLayoutPB.Document => FlowySvgs.icon_document_s,
-          ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
-          _ => FlowySvgs.icon_document_s,
-        },
-        size: size,
-      );
+  Widget defaultIcon({Size? size}) => layout.defaultIcon(size: size);
 }
 
 extension ViewExtension on ViewPB {
@@ -79,17 +69,7 @@ extension ViewExtension on ViewPB {
         PluginType.calendar,
       ].contains(pluginType);
 
-  Widget defaultIcon({Size? size}) => FlowySvg(
-        switch (layout) {
-          ViewLayoutPB.Board => FlowySvgs.icon_board_s,
-          ViewLayoutPB.Calendar => FlowySvgs.icon_calendar_s,
-          ViewLayoutPB.Grid => FlowySvgs.icon_grid_s,
-          ViewLayoutPB.Document => FlowySvgs.icon_document_s,
-          ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
-          _ => FlowySvgs.icon_document_s,
-        },
-        size: size,
-      );
+  Widget defaultIcon({Size? size}) => layout.defaultIcon(size: size);
 
   PluginType get pluginType => switch (layout) {
         ViewLayoutPB.Board => PluginType.board,
@@ -331,6 +311,19 @@ extension ViewLayoutExtension on ViewLayoutPB {
         ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
         _ => FlowySvgs.icon_document_s,
       };
+
+  Widget defaultIcon({Size? size, Color? color}) => FlowySvg(
+        switch (this) {
+          ViewLayoutPB.Board => FlowySvgs.icon_board_s,
+          ViewLayoutPB.Calendar => FlowySvgs.icon_calendar_s,
+          ViewLayoutPB.Grid => FlowySvgs.icon_grid_s,
+          ViewLayoutPB.Document => FlowySvgs.icon_document_s,
+          ViewLayoutPB.Chat => FlowySvgs.chat_ai_page_s,
+          _ => FlowySvgs.icon_document_s,
+        },
+        size: size,
+        color: color,
+      );
 
   bool get isDocumentView => switch (this) {
         ViewLayoutPB.Document => true,

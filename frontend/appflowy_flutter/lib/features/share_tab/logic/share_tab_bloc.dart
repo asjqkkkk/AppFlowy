@@ -5,6 +5,8 @@ import 'package:appflowy/features/share_tab/logic/share_tab_event.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_state.dart';
 import 'package:appflowy/features/util/extensions.dart';
 import 'package:appflowy/shared/feature_flags.dart';
+import 'package:appflowy/workspace/application/workspace/workspace_mentionable_listener.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 import 'package:bloc/bloc.dart';
@@ -30,6 +32,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     on<ShareTabEventClearState>(_onClearState);
     on<ShareTabEventUpdateSharedUsers>(_onUpdateSharedUsers);
     on<ShareTabEventUpgradeToProClicked>(_onUpgradeToProClicked);
+    on<ShareTabEventUpdatePersons>(_onUpdatePersons);
   }
 
   final ShareWithUserRepository repository;
@@ -38,10 +41,12 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
 
   // Used to listen for shared view updates.
   FolderNotificationListener? _folderNotificationListener;
+  WorkspaceMentionableListener? _workspaceMentionableListener;
   late final String _effectiveWorkspaceId;
 
   @override
   Future<void> close() async {
+    await _workspaceMentionableListener?.stop();
     await _folderNotificationListener?.stop();
     await super.close();
   }
@@ -61,15 +66,20 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
       return;
     }
 
-    _initFolderNotificationListener();
-
     _effectiveWorkspaceId = await _getWorkspaceId();
 
+    _initNotificationListeners();
+
     final result = await repository.getCurrentUserProfile();
-    final currentUser = result.fold(
-      (user) => user,
-      (error) => null,
-    );
+    final currentUser = result.toNullable();
+
+    WorkspacePersons? workspacePersons;
+    if (event.fetchWorkspacePersons) {
+      final workspacePersonsResult = await repository.getWorkspacePersons(
+        workspaceId: _effectiveWorkspaceId,
+      );
+      workspacePersons = workspacePersonsResult.toNullable();
+    }
 
     final sectionTypeResult = await repository.getCurrentPageSectionType(
       pageId: pageId,
@@ -98,6 +108,7 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         users: users,
         sectionType: sectionType,
         hasClickedUpgradeToPro: hasClickedUpgradeToPro,
+        persons: workspacePersons,
       ),
     );
   }
@@ -398,7 +409,14 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
     );
   }
 
-  void _initFolderNotificationListener() {
+  Future<void> _onUpdatePersons(
+    ShareTabEventUpdatePersons event,
+    Emitter<ShareTabState> emit,
+  ) async {
+    emit(state.copyWith(persons: event.persons));
+  }
+
+  void _initNotificationListeners() {
     _folderNotificationListener = FolderNotificationListener(
       objectId: pageId,
       handler: (notification, result) {
@@ -422,6 +440,9 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
         }
       },
     );
+    _workspaceMentionableListener =
+        WorkspaceMentionableListener(workspaceId: _effectiveWorkspaceId)
+          ..start(mentionablePersonsReloaded: _onMentionablePersonsReloaded);
   }
 
   Future<String> _getWorkspaceId() async {
@@ -434,5 +455,16 @@ class ShareTabBloc extends Bloc<ShareTabEvent, ShareTabState> {
       (err) => '',
     );
     return id;
+  }
+
+  void _onMentionablePersonsReloaded(MentionablePersonsReloadedNotifyValue v) {
+    v.fold((v) {
+      final persons = v.persons;
+      if (!isClosed) {
+        add(ShareTabEvent.updatePersons(persons));
+      }
+    }, (e) {
+      Log.error('Share tab bloc failed to reload mentionable persons: $e');
+    });
   }
 }

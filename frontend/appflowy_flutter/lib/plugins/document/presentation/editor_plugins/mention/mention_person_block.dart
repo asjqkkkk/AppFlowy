@@ -91,7 +91,7 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
             0,
             showAtBottom ? -triggerSize.height : triggerSize.height,
           ),
-          menuBuilder: (context, onEnter, onExit) => MultiBlocProvider(
+          menuBuilder: (context, offset, onEnter, onExit) => MultiBlocProvider(
             providers: [
               BlocProvider.value(value: bloc),
             ],
@@ -102,6 +102,8 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                   orElse: () => MentionablePersonPB(),
                 ),
                 triggerSize: triggerSize,
+                globalOffset: offset,
+                editorState: widget.editorState,
                 showAtBottom: showAtBottom,
                 blockId: blockId,
                 onEnter: onEnter,

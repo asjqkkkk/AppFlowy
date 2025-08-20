@@ -15,7 +15,7 @@ async fn test_user_profile_metadata() {
 
   // Create metadata with various fields
   let mut metadata = UserMetaData::default();
-  metadata.insert_with_key(MetadataKey::Custom("language".to_string()), "en-US");
+  metadata.insert_with_key(MetadataKey::Language, "en-US");
   metadata.insert_with_key(MetadataKey::IconUrl, "https://appflowy.com/123/icon.png");
   metadata.insert("theme", "dark");
 
@@ -26,7 +26,7 @@ async fn test_user_profile_metadata() {
 
   test
     .user_manager
-    .update_user_profile(update_params)
+    .patch_user_profile(update_params)
     .await
     .unwrap();
 
@@ -88,6 +88,139 @@ struct WorkspaceMetadata {
 }
 
 #[tokio::test]
+async fn test_user_profile_metadata_merge() {
+  use_localhost_af_cloud().await;
+  let test = EventIntegrationTest::new().await;
+  let _ = test.af_cloud_sign_up().await;
+
+  let user_profile_pb = test.get_user_profile().await.unwrap();
+  let uid = user_profile_pb.id;
+
+  // First update: set initial metadata
+  let mut metadata1 = UserMetaData::default();
+  metadata1.insert_with_key(MetadataKey::Language, "en-US");
+  metadata1.insert("theme", "dark");
+
+  let update_params1 = UpdateUserParams::new()
+    .with_name("Test User")
+    .with_metadata(metadata1);
+
+  test
+    .user_manager
+    .patch_user_profile(update_params1)
+    .await
+    .unwrap();
+
+  // Verify initial metadata was saved
+  let workspace_id = test.get_current_workspace().await.id;
+  let stored_profile1 = test
+    .user_manager
+    .get_user_profile_from_disk(uid, &workspace_id)
+    .await
+    .unwrap();
+
+  assert_eq!(
+    stored_profile1.metadata.get_typed(MetadataKey::Language),
+    Some("en-US".to_string())
+  );
+  assert_eq!(
+    stored_profile1
+      .metadata
+      .get_typed(MetadataKey::Custom("theme".to_string())),
+    Some("dark".to_string())
+  );
+
+  // Second update: add new metadata fields (should merge, not replace)
+  let mut metadata2 = UserMetaData::default();
+  metadata2.insert_with_key(MetadataKey::IconUrl, "https://appflowy.com/123/icon.png");
+  metadata2.insert("timezone", "UTC");
+
+  let update_params2 = UpdateUserParams::new().with_metadata(metadata2);
+
+  test
+    .user_manager
+    .patch_user_profile(update_params2)
+    .await
+    .unwrap();
+
+  // Verify metadata was merged (old fields should still exist)
+  let stored_profile2 = test
+    .user_manager
+    .get_user_profile_from_disk(uid, &workspace_id)
+    .await
+    .unwrap();
+
+  // Check that old metadata still exists
+  assert_eq!(
+    stored_profile2.metadata.get_typed(MetadataKey::Language),
+    Some("en-US".to_string()),
+    "Language should still exist after merge"
+  );
+  assert_eq!(
+    stored_profile2
+      .metadata
+      .get_typed(MetadataKey::Custom("theme".to_string())),
+    Some("dark".to_string()),
+    "Theme should still exist after merge"
+  );
+
+  // Check that new metadata was added
+  assert_eq!(
+    stored_profile2
+      .metadata
+      .get_typed::<String>(MetadataKey::IconUrl),
+    Some("https://appflowy.com/123/icon.png".to_string()),
+    "IconUrl should be added after merge"
+  );
+  assert_eq!(
+    stored_profile2
+      .metadata
+      .get_typed(MetadataKey::Custom("timezone".to_string())),
+    Some("UTC".to_string()),
+    "Timezone should be added after merge"
+  );
+
+  // Third update: update existing field (should overwrite that field only)
+  let mut metadata3 = UserMetaData::default();
+  metadata3.insert("theme", "light");
+
+  let update_params3 = UpdateUserParams::new().with_metadata(metadata3);
+
+  test
+    .user_manager
+    .patch_user_profile(update_params3)
+    .await
+    .unwrap();
+
+  // Verify only the updated field changed
+  let stored_profile3 = test
+    .user_manager
+    .get_user_profile_from_disk(uid, &workspace_id)
+    .await
+    .unwrap();
+
+  assert_eq!(
+    stored_profile3
+      .metadata
+      .get_typed(MetadataKey::Custom("theme".to_string())),
+    Some("light".to_string()),
+    "Theme should be updated to 'light'"
+  );
+  assert_eq!(
+    stored_profile3.metadata.get_typed(MetadataKey::Language),
+    Some("en-US".to_string()),
+    "Language should still exist after theme update"
+  );
+  assert_eq!(
+    stored_profile3
+      .metadata
+      .get_typed::<String>(MetadataKey::IconUrl),
+    Some("https://appflowy.com/123/icon.png".to_string()),
+    "IconUrl should still exist after theme update"
+  );
+}
+
+#[tokio::test]
 async fn test_user_profile_workspace_metadata() {
   use_localhost_af_cloud().await;
   let test = EventIntegrationTest::new().await;
@@ -112,7 +245,7 @@ async fn test_user_profile_workspace_metadata() {
 
   test
     .user_manager
-    .update_user_profile(update_params)
+    .patch_user_profile(update_params)
     .await
     .unwrap();
 

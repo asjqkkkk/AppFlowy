@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/custom_image_cache_manager.dart';
-import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -100,12 +99,6 @@ class FlowyNetworkImageState extends State<FlowyNetworkImage> {
     );
 
     assert(isURL(normalizedUrl));
-
-    if (normalizedUrl.isAppFlowyCloudUrl) {
-      assert(
-        widget.userProfilePB != null && widget.userProfilePB!.token.isNotEmpty,
-      );
-    }
 
     retryTag = retryCounter.add(normalizedUrl);
 

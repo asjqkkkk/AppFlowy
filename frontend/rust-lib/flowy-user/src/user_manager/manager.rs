@@ -482,7 +482,7 @@ impl UserManager {
   /// database and updates user profile.
   ///
   #[tracing::instrument(level = "debug", skip_all)]
-  pub async fn update_user_profile(&self, mut params: UpdateUserParams) -> Result<(), FlowyError> {
+  pub async fn patch_user_profile(&self, mut params: UpdateUserParams) -> Result<(), FlowyError> {
     let uid = self.user_id()?;
     let changeset = UserTableChangeset::new(uid, params.clone());
     let session = self.get_session()?;

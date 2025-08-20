@@ -25,6 +25,9 @@ pub struct WorkspaceMemberPB {
 
   #[pb(index = 5, one_of)]
   pub joined_at: Option<i64>,
+
+  #[pb(index = 6)]
+  pub is_pending_invitation: bool,
 }
 
 impl From<WorkspaceMember> for WorkspaceMemberPB {
@@ -35,6 +38,7 @@ impl From<WorkspaceMember> for WorkspaceMemberPB {
       role: value.role.into(),
       avatar_url: value.avatar_url,
       joined_at: value.joined_at,
+      is_pending_invitation: value.is_pending_invitation,
     }
   }
 }

@@ -813,6 +813,7 @@ impl UserManager {
         name: member_record.name,
         avatar_url: member_record.avatar_url,
         joined_at: member_record.joined_at,
+        is_pending_invitation: member_record.is_pending_invitation,
       });
     }
 
@@ -845,6 +846,7 @@ impl UserManager {
       workspace_id: workspace_id.to_string(),
       updated_at: Utc::now().naive_utc(),
       joined_at: member.joined_at,
+      is_pending_invitation: member.is_pending_invitation,
     };
 
     let mut db = self.authenticate_user.get_sqlite_connection(uid)?;
