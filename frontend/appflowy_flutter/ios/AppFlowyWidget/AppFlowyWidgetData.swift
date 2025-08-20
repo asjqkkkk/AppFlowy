@@ -97,8 +97,8 @@ struct PageItem: Codable {
 
   static let mockFavoritePages1 = [
     PageItem(id: "1", title: "AppFlowy Version", icon: "📱", layout: 0, iconType: 0, imageUrl: "/Users/lucas.xu/Library/Developer/CoreSimulator/Devices/6B529F8E-D87F-4BF7-9E24-E23FC927C29D/data/Containers/Shared/AppGroup/5CE52A26-CD33-49EC-9C5B-0C766356AF8C/home_widget/59335d80-7cc7-11f0-b832-4b3162c5f5e3.png"),
-    PageItem(id: "2", title: "Launch Review", icon: "🐭", layout: 0, iconType: 0, imageUrl: "/Users/lucas.xu/Library/Developer/CoreSimulator/Devices/6B529F8E-D87F-4BF7-9E24-E23FC927C29D/data/Containers/Shared/AppGroup/5CE52A26-CD33-49EC-9C5B-0C766356AF8C/home_widget/appflowy_home_screen_widget_data_67dd2d5e-6cb0-4a62-8398-66c575bd0672_icon.png"),
-    PageItem(id: "3", title: "Design Backlog Design Backlog Design Backlog Design Backlog", icon: "🧰", layout: 0, iconType: 0, imageUrl: "/Users/lucas.xu/Library/Developer/CoreSimulator/Devices/6B529F8E-D87F-4BF7-9E24-E23FC927C29D/data/Containers/Shared/AppGroup/5CE52A26-CD33-49EC-9C5B-0C766356AF8C/home_widget/appflowy_home_screen_widget_data_b908809d-d520-450c-86a4-549257e4bdb0_icon.png"),
+    PageItem(id: "2", title: "Launch Review", icon: "🐭", layout: 0, iconType: 0, imageUrl: "/Users/lucas.xu/Library/Developer/CoreSimulator/Devices/6B529F8E-D87F-4BF7-9E24-E23FC927C29D/data/Containers/Shared/AppGroup/5CE52A26-CD33-49EC-9C5B-0C766356AF8C/home_widget/appflowy_home_screen_widget_data_b908809d-d520-450c-86a4-549257e4bdb0_icon.png"),
+    PageItem(id: "3", title: "Design Backlog Design Backlog Design Backlog Design Backlog", icon: "🧰", layout: 0, iconType: 0, imageUrl: "/Users/lucas.xu/Library/Developer/CoreSimulator/Devices/6B529F8E-D87F-4BF7-9E24-E23FC927C29D/data/Containers/Shared/AppGroup/5CE52A26-CD33-49EC-9C5B-0C766356AF8C/home_widget/appflowy_home_screen_widget_data_2c89e118-0fc6-4d05-a788-f5cf3b14c903_icon.png"),
     PageItem(id: "4", title: "Company Wiki", icon: "🔍", layout: 0, iconType: 0),
     PageItem(id: "5", title: "Company OKRs", icon: "🎯", layout: 0, iconType: 0),
     PageItem(id: "6", title: "Individual OKRs", icon: "👋", layout: 0, iconType: 0),

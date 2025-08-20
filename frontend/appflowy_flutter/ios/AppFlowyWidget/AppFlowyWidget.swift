@@ -265,7 +265,7 @@ struct PageRowView: View {
     let urlString = "appflowy-flutter://open-page/\(workspaceId)/\(page.id)?homeWidget"
 
     return Link(destination: URL(string: urlString)!) {
-      HStack(spacing: 6) {
+      HStack(alignment: .center, spacing: 6) {
         iconView
 
         Text(page.title)
