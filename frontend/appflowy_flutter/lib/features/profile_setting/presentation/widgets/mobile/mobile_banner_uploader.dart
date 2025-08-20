@@ -156,10 +156,8 @@ class MobileBannerUploader extends StatelessWidget {
 
   Future<void> uploadImage(String path, BuildContext context) async {
     final bloc = context.read<ProfileSettingBloc>();
-    final (url, errorMsg) = await saveImageToCloudStorage(
-      path,
-      bloc.workspace?.workspaceId ?? '',
-    );
+    final (url, errorMsg) =
+        await saveImageToCloudStorage(path, bloc.workspaceId);
     if (errorMsg?.isNotEmpty ?? false) {
       Log.error('upload icon image :$path error :$errorMsg');
       return;

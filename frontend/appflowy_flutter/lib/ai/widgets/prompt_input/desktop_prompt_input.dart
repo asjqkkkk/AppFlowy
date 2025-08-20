@@ -1,4 +1,5 @@
 import 'package:appflowy/ai/ai.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
@@ -152,6 +153,7 @@ class _DesktopPromptInputState extends State<DesktopPromptInput> {
                       showSettingsDialog(
                         context,
                         userWorkspaceBloc: bloc,
+                        profileSettingBloc: context.read<ProfileSettingBloc?>(),
                         initPage: SettingsPage.ai,
                       );
                     },

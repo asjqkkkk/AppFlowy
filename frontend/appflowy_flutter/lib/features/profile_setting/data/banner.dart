@@ -34,6 +34,8 @@ abstract class BannerData extends Equatable {
           final imageUrl = uri.queryParameters['url'] ?? '';
           return NetworkImageBanner(url: imageUrl);
         }
+      } else if(uri.scheme == 'http' || uri.scheme == 'https') {
+        return NetworkImageBanner(url: url);
       }
     } catch (e) {
       Log.error('Failed to parse banner URL: $url', e);

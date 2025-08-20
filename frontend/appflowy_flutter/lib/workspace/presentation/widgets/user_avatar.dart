@@ -1,3 +1,4 @@
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 
@@ -8,6 +9,7 @@ class UserAvatar extends StatelessWidget {
     required this.name,
     required this.size,
     this.isHovering = false,
+    this.header,
     this.decoration,
   });
 
@@ -16,6 +18,7 @@ class UserAvatar extends StatelessWidget {
 
   final AFAvatarSize size;
   final Decoration? decoration;
+  final Map<String, String>? header;
 
   // If true, a border will be applied on top of the avatar
   final bool isHovering;
@@ -40,6 +43,8 @@ class UserAvatar extends StatelessWidget {
           url: iconUrl,
           name: name,
           size: size,
+          cacheManager: CustomImageCacheManager(),
+          httpHeaders: header,
         ),
       ),
     );

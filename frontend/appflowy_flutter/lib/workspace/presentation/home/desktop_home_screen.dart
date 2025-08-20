@@ -1,3 +1,5 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/plugins/blank/blank.dart';
 import 'package:appflowy/startup/startup.dart';
@@ -89,6 +91,12 @@ class DesktopHomeScreen extends StatelessWidget {
                   context.read<AppearanceSettingsCubit>(),
                   context.widthPx,
                 )..add(const HomeSettingEvent.initial()),
+              ),
+              BlocProvider<ProfileSettingBloc>(
+                create: (_) => ProfileSettingBloc(
+                  userProfile: userProfile,
+                  workspaceId: workspaceLatest.workspaceId,
+                )..add(const ProfileSettingEvent.initial()),
               ),
               BlocProvider<FavoriteBloc>(
                 create: (context) =>

@@ -1,8 +1,10 @@
 import 'package:appflowy/features/profile_setting/data/banner.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/shared/appflowy_network_image.dart';
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -57,14 +59,15 @@ class ProfilePreviewWidget extends StatelessWidget {
   Widget buildBanner(BuildContext context) {
     final theme = AppFlowyTheme.of(context),
         spacingM = theme.spacing.m,
-        profile = context.read<ProfileSettingBloc>().state.profile;
+        bloc = context.read<ProfileSettingBloc>(),
+        profile = bloc.state.profile;
     return Container(
       width: 264,
       height: 80,
       margin: EdgeInsets.fromLTRB(spacingM, spacingM, spacingM, 0),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(theme.spacing.m),
-        child: _Banner(banner: profile.banner),
+        child: _Banner(banner: profile.banner, userProfilePB: bloc.userProfile),
       ),
     );
   }
@@ -137,9 +140,10 @@ class ProfilePreviewWidget extends StatelessWidget {
 }
 
 class _Banner extends StatelessWidget {
-  const _Banner({required this.banner});
+  const _Banner({required this.banner, required this.userProfilePB});
 
   final BannerData banner;
+  final UserProfilePB userProfilePB;
 
   @override
   Widget build(BuildContext context) {
@@ -161,7 +165,7 @@ class _Banner extends StatelessWidget {
     } else if (banner is AssetImageBanner) {
       return Image.asset(banner.path, fit: BoxFit.cover);
     } else if (banner is NetworkImageBanner) {
-      return CachedNetworkImage(imageUrl: banner.url, fit: BoxFit.cover);
+      return FlowyNetworkImage(url: banner.url, userProfilePB: userProfilePB);
     }
     return const SizedBox.shrink();
   }
@@ -186,6 +190,9 @@ extension ProfileCardBuildContextExtension on BuildContext {
             radius: 41,
             size: AFAvatarSize.xxl,
             name: profile.name,
+            cacheManager: CustomImageCacheManager(),
+            httpHeaders:
+                read<ProfileSettingBloc>().userProfile.buildRequestHeader(),
           ),
         ),
       ),

@@ -1,3 +1,5 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -33,6 +35,7 @@ HotKeyItem openSettingsHotKey(
         if (_settingsDialogKey.currentContext == null) {
           showSettingsDialog(
             context,
+            profileSettingBloc: context.read<ProfileSettingBloc?>(),
             userWorkspaceBloc: context.read<UserWorkspaceBloc>(),
           );
         } else {
@@ -57,12 +60,14 @@ class UserSettingButton extends StatefulWidget {
 class _UserSettingButtonState extends State<UserSettingButton> {
   late UserWorkspaceBloc _userWorkspaceBloc;
   late PasswordBloc _passwordBloc;
+  late ProfileSettingBloc _profileSettingBloc;
 
   @override
   void initState() {
     super.initState();
 
     _userWorkspaceBloc = context.read<UserWorkspaceBloc>();
+    _profileSettingBloc = context.read<ProfileSettingBloc>();
     _passwordBloc = PasswordBloc(_userWorkspaceBloc.state.userProfile)
       ..add(PasswordEvent.init())
       ..add(PasswordEvent.checkHasPassword());
@@ -71,7 +76,7 @@ class _UserSettingButtonState extends State<UserSettingButton> {
   @override
   void didChangeDependencies() {
     _userWorkspaceBloc = context.read<UserWorkspaceBloc>();
-
+    _profileSettingBloc = context.read<ProfileSettingBloc>();
     super.didChangeDependencies();
   }
 
@@ -95,6 +100,7 @@ class _UserSettingButtonState extends State<UserSettingButton> {
               context,
               userWorkspaceBloc: _userWorkspaceBloc,
               passwordBloc: _passwordBloc,
+              profileSettingBloc: _profileSettingBloc,
             ),
             margin: EdgeInsets.zero,
             text: FlowySvg(
@@ -114,6 +120,7 @@ class _UserSettingButtonState extends State<UserSettingButton> {
 void showSettingsDialog(
   BuildContext context, {
   required UserWorkspaceBloc userWorkspaceBloc,
+  ProfileSettingBloc? profileSettingBloc,
   PasswordBloc? passwordBloc,
   SettingsPage? initPage,
 }) {
@@ -136,8 +143,15 @@ void showSettingsDialog(
         BlocProvider<DocumentAppearanceCubit>.value(
           value: BlocProvider.of<DocumentAppearanceCubit>(dialogContext),
         ),
+        BlocProvider.value(value: userWorkspaceBloc),
         BlocProvider.value(
-          value: userWorkspaceBloc,
+          value: profileSettingBloc ??
+              ProfileSettingBloc(
+                userProfile: userProfile,
+                workspaceId:
+                    userWorkspaceBloc.state.currentWorkspace?.workspaceId ?? '',
+              )
+            ..add(ProfileSettingEvent.initial()),
         ),
       ],
       child: SettingsDialog(

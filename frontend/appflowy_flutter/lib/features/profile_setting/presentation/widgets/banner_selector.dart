@@ -128,7 +128,7 @@ class _UploadButtonState extends State<_UploadButton> {
           initialType: PickerTabType.custom,
           tabs: const [PickerTabType.custom],
           showRemoveButton: false,
-          documentId: bloc.workspace?.workspaceId ?? '',
+          documentId: bloc.workspaceId,
           onSelectedEmoji: (r) {
             bloc.add(
               ProfileSettingEvent.uploadBanner(

@@ -1,3 +1,5 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/plugins/document/application/document_awareness_metadata.dart';
 import 'package:appflowy/plugins/document/application/document_collaborators_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/collaborator_avatar_stack.dart';
@@ -37,42 +39,63 @@ class DocumentCollaborators extends StatelessWidget {
             return const SizedBox.shrink();
           }
 
-          return Padding(
-            padding: padding ?? EdgeInsets.zero,
-            child: CollaboratorAvatarStack(
-              height: height,
-              width: width,
-              borderWidth: 1.0,
-              plusWidgetBuilder: (value, border) {
-                final lastXCollaborators = collaborators.sublist(
-                  collaborators.length - value,
-                );
-                return BorderedCircleAvatar(
-                  border: border,
-                  backgroundColor: Theme.of(context).hoverColor,
-                  child: FittedBox(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: FlowyTooltip(
-                        message: lastXCollaborators
-                            .map((e) => e.userName)
-                            .join('\n'),
-                        child: FlowyText(
-                          '+$value',
-                          fontSize: fontSize,
-                          color: Colors.black,
+          return BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
+            builder: (context, profileState) {
+              final profileBloc = context.read<ProfileSettingBloc>();
+              return Padding(
+                padding: padding ?? EdgeInsets.zero,
+                child: CollaboratorAvatarStack(
+                  height: height,
+                  width: width,
+                  borderWidth: 1.0,
+                  plusWidgetBuilder: (value, border) {
+                    final lastXCollaborators = collaborators.sublist(
+                      collaborators.length - value,
+                    );
+                    return BorderedCircleAvatar(
+                      border: border,
+                      backgroundColor: Theme.of(context).hoverColor,
+                      child: FittedBox(
+                        child: Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: FlowyTooltip(
+                            message: lastXCollaborators
+                                .map((e) => e.userName)
+                                .join('\n'),
+                            child: FlowyText(
+                              '+$value',
+                              fontSize: fontSize,
+                              color: Colors.black,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
-                  ),
-                );
-              },
-              avatars: [
-                ...collaborators.map(
-                  (c) => _UserAvatar(fontSize: fontSize, user: c, width: width),
+                    );
+                  },
+                  avatars: [
+                    ...collaborators.map((user) {
+                      final profile = profileState.profile;
+                      final isCurrentUser =
+                          user.id == profileBloc.userProfile.id.toString();
+                      Map<String, String>? header;
+                      if (isCurrentUser) {
+                        user = user.copyWith(
+                          userAvatar: profile.avatarUrl,
+                          userName: profile.name,
+                        );
+                        header = profileBloc.userProfile.buildRequestHeader();
+                      }
+                      return _UserAvatar(
+                        fontSize: fontSize,
+                        user: user,
+                        width: width,
+                        header: header,
+                      );
+                    }),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       ),
@@ -85,11 +108,13 @@ class _UserAvatar extends StatelessWidget {
     this.fontSize,
     required this.user,
     required this.width,
+    this.header,
   });
 
   final DocumentAwarenessMetadata user;
   final double? fontSize;
   final double width;
+  final Map<String, String>? header;
 
   @override
   Widget build(BuildContext context) {
@@ -100,6 +125,7 @@ class _UserAvatar extends StatelessWidget {
           iconUrl: user.userAvatar,
           name: user.userName,
           size: AFAvatarSize.m,
+          header: header,
         ),
       ),
     );

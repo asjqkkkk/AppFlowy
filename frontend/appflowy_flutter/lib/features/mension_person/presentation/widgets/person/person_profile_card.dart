@@ -2,6 +2,7 @@ import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_role_badge.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
@@ -15,7 +16,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:universal_platform/universal_platform.dart';
 
-import 'default_profile_banner.dart';
+import 'profile_banner.dart';
 import 'svg_path_avatar.dart';
 
 class PersonProfileCard extends StatefulWidget {
@@ -165,26 +166,14 @@ class _PersonProfileCardState extends State<PersonProfileCard> {
 
   Widget buildCover(BuildContext context) {
     final theme = AppFlowyTheme.of(context), m = theme.spacing.m;
-
-    /// TODO: replace it as banner widget after supporting profile setting
+    final profileSettingBloc = context.read<ProfileSettingBloc>();
     return Container(
       padding: EdgeInsets.fromLTRB(m, m, m, 0),
-      child: DefaultAssetProfileBanner(),
+      child: ProfileBanner(
+        url: person.coverImageUrl,
+        userProfile: profileSettingBloc.userProfile,
+      ),
     );
-    // final personState = context.read<PersonBloc>().state;
-    // final person = personState.personWithAccess.person,
-    //     url = person.coverImageUrl ?? '';
-    // if (url.isEmpty) return VSpace(100);
-    // final theme = AppFlowyTheme.of(context), spaceM = theme.spacing.m;
-    // return Container(
-    //   width: 280,
-    //   height: 88,
-    //   padding: EdgeInsets.fromLTRB(spaceM, spaceM, spaceM, 0),
-    //   child: ClipRRect(
-    //     borderRadius: BorderRadius.circular(theme.spacing.m),
-    //     child: CachedNetworkImage(imageUrl: url, fit: BoxFit.cover),
-    //   ),
-    // );
   }
 
   Widget buildPersonInfo(BuildContext context) {

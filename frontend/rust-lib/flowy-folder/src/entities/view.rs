@@ -1082,10 +1082,12 @@ pub struct MentionablePersonPB {
   #[pb(index = 6, one_of)]
   pub cover_image_url: Option<String>,
   #[pb(index = 7, one_of)]
+  pub custom_cover_image_url: Option<String>,
+  #[pb(index = 8, one_of)]
   pub description: Option<String>,
-  #[pb(index = 8)]
+  #[pb(index = 9)]
   pub invited: bool,
-  #[pb(index = 9, one_of)]
+  #[pb(index = 10, one_of)]
   pub last_mentioned_at: Option<i64>,
 }
 
@@ -1122,6 +1124,7 @@ impl From<MentionablePersonWithLastMentionedTime> for MentionablePersonPB {
       role: person.role.into(),
       avatar_url: person.avatar_url,
       cover_image_url: person.cover_image_url,
+      custom_cover_image_url: person.custom_image_url,
       description: person.description,
       invited: person.invited,
       last_mentioned_at: person.last_mentioned_at.map(|time| time.timestamp()),
@@ -1138,6 +1141,7 @@ impl From<MentionablePerson> for MentionablePersonPB {
       role: person.role.into(),
       avatar_url: person.avatar_url,
       cover_image_url: person.cover_image_url,
+      custom_cover_image_url: person.custom_image_url,
       description: person.description,
       invited: person.invited,
       last_mentioned_at: None,

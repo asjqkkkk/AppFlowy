@@ -1,3 +1,5 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_entity.dart';
 import 'package:appflowy/plugins/ai_chat/application/chat_member_bloc.dart';
@@ -61,9 +63,18 @@ class ChatUserMessageBubble extends StatelessWidget {
       builder: (context, state) {
         final member = state.members[message.author.id];
         return SelectionContainer.disabled(
-          child: ChatUserAvatar(
-            iconUrl: member?.info.avatarUrl ?? "",
-            name: member?.info.name ?? "",
+          child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
+            builder: (context, state) {
+              final profile = state.profile;
+              String avatarUrl = member?.info.avatarUrl ?? "";
+              String name = member?.info.name ?? "";
+              final isCurrentUser = member?.info.email == profile.email;
+              if (isCurrentUser) {
+                avatarUrl = profile.avatarUrl;
+                name = profile.name;
+              }
+              return ChatUserAvatar(iconUrl: avatarUrl, name: name);
+            },
           ),
         );
       },

@@ -199,6 +199,7 @@ class DocumentCollabAdapter {
         metadata = DocumentAwarenessMetadata.fromJson(
           jsonDecode(state.metadata),
         );
+        metadata = metadata.copyWith(id: uid);
       } catch (e) {
         Log.error('Failed to parse metadata: $e, ${state.metadata}');
         continue;

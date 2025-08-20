@@ -1,5 +1,4 @@
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
-import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/features/profile_setting/presentation/widgets/banner_selector.dart';
@@ -32,45 +31,39 @@ class SettingsProfileView extends StatelessWidget {
         spacing = theme.spacing,
         xxl = spacing.xxl,
         isLocal = userProfile.workspaceType == WorkspaceTypePB.Vault;
-    return BlocProvider(
-      create: (context) => ProfileSettingBloc(
-        userProfile: userProfile,
-        workspace: workspace,
-      )..add(ProfileSettingEvent.initial()),
-      child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
-        builder: (context, state) {
-          if (state.profile.id.isEmpty) {
-            return Center(child: CircularProgressIndicator.adaptive());
-          }
-          return SingleChildScrollView(
-            physics: ClampingScrollPhysics(),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                buildTitle(context),
-                AFDivider(color: theme.borderColorScheme.primary),
-                Padding(
-                  padding: EdgeInsets.all(xxl),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      buildAvatarAndName(context),
-                      if (!isLocal) ...[
-                        VSpace(spacing.xxl),
-                        buildAboutMe(context),
-                        VSpace(spacing.xxl),
-                        BannerImages(),
-                      ],
+    return BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
+      builder: (context, state) {
+        if (state.status == ProfileSettingStatus.loading) {
+          return Center(child: CircularProgressIndicator.adaptive());
+        }
+        return SingleChildScrollView(
+          physics: ClampingScrollPhysics(),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              buildTitle(context),
+              AFDivider(color: theme.borderColorScheme.primary),
+              Padding(
+                padding: EdgeInsets.all(xxl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    buildAvatarAndName(context),
+                    if (!isLocal) ...[
+                      VSpace(spacing.xxl),
+                      buildAboutMe(context),
+                      VSpace(spacing.xxl),
+                      BannerImages(),
                     ],
-                  ),
+                  ],
                 ),
-              ],
-            ),
-          );
-        },
-      ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -106,7 +99,7 @@ class SettingsProfileView extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          ProfileAvatar(),
+          ProfileAvatar(key: ValueKey(state.profile.avatarUrl)),
           HSpace(spacing.xxl),
           Flexible(child: ProfileDisplayName(name: name)),
         ],

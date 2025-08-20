@@ -1,8 +1,9 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
 import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
-import 'package:appflowy/features/mension_person/presentation/widgets/person/default_profile_banner.dart';
+import 'package:appflowy/features/mension_person/presentation/widgets/person/profile_banner.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -85,7 +86,10 @@ class _MobilePersonProfileCardState extends State<MobilePersonProfileCard> {
     );
   }
 
-  Widget buildCover(BuildContext context) => DefaultAssetProfileBanner();
+  Widget buildCover(BuildContext context) => ProfileBanner(
+        url: person.coverImageUrl,
+        userProfile: context.read<ProfileSettingBloc>().userProfile,
+      );
 
   Widget buildPersonInfo(BuildContext context) {
     final theme = AppFlowyTheme.of(context),

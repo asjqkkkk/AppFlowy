@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:appflowy/features/profile_setting/data/banner.dart';
 import 'package:appflowy/features/profile_setting/data/repository/mock_profile_setting.repository.dart';
 import 'package:appflowy/features/profile_setting/data/repository/profile_setting_repository.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:bloc/bloc.dart';
 
@@ -12,7 +15,7 @@ class ProfileSettingBloc
   ProfileSettingBloc({
     ProfileSettingRepository? repository,
     required this.userProfile,
-    this.workspace,
+    required this.workspaceId,
   })  : repository = repository ?? MockProfileSettingRepository(),
         super(ProfileSettingState.empty()) {
     on<ProfileSettingInitialEvent>(_onInitial);
@@ -25,13 +28,15 @@ class ProfileSettingBloc
 
   final ProfileSettingRepository repository;
   final UserProfilePB userProfile;
-  final UserWorkspacePB? workspace;
+  final String workspaceId;
 
   Future<void> _onInitial(
     ProfileSettingInitialEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    final result = await repository.getProfile(userProfile.id.toString());
+    final result = await repository.getProfile(
+      userProfile.id.toString(),
+    );
     result.fold((v) {
       if (isClosed) return;
       emit(
@@ -103,5 +108,18 @@ class ProfileSettingBloc
     final newProfile = state.profile.copyWith(banner: event.banner);
     emit(state.copyWith(profile: newProfile, selectedBanner: event.banner));
     await repository.updateProfile(newProfile);
+  }
+}
+
+extension HttpHeaderExtension on UserProfilePB {
+  Map<String, String> buildRequestHeader() {
+    final header = <String, String>{};
+    try {
+      final decodedToken = jsonDecode(token);
+      header['Authorization'] = 'Bearer ${decodedToken['access_token']}';
+    } catch (e) {
+      Log.error('Unable to decode token: $e');
+    }
+    return header;
   }
 }

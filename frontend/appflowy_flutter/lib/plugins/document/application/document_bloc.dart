@@ -382,6 +382,7 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
     final id = user.id.toString() + deviceId;
     final basicColor = ColorGenerator(id.toString()).toColor();
     final metadata = DocumentAwarenessMetadata(
+      id: user.id.toString(),
       cursorColor: basicColor.toHexString(),
       selectionColor: basicColor.withValues(alpha: 0.6).toHexString(),
       userName: user.name,
@@ -405,6 +406,7 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
     final id = user.id.toString() + deviceId;
     final basicColor = ColorGenerator(id.toString()).toColor();
     final metadata = DocumentAwarenessMetadata(
+      id: user.id.toString(),
       cursorColor: basicColor.toHexString(),
       selectionColor: basicColor.withValues(alpha: 0.6).toHexString(),
       userName: user.name,

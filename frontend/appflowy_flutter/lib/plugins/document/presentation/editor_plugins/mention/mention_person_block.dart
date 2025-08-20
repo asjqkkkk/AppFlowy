@@ -2,6 +2,8 @@ import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/hover_menu.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/mobile/mobile_person_profile_card.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_profile_card.dart';
+import 'package:appflowy/features/profile_setting/data/profile.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_sheet.dart';
@@ -68,10 +70,11 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
 
   @override
   Widget build(BuildContext context) {
+    final profileSettingBloc = context.watch<ProfileSettingBloc?>();
     return BlocBuilder<PersonBloc, PersonState>(
       key: key,
       builder: (context, state) {
-        final bloc = context.read<PersonBloc>();
+        final personBloc = context.read<PersonBloc>();
         return HoverMenu(
           key: ValueKey(
             showAtBottom.hashCode & positionY.hashCode & triggerSize.hashCode,
@@ -93,13 +96,15 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
           ),
           menuBuilder: (context, offset, onEnter, onExit) => MultiBlocProvider(
             providers: [
-              BlocProvider.value(value: bloc),
+              BlocProvider.value(value: personBloc),
+              if (profileSettingBloc != null)
+                BlocProvider.value(value: profileSettingBloc),
             ],
             child: BlocBuilder<PersonBloc, PersonState>(
               builder: (context, state) => PersonProfileCard(
-                person: bloc.state.persons.firstWhere(
-                  (e) => e.uuid == personId,
-                  orElse: () => MentionablePersonPB(),
+                person: buildMentionablePersonPB(
+                  state.persons,
+                  profileSettingBloc?.state.profile,
                 ),
                 triggerSize: triggerSize,
                 globalOffset: offset,
@@ -118,10 +123,12 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
   }
 
   Widget buildPerson(BuildContext context) {
-    final bloc = context.read<PersonBloc>(), state = bloc.state;
-    final person = state.persons.firstWhere(
-      (p) => p.uuid == personId,
-      orElse: () => MentionablePersonPB(),
+    final bloc = context.read<PersonBloc>(),
+        state = bloc.state,
+        profileSettingBloc = context.watch<ProfileSettingBloc>();
+    final person = buildMentionablePersonPB(
+      state.persons,
+      profileSettingBloc.state.profile,
     );
     final theme = AppFlowyTheme.of(context);
     final color = theme.textColorScheme.secondary;
@@ -160,8 +167,11 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
                 showCloseButton: true,
                 title: LocaleKeys.document_mentionMenu_profileCard.tr(),
                 backgroundColor: theme.surfaceColorScheme.primary,
-                builder: (_) => BlocProvider.value(
-                  value: bloc,
+                builder: (_) => MultiBlocProvider(
+                  providers: [
+                    BlocProvider.value(value: bloc),
+                    BlocProvider.value(value: profileSettingBloc),
+                  ],
                   child:
                       MobilePersonProfileCard(person: person, blockId: blockId),
                 ),
@@ -249,6 +259,30 @@ class _MentionPersonBlockState extends State<MentionPersonBlock> {
         ],
       ),
     );
+  }
+
+  MentionablePersonPB buildMentionablePersonPB(
+    List<MentionablePersonPB> persons,
+    Profile? profile,
+  ) {
+    final person = persons.firstWhere(
+      (e) => e.uuid == personId,
+      orElse: () => MentionablePersonPB(),
+    );
+    if (profile == null) return person;
+    if (person.email == profile.email) {
+      final customCoverImageUrl = profile.customBanner?.toUrl;
+
+      person
+        ..name = profile.name
+        ..avatarUrl = profile.avatarUrl
+        ..coverImageUrl = profile.banner.toUrl
+        ..description = profile.aboutMe;
+      if (customCoverImageUrl != null) {
+        person.customCoverImageUrl = customCoverImageUrl;
+      }
+    }
+    return person;
   }
 
   void checkForPositionAndSize() {

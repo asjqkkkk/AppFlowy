@@ -91,7 +91,7 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
             key: ValueKey('$currentWorkspaceId${userProfile.id}'),
             create: (context) => ProfileSettingBloc(
               userProfile: userProfile,
-              workspace: state.currentWorkspace,
+              workspaceId: currentWorkspaceId,
             )..add(ProfileSettingEvent.initial()),
             child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
               builder: (context, profileState) {

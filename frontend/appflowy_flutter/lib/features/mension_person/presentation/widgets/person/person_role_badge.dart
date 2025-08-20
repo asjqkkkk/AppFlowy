@@ -83,7 +83,7 @@ class PersonRoleBadge extends StatelessWidget {
       textColor = theme.textColorScheme.tertiary;
     }
     return Text(
-      role.displayName(),
+      '${role.displayName()}${person.invited ? ' (${LocaleKeys.document_mention_invited.tr()})' : ''}',
       style: theme.textStyle.body.standard(color: textColor),
     );
   }

@@ -1,9 +1,11 @@
 import 'package:appflowy/features/share_tab/data/models/share_role.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pbenum.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'banner.dart';
 
-class Profile {
+class Profile extends Equatable {
   Profile.empty()
       : id = '',
         email = '',
@@ -14,7 +16,7 @@ class Profile {
         banner = EmptyBanner.instance,
         customBanner = null;
 
-  Profile({
+  const Profile({
     required this.id,
     required this.email,
     required this.name,
@@ -56,7 +58,7 @@ class Profile {
     );
   }
 
-   static ShareRole fromProtoToShareRole(MentionablePersonTypePB role) {
+  static ShareRole fromProtoToShareRole(MentionablePersonTypePB role) {
     switch (role) {
       case MentionablePersonTypePB.WorkspaceMember:
         return ShareRole.member;
@@ -67,5 +69,29 @@ class Profile {
       default:
         throw ArgumentError('Unknown role: $role');
     }
+  }
+
+  @override
+  List<Object?> get props => [
+        id,
+        email,
+        name,
+        avatarUrl,
+        aboutMe,
+        role,
+        banner,
+        customBanner,
+      ];
+
+  UserProfilePB toUserProfilePB(UserProfilePB v) {
+    return UserProfilePB(
+      id: v.id,
+      name: name,
+      email: email,
+      iconUrl: avatarUrl,
+      token: v.token,
+      userAuthType: v.userAuthType,
+      workspaceType: v.workspaceType,
+    );
   }
 }

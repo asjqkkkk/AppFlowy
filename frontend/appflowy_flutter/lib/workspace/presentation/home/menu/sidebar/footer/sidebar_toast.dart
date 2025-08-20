@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -106,6 +107,7 @@ class SidebarToast extends StatelessWidget {
       showSettingsDialog(
         context,
         userWorkspaceBloc: userWorkspaceBloc,
+        profileSettingBloc: context.read<ProfileSettingBloc?>(),
         initPage: SettingsPage.plan,
       );
     } else {

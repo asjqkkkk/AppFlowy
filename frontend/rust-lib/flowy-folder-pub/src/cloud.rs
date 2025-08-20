@@ -171,6 +171,7 @@ pub trait FolderCloudService: Send + Sync + 'static {
     workspace_id: &Uuid,
     view_ids: Vec<Uuid>,
   ) -> Result<(), FlowyError>;
+
   async fn update_workspace_member_profile(
     &self,
     workspace_id: &Uuid,

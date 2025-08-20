@@ -2299,7 +2299,8 @@
       "noAccess": "No Access",
       "deletedPage": "Deleted page",
       "trashHint": " - in trash",
-      "morePages": "more pages"
+      "morePages": "more pages",
+      "invited": "Invited"
     },
     "mentionMenu": {
       "mentionAPerson": "Mention a person",

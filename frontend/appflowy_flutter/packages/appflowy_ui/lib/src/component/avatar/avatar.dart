@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:appflowy_ui/src/theme/appflowy_theme.dart';
 import 'package:appflowy_ui/src/theme/definition/theme_data.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
 
 /// Avatar sizes in pixels
@@ -64,6 +65,9 @@ class AFAvatar extends StatelessWidget {
     this.child,
     this.colorHash,
     this.radius,
+    this.progressIndicatorBuilder,
+    this.cacheManager,
+    this.httpHeaders,
   });
 
   /// The name of the avatar. Used for initials if [child] and [url] are not provided.
@@ -91,6 +95,15 @@ class AFAvatar extends StatelessWidget {
 
   /// Optional radius for the avatar. If provided, the avatar will be circular with this radius.
   final double? radius;
+
+  /// Builder for the progress indicator shown while loading the avatar image.
+  final ProgressIndicatorBuilder? progressIndicatorBuilder;
+
+  /// Option to use cacheManager with other settings
+  final BaseCacheManager? cacheManager;
+
+  /// Optional headers for the http request of the image url
+  final Map<String, String>? httpHeaders;
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +155,9 @@ class AFAvatar extends StatelessWidget {
           width: avatarSize,
           height: avatarSize,
           fit: BoxFit.cover,
+          cacheManager: cacheManager,
+          httpHeaders: httpHeaders,
+          progressIndicatorBuilder: progressIndicatorBuilder,
           // fallback to initials if the image is not found
           errorWidget: (context, error, stackTrace) => _buildInitialsCircle(
             avatarSize,

@@ -1,11 +1,9 @@
+import 'package:appflowy/workspace/presentation/widgets/user_avatar.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/util/built_in_svgs.dart';
-import 'package:appflowy/util/color_generator/color_generator.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra_ui/style_widget/text.dart';
-import 'package:string_validator/string_validator.dart';
 
 import 'layout_define.dart';
 
@@ -50,14 +48,11 @@ class ChatUserAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    late final Widget child;
-    if (iconUrl.isEmpty) {
-      child = _buildEmptyAvatar(context);
-    } else if (isURL(iconUrl)) {
-      child = _buildUrlAvatar(context);
-    } else {
-      child = _buildEmojiAvatar(context);
-    }
+    late final Widget child = UserAvatar(
+          iconUrl: iconUrl,
+          name: _userName(name, defaultName),
+          size: AFAvatarSize.m,
+        );
     return Container(
       width: DesktopAIChatSizes.avatarSize,
       height: DesktopAIChatSizes.avatarSize,
@@ -69,61 +64,6 @@ class ChatUserAvatar extends StatelessWidget {
         ),
       ),
       child: child,
-    );
-  }
-
-  Widget _buildEmptyAvatar(BuildContext context) {
-    final String nameOrDefault = _userName(name, defaultName);
-
-    final Color color = ColorGenerator(name).toColor();
-    const initialsCount = 2;
-
-    // Taking the first letters of the name components and limiting to 2 elements
-    final nameInitials = nameOrDefault
-        .split(' ')
-        .where((element) => element.isNotEmpty)
-        .take(initialsCount)
-        .map((element) => element[0].toUpperCase())
-        .join();
-
-    return ColoredBox(
-      color: color,
-      child: Center(
-        child: FlowyText.regular(
-          nameInitials,
-          color: Colors.black,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildUrlAvatar(BuildContext context) {
-    return CircleAvatar(
-      backgroundColor: Colors.transparent,
-      radius: DesktopAIChatSizes.avatarSize / 2,
-      child: Image.network(
-        iconUrl,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) =>
-            _buildEmptyAvatar(context),
-      ),
-    );
-  }
-
-  Widget _buildEmojiAvatar(BuildContext context) {
-    return CircleAvatar(
-      backgroundColor: Colors.transparent,
-      radius: DesktopAIChatSizes.avatarSize / 2,
-      child: builtInSVGIcons.contains(iconUrl)
-          ? FlowySvg(
-              FlowySvgData('emoji/$iconUrl'),
-              blendMode: null,
-            )
-          : FlowyText.emoji(
-              iconUrl,
-              fontSize: 24, // cannot reduce
-              optimizeEmojiAlign: true,
-            ),
     );
   }
 

@@ -1,4 +1,6 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
 import 'package:appflowy/features/share_tab/data/repositories/rust_share_with_user_repository_impl.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
@@ -104,6 +106,7 @@ class _MobileViewPageState extends State<MobileViewPage> {
               body: _buildBody(context, state),
             );
           }
+          final userProfilePB = state.userProfilePB;
 
           return MultiBlocProvider(
             providers: [
@@ -122,12 +125,12 @@ class _MobileViewPageState extends State<MobileViewPage> {
                 create: (_) =>
                     ShareBloc(view: view)..add(const ShareEvent.initial()),
               ),
-              if (state.userProfilePB != null)
+              if (userProfilePB != null)
                 BlocProvider(
                   create: (_) => UserWorkspaceBloc(
-                    userProfile: state.userProfilePB!,
+                    userProfile: userProfilePB,
                     repository: RustWorkspaceRepositoryImpl(
-                      userId: state.userProfilePB!.id,
+                      userId: userProfilePB.id,
                     ),
                   )..add(UserWorkspaceEvent.initialize()),
                 ),
@@ -153,9 +156,24 @@ class _MobileViewPageState extends State<MobileViewPage> {
             ],
             child: Builder(
               builder: (context) {
+                final workspaceId = context
+                    .watch<UserWorkspaceBloc?>()
+                    ?.state
+                    .currentWorkspace
+                    ?.workspaceId;
+
                 final body = _buildBody(context, state);
                 return BlocBuilder<ViewBloc, ViewState>(
                   builder: (context, state) {
+                    if (workspaceId != null && userProfilePB != null) {
+                      return BlocProvider(
+                        create: (_) => ProfileSettingBloc(
+                          userProfile: userProfilePB,
+                          workspaceId: workspaceId,
+                        )..add(const ProfileSettingEvent.initial()),
+                        child: _buildApp(context, view, body),
+                      );
+                    }
                     return _buildApp(context, state.view, body);
                   },
                 );

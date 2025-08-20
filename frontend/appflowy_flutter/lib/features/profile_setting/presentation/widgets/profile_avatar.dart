@@ -1,11 +1,12 @@
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/workspace.pbenum.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 class ProfileAvatar extends StatefulWidget {
@@ -49,7 +50,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
               if (!isLocal) PickerTabType.custom,
               PickerTabType.emoji,
             ],
-            documentId: bloc.workspace?.workspaceId ?? '',
+            documentId: bloc.workspaceId,
             onSelectedEmoji: (r) {
               bloc.add(ProfileSettingEvent.updateAvatar(r.emoji));
               if (!r.keepOpen) popoverController.hide();
@@ -83,6 +84,9 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
                 size: AFAvatarSize.xxl,
                 name: profile.name,
                 url: profile.avatarUrl,
+                cacheManager: CustomImageCacheManager(),
+                progressIndicatorBuilder: (context, url, progress) =>
+                    Center(child: CircularProgressIndicator.adaptive()),
               ),
               if (hovering)
                 Container(
