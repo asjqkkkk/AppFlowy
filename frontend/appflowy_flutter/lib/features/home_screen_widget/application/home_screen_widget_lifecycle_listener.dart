@@ -2,6 +2,8 @@ import 'package:appflowy/features/home_screen_widget/application/home_screen_wid
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:flutter/widgets.dart';
+import 'package:home_widget/home_widget.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 enum HomeScreenWidgetSyncReason {
   appInitialization,
@@ -41,8 +43,6 @@ class HomeScreenWidgetLifecycleListener with WidgetsBindingObserver {
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
 
-    Log.info('App lifecycle state changed: $state');
-
     switch (state) {
       case AppLifecycleState.resumed:
         _triggerWidgetSync(HomeScreenWidgetSyncReason.appResumed);
@@ -55,7 +55,17 @@ class HomeScreenWidgetLifecycleListener with WidgetsBindingObserver {
     }
   }
 
-  void _triggerWidgetSync(HomeScreenWidgetSyncReason reason) {
+  Future<void> _triggerWidgetSync(HomeScreenWidgetSyncReason reason) async {
+    if (!UniversalPlatform.isMobile) {
+      return;
+    }
+
+    final installedWidgets = await HomeWidget.getInstalledWidgets();
+    if (installedWidgets.isEmpty) {
+      Log.debug('No installed widgets found, skipping sync ($reason)');
+      return;
+    }
+
     try {
       Log.info('Trigger home screen widget sync ($reason)');
       getIt<HomeScreenWidgetDataSyncService>().syncWidgetData(

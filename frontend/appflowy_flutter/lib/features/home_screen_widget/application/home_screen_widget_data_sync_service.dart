@@ -12,6 +12,7 @@ import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
+import 'package:universal_platform/universal_platform.dart';
 
 class HomeScreenWidgetDataSyncService {
   HomeScreenWidgetDataSyncService({
@@ -35,6 +36,10 @@ class HomeScreenWidgetDataSyncService {
   Future<void> _performSync({
     required HomeScreenWidgetSyncReason reason,
   }) async {
+    if (!UniversalPlatform.isMobile) {
+      return;
+    }
+
     try {
       final isLoggedIn = await _repository.isAuthenticated();
 
