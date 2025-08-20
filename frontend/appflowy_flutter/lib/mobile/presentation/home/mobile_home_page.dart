@@ -1,4 +1,5 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/mobile/presentation/home/mobile_home_page_header.dart';
 import 'package:appflowy/mobile/presentation/home/tab/mobile_space_tab.dart';
 import 'package:appflowy/mobile/presentation/home/tab/space_order_bloc.dart';
@@ -17,6 +18,7 @@ import 'package:appflowy/workspace/presentation/home/errors/workspace_failed_scr
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy/workspace/presentation/home/menu/menu_shared_state.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/network.dart';
+import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/workspace_notifier.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
@@ -300,6 +302,17 @@ class _HomePageState extends State<_HomePage> {
           toastType = ToastificationType.error;
           return '${LocaleKeys.workspace_openFailed.tr()}: ${e.msg}';
         });
+
+        final initialViewId = openWorkspaceNotifier.value?.initialViewId;
+        if (result.isSuccess && initialViewId != null) {
+          context.pushViewId(initialViewId);
+        }
+
+        if (openWorkspaceNotifier.value?.workspaceId ==
+            state.currentWorkspace?.workspaceId) {
+          openWorkspaceNotifier.value = null;
+        }
+
         break;
       case WorkspaceActionType.delete:
         message = result.fold(

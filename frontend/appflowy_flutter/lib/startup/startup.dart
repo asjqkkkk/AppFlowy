@@ -137,6 +137,8 @@ class FlowyRunner {
         // Load Plugins, like document, grid ...
         const PluginLoadTask(),
         const FileStorageTask(),
+        // Initialize home widget
+        const HomeScreenWidgetTask(),
 
         // init the app widget
         // ignore in test mode

@@ -5,6 +5,7 @@ export 'debug_task.dart';
 export 'device_info_task.dart';
 export 'feature_flag_task.dart';
 export 'generate_router.dart';
+export 'home_widget_task.dart';
 export 'hot_key.dart';
 export 'load_plugin.dart';
 export 'localization.dart';

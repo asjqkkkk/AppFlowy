@@ -73,12 +73,14 @@ class RawEmojiIconWidget extends StatefulWidget {
     required this.emojiSize,
     this.enableColor = true,
     this.lineHeight,
+    this.iconSize,
   });
 
   final EmojiIconData emoji;
   final double emojiSize;
   final bool enableColor;
   final double? lineHeight;
+  final double? iconSize;
 
   @override
   State<RawEmojiIconWidget> createState() => _RawEmojiIconWidgetState();
@@ -128,7 +130,7 @@ class _RawEmojiIconWidgetState extends State<RawEmojiIconWidget> {
             iconData = iconData.noColor();
           }
 
-          final iconSize = widget.emojiSize;
+          final iconSize = widget.iconSize ?? widget.emojiSize;
           return IconWidget(
             iconsData: iconData,
             size: iconSize,
@@ -139,6 +141,7 @@ class _RawEmojiIconWidgetState extends State<RawEmojiIconWidget> {
           final hasUserProfile = userProfile != null;
           if (isURL(url)) {
             Widget child = const SizedBox.shrink();
+
             if (isSvg) {
               child = FlowyNetworkSvg(
                 url,
@@ -147,7 +150,7 @@ class _RawEmojiIconWidgetState extends State<RawEmojiIconWidget> {
                 width: widget.emojiSize,
                 height: widget.emojiSize,
               );
-            } else if (hasUserProfile) {
+            } else {
               child = FlowyNetworkImage(
                 url: url,
                 width: widget.emojiSize,
@@ -158,6 +161,7 @@ class _RawEmojiIconWidgetState extends State<RawEmojiIconWidget> {
                 },
               );
             }
+
             return SizedBox.square(
               dimension: widget.emojiSize,
               child: child,
