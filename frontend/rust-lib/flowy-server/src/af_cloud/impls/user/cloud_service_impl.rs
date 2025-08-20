@@ -180,7 +180,7 @@ where
     debug!("Update user profile: {:?}", params);
     let try_get_client = self.server.try_get_client();
     let client = try_get_client?;
-    client.update_user(params).await?;
+    client.patch_user(params).await?;
     Ok(())
   }
 
@@ -407,7 +407,7 @@ where
   ) -> Result<Vec<WorkspaceMember>, FlowyError> {
     let try_get_client = self.server.try_get_client();
     let members = try_get_client?
-      .get_workspace_members(&workspace_id)
+      .get_workspace_members(&workspace_id, true)
       .await?
       .into_iter()
       .map(from_af_workspace_member)

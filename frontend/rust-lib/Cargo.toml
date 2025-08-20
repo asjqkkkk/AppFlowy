@@ -109,8 +109,8 @@ moka = { version = "0.12.10", features = ["sync"] }
 # Run the script.add_workspace_members:
 # scripts/tool/update_client_api_rev.sh  new_rev_id
 # ⚠️⚠️⚠️️
-client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "f90bee8270b9acf9fdba040e6ed123d926109cc8" }
-workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "f90bee8270b9acf9fdba040e6ed123d926109cc8" }
+client-api = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "c2294e4d999f80b31c540c47c1cb1245c585e042" }
+workspace-template = { git = "https://github.com/AppFlowy-IO/AppFlowy-Cloud-Premium", rev = "c2294e4d999f80b31c540c47c1cb1245c585e042" }
 #client-api = { path = "/Users/weidongfu/Documents/AF/AppFlowy-Cloud-Premium/libs/client-api" }
 #workspace-template = { path = "/Users/weidongfu/Documents/AF/AppFlowy-Cloud-Premium/libs/workspace-template" }
 

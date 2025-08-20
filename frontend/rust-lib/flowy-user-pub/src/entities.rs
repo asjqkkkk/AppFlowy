@@ -434,6 +434,7 @@ pub struct WorkspaceMember {
   pub name: String,
   pub avatar_url: Option<String>,
   pub joined_at: Option<i64>,
+  pub is_pending_invitation: bool,
 }
 
 /// represent the user awareness object id for the workspace.

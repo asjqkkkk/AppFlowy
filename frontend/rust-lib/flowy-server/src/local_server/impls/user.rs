@@ -289,6 +289,7 @@ impl UserWorkspaceService for LocalServerUserServiceImpl {
             workspace_id: workspace_id.to_string(),
             updated_at: chrono::Utc::now().naive_utc(),
             joined_at: None,
+            is_pending_invitation: false,
           };
 
           let member = WorkspaceMember::from(row.clone());

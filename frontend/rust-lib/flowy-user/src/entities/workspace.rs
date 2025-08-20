@@ -38,7 +38,7 @@ impl From<WorkspaceMember> for WorkspaceMemberPB {
       role: value.role.into(),
       avatar_url: value.avatar_url,
       joined_at: value.joined_at,
-      is_pending_invitation: false,
+      is_pending_invitation: value.is_pending_invitation,
     }
   }
 }

@@ -1,0 +1,2 @@
+ALTER TABLE workspace_members_table
+DROP COLUMN is_pending_invitation;
