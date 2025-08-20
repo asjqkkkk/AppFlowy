@@ -119,6 +119,13 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
   void initState() {
     super.initState();
 
+    if (openWorkspaceNotifier.value != null) {
+      WidgetsBinding.instance.addPostFrameCallback((timeStamp) {
+        if (mounted) {
+          _openWorkspace();
+        }
+      });
+    }
     openWorkspaceNotifier.addListener(_openWorkspace);
   }
 
@@ -236,6 +243,8 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
       return;
     }
 
+    Log.info('Opening workspace: ${value.workspaceId}');
+
     final workspaceId = value.workspaceId;
 
     if (workspaceId == null) {
@@ -250,7 +259,14 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
       Log.info('Already in the workspace, opening the initial view');
       final initialViewId = value.initialViewId;
       if (initialViewId != null) {
-        context.pushViewId(initialViewId);
+        while (context.canPop()) {
+          context.pop();
+        }
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            context.pushViewId(initialViewId);
+          }
+        });
       }
       value.callback?.call(true);
       openWorkspaceNotifier.value = null;

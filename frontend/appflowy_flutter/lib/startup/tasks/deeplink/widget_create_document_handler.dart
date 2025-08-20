@@ -51,7 +51,10 @@ class WidgetCreateDocumentHandler extends DeepLinkHandler<void> {
       workspaceId: workspaceId,
       callback: (result) {
         if (result == true) {
-          mobileCreateNewPageNotifier.value = ViewLayoutPB.Document;
+          // delay 100ms to optimize the animtion effect
+          Future.delayed(const Duration(milliseconds: 100), () {
+            mobileCreateNewPageNotifier.value = ViewLayoutPB.Document;
+          });
         }
 
         Log.info(

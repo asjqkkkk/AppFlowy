@@ -1,8 +1,8 @@
 import 'dart:io';
 
+import 'package:appflowy/features/export/data/repositories/document_exporter.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/util/navigator_context_extension.dart';
-import 'package:appflowy/features/export/data/repositories/document_exporter.dart';
 import 'package:appflowy/workspace/application/settings/settings_file_exporter_cubit.dart';
 import 'package:appflowy/workspace/application/settings/share/export_service.dart';
 import 'package:appflowy/workspace/presentation/home/toast.dart';
@@ -133,7 +133,7 @@ class _FileExporterWidgetState extends State<FileExporterWidget> {
                 );
               }
               if (mounted) {
-                context.popToHome();
+                context.popToDesktopHome();
               }
             });
           },

@@ -92,7 +92,7 @@ class _AccountDeletionButtonState extends State<AccountDeletionButton> {
                 textEditingController.text.trim(),
                 isCheckedNotifier.value,
                 onSuccess: () {
-                  context.popToHome();
+                  context.popToDesktopHome();
                 },
               ),
             );

@@ -120,7 +120,7 @@ class _CreateWorkspaceButton extends StatelessWidget {
           onSubmitted: (name) {
             // create a new workspace
             Log.info('create a new workspace: $name');
-            bottomSheetContext.popToHome();
+            bottomSheetContext.popToDesktopHome();
 
             context.read<UserWorkspaceBloc>().add(
                   UserWorkspaceEvent.createWorkspace(
@@ -423,7 +423,7 @@ class _WorkspaceMenuItemTrailing extends StatelessWidget {
           onSubmitted: (name) {
             // rename the workspace
             Log.info('rename the workspace: $name');
-            bottomSheetContext.popToHome();
+            bottomSheetContext.popToDesktopHome();
 
             context.read<UserWorkspaceBloc>().add(
                   UserWorkspaceEvent.renameWorkspace(
@@ -453,7 +453,7 @@ class _WorkspaceMenuItemTrailing extends StatelessWidget {
                 workspaceType: workspace.workspaceType,
               ),
             );
-        context.popToHome();
+        context.popToDesktopHome();
       },
     );
   }
@@ -472,7 +472,7 @@ class _WorkspaceMenuItemTrailing extends StatelessWidget {
                 workspaceId: workspace.workspaceId,
               ),
             );
-        context.popToHome();
+        context.popToDesktopHome();
       },
     );
   }

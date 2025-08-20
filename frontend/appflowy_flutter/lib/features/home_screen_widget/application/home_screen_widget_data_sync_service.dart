@@ -11,6 +11,7 @@ import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:home_widget/home_widget.dart';
 import 'package:universal_platform/universal_platform.dart';
 
@@ -163,6 +164,7 @@ class HomeScreenWidgetDataSyncService {
     required HomeScreenWidgetSyncReason reason,
   }) async {
     final cacheManager = CustomImageCacheManager();
+    final key = getHomeScreenWidgetIconKey(page.id);
 
     try {
       final iconData = _parseIconData(page);
@@ -176,10 +178,15 @@ class HomeScreenWidgetDataSyncService {
         );
       } else {
         final file = await cacheManager.getFileFromCache(iconData.emoji);
-        if (file != null) {
-          if (reason == HomeScreenWidgetSyncReason.appPaused) {
+        if (file != null && file.source == FileSource.Cache) {
+          if (reason == HomeScreenWidgetSyncReason.appPaused ||
+              reason == HomeScreenWidgetSyncReason.appInactive) {
             // there's a bug when the application is paused, the icon is not rendered
-            return;
+            final path = await HomeWidget.getWidgetData(key);
+            if (path != null) {
+              page.imageUrl = path;
+              return;
+            }
           }
 
           widget = Image.file(
@@ -199,13 +206,12 @@ class HomeScreenWidgetDataSyncService {
 
       final path = await HomeWidget.renderFlutterWidget(
         widget,
-        key: getHomeScreenWidgetIconKey(page.id),
+        key: key,
         logicalSize: const Size(32, 32),
         pixelRatio: 3,
       );
 
       if (path != null) {
-        Log.info('Rendered icon for page ${page.title} at path: $path');
         page.imageUrl = path;
       }
     } catch (e) {

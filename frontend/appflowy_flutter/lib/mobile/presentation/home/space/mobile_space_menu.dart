@@ -371,7 +371,7 @@ class _SpaceMenuItemTrailingState extends State<SpaceMenuItemTrailing> {
           onSubmitted: (name) {
             // rename the workspace
             Log.info('rename the space, from: ${widget.space.name}, to: $name');
-            bottomSheetContext.popToHome();
+            bottomSheetContext.popToDesktopHome();
 
             context
                 .read<SpaceBloc>()
