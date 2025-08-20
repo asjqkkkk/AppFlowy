@@ -1,10 +1,13 @@
+import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
-import 'package:string_validator/string_validator.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
+import 'invite_text_field.dart';
 
 class ShareWithUserWidget extends StatefulWidget {
   const ShareWithUserWidget({
@@ -12,12 +15,14 @@ class ShareWithUserWidget extends StatefulWidget {
     required this.onInvite,
     this.controller,
     this.disabled = false,
+    this.showAccessLevelWidget = true,
     this.tooltip,
   });
 
   final TextEditingController? controller;
-  final void Function(List<String> emails) onInvite;
+  final ValueChanged<EmailsWithAccessLevel> onInvite;
   final bool disabled;
+  final bool showAccessLevelWidget;
   final String? tooltip;
 
   @override
@@ -26,22 +31,15 @@ class ShareWithUserWidget extends StatefulWidget {
 
 class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
   late final TextEditingController effectiveController;
-  late final FocusNode focusNode;
+  final InviteController inviteController = InviteController();
   bool isButtonEnabled = false;
+  EmailsWithAccessLevel? emailsWithAccessLevel;
 
   @override
   void initState() {
     super.initState();
 
     effectiveController = widget.controller ?? TextEditingController();
-    effectiveController.addListener(_onTextChanged);
-
-    focusNode = FocusNode();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!widget.disabled) {
-        focusNode.requestFocus();
-      }
-    });
   }
 
   @override
@@ -49,27 +47,51 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
     if (widget.controller == null) {
       effectiveController.dispose();
     }
-
-    focusNode.dispose();
-
+    inviteController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
+    final shareTabBloc = context.read<ShareTabBloc>(),
+        shareTabState = shareTabBloc.state,
+        availableEmails = shareTabState.users.map((e) => e.email).toSet();
 
     final Widget child = Row(
       children: [
         Expanded(
-          child: AFTextField(
-            controller: effectiveController,
-            focusNode: focusNode,
-            size: AFTextFieldSize.m,
+          child: InviteTextField(
+            textController: effectiveController,
+            controller: inviteController,
             readOnly: widget.disabled,
-            hintText: LocaleKeys.shareTab_inviteByEmail.tr(),
-            onSubmitted: (value) {
-              widget.onInvite(effectiveController.text.trim().split(','));
+            showAccessLevelWidget: widget.showAccessLevelWidget,
+            onDataChanged: (data) {
+              final enableButton = data.emails.isNotEmpty;
+              if (isButtonEnabled != enableButton) {
+                setState(() {
+                  isButtonEnabled = enableButton;
+                });
+              }
+              emailsWithAccessLevel = data;
+            },
+            isEmailInvited: (email) => availableEmails.contains(email),
+            persons: shareTabState.persons
+                .where((e) => !availableEmails.contains(e.email))
+                .toList(),
+            filterPersons: (v) {
+              final query = v.toLowerCase();
+              final availablePersons = shareTabState.persons
+                  .where((e) => !availableEmails.contains(e.email))
+                  .toList();
+              if (query.isEmpty) return availablePersons;
+              return availablePersons
+                  .where(
+                    (e) =>
+                        e.name.toLowerCase().contains(query) ||
+                        e.email.toLowerCase().contains(query),
+                  )
+                  .toList();
             },
           ),
         ),
@@ -78,7 +100,9 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
           text: LocaleKeys.shareTab_invite.tr(),
           disabled: !isButtonEnabled,
           onTap: () {
-            widget.onInvite(effectiveController.text.trim().split(','));
+            if (emailsWithAccessLevel == null) return;
+            widget.onInvite(emailsWithAccessLevel!);
+            inviteController.onInvite();
           },
         ),
       ],
@@ -95,12 +119,5 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
     }
 
     return child;
-  }
-
-  void _onTextChanged() {
-    setState(() {
-      final texts = effectiveController.text.trim().split(',');
-      isButtonEnabled = texts.isNotEmpty && texts.every(isEmail);
-    });
   }
 }

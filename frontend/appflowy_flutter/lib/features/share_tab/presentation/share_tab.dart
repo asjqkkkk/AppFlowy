@@ -113,10 +113,10 @@ class _ShareTabState extends State<ShareTab> {
               controller: controller,
               disabled: !isFullAccess,
               tooltip: tooltip,
-              onInvite: (emails) => _onSharePageWithUser(
+              onInvite: (data) => _onSharePageWithUser(
                 context,
-                emails: emails,
-                accessLevel: ShareAccessLevel.readOnly,
+                emails: data.emails,
+                accessLevel: data.accessLevel,
               ),
             ),
 

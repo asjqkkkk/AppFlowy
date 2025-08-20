@@ -18,6 +18,11 @@ abstract class ShareWithUserRepository {
     required String pageId,
   });
 
+  /// Gets the list of persons in a workspace
+  Future<FlowyResult<WorkspacePersons, FlowyError>> getWorkspacePersons({
+    required String workspaceId,
+  });
+
   /// Removes a user from a shared page.
   Future<FlowyResult<void, FlowyError>> removeSharedUserFromPage({
     required String pageId,

@@ -434,14 +434,21 @@ class _MemberItem extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
-                    Text(
-                      _formatJoinedDate(member.joinedAt.toInt()),
-                      style: theme.textStyle.caption.standard(
-                        color: theme.textColorScheme.secondary,
+                    if (member.isPendingInvitation)
+                      Text(
+                        LocaleKeys.settings_appearance_members_pending.tr(),
+                        style: theme.textStyle.caption
+                            .standard(color: theme.textColorScheme.warning),
+                      )
+                    else
+                      Text(
+                        _formatJoinedDate(member.joinedAt.toInt()),
+                        style: theme.textStyle.caption.standard(
+                          color: theme.textColorScheme.secondary,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                    ),
                   ],
                 ),
               ),

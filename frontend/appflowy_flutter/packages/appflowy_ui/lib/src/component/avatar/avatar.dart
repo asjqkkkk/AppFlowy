@@ -160,6 +160,9 @@ class AFAvatar extends StatelessWidget {
         avatarUrl.isNotEmpty && !avatarUrl.startsWith('http');
     final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
     final borderRadius = radius ?? size / 2;
+    if (isEmojiAvatarUrl || !avatarUrl.startsWith('http')) {
+      textStyle = textStyle.copyWith(height: 1);
+    }
     final text = Text(initial, style: textStyle, textAlign: TextAlign.justify);
     return Container(
       decoration: BoxDecoration(

@@ -16,7 +16,7 @@ void main() {
       repository: repository,
       pageId: pageId,
       workspaceId: workspaceId,
-    )..add(ShareTabEvent.initialize());
+    )..add(ShareTabEvent.initialize(fetchWorkspacePersons: false));
   });
 
   tearDown(() async {

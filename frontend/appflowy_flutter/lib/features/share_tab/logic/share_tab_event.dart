@@ -1,10 +1,12 @@
 import 'package:appflowy/features/share_tab/data/models/models.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 
 sealed class ShareTabEvent {
   const ShareTabEvent();
 
   // Factory functions for creating events
-  factory ShareTabEvent.initialize() => const ShareTabEventInitialize();
+  factory ShareTabEvent.initialize({bool fetchWorkspacePersons = true}) =>
+      ShareTabEventInitialize(fetchWorkspacePersons: fetchWorkspacePersons);
 
   factory ShareTabEvent.loadSharedUsers() =>
       const ShareTabEventLoadSharedUsers();
@@ -59,11 +61,15 @@ sealed class ShareTabEvent {
 
   factory ShareTabEvent.upgradeToProClicked() =>
       const ShareTabEventUpgradeToProClicked();
+
+  factory ShareTabEvent.updatePersons(List<MentionablePersonPB> persons) =>
+      ShareTabEventUpdatePersons(persons: persons);
 }
 
 /// Initializes the share tab bloc.
 class ShareTabEventInitialize extends ShareTabEvent {
-  const ShareTabEventInitialize();
+  const ShareTabEventInitialize({this.fetchWorkspacePersons = true});
+  final bool fetchWorkspacePersons;
 }
 
 /// Loads the shared users for the current page.
@@ -154,4 +160,10 @@ class ShareTabEventUpdateSharedUsers extends ShareTabEvent {
 
 class ShareTabEventUpgradeToProClicked extends ShareTabEvent {
   const ShareTabEventUpgradeToProClicked();
+}
+
+class ShareTabEventUpdatePersons extends ShareTabEvent {
+  const ShareTabEventUpdatePersons({required this.persons});
+
+  final List<MentionablePersonPB> persons;
 }
