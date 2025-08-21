@@ -259,6 +259,8 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
       Log.info('Already in the workspace, opening the initial view');
       final initialViewId = value.initialViewId;
       if (initialViewId != null) {
+        openWorkspaceNotifier.value = null;
+
         while (context.canPop()) {
           context.pop();
         }
@@ -267,9 +269,10 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
             context.pushViewId(initialViewId);
           }
         });
+      } else {
+        openWorkspaceNotifier.value = null;
       }
       value.callback?.call(true);
-      openWorkspaceNotifier.value = null;
       return;
     }
 
