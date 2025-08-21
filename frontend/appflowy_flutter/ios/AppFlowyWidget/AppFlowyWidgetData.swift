@@ -19,7 +19,7 @@ enum SimpleWidgetType: String {
     case .recent:
       return "RECENT"
     case .favorites:
-      return "FAVORITE"
+      return "FAVORITES"
     }
   }
 

@@ -199,6 +199,7 @@ struct WidgetIconView: View {
 struct WidgetHeaderView: View {
   let widgetType: SimpleWidgetType
   let size: WidgetSize
+  let topPadding: CGFloat
 
   enum WidgetSize {
     case small, medium, large
@@ -215,7 +216,7 @@ struct WidgetHeaderView: View {
       switch self {
       case .small: return 10
       case .medium: return 14
-      case .large: return 16
+      case .large: return 14
       }
     }
 
@@ -249,7 +250,7 @@ struct WidgetHeaderView: View {
       }
     }
     .padding(.horizontal, 0)
-    .padding(.top, 10)
+    .padding(.top, topPadding)
     .padding(.bottom, 12)
     .frame(maxWidth: .infinity, alignment: .center)
   }
@@ -314,6 +315,28 @@ struct PageRowPlaceholderView: View {
   }
 }
 
+struct EmptyFavoritesView: View {
+  let titleSize: CGFloat
+  let subtitleSize: CGFloat
+  
+  var body: some View {
+    VStack(spacing: 8) {
+      Text("No Favorite Pages")
+        .font(.system(size: titleSize, weight: .bold))
+        .foregroundColor(.primary)
+        .multilineTextAlignment(.center)
+      
+      Text("Pages you’ve favorited will show here")
+        .font(.system(size: subtitleSize, weight: .regular))
+        .foregroundColor(.secondary)
+        .multilineTextAlignment(.center)
+        .padding(.horizontal, 20)
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+    .padding(.top, 18)
+  }
+}
+
 struct CreateDocumentButtonView: View {
   let workspaceId: String
   let bottomPadding: CGFloat
@@ -373,6 +396,7 @@ struct PageListView: View {
   let iconSize: CGFloat
   let fontSize: CGFloat
   let padding: EdgeInsets
+  let widgetType: SimpleWidgetType
 
   private var paddedPages: [PageItem] {
     var result = pages
@@ -387,12 +411,23 @@ struct PageListView: View {
     }
     return result
   }
+  
+  private var shouldShowMoreFavorites: Bool {
+    return widgetType == .favorites && pages.count > maxItems
+  }
+  
+  private var displayItemCount: Int {
+    if shouldShowMoreFavorites {
+      return maxItems - 1
+    }
+    return maxItems
+  }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      ForEach(paddedPages.prefix(maxItems).indices, id: \.self) { index in
+      ForEach(paddedPages.prefix(displayItemCount).indices, id: \.self) { index in
         let page = paddedPages[index]
-        if index < pages.count {
+        if index < pages.count && index < displayItemCount {
           PageRowView(
             page: page,
             workspaceId: workspaceId,
@@ -409,6 +444,19 @@ struct PageListView: View {
           .padding(.trailing, 40)
           .padding(.bottom, spacing)
         }
+      }
+      
+      if shouldShowMoreFavorites {
+        HStack(alignment: .center, spacing: 6) {
+          Text("More favorites...")
+            .font(.system(size: fontSize, weight: .regular))
+            .foregroundColor(.secondary)
+            .lineLimit(1)
+            .frame(height: 22)
+          
+          Spacer()
+        }
+        .padding(.bottom, spacing)
       }
     }
   }
@@ -446,30 +494,51 @@ struct WidgetContentView: View {
       }
     }
   }
+  
+  private var topPadding: CGFloat {
+    var topPadding = 10.0
+    // workaround to make the header doesn't follow the safe area
+    if (widgetType == .favorites && pages.isEmpty) {
+      if (widgetFamily == .systemLarge) {
+        topPadding = 0.0
+      } else if (widgetFamily == .systemMedium) {
+        topPadding = -3.0
+      }
+    }
+    return topPadding
+  }
 
   @ViewBuilder
   private var pageListContent: some View {
-
     VStack(alignment: .leading, spacing: 0) {
       WidgetHeaderView(
         widgetType: widgetType,
-        size: config.headerSize
+        size: config.headerSize,
+        topPadding: topPadding,
       )
 
       Divider()
         .frame(maxWidth: .infinity, minHeight: 1)
         .background(Color(red: 0.451, green: 0.478, blue: 0.580, opacity: 0.1))
 
-      PageListView(
-        pages: pages,
-        workspaceId: workspace?.id ?? "",
-        maxItems: config.maxPageItems,
-        spacing: config.itemSpacing,
-        iconSize: config.pageIconSize,
-        fontSize: config.pageFontSize,
-        padding: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0)
-      )
-      .padding(.top, 12)
+      if widgetType == .favorites && pages.isEmpty {
+        EmptyFavoritesView(
+          titleSize: config.placeholderTitleSize,
+          subtitleSize: config.placeholderSubtitleSize
+        )
+      } else {
+        PageListView(
+          pages: pages,
+          workspaceId: workspace?.id ?? "",
+          maxItems: config.maxPageItems,
+          spacing: config.itemSpacing,
+          iconSize: config.pageIconSize,
+          fontSize: config.pageFontSize,
+          padding: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0),
+          widgetType: widgetType
+        )
+        .padding(.top, 12)
+      }
     }
 
   }
@@ -690,6 +759,11 @@ extension RecentConfigurationAppIntent {
       id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
     isUserLoggedIn: true)
   FavoritesEntry(
+    date: .now, configuration: .defaultWorkspace, pages: [],
+    workspace: Workspace(
+      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
+    isUserLoggedIn: true)
+  FavoritesEntry(
     date: .now, configuration: .noWorkspace, pages: [], workspace: nil, isUserLoggedIn: false)
 }
 
@@ -717,6 +791,11 @@ extension RecentConfigurationAppIntent {
     isUserLoggedIn: true)
   FavoritesEntry(
     date: .now, configuration: .defaultWorkspace, pages: PageItem.mockFavoritePages2,
+    workspace: Workspace(
+      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
+    isUserLoggedIn: true)
+  FavoritesEntry(
+    date: .now, configuration: .defaultWorkspace, pages: [],
     workspace: Workspace(
       id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
     isUserLoggedIn: true)
