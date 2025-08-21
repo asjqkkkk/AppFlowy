@@ -1,5 +1,4 @@
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
-import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -144,15 +143,8 @@ void showSettingsDialog(
           value: BlocProvider.of<DocumentAppearanceCubit>(dialogContext),
         ),
         BlocProvider.value(value: userWorkspaceBloc),
-        BlocProvider.value(
-          value: profileSettingBloc ??
-              ProfileSettingBloc(
-                userProfile: userProfile,
-                workspaceId:
-                    userWorkspaceBloc.state.currentWorkspace?.workspaceId ?? '',
-              )
-            ..add(ProfileSettingEvent.initial()),
-        ),
+        if (profileSettingBloc != null)
+          BlocProvider.value(value: profileSettingBloc),
       ],
       child: SettingsDialog(
         userProfile,

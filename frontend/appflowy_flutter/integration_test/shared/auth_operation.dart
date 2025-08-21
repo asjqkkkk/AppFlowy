@@ -1,6 +1,6 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/user/presentation/screens/sign_in_screen/widgets/widgets.dart';
-import 'package:appflowy/workspace/presentation/settings/pages/account/account.dart';
+import 'package:appflowy/workspace/presentation/settings/widgets/account_and_app/sign_in_out_button.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/setting_appflowy_cloud.dart';
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -19,14 +19,7 @@ extension AppFlowyAuthTest on WidgetTester {
 
   /// Requires being on the SettingsPage.account of the SettingsDialog
   Future<void> logout() async {
-    final scrollable = find.findSettingsScrollable();
-    await scrollUntilVisible(
-      find.byType(AccountSignInOutButton),
-      100,
-      scrollable: scrollable,
-    );
-
-    await tapButton(find.byType(AccountSignInOutButton));
+    await tapButton(find.byType(SignInOutButton));
 
     expectToSeeText(LocaleKeys.button_yes.tr());
     await tapButtonWithName(LocaleKeys.button_yes.tr());

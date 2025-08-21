@@ -26,6 +26,7 @@ void main() {
 
       await tester.enterUserName(name);
       await tester.pumpAndSettle(const Duration(seconds: 6));
+      await tester.openSettingsPage(SettingsPage.account);
       await tester.logout();
 
       await tester.pumpAndSettle(const Duration(seconds: 2));

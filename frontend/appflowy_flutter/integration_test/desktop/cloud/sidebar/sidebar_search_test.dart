@@ -38,7 +38,7 @@ void main() {
     /// tap ask AI button
     try {
       await tester.tapButton(askAIButton, pumpAndSettle: false);
-      await tester.pumpAndSettle(Duration(seconds: 3));
+      await tester.pumpAndSettle(Duration(seconds: 6));
     } catch (e) {
       debugPrint('error with tapping ask AI button: $e');
       return;
