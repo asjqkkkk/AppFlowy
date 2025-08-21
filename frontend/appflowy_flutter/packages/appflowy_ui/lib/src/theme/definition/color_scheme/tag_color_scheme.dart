@@ -30,6 +30,18 @@ class AppFlowyTagColorScheme {
     required this.fill07Thick,
     required this.text07Light,
     required this.text07Thick,
+    required this.fill08Light,
+    required this.fill08Thick,
+    required this.text08Light,
+    required this.text08Thick,
+    required this.fill09Light,
+    required this.fill09Thick,
+    required this.text09Light,
+    required this.text09Thick,
+    required this.fill10Light,
+    required this.fill10Thick,
+    required this.text10Light,
+    required this.text10Thick,
   });
 
   final Color fill01Light;
@@ -60,6 +72,18 @@ class AppFlowyTagColorScheme {
   final Color fill07Thick;
   final Color text07Light;
   final Color text07Thick;
+  final Color fill08Light;
+  final Color fill08Thick;
+  final Color text08Light;
+  final Color text08Thick;
+  final Color fill09Light;
+  final Color fill09Thick;
+  final Color text09Light;
+  final Color text09Thick;
+  final Color fill10Light;
+  final Color fill10Thick;
+  final Color text10Light;
+  final Color text10Thick;
 
   AppFlowyTagColorScheme lerp(
     AppFlowyTagColorScheme other,
@@ -94,6 +118,18 @@ class AppFlowyTagColorScheme {
       fill07Thick: Color.lerp(fill07Thick, other.fill07Thick, t)!,
       text07Light: Color.lerp(text07Light, other.text07Light, t)!,
       text07Thick: Color.lerp(text07Thick, other.text07Thick, t)!,
+      fill08Light: Color.lerp(fill08Light, other.fill08Light, t)!,
+      fill08Thick: Color.lerp(fill08Thick, other.fill08Thick, t)!,
+      text08Light: Color.lerp(text08Light, other.text08Light, t)!,
+      text08Thick: Color.lerp(text08Thick, other.text08Thick, t)!,
+      fill09Light: Color.lerp(fill09Light, other.fill09Light, t)!,
+      fill09Thick: Color.lerp(fill09Thick, other.fill09Thick, t)!,
+      text09Light: Color.lerp(text09Light, other.text09Light, t)!,
+      text09Thick: Color.lerp(text09Thick, other.text09Thick, t)!,
+      fill10Light: Color.lerp(fill10Light, other.fill10Light, t)!,
+      fill10Thick: Color.lerp(fill10Thick, other.fill10Thick, t)!,
+      text10Light: Color.lerp(text10Light, other.text10Light, t)!,
+      text10Thick: Color.lerp(text10Thick, other.text10Thick, t)!,
     );
   }
 }

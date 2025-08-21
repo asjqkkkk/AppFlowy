@@ -19,7 +19,6 @@ import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:linked_scroll_controller/linked_scroll_controller.dart';
 
 import 'grid_scroll.dart';
@@ -134,13 +133,10 @@ class _MobileGridPageState extends State<MobileGridPage> {
       _didOpenInitialRow = initialRow;
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        context.push(
-          MobileRowDetailPage.routeName,
-          extra: {
-            MobileRowDetailPage.argRowId: rowId,
-            MobileRowDetailPage.argDatabaseController:
-                widget.databaseController,
-          },
+        pushRowDetailPage(
+          context,
+          databaseController: widget.databaseController,
+          rowId: rowId,
         );
       });
     }
@@ -193,12 +189,11 @@ class _GridPageContentState extends State<GridPageContent> {
           return;
         }
         final bloc = context.read<GridBloc>();
-        context.push(
-          MobileRowDetailPage.routeName,
-          extra: {
-            MobileRowDetailPage.argRowId: state.createdRow!.id,
-            MobileRowDetailPage.argDatabaseController: bloc.databaseController,
-          },
+
+        pushRowDetailPage(
+          context,
+          databaseController: bloc.databaseController,
+          rowId: state.createdRow!.id,
         );
         bloc.add(const GridEvent.resetCreatedRow());
       },
@@ -365,12 +360,10 @@ class _GridRows extends StatelessWidget {
       isDraggable: isDraggable,
       databaseController: databaseController,
       openDetailPage: (context) {
-        context.push(
-          MobileRowDetailPage.routeName,
-          extra: {
-            MobileRowDetailPage.argRowId: rowId,
-            MobileRowDetailPage.argDatabaseController: databaseController,
-          },
+        pushRowDetailPage(
+          context,
+          databaseController: databaseController,
+          rowId: rowId,
         );
       },
     );

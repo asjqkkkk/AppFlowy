@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -137,8 +138,15 @@ void _showDatabaseFieldListFromToolbar(
     showBackButton: true,
     title: LocaleKeys.grid_settings_properties.tr(),
     builder: (_) {
-      return BlocProvider.value(
-        value: context.read<ViewBloc>(),
+      return MultiBlocProvider(
+        providers: [
+          BlocProvider.value(
+            value: context.read<ViewBloc>(),
+          ),
+          BlocProvider.value(
+            value: context.read<UserWorkspaceBloc>(),
+          ),
+        ],
         child: MobileDatabaseFieldList(
           databaseController: databaseController,
           canCreate: false,

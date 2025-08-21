@@ -15,7 +15,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme_extension.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 
 class MobileHiddenGroupsColumn extends StatelessWidget {
   const MobileHiddenGroupsColumn({super.key, required this.padding});
@@ -182,13 +181,10 @@ class MobileHiddenGroup extends StatelessWidget {
             hasNotes: !item.isDocumentEmpty,
           ),
           onPressed: () {
-            context.push(
-              MobileRowDetailPage.routeName,
-              extra: {
-                MobileRowDetailPage.argRowId: item.id,
-                MobileRowDetailPage.argDatabaseController:
-                    context.read<BoardBloc>().databaseController,
-              },
+            pushRowDetailPage(
+              context,
+              databaseController: context.read<BoardBloc>().databaseController,
+              rowId: item.id,
             );
           },
         );

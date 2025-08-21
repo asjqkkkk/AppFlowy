@@ -2,7 +2,6 @@ import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/flowy_tint_colors.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/widgets.dart';
@@ -34,9 +33,7 @@ class _PresetColorSelectorState extends State<PresetColorSelector> {
 
     final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
 
-    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
-    final isPro = subscriptionPlan != null &&
-        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
+    final isPro = userWorkspaceState.isInProPlan;
 
     return Column(
       spacing: theme.spacing.m,

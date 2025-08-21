@@ -1,5 +1,6 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/app_bar/app_bar_actions.dart';
@@ -213,9 +214,17 @@ class MobileDatabaseViewListButton extends StatelessWidget {
           context,
           showDragHandle: true,
           builder: (_) {
-            return BlocProvider<ViewBloc>(
-              create: (_) =>
-                  ViewBloc(view: view)..add(const ViewEvent.initial()),
+            return MultiBlocProvider(
+              providers: [
+                BlocProvider(
+                  create: (_) {
+                    return ViewBloc(view: view)..add(const ViewEvent.initial());
+                  },
+                ),
+                BlocProvider.value(
+                  value: context.read<UserWorkspaceBloc>(),
+                ),
+              ],
               child: MobileDatabaseViewQuickActions(
                 view: view,
                 databaseController: databaseController,

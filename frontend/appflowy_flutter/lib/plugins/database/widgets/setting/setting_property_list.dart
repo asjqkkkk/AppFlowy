@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/plugins/database/application/field/field_controller.dart';
 import 'package:appflowy/plugins/database/application/field/field_info.dart';
@@ -187,12 +188,15 @@ class _DatabasePropertyCellState extends State<DatabasePropertyCell> {
           onTap: () => _popoverController.show(),
         ),
       ),
-      popupBuilder: (BuildContext context) {
-        return FieldEditor(
-          viewId: widget.viewId,
-          fieldInfo: widget.fieldInfo,
-          fieldController: widget.fieldController,
-          isNewField: false,
+      popupBuilder: (popoverContext) {
+        return BlocProvider.value(
+          value: context.read<UserWorkspaceBloc>(),
+          child: FieldEditor(
+            viewId: widget.viewId,
+            fieldInfo: widget.fieldInfo,
+            fieldController: widget.fieldController,
+            isNewField: false,
+          ),
         );
       },
     );

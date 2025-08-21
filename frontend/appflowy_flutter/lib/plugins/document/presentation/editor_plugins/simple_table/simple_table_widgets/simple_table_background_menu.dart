@@ -3,7 +3,6 @@ import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/shared/flowy_tint_colors.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart' hide ColorPicker;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
@@ -34,7 +33,7 @@ class SimpleTableBackgroundColorMenu extends StatelessWidget {
         ? FlowyTint.fromId(backgroundColor)?.toAFColor()
         : null;
 
-    final isPro = getIsPro(context);
+    final isPro = context.read<UserWorkspaceBloc>().state.isInProPlan;
 
     return AppFlowyPopover(
       mutex: mutex,
@@ -131,13 +130,5 @@ class SimpleTableBackgroundColorMenu extends StatelessWidget {
       showRecent: false,
       showCustom: false,
     );
-  }
-
-  bool getIsPro(BuildContext context) {
-    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
-
-    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
-    return subscriptionPlan != null &&
-        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
   }
 }

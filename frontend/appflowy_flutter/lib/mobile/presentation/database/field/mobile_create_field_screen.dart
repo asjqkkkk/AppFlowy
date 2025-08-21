@@ -18,10 +18,6 @@ class MobileNewPropertyScreen extends StatefulWidget {
   final String viewId;
   final FieldType? fieldType;
 
-  static const routeName = '/new_property';
-  static const argViewId = 'view_id';
-  static const argFieldTypeId = 'field_type_id';
-
   @override
   State<MobileNewPropertyScreen> createState() =>
       _MobileNewPropertyScreenState();

@@ -94,12 +94,12 @@ class _QuickEditFieldState extends State<QuickEditField> {
                 text: LocaleKeys.grid_field_editProperty.tr(),
                 leftIcon: const FlowySvg(FlowySvgs.m_field_edit_s),
                 onTap: () {
+                  context.pop();
                   showEditFieldScreen(
                     context,
                     widget.viewId,
                     state.field,
                   );
-                  context.pop();
                 },
               ),
               if (!widget.fieldInfo.isPrimary) ...[
@@ -114,7 +114,7 @@ class _QuickEditFieldState extends State<QuickEditField> {
                     if (fieldVisibility.isVisibleState()) {
                       await service.hide();
                     } else {
-                      await service.hide();
+                      await service.show();
                     }
                   },
                 ),

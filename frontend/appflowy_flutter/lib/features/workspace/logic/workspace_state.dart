@@ -103,4 +103,7 @@ class UserWorkspaceState {
   String toString() {
     return 'WorkspaceState(currentWorkspace: $currentWorkspace, workspaces: $workspaces, actionResult: $actionResult, isCollabWorkspaceOn: $isCollabWorkspaceOn, userProfile: $userProfile, workspaceSubscriptionInfo: $workspaceSubscriptionInfo)';
   }
+
+  bool get isInProPlan =>
+      workspaceSubscriptionInfo?.plan == SubscriptionPlanPB.Pro;
 }

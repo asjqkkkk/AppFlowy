@@ -9,16 +9,18 @@ class OptionColorList extends StatelessWidget {
     super.key,
     required this.selectedColor,
     required this.onSelectColor,
+    required this.isPro,
   });
 
   final SelectOptionColorPB selectedColor;
   final void Function(SelectOptionColorPB color) onSelectColor;
+  final bool isPro;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
-    final colors = _getColorPickerConfig();
+    final colors = _getAFColors();
     final selectedAfColor = selectOptionColorToBgAFColor(selectedColor);
 
     return GridView.custom(
@@ -45,18 +47,41 @@ class OptionColorList extends StatelessWidget {
     );
   }
 
-  List<AFColor> _getColorPickerConfig() {
-    return [
-      BuiltinAFColor('bg-color-14'),
-      BuiltinAFColor('bg-color-16'),
-      BuiltinAFColor('bg-color-18'),
-      BuiltinAFColor('bg-color-2'),
-      BuiltinAFColor('bg-color-4'),
-      BuiltinAFColor('bg-color-6'),
-      BuiltinAFColor('bg-color-8'),
-      BuiltinAFColor('bg-color-10'),
-      BuiltinAFColor('bg-color-12'),
-      BuiltinAFColor('bg-color-20'),
-    ];
+  List<AFColor> _getAFColors() {
+    return isPro
+        ? [
+            BuiltinAFColor('tag-fill-1-light'),
+            BuiltinAFColor('tag-fill-2-light'),
+            BuiltinAFColor('tag-fill-3-light'),
+            BuiltinAFColor('tag-fill-4-light'),
+            BuiltinAFColor('tag-fill-5-light'),
+            BuiltinAFColor('tag-fill-6-light'),
+            BuiltinAFColor('tag-fill-7-light'),
+            BuiltinAFColor('tag-fill-8-light'),
+            BuiltinAFColor('tag-fill-9-light'),
+            BuiltinAFColor('tag-fill-10-light'),
+            BuiltinAFColor('tag-fill-1-thick'),
+            BuiltinAFColor('tag-fill-2-thick'),
+            BuiltinAFColor('tag-fill-3-thick'),
+            BuiltinAFColor('tag-fill-4-thick'),
+            BuiltinAFColor('tag-fill-5-thick'),
+            BuiltinAFColor('tag-fill-6-thick'),
+            BuiltinAFColor('tag-fill-7-thick'),
+            BuiltinAFColor('tag-fill-8-thick'),
+            BuiltinAFColor('tag-fill-9-thick'),
+            BuiltinAFColor('tag-fill-10-thick'),
+          ]
+        : [
+            BuiltinAFColor('tag-fill-1-light'),
+            BuiltinAFColor('tag-fill-2-light'),
+            BuiltinAFColor('tag-fill-3-light'),
+            BuiltinAFColor('tag-fill-4-light'),
+            BuiltinAFColor('tag-fill-5-light'),
+            BuiltinAFColor('tag-fill-6-light'),
+            BuiltinAFColor('tag-fill-7-light'),
+            BuiltinAFColor('tag-fill-8-light'),
+            BuiltinAFColor('tag-fill-9-light'),
+            BuiltinAFColor('tag-fill-10-light'),
+          ];
   }
 }

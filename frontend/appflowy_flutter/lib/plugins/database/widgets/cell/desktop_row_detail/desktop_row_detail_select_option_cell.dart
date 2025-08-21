@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_bloc.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
@@ -30,8 +31,11 @@ class DesktopRowDetailSelectOptionCellSkin
       direction: PopoverDirection.bottomWithLeftAligned,
       onClose: () => cellContainerNotifier.isFocus = false,
       onOpen: () => cellContainerNotifier.isFocus = true,
-      popupBuilder: (_) => SelectOptionCellEditor(
-        cellController: bloc.cellController,
+      popupBuilder: (_) => BlocProvider.value(
+        value: context.read<UserWorkspaceBloc>(),
+        child: SelectOptionCellEditor(
+          cellController: bloc.cellController,
+        ),
       ),
       child: BlocBuilder<SelectOptionCellBloc, SelectOptionCellState>(
         builder: (context, state) {

@@ -6,7 +6,6 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/base/strin
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/simple_table/simple_table_widgets/_simple_table_bottom_sheet_actions.dart';
 import 'package:appflowy/shared/flowy_tint_colors.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -164,7 +163,7 @@ class _SimpleTableCellBottomSheetState
   }
 
   List<Widget> _buildContent() {
-    final isPro = getIsPro(context);
+    final isPro = context.read<UserWorkspaceBloc>().state.isInProPlan;
 
     return switch (menuState) {
       _SimpleTableBottomSheetMenuState.cellActionMenu => _buildActionButtons(),
@@ -393,14 +392,6 @@ class _SimpleTableCellBottomSheetState
     setState(() {
       selectedAlign = align;
     });
-  }
-
-  bool getIsPro(BuildContext context) {
-    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
-
-    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
-    return subscriptionPlan != null &&
-        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
   }
 }
 

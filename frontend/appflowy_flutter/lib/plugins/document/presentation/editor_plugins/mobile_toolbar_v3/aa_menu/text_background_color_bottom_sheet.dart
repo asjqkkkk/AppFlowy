@@ -5,7 +5,6 @@ import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/startup/tasks/prelude.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -29,9 +28,7 @@ Future<void> showTextAndBackgroundColorPicker(
   final workspaceId = userWorkspaceState.currentWorkspace?.workspaceId ?? '';
   final userId = userWorkspaceState.userProfile.id.toString();
 
-  final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
-  final isPro = subscriptionPlan != null &&
-      subscriptionPlan.plan == SubscriptionPlanPB.Pro;
+  final isPro = userWorkspaceState.isInProPlan;
 
   await Future.delayed(const Duration(milliseconds: 100));
 

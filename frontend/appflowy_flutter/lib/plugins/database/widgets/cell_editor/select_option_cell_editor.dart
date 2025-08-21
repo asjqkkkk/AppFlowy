@@ -1,6 +1,7 @@
 import 'dart:collection';
 import 'dart:io';
 
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -23,7 +24,10 @@ import 'select_option_text_field.dart';
 const double _editorPanelWidth = 300;
 
 class SelectOptionCellEditor extends StatefulWidget {
-  const SelectOptionCellEditor({super.key, required this.cellController});
+  const SelectOptionCellEditor({
+    super.key,
+    required this.cellController,
+  });
 
   final SelectOptionCellController cellController;
 
@@ -35,15 +39,17 @@ class _SelectOptionCellEditorState extends State<SelectOptionCellEditor> {
   final textEditingController = TextEditingController();
   final scrollController = ScrollController();
   final popoverMutex = PopoverMutex();
-  late final bloc = SelectOptionCellEditorBloc(
-    cellController: widget.cellController,
-  );
+
+  late final SelectOptionCellEditorBloc bloc;
   late final FocusNode focusNode;
 
   @override
   void initState() {
     super.initState();
 
+    bloc = SelectOptionCellEditorBloc(
+      cellController: widget.cellController,
+    );
     focusNode = FocusNode(
       onKeyEvent: (node, event) {
         switch (event.logicalKey) {
@@ -100,6 +106,7 @@ class _SelectOptionCellEditorState extends State<SelectOptionCellEditor> {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
+    final isPro = context.read<UserWorkspaceBloc>().state.isInProPlan;
 
     return BlocProvider.value(
       value: bloc,
@@ -120,6 +127,7 @@ class _SelectOptionCellEditorState extends State<SelectOptionCellEditor> {
               child: Focus(
                 descendantsAreFocusable: false,
                 child: _OptionList(
+                  isPro: isPro,
                   textEditingController: textEditingController,
                   popoverMutex: popoverMutex,
                 ),
@@ -136,10 +144,12 @@ class _OptionList extends StatelessWidget {
   const _OptionList({
     required this.textEditingController,
     required this.popoverMutex,
+    required this.isPro,
   });
 
   final TextEditingController textEditingController;
   final PopoverMutex popoverMutex;
+  final bool isPro;
 
   @override
   Widget build(BuildContext context) {
@@ -180,6 +190,7 @@ class _OptionList extends StatelessWidget {
               index: index,
               option: option,
               popoverMutex: popoverMutex,
+              isPro: isPro,
             );
           },
           onReorder: (oldIndex, newIndex) {
@@ -313,11 +324,13 @@ class _SelectOptionCell extends StatefulWidget {
     required this.option,
     required this.index,
     required this.popoverMutex,
+    required this.isPro,
   });
 
   final SelectOptionPB option;
   final int index;
   final PopoverMutex popoverMutex;
+  final bool isPro;
 
   @override
   State<_SelectOptionCell> createState() => _SelectOptionCellState();
@@ -346,6 +359,7 @@ class _SelectOptionCellState extends State<_SelectOptionCell> {
         return SelectOptionEditor(
           key: ValueKey(widget.option.id),
           option: widget.option,
+          isPro: widget.isPro,
           onDeleted: () {
             bloc.add(SelectOptionCellEditorEvent.deleteOption(widget.option));
             PopoverContainer.of(popoverContext).close();

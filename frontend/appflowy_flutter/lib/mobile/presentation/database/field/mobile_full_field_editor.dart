@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'dart:typed_data';
 
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/flowy_search_text_field.dart';
@@ -18,11 +19,12 @@ import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/size.dart';
-import 'package:flowy_infra/uuid.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:nanoid/nanoid.dart';
 import 'package:protobuf/protobuf.dart';
+import 'package:provider/provider.dart';
 
 import 'mobile_field_bottom_sheets.dart';
 
@@ -781,6 +783,8 @@ class _SelectOption extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = context.read<UserWorkspaceBloc>().state.isInProPlan;
+
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -796,6 +800,7 @@ class _SelectOption extends StatelessWidget {
         _SelectOptionList(
           selectOptions: selectOption,
           onUpdateOptions: onUpdateOptions,
+          isPro: isPro,
         ),
         FlowyOptionTile.text(
           text: LocaleKeys.grid_field_addOption.tr(),
@@ -804,18 +809,22 @@ class _SelectOption extends StatelessWidget {
             size: Size.square(20),
           ),
           onTap: () {
-            onAddOptions([
-              SelectOptionPB(
-                id: uuid(),
-                name: '',
-                color: SelectOptionColorPB.valueOf(
-                  random.nextInt(SelectOptionColorPB.values.length),
-                ),
-              ),
-            ]);
+            final newOption = _createNewOption();
+
+            onAddOptions([newOption]);
           },
         ),
       ],
+    );
+  }
+
+  SelectOptionPB _createNewOption() {
+    final color = SelectOptionColorPB.values[random.nextInt(10)];
+
+    return SelectOptionPB(
+      id: nanoid(4),
+      name: '',
+      color: color,
     );
   }
 }
@@ -823,10 +832,12 @@ class _SelectOption extends StatelessWidget {
 class _SelectOptionList extends StatefulWidget {
   const _SelectOptionList({
     required this.selectOptions,
+    required this.isPro,
     required this.onUpdateOptions,
   });
 
   final List<SelectOptionPB> selectOptions;
+  final bool isPro;
   final void Function(List<SelectOptionPB> options) onUpdateOptions;
 
   @override
@@ -871,6 +882,7 @@ class _SelectOptionListState extends State<_SelectOptionList> {
               option: option,
               showTopBorder: index == 0,
               showBottomBorder: index != widget.selectOptions.length - 1,
+              isPro: widget.isPro,
               onUpdateOption: (option) {
                 _updateOption(index, option);
               },
@@ -893,12 +905,14 @@ class _SelectOptionTile extends StatefulWidget {
     required this.option,
     required this.showTopBorder,
     required this.showBottomBorder,
+    required this.isPro,
     required this.onUpdateOption,
   });
 
   final SelectOptionPB option;
   final bool showTopBorder;
   final bool showBottomBorder;
+  final bool isPro;
   final void Function(SelectOptionPB option) onUpdateOption;
 
   @override
@@ -932,6 +946,7 @@ class _SelectOptionTileState extends State<_SelectOptionTile> {
       showBottomBorder: widget.showBottomBorder,
       trailing: _SelectOptionColor(
         color: option.color,
+        isPro: widget.isPro,
         onChanged: (color) {
           setState(() {
             option.freeze();
@@ -955,16 +970,19 @@ class _SelectOptionTileState extends State<_SelectOptionTile> {
 class _SelectOptionColor extends StatelessWidget {
   const _SelectOptionColor({
     required this.color,
+    required this.isPro,
     required this.onChanged,
   });
 
   final SelectOptionColorPB color;
+  final bool isPro;
   final void Function(SelectOptionColorPB) onChanged;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    final backgroundColor = selectOptionColorToBgAFColor(color).toColor(theme);
+    final fgColor = selectOptionColorToTextAFColor(color).toColor(theme);
+    final bgColor = selectOptionColorToBgAFColor(color).toColor(theme);
 
     return GestureDetector(
       onTap: () {
@@ -978,13 +996,14 @@ class _SelectOptionColor extends StatelessWidget {
             return OptionColorList(
               selectedColor: color,
               onSelectColor: onChanged,
+              isPro: isPro,
             );
           },
         );
       },
       child: Container(
         decoration: BoxDecoration(
-          color: backgroundColor,
+          color: bgColor,
           borderRadius: Corners.s10Border,
         ),
         width: 32,
@@ -993,7 +1012,7 @@ class _SelectOptionColor extends StatelessWidget {
         child: FlowySvg(
           FlowySvgs.arrow_down_s,
           size: const Size.square(20),
-          color: theme.iconColorScheme.primary,
+          color: fgColor,
         ),
       ),
     );

@@ -129,5 +129,6 @@ SelectOptionColorPB newSelectOptionColor(List<SelectOptionPB> options) {
       .reduce((a, b) => a.value <= b.value ? a : b)
       .key;
 
-  return SelectOptionColorPB.valueOf(minIndex) ?? SelectOptionColorPB.Purple;
+  return SelectOptionColorPB.valueOf(minIndex) ??
+      SelectOptionColorPB.SelectOptionColor1;
 }

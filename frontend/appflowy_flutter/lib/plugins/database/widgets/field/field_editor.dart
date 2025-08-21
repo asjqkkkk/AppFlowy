@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -500,12 +499,13 @@ class FieldTypeOptionEditor extends StatelessWidget {
         if (state.field.isPrimary) {
           return const SizedBox.shrink();
         }
-        final typeOptionEditor = makeTypeOptionEditor(
+        final typeOptionEditor =
+            TypeOptionEditorFactory.makeBuilder(state.field.fieldType).build(
           context: context,
           viewId: viewId,
           field: state.field.field,
           popoverMutex: popoverMutex,
-          onTypeOptionUpdated: (Uint8List typeOptionData) {
+          onTypeOptionUpdated: (typeOptionData) {
             context
                 .read<FieldEditorBloc>()
                 .add(FieldEditorEvent.updateTypeOption(typeOptionData));

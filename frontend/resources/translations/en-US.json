@@ -2548,13 +2548,16 @@
     "camellia": "Camellia",
     "smoke": "Smoke",
     "iron": "Iron",
-    "blush": "Blush",
-    "peach": "Peach",
-    "cream": "Cream",
-    "mint": "Mint",
-    "sky": "Sky",
-    "pearl": "Pearl",
-    "light": "Light"
+    "mauveEmphasized": "Mauve Emphasized",
+    "lavenderEmphasized": "Lavender Emphasized",
+    "camelliaEmphasized": "Camellia Emphasized",
+    "papayaEmphasized": "Papaya Emphasized",
+    "mangoEmphasized": "Mango Emphasized",
+    "oliveEmphasized": "Olive Emphasized",
+    "grassEmphasized": "Grass Emphasized",
+    "jadeEmphasized": "Jade Emphasized",
+    "azureEmphasized": "Azure Emphasized",
+    "ironEmphasized": "Iron Emphasized"
   },
   "emoji": {
     "emojiTab": "Emoji",

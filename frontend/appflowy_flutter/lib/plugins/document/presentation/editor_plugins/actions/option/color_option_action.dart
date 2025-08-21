@@ -3,7 +3,6 @@ import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/shared/flowy_tint_colors.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart' hide ColorPicker;
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
@@ -103,7 +102,7 @@ class _ColorOptionButtonState extends State<ColorOptionButton> {
       colorType: ColorType.background,
       title: LocaleKeys.document_toolbar_backgroundColor.tr(),
       defaultColor: BuiltinAFColor('bg-default'),
-      builtinColors: isPro()
+      builtinColors: context.read<UserWorkspaceBloc>().state.isInProPlan
           ? [
               BuiltinAFColor('bg-color-14'),
               BuiltinAFColor('bg-color-15'),
@@ -173,13 +172,5 @@ class _ColorOptionButtonState extends State<ColorOptionButton> {
 
     innerController.close();
     widget.controller.close();
-  }
-
-  bool isPro() {
-    final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
-
-    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
-    return subscriptionPlan != null &&
-        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
   }
 }

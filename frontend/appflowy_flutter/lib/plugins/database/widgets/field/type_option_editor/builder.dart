@@ -52,20 +52,3 @@ abstract class TypeOptionEditorFactory {
     required TypeOptionDataCallback onTypeOptionUpdated,
   });
 }
-
-Widget? makeTypeOptionEditor({
-  required BuildContext context,
-  required String viewId,
-  required FieldPB field,
-  required PopoverMutex popoverMutex,
-  required TypeOptionDataCallback onTypeOptionUpdated,
-}) {
-  final editorBuilder = TypeOptionEditorFactory.makeBuilder(field.fieldType);
-  return editorBuilder.build(
-    context: context,
-    viewId: viewId,
-    field: field,
-    onTypeOptionUpdated: onTypeOptionUpdated,
-    popoverMutex: popoverMutex,
-  );
-}

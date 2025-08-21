@@ -66,7 +66,7 @@ void main() {
     test('update field type option', () async {
       final selectOption = SelectOptionPB()
         ..id = nanoid(4)
-        ..color = SelectOptionColorPB.Lime
+        ..color = SelectOptionColorPB.SelectOptionColor3
         ..name = "New option";
       final typeOptionData = SingleSelectTypeOptionPB()
         ..options.addAll([selectOption]);

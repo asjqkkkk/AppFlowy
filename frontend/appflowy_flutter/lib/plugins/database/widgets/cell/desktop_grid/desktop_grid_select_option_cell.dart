@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_bloc.dart';
 import 'package:appflowy/plugins/database/grid/presentation/layout/sizes.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_cell_editor.dart';
@@ -25,9 +26,12 @@ class DesktopGridSelectOptionCellSkin extends IEditableSelectOptionCellSkin {
       margin: EdgeInsets.zero,
       triggerActions: PopoverTriggerFlags.none,
       direction: PopoverDirection.bottomWithLeftAligned,
-      popupBuilder: (BuildContext popoverContext) {
-        return SelectOptionCellEditor(
-          cellController: bloc.cellController,
+      popupBuilder: (popoverContext) {
+        return BlocProvider.value(
+          value: context.read<UserWorkspaceBloc>(),
+          child: SelectOptionCellEditor(
+            cellController: bloc.cellController,
+          ),
         );
       },
       onClose: () => cellContainerNotifier.isFocus = false,
