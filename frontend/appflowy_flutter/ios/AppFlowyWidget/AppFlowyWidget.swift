@@ -514,7 +514,7 @@ struct WidgetContentView: View {
       WidgetHeaderView(
         widgetType: widgetType,
         size: config.headerSize,
-        topPadding: topPadding,
+        topPadding: topPadding
       )
 
       Divider()
