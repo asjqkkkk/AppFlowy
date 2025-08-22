@@ -116,16 +116,17 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
   List<SharedUser> buildDisplayingUsers(ShareTabBloc bloc, String query) {
     final state = bloc.state,
         sectionType = state.sectionType,
-        isPrivate = sectionType == SharedSectionType.private,
+        isPrivateOrShared = sectionType == SharedSectionType.private ||
+            sectionType == SharedSectionType.shared,
         currentUserEmail = state.currentUser?.email,
         invitedUsers = state.users;
     Set<SharedUser> availableUsers = invitedUsers.toSet();
     final emails = availableUsers.map((e) => e.email).toSet();
 
-    /// If the page is private, include all users here
+    /// If the page is private or shared, include all users here
     /// 1. for the invited persons, we can change their access level at once
     /// 2. for the uninvited persons, we can invite them with specific access level
-    if (isPrivate) {
+    if (isPrivateOrShared) {
       availableUsers.addAll(
         state.persons
             .where((p) => !emails.contains(p.email))
