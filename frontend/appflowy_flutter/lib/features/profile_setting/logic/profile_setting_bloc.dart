@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:appflowy/features/profile_setting/data/banner.dart';
-import 'package:appflowy/features/profile_setting/data/repository/mock_profile_setting.repository.dart';
 import 'package:appflowy/features/profile_setting/data/repository/profile_setting_repository.dart';
+import 'package:appflowy/features/profile_setting/data/repository/rust_profile_setting_repository.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:bloc/bloc.dart';
@@ -16,7 +16,8 @@ class ProfileSettingBloc
     ProfileSettingRepository? repository,
     required this.userProfile,
     required this.workspaceId,
-  })  : repository = repository ?? MockProfileSettingRepository(),
+  })  : repository = repository ??
+            RustProfileSettingRepository(userProfile: userProfile),
         super(ProfileSettingState.empty()) {
     on<ProfileSettingInitialEvent>(_onInitial);
     on<ProfileSettingUpdateNameEvent>(_onUpdateName);

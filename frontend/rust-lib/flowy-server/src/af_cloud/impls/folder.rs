@@ -363,6 +363,17 @@ where
     Ok(resp)
   }
 
+  async fn get_user_workspace_profile(
+    &self,
+    workspace_id: &Uuid,
+  ) -> Result<MentionablePerson, FlowyError> {
+    let try_get_client = self.inner.try_get_client();
+    let resp = try_get_client?
+      .get_user_workspace_profile(workspace_id)
+      .await?;
+    Ok(resp)
+  }
+
   async fn update_page_mention(
     &self,
     workspace_id: &Uuid,

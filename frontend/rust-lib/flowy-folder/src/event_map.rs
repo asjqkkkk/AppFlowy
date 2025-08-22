@@ -71,6 +71,7 @@ pub fn init(folder: Weak<FolderManager>) -> AFPlugin {
     .event(FolderEvent::ImportWorkspace, import_workspace_handler)
     .event(FolderEvent::UpdateWorkspaceMemberProfile, update_workspace_member_profile_handler)
     .event(FolderEvent::GetWorkspaceMentionablePerson, get_workspace_mentionable_person_handler)
+    .event(FolderEvent::GetUserWorkspaceProfile, get_user_workspace_profile_handler)
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Debug, Display, Hash, ProtoBuf_Enum, Flowy_Event)]
@@ -285,6 +286,9 @@ pub enum FolderEvent {
 
   #[event(input = "PersonIdPB", output = "MentionablePersonPB")]
   GetWorkspaceMentionablePerson = 69,
+
+  #[event(output = "MentionablePersonPB")]
+  GetUserWorkspaceProfile = 70,
 
   #[event(input = "ExportWorkspaceRequestPB")]
   ExportWorkspace = 150,

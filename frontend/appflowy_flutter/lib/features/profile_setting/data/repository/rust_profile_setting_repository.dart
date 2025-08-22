@@ -34,7 +34,7 @@ class RustProfileSettingRepository implements ProfileSettingRepository {
       );
     }
     final result =
-        await ViewBackendService.getWorkspaceMentionablePerson(userId);
+        await ViewBackendService.getUserWorkspaceProfile();
     return result.fold((p) {
       final customCoverUrl = p.customCoverImageUrl;
       return FlowyResult.success(

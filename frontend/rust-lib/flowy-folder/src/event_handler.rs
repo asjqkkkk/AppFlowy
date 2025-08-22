@@ -735,3 +735,12 @@ pub(crate) async fn get_workspace_mentionable_person_handler(
   let person = folder.get_workspace_mentionable_person(&person_id).await?;
   data_result_ok(MentionablePersonPB::from(person))
 }
+
+#[tracing::instrument(level = "info", skip(folder), err)]
+pub(crate) async fn get_user_workspace_profile_handler(
+  folder: AFPluginState<Weak<FolderManager>>,
+) -> DataResult<MentionablePersonPB, FlowyError> {
+  let folder = upgrade_folder(folder)?;
+  let person = folder.get_user_workspace_profile().await?;
+  data_result_ok(MentionablePersonPB::from(person))
+}

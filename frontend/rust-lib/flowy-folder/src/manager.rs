@@ -3437,6 +3437,16 @@ impl FolderManager {
     Ok(resp)
   }
 
+  pub async fn get_user_workspace_profile(&self) -> FlowyResult<MentionablePerson> {
+    let workspace_id = self.user.workspace_id()?;
+    let resp = self
+      .cloud_service()?
+      .get_user_workspace_profile(&workspace_id)
+      .await?;
+
+    Ok(resp)
+  }
+
   pub async fn get_other_private_view_ids_cached(
     &self,
     with_cache: bool,

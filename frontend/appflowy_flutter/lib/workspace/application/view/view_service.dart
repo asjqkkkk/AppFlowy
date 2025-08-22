@@ -464,4 +464,9 @@ class ViewBackendService {
       PersonIdPB(personId: personId),
     ).send();
   }
+
+  static Future<FlowyResult<MentionablePersonPB, FlowyError>>
+      getUserWorkspaceProfile() async {
+    return FolderEventGetUserWorkspaceProfile().send();
+  }
 }
