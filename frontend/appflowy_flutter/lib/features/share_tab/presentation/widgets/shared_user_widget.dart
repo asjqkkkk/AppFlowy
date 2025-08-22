@@ -73,14 +73,12 @@ class SharedUserWidget extends StatelessWidget {
         // if the user is the current user, show '(You)'
         if (isCurrentUser) ...[
           HSpace(theme.spacing.xs),
-          Flexible(
-            child: Text(
-              LocaleKeys.shareTab_you.tr(),
-              style: theme.textStyle.caption.standard(
-                color: theme.textColorScheme.secondary,
-              ),
-              overflow: TextOverflow.ellipsis,
+          Text(
+            LocaleKeys.shareTab_you.tr(),
+            style: theme.textStyle.caption.standard(
+              color: theme.textColorScheme.secondary,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
         // if the user is a guest, show 'Guest'

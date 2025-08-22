@@ -1,3 +1,6 @@
+import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:appflowy/features/share_tab/data/models/share_section_type.dart';
+import 'package:appflowy/features/share_tab/data/models/shared_user.dart';
 import 'package:appflowy/features/share_tab/logic/share_tab_bloc.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -54,9 +57,13 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
-    final shareTabBloc = context.read<ShareTabBloc>(),
-        shareTabState = shareTabBloc.state,
-        availableEmails = shareTabState.users.map((e) => e.email).toSet();
+    final shareTabBloc = context.watch<ShareTabBloc>();
+
+    final displayingUsers = buildDisplayingUsers(shareTabBloc, '');
+    final remainingEmails = buildRemainingEmails(
+      shareTabBloc,
+      displayingUsers.map((e) => e.email).toSet(),
+    );
 
     final Widget child = Row(
       children: [
@@ -65,6 +72,7 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
             textController: effectiveController,
             controller: inviteController,
             readOnly: widget.disabled,
+            displayingUsers: displayingUsers,
             showAccessLevelWidget: widget.showAccessLevelWidget,
             onDataChanged: (data) {
               final enableButton = data.emails.isNotEmpty;
@@ -75,24 +83,8 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
               }
               emailsWithAccessLevel = data;
             },
-            isEmailInvited: (email) => availableEmails.contains(email),
-            persons: shareTabState.persons
-                .where((e) => !availableEmails.contains(e.email))
-                .toList(),
-            filterPersons: (v) {
-              final query = v.toLowerCase();
-              final availablePersons = shareTabState.persons
-                  .where((e) => !availableEmails.contains(e.email))
-                  .toList();
-              if (query.isEmpty) return availablePersons;
-              return availablePersons
-                  .where(
-                    (e) =>
-                        e.name.toLowerCase().contains(query) ||
-                        e.email.toLowerCase().contains(query),
-                  )
-                  .toList();
-            },
+            isEmailInvited: (email) => remainingEmails.contains(email),
+            filterUsers: (v) => buildDisplayingUsers(shareTabBloc, v),
           ),
         ),
         HSpace(theme.spacing.s),
@@ -119,5 +111,61 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
     }
 
     return child;
+  }
+
+  List<SharedUser> buildDisplayingUsers(ShareTabBloc bloc, String query) {
+    final state = bloc.state,
+        sectionType = state.sectionType,
+        isPrivate = sectionType == SharedSectionType.private,
+        currentUserEmail = state.currentUser?.email,
+        invitedUsers = state.users;
+    Set<SharedUser> availableUsers = invitedUsers.toSet();
+    final emails = availableUsers.map((e) => e.email).toSet();
+
+    /// If the page is private, include all users here
+    /// 1. for the invited persons, we can change their access level at once
+    /// 2. for the uninvited persons, we can invite them with specific access level
+    if (isPrivate) {
+      availableUsers.addAll(
+        state.persons
+            .where((p) => !emails.contains(p.email))
+            .map((p) => p.toShareUser()),
+      );
+    } else {
+      /// if the page is public, all the member should not be invited again,
+      /// because they already have full access
+      availableUsers =
+          availableUsers.where((u) => u.role == ShareRole.guest).toSet();
+    }
+
+    /// you cannot invite yourself
+    availableUsers.removeWhere((u) => u.email == currentUserEmail);
+    if (query.isEmpty) return availableUsers.toList();
+
+    /// filter persons by the query text
+    return availableUsers
+        .where(
+          (e) =>
+              e.name.toLowerCase().contains(query) ||
+              e.email.toLowerCase().contains(query),
+        )
+        .toList();
+  }
+
+  Set<String> buildRemainingEmails(
+    ShareTabBloc bloc,
+    Set<String> currentEmails,
+  ) {
+    final state = bloc.state;
+    final currentUserEmail = state.currentUser?.email;
+    return <String>{
+      if (currentUserEmail != null) currentUserEmail,
+      ...state.users
+          .map((e) => e.email)
+          .where((e) => !currentEmails.contains(e)),
+      ...state.persons
+          .map((e) => e.email)
+          .where((e) => !currentEmails.contains(e)),
+    };
   }
 }

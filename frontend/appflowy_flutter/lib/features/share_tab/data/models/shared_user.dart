@@ -64,3 +64,28 @@ class SharedUser extends Equatable {
     );
   }
 }
+
+extension MentionablePersonPBExtension on MentionablePersonPB {
+  SharedUser toShareUser() {
+    return SharedUser(
+      email: email,
+      name: name,
+      role: _toRole(),
+      accessLevel: ShareAccessLevel.readOnly,
+      avatarUrl: avatarUrl,
+      isPending: false,
+    );
+  }
+
+  ShareRole _toRole() {
+    switch (role) {
+      case MentionablePersonTypePB.Contact:
+        return ShareRole.guest;
+      case MentionablePersonTypePB.WorkspaceMember:
+        return ShareRole.member;
+      case MentionablePersonTypePB.WorkspaceGuest:
+        return ShareRole.guest;
+    }
+    return ShareRole.guest;
+  }
+}
