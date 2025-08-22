@@ -288,6 +288,8 @@ class _AppLinkWrapper {
     _appLinkSubscription = _appLinks.uriLinkStream.listen((event) {
       _streamSubscription.sink.add(event);
     });
+
+    _checkInitialLink();
   }
 
   static final _AppLinkWrapper instance = _AppLinkWrapper._();
@@ -295,6 +297,22 @@ class _AppLinkWrapper {
   final AppLinks _appLinks = AppLinks();
   final _streamSubscription = StreamController<Uri?>.broadcast();
   late final StreamSubscription<Uri?> _appLinkSubscription;
+
+  Future<void> _checkInitialLink() async {
+    try {
+      final initialUri = await _appLinks.getInitialLink();
+      if (initialUri != null) {
+        Log.info(
+          '[AppFlowyCloudDeepLink] Initial link detected: ${initialUri.toString()}',
+        );
+        // wait for the handler to be registered
+        await Future.delayed(const Duration(milliseconds: 100));
+        _streamSubscription.sink.add(initialUri);
+      }
+    } catch (e) {
+      Log.error('Failed to get initial app link: $e');
+    }
+  }
 
   StreamSubscription<Uri?> listen(
     void Function(Uri?) listener, {

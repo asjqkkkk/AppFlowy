@@ -5,7 +5,6 @@ import 'package:appflowy/mobile/application/page_style/document_page_style_bloc.
 import 'package:appflowy/shared/feedback_gesture_detector.dart';
 import 'package:appflowy/shared/flowy_gradient_colors.dart';
 import 'package:appflowy/shared/flowy_tint_colors.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -23,9 +22,7 @@ class PageCoverBottomSheet extends StatelessWidget {
 
     final userWorkspaceState = context.read<UserWorkspaceBloc>().state;
 
-    final subscriptionPlan = userWorkspaceState.workspaceSubscriptionInfo;
-    final isPro = subscriptionPlan != null &&
-        subscriptionPlan.plan == SubscriptionPlanPB.Pro;
+    final isPro = userWorkspaceState.isInProPlan;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

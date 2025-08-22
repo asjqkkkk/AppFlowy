@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/app_bar/app_bar.dart';
@@ -34,16 +35,32 @@ import 'package:go_router/go_router.dart';
 import 'widgets/mobile_create_field_button.dart';
 import 'widgets/mobile_row_property_list.dart';
 
+Future<void> pushRowDetailPage(
+  BuildContext context, {
+  required DatabaseController databaseController,
+  required String rowId,
+}) async {
+  await Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) {
+        return BlocProvider.value(
+          value: context.read<UserWorkspaceBloc>(),
+          child: MobileRowDetailPage(
+            databaseController: databaseController,
+            rowId: rowId,
+          ),
+        );
+      },
+    ),
+  );
+}
+
 class MobileRowDetailPage extends StatefulWidget {
   const MobileRowDetailPage({
     super.key,
     required this.databaseController,
     required this.rowId,
   });
-
-  static const routeName = '/MobileRowDetailPage';
-  static const argDatabaseController = 'databaseController';
-  static const argRowId = 'rowId';
 
   final DatabaseController databaseController;
   final String rowId;

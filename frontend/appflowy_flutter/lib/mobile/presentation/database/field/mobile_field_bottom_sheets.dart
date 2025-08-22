@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:flutter/material.dart';
 
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -9,7 +10,7 @@ import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.da
 import 'package:appflowy/util/field_type_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'mobile_create_field_screen.dart';
 import 'mobile_edit_field_screen.dart';
@@ -83,14 +84,19 @@ void mobileCreateFieldWorkflow(
   if (fieldType == null || !context.mounted) {
     return;
   }
-  final optionValues = await context.push<FieldOptionValues>(
-    Uri(
-      path: MobileNewPropertyScreen.routeName,
-      queryParameters: {
-        MobileNewPropertyScreen.argViewId: viewId,
-        MobileNewPropertyScreen.argFieldTypeId: fieldType.value.toString(),
+
+  final optionValues = await Navigator.of(context).push<FieldOptionValues>(
+    MaterialPageRoute<FieldOptionValues>(
+      builder: (_) {
+        return BlocProvider.value(
+          value: context.read<UserWorkspaceBloc>(),
+          child: MobileNewPropertyScreen(
+            viewId: viewId,
+            fieldType: fieldType,
+          ),
+        );
       },
-    ).toString(),
+    ),
   );
   if (optionValues != null) {
     await optionValues.create(viewId: viewId, position: position);
@@ -103,12 +109,18 @@ Future<FieldOptionValues?> showEditFieldScreen(
   String viewId,
   FieldInfo field,
 ) {
-  return context.push<FieldOptionValues>(
-    MobileEditPropertyScreen.routeName,
-    extra: {
-      MobileEditPropertyScreen.argViewId: viewId,
-      MobileEditPropertyScreen.argField: field,
-    },
+  return Navigator.of(context).push(
+    MaterialPageRoute<FieldOptionValues>(
+      builder: (_) {
+        return BlocProvider.value(
+          value: context.read<UserWorkspaceBloc>(),
+          child: MobileEditPropertyScreen(
+            viewId: viewId,
+            field: field,
+          ),
+        );
+      },
+    ),
   );
 }
 
@@ -122,12 +134,15 @@ void showQuickEditField(
   showMobileBottomSheet(
     context,
     showDragHandle: true,
-    builder: (context) {
-      return SingleChildScrollView(
-        child: QuickEditField(
-          viewId: viewId,
-          fieldController: fieldController,
-          fieldInfo: fieldInfo,
+    builder: (_) {
+      return BlocProvider.value(
+        value: context.read<UserWorkspaceBloc>(),
+        child: SingleChildScrollView(
+          child: QuickEditField(
+            viewId: viewId,
+            fieldController: fieldController,
+            fieldInfo: fieldInfo,
+          ),
         ),
       );
     },

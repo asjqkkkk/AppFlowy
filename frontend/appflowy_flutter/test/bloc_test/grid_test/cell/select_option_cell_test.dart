@@ -47,13 +47,16 @@ void main() {
       await gridResponseFuture();
 
       final SelectOptionPB optionUpdate = bloc.state.options[0]
-        ..color = SelectOptionColorPB.Aqua
+        ..color = SelectOptionColorPB.SelectOptionColor7
         ..name = "B";
       bloc.add(SelectOptionCellEditorEvent.updateOption(optionUpdate));
 
       expect(bloc.state.options.length, 1);
       expect(bloc.state.options[0].name, "B");
-      expect(bloc.state.options[0].color, SelectOptionColorPB.Aqua);
+      expect(
+        bloc.state.options[0].color,
+        SelectOptionColorPB.SelectOptionColor7,
+      );
     });
 
     test('delete options', () async {

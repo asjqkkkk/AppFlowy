@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flutter/material.dart';
@@ -51,6 +52,8 @@ class _MobileSelectOptionEditorState extends State<MobileSelectOptionEditor> {
 
   @override
   Widget build(BuildContext context) {
+    final isPro = context.read<UserWorkspaceBloc>().state.isInProPlan;
+
     return ConstrainedBox(
       constraints: const BoxConstraints.tightFor(height: 420),
       child: BlocProvider(
@@ -65,13 +68,12 @@ class _MobileSelectOptionEditorState extends State<MobileSelectOptionEditor> {
               children: [
                 const DragHandle(),
                 _buildHeader(context),
-                const Divider(height: 0.5),
                 Expanded(
                   child: Padding(
                     padding: EdgeInsets.symmetric(
                       horizontal: showMoreOptions ? 0.0 : 16.0,
                     ),
-                    child: _buildBody(context),
+                    child: _buildBody(context, isPro),
                   ),
                 ),
               ],
@@ -104,11 +106,12 @@ class _MobileSelectOptionEditorState extends State<MobileSelectOptionEditor> {
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, bool isPro) {
     if (showMoreOptions && option != null) {
       return _MoreOptions(
         initialOption: option!,
         controller: renameController,
+        isPro: isPro,
         onDelete: () {
           context
               .read<SelectOptionCellEditorBloc>()
@@ -414,15 +417,17 @@ class _CreateOptionCell extends StatelessWidget {
 class _MoreOptions extends StatefulWidget {
   const _MoreOptions({
     required this.initialOption,
+    required this.controller,
+    required this.isPro,
     required this.onDelete,
     required this.onUpdate,
-    required this.controller,
   });
 
   final SelectOptionPB initialOption;
+  final TextEditingController controller;
+  final bool isPro;
   final VoidCallback onDelete;
   final void Function(String? name, SelectOptionColorPB? color) onUpdate;
-  final TextEditingController controller;
 
   @override
   State<_MoreOptions> createState() => _MoreOptionsState();
@@ -453,6 +458,7 @@ class _MoreOptionsState extends State<_MoreOptions> {
           FlowyOptionDecorateBox(
             showBottomBorder: false,
             child: OptionColorList(
+              isPro: widget.isPro,
               selectedColor: option.color,
               onSelectColor: (color) {
                 widget.onUpdate(null, color);
@@ -472,7 +478,6 @@ class _MoreOptionsState extends State<_MoreOptions> {
     return ConstrainedBox(
       constraints: const BoxConstraints.tightFor(height: 52.0),
       child: FlowyOptionTile.textField(
-        showTopBorder: false,
         onTextChanged: (name) => widget.onUpdate(name, null),
         controller: widget.controller,
       ),

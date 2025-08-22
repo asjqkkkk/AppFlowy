@@ -14,6 +14,7 @@ class SelectOptionEditor extends StatefulWidget {
     required this.option,
     required this.onDeleted,
     required this.onUpdated,
+    this.isPro = false,
     this.autoFocus = true,
   });
 
@@ -21,19 +22,14 @@ class SelectOptionEditor extends StatefulWidget {
   final VoidCallback onDeleted;
   final Function(SelectOptionPB) onUpdated;
   final bool autoFocus;
+  final bool isPro;
 
   @override
   State<SelectOptionEditor> createState() => _SelectOptionEditorState();
 }
 
 class _SelectOptionEditorState extends State<SelectOptionEditor> {
-  late SelectOptionPB option;
-
-  @override
-  void initState() {
-    super.initState();
-    option = widget.option;
-  }
+  late SelectOptionPB option = widget.option;
 
   @override
   Widget build(BuildContext context) {
@@ -96,18 +92,41 @@ class _SelectOptionEditorState extends State<SelectOptionEditor> {
       key: 'select_option_color',
       title: LocaleKeys.grid_selectOption_colorPanelTitle.tr(),
       colorType: ColorType.background,
-      builtinColors: [
-        BuiltinAFColor('bg-color-14'),
-        BuiltinAFColor('bg-color-16'),
-        BuiltinAFColor('bg-color-18'),
-        BuiltinAFColor('bg-color-2'),
-        BuiltinAFColor('bg-color-4'),
-        BuiltinAFColor('bg-color-6'),
-        BuiltinAFColor('bg-color-8'),
-        BuiltinAFColor('bg-color-10'),
-        BuiltinAFColor('bg-color-12'),
-        BuiltinAFColor('bg-color-20'),
-      ],
+      builtinColors: widget.isPro
+          ? [
+              BuiltinAFColor('tag-fill-1-light'),
+              BuiltinAFColor('tag-fill-2-light'),
+              BuiltinAFColor('tag-fill-3-light'),
+              BuiltinAFColor('tag-fill-4-light'),
+              BuiltinAFColor('tag-fill-5-light'),
+              BuiltinAFColor('tag-fill-6-light'),
+              BuiltinAFColor('tag-fill-7-light'),
+              BuiltinAFColor('tag-fill-8-light'),
+              BuiltinAFColor('tag-fill-9-light'),
+              BuiltinAFColor('tag-fill-10-light'),
+              BuiltinAFColor('tag-fill-1-thick'),
+              BuiltinAFColor('tag-fill-2-thick'),
+              BuiltinAFColor('tag-fill-3-thick'),
+              BuiltinAFColor('tag-fill-4-thick'),
+              BuiltinAFColor('tag-fill-5-thick'),
+              BuiltinAFColor('tag-fill-6-thick'),
+              BuiltinAFColor('tag-fill-7-thick'),
+              BuiltinAFColor('tag-fill-8-thick'),
+              BuiltinAFColor('tag-fill-9-thick'),
+              BuiltinAFColor('tag-fill-10-thick'),
+            ]
+          : [
+              BuiltinAFColor('tag-fill-1-light'),
+              BuiltinAFColor('tag-fill-2-light'),
+              BuiltinAFColor('tag-fill-3-light'),
+              BuiltinAFColor('tag-fill-4-light'),
+              BuiltinAFColor('tag-fill-5-light'),
+              BuiltinAFColor('tag-fill-6-light'),
+              BuiltinAFColor('tag-fill-7-light'),
+              BuiltinAFColor('tag-fill-8-light'),
+              BuiltinAFColor('tag-fill-9-light'),
+              BuiltinAFColor('tag-fill-10-light'),
+            ],
       recentColorLimit: 5,
       customColorLimit: 5,
       showCustom: false,
@@ -265,27 +284,34 @@ class SelectOptionTag extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
 
-    final optionName = option?.name ?? name ?? '';
-    final optionColor = option == null
-        ? color
-        : selectOptionColorToBgAFColor(option!.color).toColor(theme);
+    final text = option?.name ?? name ?? '';
+
+    final Color? fgColor;
+    final Color? bgColor;
+
+    if (option == null) {
+      fgColor = theme.textColorScheme.primary;
+      bgColor = color;
+    } else {
+      fgColor = selectOptionColorToTextAFColor(option!.color).toColor(theme);
+      bgColor = selectOptionColorToBgAFColor(option!.color).toColor(theme);
+    }
 
     return AFTag(
-      text: optionName,
-      textStyle: textStyle ??
-          theme.textStyle.body.standard(color: theme.textColorScheme.primary),
-      color: optionColor,
+      text: text,
+      textStyle: textStyle ?? theme.textStyle.body.standard(color: fgColor),
+      color: bgColor,
       padding: padding,
       trailing: onRemove != null
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
-                onTap: () => onRemove?.call(optionName),
+                onTap: () => onRemove?.call(text),
                 behavior: HitTestBehavior.opaque,
                 child: FlowySvg(
                   FlowySvgs.close_s,
-                  size: Size.square(20.0),
-                  color: theme.iconColorScheme.primary,
+                  size: const Size.square(20.0),
+                  color: fgColor,
                 ),
               ),
             )

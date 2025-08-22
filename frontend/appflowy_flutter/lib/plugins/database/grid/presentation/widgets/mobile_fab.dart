@@ -3,7 +3,6 @@ import 'package:appflowy/mobile/presentation/database/card/card_detail/mobile_ca
 import 'package:appflowy/plugins/database/grid/application/grid_bloc.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 Widget getGridFabs(BuildContext context) {
@@ -16,13 +15,10 @@ Widget getGridFabs(BuildContext context) {
         onTap: () {
           final bloc = context.read<GridBloc>();
           if (bloc.state.rowInfos.isNotEmpty) {
-            context.push(
-              MobileRowDetailPage.routeName,
-              extra: {
-                MobileRowDetailPage.argRowId: bloc.state.rowInfos.first.rowId,
-                MobileRowDetailPage.argDatabaseController:
-                    bloc.databaseController,
-              },
+            pushRowDetailPage(
+              context,
+              databaseController: bloc.databaseController,
+              rowId: bloc.state.rowInfos.first.rowId,
             );
           }
         },

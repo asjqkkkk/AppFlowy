@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/plugins/database/application/field/field_cell_bloc.dart';
 import 'package:appflowy/plugins/database/application/field/field_controller.dart';
@@ -81,17 +82,21 @@ class _GridFieldCellState extends State<GridFieldCell> {
             margin: EdgeInsets.zero,
             direction: PopoverDirection.bottomWithLeftAligned,
             controller: popoverController,
-            popupBuilder: (BuildContext context) {
+            popupBuilder: (popoverContext) {
               widget.onEditorOpened();
-              return FieldEditor(
-                viewId: widget.viewId,
-                fieldController: widget.fieldController,
-                fieldInfo: widget.fieldInfo,
-                isNewField: widget.isNew,
-                initialPage: widget.isNew
-                    ? FieldEditorPage.details
-                    : FieldEditorPage.general,
-                onFieldInserted: widget.onFieldInsertedOnEitherSide,
+
+              return BlocProvider.value(
+                value: context.read<UserWorkspaceBloc>(),
+                child: FieldEditor(
+                  viewId: widget.viewId,
+                  fieldController: widget.fieldController,
+                  fieldInfo: widget.fieldInfo,
+                  isNewField: widget.isNew,
+                  initialPage: widget.isNew
+                      ? FieldEditorPage.details
+                      : FieldEditorPage.general,
+                  onFieldInserted: widget.onFieldInsertedOnEitherSide,
+                ),
               );
             },
             child: FlowyTooltip(

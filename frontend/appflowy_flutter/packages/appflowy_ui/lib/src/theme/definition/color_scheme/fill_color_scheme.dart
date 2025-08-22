@@ -17,6 +17,7 @@ class AppFlowyFillColorScheme {
     required this.themeThick,
     required this.themeThickHover,
     required this.themeSelect,
+    required this.buttonActive,
     required this.textSelect,
     required this.infoLight,
     required this.infoLightHover,
@@ -54,6 +55,7 @@ class AppFlowyFillColorScheme {
   final Color themeThick;
   final Color themeThickHover;
   final Color themeSelect;
+  final Color buttonActive;
   final Color textSelect;
   final Color infoLight;
   final Color infoLightHover;
@@ -153,6 +155,11 @@ class AppFlowyFillColorScheme {
       themeSelect: Color.lerp(
         themeSelect,
         other.themeSelect,
+        t,
+      )!,
+      buttonActive: Color.lerp(
+        buttonActive,
+        other.buttonActive,
         t,
       )!,
       textSelect: Color.lerp(

@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -35,18 +36,26 @@ class MobileDatabaseViewQuickActions extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         _actionButton(context, _Action.edit, () async {
-          final bloc = context.read<ViewBloc>();
           await showTransitionMobileBottomSheet(
             context,
             showHeader: true,
             showDoneButton: true,
             title: LocaleKeys.grid_settings_editView.tr(),
-            builder: (_) => BlocProvider.value(
-              value: bloc,
-              child: MobileEditDatabaseViewScreen(
-                databaseController: databaseController,
-              ),
-            ),
+            builder: (_) {
+              return MultiBlocProvider(
+                providers: [
+                  BlocProvider.value(
+                    value: context.read<ViewBloc>(),
+                  ),
+                  BlocProvider.value(
+                    value: context.read<UserWorkspaceBloc>(),
+                  ),
+                ],
+                child: MobileEditDatabaseViewScreen(
+                  databaseController: databaseController,
+                ),
+              );
+            },
           );
           if (context.mounted) {
             context.pop();

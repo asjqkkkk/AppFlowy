@@ -15,6 +15,7 @@ class AppFlowyCommentColorScheme {
     required this.border03,
     required this.border03Select,
     required this.icon,
+    required this.highlight,
   });
 
   final Color fill01;
@@ -30,6 +31,7 @@ class AppFlowyCommentColorScheme {
   final Color border03;
   final Color border03Select;
   final Color icon;
+  final Color highlight;
 
   AppFlowyCommentColorScheme lerp(
     AppFlowyCommentColorScheme other,
@@ -49,6 +51,7 @@ class AppFlowyCommentColorScheme {
       border03: Color.lerp(border03, other.border03, t)!,
       border03Select: Color.lerp(border03Select, other.border03Select, t)!,
       icon: Color.lerp(icon, other.icon, t)!,
+      highlight: Color.lerp(highlight, other.highlight, t)!,
     );
   }
 }

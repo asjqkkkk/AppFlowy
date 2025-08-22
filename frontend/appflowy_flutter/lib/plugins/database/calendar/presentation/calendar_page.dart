@@ -554,12 +554,10 @@ class UnscheduleEventsList extends StatelessWidget {
           event: event,
           onPressed: () {
             if (UniversalPlatform.isMobile) {
-              context.push(
-                MobileRowDetailPage.routeName,
-                extra: {
-                  MobileRowDetailPage.argRowId: event.rowMeta.id,
-                  MobileRowDetailPage.argDatabaseController: databaseController,
-                },
+              pushRowDetailPage(
+                context,
+                databaseController: databaseController,
+                rowId: event.rowMeta.id,
               );
               context.pop();
             } else {

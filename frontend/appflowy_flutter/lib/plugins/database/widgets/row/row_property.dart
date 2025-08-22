@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller.dart';
@@ -239,13 +240,18 @@ class _PropertyCellState extends State<_PropertyCell> {
           onClose: () => context
               .read<RowDetailBloc>()
               .add(const RowDetailEvent.endEditingField()),
-          popupBuilder: (popoverContext) => FieldEditor(
-            viewId: widget.fieldController.viewId,
-            fieldInfo: fieldInfo,
-            fieldController: widget.fieldController,
-            isNewField: context.watch<RowDetailBloc>().state.newFieldId ==
-                widget.cellContext.fieldId,
-          ),
+          popupBuilder: (popoverContext) {
+            return BlocProvider.value(
+              value: context.read<UserWorkspaceBloc>(),
+              child: FieldEditor(
+                viewId: widget.fieldController.viewId,
+                fieldInfo: fieldInfo,
+                fieldController: widget.fieldController,
+                isNewField: context.watch<RowDetailBloc>().state.newFieldId ==
+                    widget.cellContext.fieldId,
+              ),
+            );
+          },
           child: SizedBox(
             width: 160,
             height: 30,

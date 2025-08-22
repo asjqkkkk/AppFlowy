@@ -19,9 +19,6 @@ part 'select_option_cell_editor_bloc.freezed.dart';
 const String createSelectOptionSuggestionId =
     "create_select_option_suggestion_id";
 
-/// Number of allowed SelectOptionColorPB colors
-const int _numberOfColors = 10;
-
 class SelectOptionCellEditorBloc
     extends Bloc<SelectOptionCellEditorEvent, SelectOptionCellEditorState> {
   SelectOptionCellEditorBloc({
@@ -215,7 +212,7 @@ class SelectOptionCellEditorBloc
       }
     }
 
-    final index = (hash.abs() % _numberOfColors) + 1;
+    final index = (hash.abs() % 10) + 1;
     final color = SelectOptionColorPB.values[index];
 
     final result = await _selectOptionService.create(

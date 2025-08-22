@@ -2,10 +2,6 @@ import 'dart:convert';
 
 import 'package:appflowy/mobile/presentation/chat/mobile_chat_screen.dart';
 import 'package:appflowy/mobile/presentation/database/board/mobile_board_screen.dart';
-import 'package:appflowy/mobile/presentation/database/card/card.dart';
-import 'package:appflowy/mobile/presentation/database/field/mobile_create_field_screen.dart';
-import 'package:appflowy/mobile/presentation/database/field/mobile_edit_field_screen.dart';
-import 'package:appflowy/mobile/presentation/database/mobile_calendar_events_screen.dart';
 import 'package:appflowy/mobile/presentation/database/mobile_calendar_screen.dart';
 import 'package:appflowy/mobile/presentation/database/mobile_grid_screen.dart';
 import 'package:appflowy/mobile/presentation/favorite/mobile_favorite_page.dart';
@@ -30,9 +26,7 @@ import 'package:appflowy/user/presentation/presentation.dart';
 import 'package:appflowy/workspace/presentation/home/desktop_home_screen.dart';
 import 'package:appflowy/workspace/presentation/settings/widgets/feature_flags/mobile_feature_flag_screen.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:flowy_infra/time/duration.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:sheet/route.dart';
@@ -70,10 +64,6 @@ GoRouter generateRouter(Widget child) {
         _mobileBoardScreenRoute(),
         _mobileCalendarScreenRoute(),
         _mobileChatScreenRoute(),
-        // card detail page
-        _mobileCardDetailScreenRoute(),
-        _mobileNewPropertyPageRoute(),
-        _mobileEditPropertyPageRoute(),
 
         // home
         // MobileHomeSettingPage is outside the bottom navigation bar, thus it is not in the StatefulShellRoute.
@@ -90,9 +80,6 @@ GoRouter generateRouter(Widget child) {
         _mobileCodeLanguagePickerPageRoute(),
         _mobileLanguagePickerPageRoute(),
         _mobileFontPickerPageRoute(),
-
-        // calendar related
-        _mobileCalendarEventsPageRoute(),
 
         _mobileBlockSettingsPageRoute(),
 
@@ -428,68 +415,6 @@ GoRoute _mobileFontPickerPageRoute() {
   );
 }
 
-GoRoute _mobileNewPropertyPageRoute() {
-  return GoRoute(
-    parentNavigatorKey: AppGlobals.rootNavKey,
-    path: MobileNewPropertyScreen.routeName,
-    pageBuilder: (context, state) {
-      final viewId = state
-          .uri.queryParameters[MobileNewPropertyScreen.argViewId] as String;
-      final fieldTypeId =
-          state.uri.queryParameters[MobileNewPropertyScreen.argFieldTypeId] ??
-              FieldType.RichText.value.toString();
-      final value = int.parse(fieldTypeId);
-      return MaterialExtendedPage(
-        fullscreenDialog: true,
-        child: MobileNewPropertyScreen(
-          viewId: viewId,
-          fieldType: FieldType.valueOf(value),
-        ),
-        name: MobileNewPropertyScreen.routeName,
-      );
-    },
-  );
-}
-
-GoRoute _mobileEditPropertyPageRoute() {
-  return GoRoute(
-    parentNavigatorKey: AppGlobals.rootNavKey,
-    path: MobileEditPropertyScreen.routeName,
-    pageBuilder: (context, state) {
-      final args = state.extra as Map<String, dynamic>;
-      return MaterialExtendedPage(
-        fullscreenDialog: true,
-        child: MobileEditPropertyScreen(
-          viewId: args[MobileEditPropertyScreen.argViewId],
-          field: args[MobileEditPropertyScreen.argField],
-        ),
-        name: MobileEditPropertyScreen.routeName,
-      );
-    },
-  );
-}
-
-GoRoute _mobileCalendarEventsPageRoute() {
-  return GoRoute(
-    path: MobileCalendarEventsScreen.routeName,
-    parentNavigatorKey: AppGlobals.rootNavKey,
-    pageBuilder: (context, state) {
-      final args = state.extra as Map<String, dynamic>;
-
-      return MaterialExtendedPage(
-        child: MobileCalendarEventsScreen(
-          calendarBloc: args[MobileCalendarEventsScreen.calendarBlocKey],
-          date: args[MobileCalendarEventsScreen.calendarDateKey],
-          events: args[MobileCalendarEventsScreen.calendarEventsKey],
-          rowCache: args[MobileCalendarEventsScreen.calendarRowCacheKey],
-          viewId: args[MobileCalendarEventsScreen.calendarViewIdKey],
-        ),
-        name: MobileCalendarEventsScreen.routeName,
-      );
-    },
-  );
-}
-
 GoRoute _desktopHomeScreenRoute() {
   return GoRoute(
     path: DesktopHomeScreen.routeName,
@@ -661,41 +586,6 @@ GoRoute _mobileCalendarScreenRoute() {
   );
 }
 
-GoRoute _mobileCardDetailScreenRoute() {
-  return GoRoute(
-    parentNavigatorKey: AppGlobals.rootNavKey,
-    path: MobileRowDetailPage.routeName,
-    pageBuilder: (context, state) {
-      var extra = state.extra as Map<String, dynamic>?;
-
-      if (kDebugMode && extra == null) {
-        extra = _dynamicValues;
-      }
-
-      if (extra == null) {
-        return const MaterialExtendedPage(
-          child: SizedBox.shrink(),
-        );
-      }
-
-      final databaseController =
-          extra[MobileRowDetailPage.argDatabaseController];
-      final rowId = extra[MobileRowDetailPage.argRowId]!;
-
-      if (kDebugMode) {
-        _dynamicValues = extra;
-      }
-
-      return MaterialExtendedPage(
-        child: MobileRowDetailPage(
-          databaseController: databaseController,
-          rowId: rowId,
-        ),
-      );
-    },
-  );
-}
-
 GoRoute _rootRoute(Widget child) {
   return GoRoute(
     path: '/',
@@ -729,8 +619,3 @@ Widget _buildFadeTransition(
 Duration _slowDuration = Duration(
   milliseconds: RouteDurations.slow.inMilliseconds.round(),
 );
-
-// ONLY USE IN DEBUG MODE
-// this is a workaround for the issue of GoRouter not supporting extra with complex types
-// https://github.com/flutter/flutter/issues/137248
-Map<String, dynamic> _dynamicValues = {};

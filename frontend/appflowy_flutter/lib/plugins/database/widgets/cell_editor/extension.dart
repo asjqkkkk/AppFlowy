@@ -1,31 +1,122 @@
 import 'package:appflowy/features/color_picker/color_picker.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
 
-// NOTE: Yes, this doesn't make sense. But it's for backward compatibility with old code.
-
-const Map<SelectOptionColorPB, String> _selectOptionColorToAFColorMap = {
-  SelectOptionColorPB.Purple: 'bg-color-14',
-  SelectOptionColorPB.Pink: 'bg-color-16',
-  SelectOptionColorPB.LightPink: 'bg-color-18',
-  SelectOptionColorPB.Orange: 'bg-color-2',
-  SelectOptionColorPB.Yellow: 'bg-color-4',
-  SelectOptionColorPB.Lime: 'bg-color-6',
-  SelectOptionColorPB.Green: 'bg-color-8',
-  SelectOptionColorPB.Aqua: 'bg-color-10',
-  SelectOptionColorPB.Blue: 'bg-color-12',
-  SelectOptionColorPB.Cream: 'bg-color-20',
+const Map<SelectOptionColorPB, (String, String)>
+    _selectOptionColorToAFColorMap = {
+  SelectOptionColorPB.SelectOptionColor1: (
+    'tag-fill-1-light',
+    'tag-text-1-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor2: (
+    'tag-fill-2-light',
+    'tag-text-2-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor3: (
+    'tag-fill-3-light',
+    'tag-text-3-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor4: (
+    'tag-fill-4-light',
+    'tag-text-4-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor5: (
+    'tag-fill-5-light',
+    'tag-text-5-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor6: (
+    'tag-fill-6-light',
+    'tag-text-6-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor7: (
+    'tag-fill-7-light',
+    'tag-text-7-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor8: (
+    'tag-fill-8-light',
+    'tag-text-8-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor9: (
+    'tag-fill-9-light',
+    'tag-text-9-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor10: (
+    'tag-fill-10-light',
+    'tag-text-10-light'
+  ),
+  SelectOptionColorPB.SelectOptionColor11: (
+    'tag-fill-1-thick',
+    'tag-text-1-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor12: (
+    'tag-fill-2-thick',
+    'tag-text-2-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor13: (
+    'tag-fill-3-thick',
+    'tag-text-3-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor14: (
+    'tag-fill-4-thick',
+    'tag-text-4-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor15: (
+    'tag-fill-5-thick',
+    'tag-text-5-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor16: (
+    'tag-fill-6-thick',
+    'tag-text-6-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor17: (
+    'tag-fill-7-thick',
+    'tag-text-7-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor18: (
+    'tag-fill-8-thick',
+    'tag-text-8-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor19: (
+    'tag-fill-9-thick',
+    'tag-text-9-thick'
+  ),
+  SelectOptionColorPB.SelectOptionColor20: (
+    'tag-fill-10-thick',
+    'tag-text-10-thick'
+  ),
 };
 
 AFColor selectOptionColorToBgAFColor(SelectOptionColorPB color) {
-  final value = _selectOptionColorToAFColorMap[color] ?? 'bg-color-14';
+  final value = _selectOptionColorToAFColorMap[color]?.$1 ?? 'tag-fill-1-light';
+  return BuiltinAFColor(value);
+}
+
+AFColor selectOptionColorToTextAFColor(SelectOptionColorPB color) {
+  final value = _selectOptionColorToAFColorMap[color]?.$2 ?? 'tag-text-1-light';
   return BuiltinAFColor(value);
 }
 
 SelectOptionColorPB afColorToSelectOptionColor(AFColor color) {
-  return _selectOptionColorToAFColorMap.entries
-      .firstWhere(
-        (entry) => entry.value == color.value,
-        orElse: () => const MapEntry(SelectOptionColorPB.Purple, 'bg-color-14'),
-      )
-      .key;
+  return switch (color.value) {
+    'tag-fill-1-light' => SelectOptionColorPB.SelectOptionColor1,
+    'tag-fill-2-light' => SelectOptionColorPB.SelectOptionColor2,
+    'tag-fill-3-light' => SelectOptionColorPB.SelectOptionColor3,
+    'tag-fill-4-light' => SelectOptionColorPB.SelectOptionColor4,
+    'tag-fill-5-light' => SelectOptionColorPB.SelectOptionColor5,
+    'tag-fill-6-light' => SelectOptionColorPB.SelectOptionColor6,
+    'tag-fill-7-light' => SelectOptionColorPB.SelectOptionColor7,
+    'tag-fill-8-light' => SelectOptionColorPB.SelectOptionColor8,
+    'tag-fill-9-light' => SelectOptionColorPB.SelectOptionColor9,
+    'tag-fill-10-light' => SelectOptionColorPB.SelectOptionColor10,
+    'tag-fill-1-thick' => SelectOptionColorPB.SelectOptionColor11,
+    'tag-fill-2-thick' => SelectOptionColorPB.SelectOptionColor12,
+    'tag-fill-3-thick' => SelectOptionColorPB.SelectOptionColor13,
+    'tag-fill-4-thick' => SelectOptionColorPB.SelectOptionColor14,
+    'tag-fill-5-thick' => SelectOptionColorPB.SelectOptionColor15,
+    'tag-fill-6-thick' => SelectOptionColorPB.SelectOptionColor16,
+    'tag-fill-7-thick' => SelectOptionColorPB.SelectOptionColor17,
+    'tag-fill-8-thick' => SelectOptionColorPB.SelectOptionColor18,
+    'tag-fill-9-thick' => SelectOptionColorPB.SelectOptionColor19,
+    'tag-fill-10-thick' => SelectOptionColorPB.SelectOptionColor20,
+    _ => SelectOptionColorPB.SelectOptionColor1,
+  };
 }

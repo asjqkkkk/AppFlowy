@@ -65,7 +65,7 @@ class PublishedViewItem extends StatelessWidget {
           LocaleKeys.settings_sites_publishedPage_clickToOpenPageInApp.tr(),
       publishInfoView: publishInfoView,
       onTap: () {
-        context.popToHome();
+        context.popToDesktopHome();
 
         getIt<ActionNavigationBloc>().add(
           ActionNavigationEvent.performAction(

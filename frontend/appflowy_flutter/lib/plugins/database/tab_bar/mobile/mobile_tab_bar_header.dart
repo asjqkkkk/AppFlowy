@@ -1,4 +1,5 @@
 import 'package:appflowy/features/page_access_level/logic/page_access_level_bloc.dart';
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/show_transition_bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/database/view/database_view_list.dart';
@@ -144,14 +145,17 @@ class _DatabaseViewSelectorButton extends StatelessWidget {
               builder: (_) {
                 return MultiBlocProvider(
                   providers: [
-                    BlocProvider<ViewBloc>.value(
+                    BlocProvider.value(
                       value: context.read<ViewBloc>(),
                     ),
-                    BlocProvider<DatabaseTabBarBloc>.value(
+                    BlocProvider.value(
                       value: context.read<DatabaseTabBarBloc>(),
                     ),
-                    BlocProvider<PageAccessLevelBloc>.value(
+                    BlocProvider.value(
                       value: context.read<PageAccessLevelBloc>(),
+                    ),
+                    BlocProvider.value(
+                      value: context.read<UserWorkspaceBloc>(),
                     ),
                   ],
                   child: MobileDatabaseViewList(

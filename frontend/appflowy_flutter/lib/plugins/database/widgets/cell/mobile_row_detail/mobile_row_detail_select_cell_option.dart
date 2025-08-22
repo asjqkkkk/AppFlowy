@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/select_option_cell_bloc.dart';
@@ -29,9 +30,12 @@ class MobileRowDetailSelectOptionCellSkin
           borderRadius: const BorderRadius.all(Radius.circular(14)),
           onTap: () => showMobileBottomSheet(
             context,
-            builder: (context) {
-              return MobileSelectOptionEditor(
-                cellController: bloc.cellController,
+            builder: (_) {
+              return BlocProvider.value(
+                value: context.read<UserWorkspaceBloc>(),
+                child: MobileSelectOptionEditor(
+                  cellController: bloc.cellController,
+                ),
               );
             },
           ),

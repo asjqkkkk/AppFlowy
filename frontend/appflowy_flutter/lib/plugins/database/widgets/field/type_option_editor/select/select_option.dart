@@ -1,3 +1,4 @@
+import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/database/application/field/type_option/select_option_type_option_bloc.dart';
@@ -29,6 +30,8 @@ class SelectOptionTypeOptionWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context);
+
+    final isPro = context.read<UserWorkspaceBloc>().state.isInProPlan;
 
     return BlocProvider<SelectOptionTypeOptionBloc>(
       create: (context) => SelectOptionTypeOptionBloc(
@@ -65,6 +68,7 @@ class SelectOptionTypeOptionWidget extends StatelessWidget {
               Flexible(
                 child: _OptionList(
                   popoverMutex: popoverMutex,
+                  isPro: isPro,
                 ),
               ),
             ],
@@ -180,9 +184,11 @@ class _CreateOptionTextFieldState extends State<CreateOptionTextField> {
 class _OptionList extends StatelessWidget {
   const _OptionList({
     this.popoverMutex,
+    required this.isPro,
   });
 
   final PopoverMutex? popoverMutex;
+  final bool isPro;
 
   @override
   Widget build(BuildContext context) {
@@ -204,6 +210,7 @@ class _OptionList extends StatelessWidget {
             index: index,
             option: state.options[index],
             popoverMutex: popoverMutex,
+            isPro: isPro,
           ),
           itemCount: state.options.length,
           onReorder: (oldIndex, newIndex) {
@@ -232,11 +239,13 @@ class _OptionCell extends StatefulWidget {
     required this.option,
     required this.index,
     this.popoverMutex,
+    required this.isPro,
   });
 
   final SelectOptionPB option;
   final int index;
   final PopoverMutex? popoverMutex;
+  final bool isPro;
 
   @override
   State<_OptionCell> createState() => _OptionCellState();
@@ -262,6 +271,7 @@ class _OptionCellState extends State<_OptionCell> {
       popupBuilder: (popoverContext) {
         return SelectOptionEditor(
           option: widget.option,
+          isPro: widget.isPro,
           onDeleted: () {
             context
                 .read<SelectOptionTypeOptionBloc>()

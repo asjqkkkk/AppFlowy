@@ -214,7 +214,7 @@ class SignInDialogContent extends StatelessWidget {
                 ContinueWithEmailAndPassword(
                   withAnimation: false,
                   didLogin: () {
-                    context.popToHome();
+                    context.popToDesktopHome();
                   },
                 ),
                 if (isAuthEnabled) ...[
@@ -223,7 +223,7 @@ class SignInDialogContent extends StatelessWidget {
                   const VSpace(10),
                   SettingThirdPartyLogin(
                     didLogin: () {
-                      context.popToHome();
+                      context.popToDesktopHome();
                     },
                   ),
                 ],

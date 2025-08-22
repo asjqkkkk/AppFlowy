@@ -134,6 +134,10 @@
       "$type": "color",
       "$value": "#003c77"
     },
+    "alpha-blue-500-10": {
+      "$type": "color",
+      "$value": "#00b5ff1a"
+    },
     "alpha-blue-500-15": {
       "$type": "color",
       "$value": "#00b5ff26"
@@ -747,6 +751,10 @@
       "600": {
         "$type": "color",
         "$value": "#0c5b9e"
+      },
+      "alpha-azure-500-10": {
+        "$type": "color",
+        "$value": "#0877cc1a"
       }
     },
     "Denim": {

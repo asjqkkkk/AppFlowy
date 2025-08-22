@@ -19,10 +19,6 @@ class MobileEditPropertyScreen extends StatefulWidget {
   final String viewId;
   final FieldInfo field;
 
-  static const routeName = '/edit_property';
-  static const argViewId = 'view_id';
-  static const argField = 'field';
-
   @override
   State<MobileEditPropertyScreen> createState() =>
       _MobileEditPropertyScreenState();
