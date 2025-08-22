@@ -397,6 +397,7 @@ struct PageListView: View {
   let fontSize: CGFloat
   let padding: EdgeInsets
   let widgetType: SimpleWidgetType
+  let widgetFamily: WidgetFamily
 
   private var paddedPages: [PageItem] {
     var result = pages
@@ -413,7 +414,7 @@ struct PageListView: View {
   }
   
   private var shouldShowMoreFavorites: Bool {
-    return widgetType == .favorites && pages.count > maxItems
+    return widgetType == .favorites && pages.count > maxItems && widgetFamily == .systemLarge
   }
   
   private var displayItemCount: Int {
@@ -447,14 +448,18 @@ struct PageListView: View {
       }
       
       if shouldShowMoreFavorites {
-        HStack(alignment: .center, spacing: 6) {
-          Text("More favorites...")
-            .font(.system(size: fontSize, weight: .regular))
-            .foregroundColor(.secondary)
-            .lineLimit(1)
-            .frame(height: 22)
-          
-          Spacer()
+        let urlString = "appflowy-flutter://open-favorites/\(workspaceId)?homeWidget"
+        
+        Link(destination: URL(string: urlString)!) {
+          HStack(alignment: .center, spacing: 6) {
+            Text("More favorites...")
+              .font(.system(size: fontSize, weight: .regular))
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+              .frame(height: 22)
+            
+            Spacer()
+          }
         }
         .padding(.bottom, spacing)
       }
@@ -535,7 +540,8 @@ struct WidgetContentView: View {
           iconSize: config.pageIconSize,
           fontSize: config.pageFontSize,
           padding: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0),
-          widgetType: widgetType
+          widgetType: widgetType,
+          widgetFamily: widgetFamily
         )
         .padding(.top, 12)
       }
