@@ -1,6 +1,7 @@
 import 'package:appflowy/features/mension_person/presentation/mention_menu.dart';
+import 'package:appflowy/features/share_tab/data/models/share_role.dart';
+import 'package:appflowy/features/share_tab/data/models/shared_user.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
@@ -72,9 +73,9 @@ class InviteTextFieldPopover extends StatelessWidget {
   Widget buildItem(OptionItem item, BuildContext context, bool isSelected) {
     final theme = AppFlowyTheme.of(context);
 
-    if (item is PersonOptionItem) {
+    if (item is UserOptionItem) {
       return InviteDropDownMenuItem(
-        person: item.value,
+        user: item.value,
         selected: isSelected,
         onTap: () => onItemSelected.call(item),
       );
@@ -110,12 +111,12 @@ class InviteTextFieldPopover extends StatelessWidget {
 class InviteDropDownMenuItem extends StatelessWidget {
   const InviteDropDownMenuItem({
     super.key,
-    required this.person,
+    required this.user,
     required this.onTap,
     this.selected = false,
   });
 
-  final MentionablePersonPB person;
+  final SharedUser user;
   final VoidCallback onTap;
   final bool selected;
 
@@ -131,10 +132,10 @@ class InviteDropDownMenuItem extends StatelessWidget {
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
       ),
-      leading: AFAvatar(name: person.name, url: person.avatarUrl),
+      leading: AFAvatar(name: user.name, url: user.avatarUrl),
       title: _buildTitle(context),
       subtitle: Text(
-        person.email,
+        user.email,
         style: theme.textStyle.caption.standard(
           color: theme.textColorScheme.secondary,
         ),
@@ -153,14 +154,14 @@ class InviteDropDownMenuItem extends StatelessWidget {
       children: [
         Flexible(
           child: Text(
-            person.name,
+            user.name,
             style: theme.textStyle.body.standard(
               color: theme.textColorScheme.primary,
             ),
             overflow: TextOverflow.ellipsis,
           ),
         ),
-        if (person.role == MentionablePersonTypePB.WorkspaceGuest) ...[
+        if (user.role == ShareRole.guest) ...[
           HSpace(theme.spacing.m),
           const GuestTag(),
         ],
@@ -177,13 +178,13 @@ abstract class OptionItem<T> {
   String get id;
 }
 
-class PersonOptionItem extends OptionItem<MentionablePersonPB> {
-  PersonOptionItem({
+class UserOptionItem extends OptionItem<SharedUser> {
+  UserOptionItem({
     required super.value,
   });
 
   @override
-  String get id => value.uuid;
+  String get id => value.email;
 }
 
 class EmailSuggestionItem extends OptionItem<String> {

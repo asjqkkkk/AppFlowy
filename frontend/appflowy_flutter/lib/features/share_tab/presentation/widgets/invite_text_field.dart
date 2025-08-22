@@ -1,11 +1,10 @@
 import 'package:appflowy/features/mension_person/presentation/menu_extension.dart';
 import 'package:appflowy/features/share_tab/data/models/share_access_level.dart';
+import 'package:appflowy/features/share_tab/data/models/shared_user.dart';
 import 'package:appflowy/features/share_tab/logic/email_suggestions.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
-import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -55,8 +54,8 @@ class InviteTextField extends StatefulWidget {
     this.controller,
     required this.textController,
     required this.readOnly,
-    required this.persons,
-    required this.filterPersons,
+    required this.displayingUsers,
+    required this.filterUsers,
     required this.onDataChanged,
     required this.isEmailInvited,
     this.showAccessLevelWidget = true,
@@ -65,8 +64,8 @@ class InviteTextField extends StatefulWidget {
   final TextEditingController textController;
   final InviteController? controller;
   final bool readOnly;
-  final List<MentionablePersonPB> persons;
-  final OptionItemFilter<MentionablePersonPB> filterPersons;
+  final List<SharedUser> displayingUsers;
+  final OptionItemFilter<SharedUser> filterUsers;
   final ValueChanged<EmailsWithAccessLevel> onDataChanged;
   final bool Function(String email) isEmailInvited;
   final bool showAccessLevelWidget;
@@ -81,7 +80,7 @@ class _InviteTextFieldState extends State<InviteTextField> {
 
   late final FocusNode focusNode = FocusNode(onKeyEvent: onKeyEvent);
   late final List<OptionItem> displayingItems =
-      List.of(buildPersons(widget.persons));
+      List.of(buildUsers(widget.displayingUsers).take(8));
   final popoverController = AFPopoverController();
   final List<OptionItem> selectedItems = [];
   final ScrollController horizontalScroller = ScrollController();
@@ -89,25 +88,32 @@ class _InviteTextFieldState extends State<InviteTextField> {
   final emailSuggestion = EmailSuggestions();
 
   late String text = textController.text;
-  late String selectedId =
-      widget.persons.isNotEmpty ? widget.persons.first.uuid : '';
-  bool showEmailSuggestions = false;
+  late String selectedId = widget.displayingUsers.isNotEmpty
+      ? widget.displayingUsers.first.email
+      : '';
+  bool showEmailSuggestions = false, initialed = false;
   ShareAccessLevel selectedAccessLevel = ShareAccessLevel.readOnly;
 
   @override
   void initState() {
     textController.addListener(onTextChanged);
     widget.controller?._addListener(onInvite);
-    if (!widget.readOnly) {
-      focusNode.addListener(() {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted || displayingItems.isEmpty || !focusNode.hasFocus) {
-            return;
-          }
-          popoverController.show();
+
+    if (!readOnly) {
+      focusNode.makeSureHasFocus(() => !mounted).then((_) {
+        focusNode.addListener(() {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted ||
+                displayingItems.isEmpty ||
+                !focusNode.hasFocus ||
+                !initialed) {
+              initialed = true;
+              return;
+            }
+            popoverController.show();
+          });
         });
       });
-      focusNode.makeSureHasFocus(() => !mounted);
     }
     super.initState();
   }
@@ -146,7 +152,8 @@ class _InviteTextFieldState extends State<InviteTextField> {
       focusNode: focusNode,
       size: AFTextFieldSize.m,
       readOnly: readOnly,
-      hintText: LocaleKeys.shareTab_inviteByEmail.tr(),
+      hintText:
+          selectedItems.isEmpty ? LocaleKeys.shareTab_inviteByEmail.tr() : null,
       suffixIconConstraints: hasPrefixOrSuffix && widget.showAccessLevelWidget
           ? BoxConstraints.expand(width: 100, height: 24)
           : null,
@@ -156,7 +163,7 @@ class _InviteTextFieldState extends State<InviteTextField> {
       prefixIconConstraints:
           hasPrefixOrSuffix ? BoxConstraints(maxWidth: 200) : null,
       prefixIconBuilder:
-          hasPrefixOrSuffix ? (context) => buildSelectedPersons() : null,
+          hasPrefixOrSuffix ? (context) => buildSelectedUsers() : null,
       onSubmitted: (value) {},
     );
   }
@@ -194,7 +201,7 @@ class _InviteTextFieldState extends State<InviteTextField> {
     );
   }
 
-  Widget buildSelectedPersons() => HorizontalInvitingItems(
+  Widget buildSelectedUsers() => HorizontalInvitingItems(
         items: selectedItems,
         onItemRemoved: onItemRemoved,
         controller: horizontalScroller,
@@ -213,73 +220,113 @@ class _InviteTextFieldState extends State<InviteTextField> {
     );
   }
 
-  List<PersonOptionItem> buildPersons(List<MentionablePersonPB> persons) =>
-      persons.map((p) => PersonOptionItem(value: p)).toList();
+  List<UserOptionItem> buildUsers(SharedUsers users) =>
+      users.map((p) => UserOptionItem(value: p)).toList();
 
   List<EmailSuggestionItem> buildEmailSuggestions(List<String> suggestions) =>
       suggestions.map((e) => EmailSuggestionItem(value: e)).toList();
 
   void onTextChanged() {
     if (text == textController.text) return;
-    updateDropdownList();
+    if (textController.text.contains(',')) {
+      commaSeparatedEmails(textController.text);
+    } else {
+      updateDropdownList();
+    }
+    text = textController.text;
   }
 
   void updateDropdownList() {
     final text = textController.text;
-    this.text = text;
     final query = text.trim().toLowerCase(),
         selectedIds = selectedItems.map((e) => e.id).toSet();
     final filterItems = widget
-        .filterPersons(query)
-        .where((e) => !selectedIds.contains(e.uuid))
+        .filterUsers(query)
+        .where((e) => !selectedIds.contains(e.email))
         .toList();
     if (filterItems.isEmpty && query.isNotEmpty) {
-      final suggestions = emailSuggestion.generateEmails(query);
+      final suggestions = emailSuggestion
+          .generateEmails(query)
+          .where((e) => !selectedIds.contains(e))
+          .toList();
       if (suggestions.isNotEmpty) {
         showEmailSuggestions = true;
-        updateSelectedId(suggestions.first);
-        updateDisplayingItems(buildEmailSuggestions(suggestions));
+        update(
+          selectedId: suggestions.first,
+          displayingItems: buildEmailSuggestions(suggestions),
+        );
       } else {
-        Log.error('No email suggestions found for query: $query');
+        update(selectedId: '', displayingItems: []);
       }
     } else if (filterItems.isNotEmpty) {
       showEmailSuggestions = false;
-      updateSelectedId(filterItems.first.uuid);
-      updateDisplayingItems(buildPersons(filterItems));
+      update(
+        selectedId: filterItems.first.email,
+        displayingItems: buildUsers(filterItems),
+      );
     } else {
-      updateSelectedId('');
-      updateDisplayingItems([]);
+      update(selectedId: '', displayingItems: []);
     }
   }
 
-  void updateDisplayingItems(List<OptionItem> items) {
-    if (!mounted) return;
-    setState(() {
-      displayingItems.clear();
-      displayingItems.addAll(items);
-    });
-    if (items.isEmpty) {
-      popoverController.hide();
-    } else {
-      popoverController.show();
+  void commaSeparatedEmails(String text) {
+    final selectedEmails = selectedItems.map((e) => e.id).toSet();
+    final emails = text.split(',').map((e) => e.trim()).where(
+          (e) =>
+              !widget.isEmailInvited(e) &&
+              !selectedEmails.contains(e) &&
+              isEmail(e),
+        );
+    if (emails.isNotEmpty) {
+      final newSelectedItems = List.of(selectedItems);
+      final displayingItemMap = <String, OptionItem>{};
+      for (final item in buildUsers(widget.displayingUsers)) {
+        displayingItemMap[item.id] = item;
+      }
+      for (final email in emails) {
+        final item =
+            displayingItemMap[email] ?? EmailSuggestionItem(value: email);
+        newSelectedItems.add(item);
+      }
+      update(
+        selectedItems: newSelectedItems,
+        displayingItems: [],
+      );
+      _scrollToEnd();
     }
+    textController.clear();
   }
 
-  void updateSelectedId(String id) {
-    if (!mounted) return;
-    setState(() {
-      selectedId = id;
-    });
-  }
-
-  void updateSelectedItems(List<OptionItem> items) {
-    if (!mounted) return;
-    setState(() {
-      selectedItems.clear();
-      selectedItems.addAll(items);
-      widget.onDataChanged
-          .call(buildEmailsWithAccessLevel(items, selectedAccessLevel));
-    });
+  void update({
+    String? selectedId,
+    List<OptionItem>? selectedItems,
+    List<OptionItem>? displayingItems,
+  }) {
+    final needRefresh =
+        selectedId != null || selectedItems != null || displayingItems != null;
+    if (needRefresh && mounted) {
+      setState(() {
+        if (selectedId != null) {
+          this.selectedId = selectedId;
+        }
+        if (selectedItems != null) {
+          this.selectedItems.clear();
+          this.selectedItems.addAll(selectedItems);
+          widget.onDataChanged.call(
+            buildEmailsWithAccessLevel(selectedItems, selectedAccessLevel),
+          );
+        }
+        if (displayingItems != null) {
+          this.displayingItems.clear();
+          this.displayingItems.addAll(displayingItems.take(8));
+          if (displayingItems.isEmpty) {
+            popoverController.hide();
+          } else {
+            popoverController.show();
+          }
+        }
+      });
+    }
   }
 
   KeyEventResult onKeyEvent(FocusNode node, KeyEvent event) {
@@ -294,7 +341,7 @@ class _InviteTextFieldState extends State<InviteTextField> {
       } else {
         newIndex = index + 1;
       }
-      updateSelectedId(displayingItems[newIndex].id);
+      update(selectedId: displayingItems[newIndex].id);
       scrollTo(newIndex);
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.arrowUp) {
@@ -304,7 +351,7 @@ class _InviteTextFieldState extends State<InviteTextField> {
       } else if (index <= 0) {
         newIndex = displayingItems.length - 1;
       }
-      updateSelectedId(displayingItems[newIndex].id);
+      update(selectedId: displayingItems[newIndex].id);
       scrollTo(newIndex);
       return KeyEventResult.handled;
     } else if (event.logicalKey == LogicalKeyboardKey.enter) {
@@ -333,15 +380,15 @@ class _InviteTextFieldState extends State<InviteTextField> {
   void onItemRemoved(OptionItem item) {
     final newItems = List.of(selectedItems);
     newItems.remove(item);
-    updateSelectedItems(newItems);
+    update(selectedItems: newItems);
     updateDropdownList();
   }
 
   void onItemSelected(OptionItem item) {
     final newSelectedItems = List.of(selectedItems);
-    if (item is PersonOptionItem) {
-      final person = item.value;
-      if (newSelectedItems.any((e) => e.id == person.uuid)) {
+    if (item is UserOptionItem) {
+      final user = item.value;
+      if (newSelectedItems.any((e) => e.id == user.email)) {
         showToastNotification(
           type: ToastificationType.error,
           message: LocaleKeys.shareTab_personAlreadyInList.tr(),
@@ -370,23 +417,23 @@ class _InviteTextFieldState extends State<InviteTextField> {
       }
       newSelectedItems.add(item);
     }
-    updateSelectedItems(newSelectedItems);
+    update(selectedItems: newSelectedItems);
     textController.clear();
     updateDropdownList();
     focusNode.makeSureHasFocus(() => !mounted);
 
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _scrollToEnd();
-    });
+    _scrollToEnd();
   }
 
   void _scrollToEnd() {
-    if (!horizontalScroller.hasClients || !mounted) return;
-    horizontalScroller.animateTo(
-      horizontalScroller.position.maxScrollExtent,
-      duration: const Duration(milliseconds: 150),
-      curve: Curves.easeOut,
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!horizontalScroller.hasClients || !mounted) return;
+      horizontalScroller.animateTo(
+        horizontalScroller.position.maxScrollExtent,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeOut,
+      );
+    });
   }
 
   void onInvite() {
@@ -407,7 +454,7 @@ class _InviteTextFieldState extends State<InviteTextField> {
     for (final item in items) {
       if (item is EmailSuggestionItem) {
         emails.add(item.value);
-      } else if (item is PersonOptionItem) {
+      } else if (item is UserOptionItem) {
         emails.add(item.value.email);
       }
     }

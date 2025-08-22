@@ -1,3 +1,4 @@
+import 'package:appflowy/features/share_tab/data/models/shared_user.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/invite_text_field.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/invite_text_field_popover.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/inviting_item.dart';
@@ -16,7 +17,9 @@ void main() {
         (WidgetTester tester) async {
       final controller = TextEditingController();
       bool enableSendInvitation = false;
-      final availableEmails = _sharedUsers.map((e) => e.email).toSet();
+      final displayingUsers = _buildDisplayingUsers('');
+      final remainingEmails =
+          _buildRemainingEmails(displayingUsers.map((e) => e.email).toSet());
       await tester.runAsync(
         () async {
           await tester.pumpWidget(
@@ -28,25 +31,13 @@ void main() {
                   showAccessLevelWidget: false,
                   textController: controller,
                   readOnly: false,
-                  persons: _workspacePersons,
-                  filterPersons: (v) {
-                    final query = v.toLowerCase();
-                    final availablePersons = _workspacePersons
-                        .where((e) => !availableEmails.contains(e.email))
-                        .toList();
-                    if (query.isEmpty) return availablePersons;
-                    return availablePersons
-                        .where(
-                          (e) =>
-                              e.name.toLowerCase().contains(query) ||
-                              e.email.toLowerCase().contains(query),
-                        )
-                        .toList();
-                  },
+                  displayingUsers:
+                      _workspacePersons.map((e) => e.toShareUser()).toList(),
+                  filterUsers: (v) => _buildDisplayingUsers(v),
                   onDataChanged: (data) {
                     enableSendInvitation = data.emails.isNotEmpty;
                   },
-                  isEmailInvited: (email) => availableEmails.contains(email),
+                  isEmailInvited: (email) => remainingEmails.contains(email),
                 ),
               ),
             ),
@@ -85,20 +76,12 @@ void main() {
 
           /// check the menu displaying logic
           await tester.enterText(find.byType(TextField), '');
-          expect(find.byType(InviteTextFieldPopover), findsNothing);
+          expect(find.byType(InviteTextFieldPopover), findsOneWidget);
           await tester.pumpAndSettle();
           await tester.enterText(find.byType(TextField), 'morn@gmail.com');
           await tester.pumpAndSettle();
-          expect(find.byType(InviteTextFieldPopover), findsOneWidget);
-          await tester.tap(
-            find.descendant(
-              of: find.byType(AFMenuItem),
-              matching: find.text('morn@gmail.com'),
-            ),
-          );
+          expect(find.byType(InviteTextFieldPopover), findsNothing);
           await tester.pumpAndSettle();
-          expect(find.byType(InvitingItem), findsOneWidget);
-          expect(enableSendInvitation, true);
 
           /// remove current email
           await tester.enterText(find.byType(TextField), ' ');
@@ -106,10 +89,51 @@ void main() {
           await tester.simulateKeyEvent(LogicalKeyboardKey.backspace);
           expect(find.byType(InvitingItem), findsNothing);
           expect(enableSendInvitation, false);
+
+          /// insert emails by comma separate
+          final emails = 'a@gmail.com, b@gmail.com, c@gmail.com';
+          await tester.enterText(
+            find.byType(TextField),
+            emails,
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(InvitingItem), findsNWidgets(3));
+          await tester.enterText(
+            find.byType(TextField),
+            '$emails, d@gmail.com',
+          );
+          await tester.pumpAndSettle();
+          expect(find.byType(InvitingItem), findsNWidgets(4));
         },
       );
     });
   });
+}
+
+List<SharedUser> _buildDisplayingUsers(String query) {
+  final availableUsers = _sharedUsers
+      .where((u) => u.role == MentionablePersonTypePB.WorkspaceGuest)
+      .map((e) => e.toShareUser())
+      .toSet();
+
+  if (query.isEmpty) return availableUsers.toList();
+  return availableUsers
+      .where(
+        (e) =>
+            e.name.toLowerCase().contains(query) ||
+            e.email.toLowerCase().contains(query),
+      )
+      .toList();
+}
+
+Set<String> _buildRemainingEmails(Set<String> currentEmails) {
+  final remainingEmails = <String>{};
+  for (final person in _sharedUsers) {
+    if (!currentEmails.contains(person.email)) {
+      remainingEmails.add(person.email);
+    }
+  }
+  return remainingEmails;
 }
 
 final List<MentionablePersonPB> _workspacePersons = [

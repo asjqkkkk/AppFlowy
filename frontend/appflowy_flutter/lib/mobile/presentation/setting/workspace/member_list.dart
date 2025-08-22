@@ -113,10 +113,23 @@ class _MemberItem extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          Text(
-            member.role.description,
-            style: theme.textStyle.heading4.standard(
-              color: theme.textColorScheme.secondary,
+          RichText(
+            text: TextSpan(
+              children: [
+                TextSpan(
+                  text: member.role.description,
+                  style: theme.textStyle.heading4.standard(
+                    color: theme.textColorScheme.secondary,
+                  ),
+                ),
+                if (member.isPendingInvitation)
+                  TextSpan(
+                    text:
+                        ' (${LocaleKeys.settings_appearance_members_pending.tr()})',
+                    style: theme.textStyle.caption
+                        .standard(color: theme.textColorScheme.warning),
+                  ),
+              ],
             ),
             textAlign: TextAlign.end,
           ),

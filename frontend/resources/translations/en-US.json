@@ -3679,7 +3679,8 @@
     },
     "dropdownMenu": {
       "notInvitedToPage": "Not invited to page",
-      "keepTyping": "Keep typing an email to invite"
+      "keepTyping": "Keep typing an email to invite",
+      "inviteAsGuest": "Invite {} as a guest"
     }
   },
   "shareSection": {

@@ -187,6 +187,7 @@ class _ShareTabState extends State<ShareTab> {
   ) {
     return PeopleWithAccessSectionCallbacks(
       onSelectAccessLevel: (user, accessLevel) {
+        if (user.accessLevel == accessLevel) return;
         context.read<ShareTabBloc>().add(
               ShareTabEvent.updateUserAccessLevel(
                 email: user.email,

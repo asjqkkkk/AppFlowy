@@ -210,6 +210,9 @@ class _AFTextFieldState extends AFTextFieldState {
       borderRadius: borderRadius,
     );
 
+    final fillColor =
+        widget.readOnly ? theme.fillColorScheme.contentHover : null;
+
     Widget child = TextField(
       key: key,
       groupId: widget.groupId,
@@ -219,6 +222,7 @@ class _AFTextFieldState extends AFTextFieldState {
       controller: effectiveController,
       keyboardType: widget.keyboardType,
       readOnly: widget.readOnly,
+      enabled: !widget.readOnly,
       style: theme.textStyle.body.standard(
         color: theme.textColorScheme.primary,
       ),
@@ -244,6 +248,8 @@ class _AFTextFieldState extends AFTextFieldState {
         enabledBorder: enabledBorder,
         focusedBorder: focusedBorder,
         errorBorder: errorBorder,
+        fillColor: fillColor,
+        filled: widget.readOnly,
         focusedErrorBorder: focusedErrorBorder,
         hoverColor: theme.borderColorScheme.primaryHover,
         prefixIcon: widget.prefixIconBuilder?.call(context),
