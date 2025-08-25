@@ -4,6 +4,7 @@ import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/mobile/presentation/home/favorite_folder/favorite_space.dart';
 import 'package:appflowy/mobile/presentation/home/home_space/home_space.dart';
+import 'package:appflowy/mobile/presentation/home/mobile_home_page_header.dart';
 import 'package:appflowy/mobile/presentation/home/recent_folder/recent_space.dart';
 import 'package:appflowy/mobile/presentation/home/tab/_tab_bar.dart';
 import 'package:appflowy/mobile/presentation/home/tab/space_order_bloc.dart';
@@ -51,6 +52,7 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
     mobileCreateNewPageNotifier.addListener(_createNewDocument);
     mobileCreateNewAIChatNotifier.addListener(_createNewAIChat);
     mobileLeaveWorkspaceNotifier.addListener(_leaveWorkspace);
+    navigateToFavoritesTabNotifier.addListener(_navigateToFavoritesTab);
   }
 
   @override
@@ -61,6 +63,7 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
     mobileCreateNewPageNotifier.removeListener(_createNewDocument);
     mobileCreateNewAIChatNotifier.removeListener(_createNewAIChat);
     mobileLeaveWorkspaceNotifier.removeListener(_leaveWorkspace);
+    navigateToFavoritesTabNotifier.removeListener(_navigateToFavoritesTab);
 
     super.dispose();
   }
@@ -269,5 +272,45 @@ class _MobileHomePageTabState extends State<MobileHomePageTab>
     context
         .read<UserWorkspaceBloc>()
         .add(UserWorkspaceEvent.leaveWorkspace(workspaceId: workspaceId));
+  }
+
+  void _navigateToFavoritesTab() {
+    if (!mounted) {
+      return;
+    }
+
+    try {
+      final spaceOrderBloc = context.read<SpaceOrderBloc>();
+      final userWorkspaceBloc = context.read<UserWorkspaceBloc>();
+
+      final workspace = userWorkspaceBloc.state.currentWorkspace;
+      final isLocalWorkspace =
+          workspace?.workspaceType == WorkspaceTypePB.Vault;
+      final isGuest = workspace?.role == AFRolePB.Guest;
+
+      List<MobileSpaceTabType> tabs = isGuest
+          ? [
+              MobileSpaceTabType.shared,
+              MobileSpaceTabType.recent,
+              MobileSpaceTabType.favorites,
+            ]
+          : spaceOrderBloc.state.tabsOrder;
+
+      if (isLocalWorkspace) {
+        tabs = tabs.where((tab) => tab != MobileSpaceTabType.shared).toList();
+      }
+
+      final favoritesIndex = tabs.indexOf(MobileSpaceTabType.favorites);
+
+      if (favoritesIndex != -1) {
+        if (tabController != null && tabController!.length > favoritesIndex) {
+          tabController!.animateTo(favoritesIndex);
+        }
+
+        spaceOrderBloc.add(SpaceOrderEvent.open(favoritesIndex));
+      }
+    } catch (e) {
+      Log.error('Error navigating to favorites tab: $e');
+    }
   }
 }

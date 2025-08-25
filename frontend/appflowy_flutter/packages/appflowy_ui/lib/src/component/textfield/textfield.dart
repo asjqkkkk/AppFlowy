@@ -197,16 +197,17 @@ class _AFTextFieldState extends AFTextFieldState {
     );
 
     final errorBorder = OutlineInputBorder(
-      borderSide: BorderSide(
-        color: errorBorderColor,
-      ),
+      borderSide: BorderSide(color: errorBorderColor),
       borderRadius: borderRadius,
     );
 
     final focusedErrorBorder = OutlineInputBorder(
-      borderSide: BorderSide(
-        color: errorBorderColor,
-      ),
+      borderSide: BorderSide(color: errorBorderColor),
+      borderRadius: borderRadius,
+    );
+
+    final disabledBorder = OutlineInputBorder(
+      borderSide: BorderSide(color: defaultBorderColor),
       borderRadius: borderRadius,
     );
 
@@ -249,6 +250,7 @@ class _AFTextFieldState extends AFTextFieldState {
         focusedBorder: focusedBorder,
         errorBorder: errorBorder,
         fillColor: fillColor,
+        disabledBorder: disabledBorder,
         filled: widget.readOnly,
         focusedErrorBorder: focusedErrorBorder,
         hoverColor: theme.borderColorScheme.primaryHover,

@@ -188,8 +188,16 @@ struct RecentEntry: TimelineEntry {
 }
 
 struct WidgetIconView: View {
+  let widgetType: SimpleWidgetType
+  
   var body: some View {
-    Image("default_preview_icon")
+    let name = switch widgetType {
+    case .recent:
+      "recent"
+    case .favorites:
+      "favorite"
+    }
+    Image(name)
       .resizable()
       .aspectRatio(contentMode: .fit)
       .foregroundColor(.white)
@@ -364,13 +372,24 @@ struct PlaceholderView: View {
   let iconSize: CGFloat
   let titleSize: CGFloat
   let subtitleSize: CGFloat
+  
+  private var verticalSpacing: CGFloat {
+    switch iconSize {
+    case 48:
+      return 12
+    case 72:
+      return 4
+    default:
+      return 0
+    }
+  }
 
   var body: some View {
-    VStack(spacing: iconSize == 48 ? 12 : iconSize == 80 ? 24 : 8) {
-      WidgetIconView()
+    VStack(spacing: verticalSpacing) {
+      WidgetIconView(widgetType: widgetType)
         .frame(width: iconSize, height: iconSize)
 
-      VStack(spacing: 8) {
+      VStack(spacing: 4) {
         Text(widgetType.title)
           .font(.system(size: titleSize, weight: .bold))
           .foregroundColor(.primary)
@@ -397,6 +416,7 @@ struct PageListView: View {
   let fontSize: CGFloat
   let padding: EdgeInsets
   let widgetType: SimpleWidgetType
+  let widgetFamily: WidgetFamily
 
   private var paddedPages: [PageItem] {
     var result = pages
@@ -413,7 +433,7 @@ struct PageListView: View {
   }
   
   private var shouldShowMoreFavorites: Bool {
-    return widgetType == .favorites && pages.count > maxItems
+    return widgetType == .favorites && pages.count > maxItems && widgetFamily == .systemLarge
   }
   
   private var displayItemCount: Int {
@@ -447,14 +467,18 @@ struct PageListView: View {
       }
       
       if shouldShowMoreFavorites {
-        HStack(alignment: .center, spacing: 6) {
-          Text("More favorites...")
-            .font(.system(size: fontSize, weight: .regular))
-            .foregroundColor(.secondary)
-            .lineLimit(1)
-            .frame(height: 22)
-          
-          Spacer()
+        let urlString = "appflowy-flutter://open-favorites/\(workspaceId)?homeWidget"
+        
+        Link(destination: URL(string: urlString)!) {
+          HStack(alignment: .center, spacing: 6) {
+            Text("More favorites...")
+              .font(.system(size: fontSize, weight: .regular))
+              .foregroundColor(.secondary)
+              .lineLimit(1)
+              .frame(height: 22)
+            
+            Spacer()
+          }
         }
         .padding(.bottom, spacing)
       }
@@ -514,7 +538,7 @@ struct WidgetContentView: View {
       WidgetHeaderView(
         widgetType: widgetType,
         size: config.headerSize,
-        topPadding: topPadding,
+        topPadding: topPadding
       )
 
       Divider()
@@ -535,7 +559,8 @@ struct WidgetContentView: View {
           iconSize: config.pageIconSize,
           fontSize: config.pageFontSize,
           padding: EdgeInsets(top: 0, leading: 0, bottom: 0, trailing: 0),
-          widgetType: widgetType
+          widgetType: widgetType,
+          widgetFamily: widgetFamily
         )
         .padding(.top, 12)
       }
@@ -593,7 +618,7 @@ struct WidgetConfig {
       pageIconSize = 12
       pageFontSize = 16
       padding = EdgeInsets(top: 0, leading: 4, bottom: 8, trailing: 4)
-      placeholderIconSize = 0
+      placeholderIconSize = 72
       placeholderTitleSize = 20
       placeholderSubtitleSize = 14
       placeholderPadding = 20
@@ -607,7 +632,7 @@ struct WidgetConfig {
       pageIconSize = 12
       pageFontSize = 16
       padding = EdgeInsets(top: 0, leading: 4, bottom: 8, trailing: 4)
-      placeholderIconSize = 80
+      placeholderIconSize = 72
       placeholderTitleSize = 20
       placeholderSubtitleSize = 14
       placeholderPadding = 24

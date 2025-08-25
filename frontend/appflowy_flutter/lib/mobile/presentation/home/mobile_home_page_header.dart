@@ -24,6 +24,10 @@ import 'package:go_router/go_router.dart';
 
 import 'setting/settings_popup_menu.dart';
 
+// this value is used to trigger the navigation to the favorites tab
+// simply increment the value to trigger the navigation
+final ValueNotifier<int> navigateToFavoritesTabNotifier = ValueNotifier(0);
+
 class MobileHomePageHeader extends StatelessWidget {
   const MobileHomePageHeader({
     super.key,
@@ -254,10 +258,12 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
 
     final state = context.read<UserWorkspaceBloc>().state;
     final currentWorkspace = state.currentWorkspace;
-    // if the user is already in the workspace, we should open the initial view directly
+    // if the user is already in the workspace, we should open the initial view or favorites tab directly
     if (currentWorkspace?.workspaceId == workspaceId) {
-      Log.info('Already in the workspace, opening the initial view');
+      Log.info('Already in the workspace, checking for navigation action');
       final initialViewId = value.initialViewId;
+      final shouldOpenFavoritesTab = value.openFavoritesTab;
+
       if (initialViewId != null) {
         openWorkspaceNotifier.value = null;
 
@@ -267,6 +273,16 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
         Future.delayed(const Duration(milliseconds: 100), () {
           if (mounted) {
             context.pushViewId(initialViewId);
+          }
+        });
+      } else if (shouldOpenFavoritesTab) {
+        openWorkspaceNotifier.value = null;
+        while (context.canPop()) {
+          context.pop();
+        }
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (mounted) {
+            _navigateToFavoritesTab();
           }
         });
       } else {
@@ -322,6 +338,15 @@ class _MobileWorkspaceState extends State<_MobileWorkspace> {
         );
 
     value.callback?.call(true);
+  }
+
+  void _navigateToFavoritesTab() {
+    try {
+      navigateToFavoritesTabNotifier.value++;
+      Log.info('Requested navigation to favorites tab');
+    } catch (e) {
+      Log.error('Error requesting navigation to favorites tab: $e');
+    }
   }
 }
 
