@@ -9,16 +9,19 @@ class PreviewDescriptionMarkdownRender extends StatelessWidget {
     super.key,
     required this.description,
     this.textAlign,
+    this.textStyle,
   });
   final String description;
   final TextAlign? textAlign;
+  final TextStyle? textStyle;
 
   @override
   Widget build(BuildContext context) {
     final theme = AppFlowyTheme.of(context),
-        textStyle = theme.textStyle.caption
-            .standard(color: theme.textColorScheme.primary);
-    final mdConfig = MarkdownConfig(configs: [PConfig(textStyle: textStyle)]);
+        style = textStyle ??
+            theme.textStyle.caption
+                .standard(color: theme.textColorScheme.primary);
+    final mdConfig = MarkdownConfig(configs: [PConfig(textStyle: style)]);
     final m.Document document = m.Document(
       encodeHtml: false,
       withDefaultBlockSyntaxes: false,

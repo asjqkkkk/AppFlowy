@@ -93,34 +93,27 @@ class PreviewButton extends StatefulWidget {
 }
 
 class _PreviewButtonState extends State<PreviewButton> {
-  final popoverController = PopoverController();
+  final popoverController = AFPopoverController();
 
   @override
   void dispose() {
-    popoverController.close();
+    popoverController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final bloc = context.read<ProfileSettingBloc>(),
-        theme = AppFlowyTheme.of(context),
         isLocal = bloc.userProfile.workspaceType == WorkspaceTypePB.Vault;
     if (isLocal) return const SizedBox.shrink();
-    return AppFlowyPopover(
-      direction: PopoverDirection.bottomWithCenterAligned,
+    return AFPopover(
       controller: popoverController,
-      offset: const Offset(0, 8),
-      constraints: BoxConstraints(
-        maxHeight: 380,
-        minWidth: 280,
-        maxWidth: 280,
-      ),
-      margin: EdgeInsets.zero,
-      decorationColor: theme.surfaceColorScheme.layer01,
+      padding: EdgeInsets.zero,
       child: buildButton(),
-      popupBuilder: (BuildContext popoverContext) =>
-          BlocProvider.value(value: bloc, child: ProfilePreviewWidget()),
+      popover: (context) => BlocProvider.value(
+        value: bloc,
+        child: SizedBox(width: 280, child: ProfilePreviewWidget()),
+      ),
     );
   }
 

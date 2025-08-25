@@ -3,6 +3,7 @@ import 'package:appflowy/features/mension_person/logic/person_bloc.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/person/person_role_badge.dart';
 import 'package:appflowy/features/mension_person/presentation/widgets/profile_card_more_button.dart';
 import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/presentation/widgets/profile_description_markdown_render.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
@@ -276,6 +277,11 @@ extension PersonProfileCardWidgetExtension on BuildContext {
     final description = person.description;
     if (description.isEmpty) return const SizedBox.shrink();
     final theme = AppFlowyTheme.of(this);
+    final style = theme.textStyle.caption.standard(
+      color: isDeleted
+          ? theme.textColorScheme.tertiary
+          : theme.textColorScheme.primary,
+    );
     return Container(
       margin: EdgeInsets.only(top: theme.spacing.m),
       width: double.infinity,
@@ -286,13 +292,9 @@ extension PersonProfileCardWidgetExtension on BuildContext {
         ),
         child: Padding(
           padding: EdgeInsets.all(theme.spacing.l),
-          child: Text(
-            description,
-            style: theme.textStyle.caption.standard(
-              color: isDeleted
-                  ? theme.textColorScheme.tertiary
-                  : theme.textColorScheme.primary,
-            ),
+          child: PreviewDescriptionMarkdownRender(
+            description: description,
+            textStyle: style,
           ),
         ),
       ),
