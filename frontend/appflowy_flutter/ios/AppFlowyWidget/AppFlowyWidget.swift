@@ -188,8 +188,16 @@ struct RecentEntry: TimelineEntry {
 }
 
 struct WidgetIconView: View {
+  let widgetType: SimpleWidgetType
+  
   var body: some View {
-    Image("default_preview_icon")
+    let name = switch widgetType {
+    case .recent:
+      "recent"
+    case .favorites:
+      "favorite"
+    }
+    Image(name)
       .resizable()
       .aspectRatio(contentMode: .fit)
       .foregroundColor(.white)
@@ -364,13 +372,24 @@ struct PlaceholderView: View {
   let iconSize: CGFloat
   let titleSize: CGFloat
   let subtitleSize: CGFloat
+  
+  private var verticalSpacing: CGFloat {
+    switch iconSize {
+    case 48:
+      return 12
+    case 72:
+      return 4
+    default:
+      return 0
+    }
+  }
 
   var body: some View {
-    VStack(spacing: iconSize == 48 ? 12 : iconSize == 80 ? 24 : 8) {
-      WidgetIconView()
+    VStack(spacing: verticalSpacing) {
+      WidgetIconView(widgetType: widgetType)
         .frame(width: iconSize, height: iconSize)
 
-      VStack(spacing: 8) {
+      VStack(spacing: 4) {
         Text(widgetType.title)
           .font(.system(size: titleSize, weight: .bold))
           .foregroundColor(.primary)
@@ -599,7 +618,7 @@ struct WidgetConfig {
       pageIconSize = 12
       pageFontSize = 16
       padding = EdgeInsets(top: 0, leading: 4, bottom: 8, trailing: 4)
-      placeholderIconSize = 0
+      placeholderIconSize = 72
       placeholderTitleSize = 20
       placeholderSubtitleSize = 14
       placeholderPadding = 20
@@ -613,7 +632,7 @@ struct WidgetConfig {
       pageIconSize = 12
       pageFontSize = 16
       padding = EdgeInsets(top: 0, leading: 4, bottom: 8, trailing: 4)
-      placeholderIconSize = 80
+      placeholderIconSize = 72
       placeholderTitleSize = 20
       placeholderSubtitleSize = 14
       placeholderPadding = 24
