@@ -96,6 +96,11 @@ impl SearchHandler for DocumentCloudSearchHandler {
       let mut items: Vec<SearchResponseItemPB> = Vec::new();
       for item in &result_items {
         if let Some(view) = views.iter().find(|v| v.id == item.object_id.to_string()) {
+          // Exclude the space view from the search result.
+          if view.is_space() {
+            continue;
+          }
+
           items.push(SearchResponseItemPB {
             id: item.object_id.to_string(),
             display_name: view.name.clone(),

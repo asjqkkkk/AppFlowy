@@ -161,9 +161,9 @@ class AFAvatar extends StatelessWidget {
     final initial = isEmojiAvatarUrl ? avatarUrl : _getInitials(name);
     final borderRadius = radius ?? size / 2;
     if (isEmojiAvatarUrl || !avatarUrl.startsWith('http')) {
-      textStyle = textStyle.copyWith(height: 1);
+      textStyle = textStyle.copyWith(height: 1.0);
     }
-    final text = Text(initial, style: textStyle, textAlign: TextAlign.justify);
+    final isIOSOrMacOS = Platform.isIOS || Platform.isMacOS;
     return Container(
       decoration: BoxDecoration(
         color: bgColor,
@@ -173,12 +173,28 @@ class AFAvatar extends StatelessWidget {
 
       /// https://github.com/flutter/flutter/issues/119623
       /// Workaround for text alignment issue on Android
-      child: isEmojiAvatarUrl && !Platform.isAndroid
+      child: isEmojiAvatarUrl && isIOSOrMacOS
           ? SizedBox(
               width: textStyle.fontSize,
-              child: text,
+              child: Text(
+                initial,
+                style: textStyle,
+                textAlign: TextAlign.justify,
+              ),
             )
-          : text,
+          : Text(
+              initial,
+              style: textStyle,
+              textAlign: TextAlign.center,
+              strutStyle: StrutStyle.fromTextStyle(
+                textStyle,
+                forceStrutHeight: true,
+              ),
+              textHeightBehavior: TextHeightBehavior(
+                applyHeightToFirstAscent: false,
+                applyHeightToLastDescent: false,
+              ),
+            ),
     );
   }
 
