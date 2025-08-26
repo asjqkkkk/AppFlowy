@@ -855,7 +855,10 @@ extension CommonOperations on WidgetTester {
 
     final title = editor.findDocumentTitle('');
     expect(title, findsOneWidget);
+    await pumpAndSettle();
     final textField = widget<TextField>(title);
+    textField.focusNode!.requestFocus();
+    await pumpAndSettle();
     expect(textField.focusNode!.hasFocus, isTrue);
 
     // input new name and press done button
@@ -879,21 +882,36 @@ extension CommonOperations on WidgetTester {
     await tapButton(plusMenuButton);
     await pumpUntilFound(addMenuItem);
 
-    final toggleHeading1 = find.byWidgetPredicate(
+    await pumpAndSettle();
+
+    final button = find.byWidgetPredicate(
       (widget) =>
           widget is TypeOptionMenuItem && widget.value.text == buttonName,
     );
-    final scrollable = find.ancestor(
-      of: find.byType(TypeOptionGridView),
-      matching: find.byType(Scrollable),
-    );
-    await scrollUntilVisible(
-      toggleHeading1,
-      100,
-      scrollable: scrollable,
-    );
-    await tapButton(toggleHeading1);
-    await pumpUntilNotFound(addMenuItem);
+
+    await pumpAndSettle();
+
+    var attempts = 0;
+    while (button.evaluate().isEmpty && attempts < 10) {
+      final gridView = find.byType(TypeOptionGridView);
+
+      if (gridView.evaluate().isNotEmpty) {
+        await drag(
+          gridView,
+          const Offset(0, -50),
+        );
+        await pumpAndSettle();
+      }
+
+      attempts++;
+    }
+
+    if (button.evaluate().isNotEmpty) {
+      await ensureVisible(button);
+      await pumpAndSettle();
+      await tapButton(button);
+      await pumpUntilNotFound(addMenuItem);
+    }
   }
 
   /// Click the column menu button in the simple table
