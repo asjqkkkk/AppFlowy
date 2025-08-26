@@ -171,7 +171,7 @@ class _InviteMenuState extends State<InviteMenu> {
         selectedItems: [info.role.buildItem()],
         itemBuilder: (context, item, isSelected, onSelected) =>
             buildRoleItem(context, item, onSelected),
-        onSelected: (value) {
+        onSelect: (value) {
           updateInfo(info.copyWith(role: value?.role));
         },
       ),

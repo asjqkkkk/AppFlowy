@@ -18,7 +18,8 @@ class DesktopRowDetailDateCellSkin extends IEditableDateCellSkin {
     DateCellState state,
     PopoverController popoverController,
   ) {
-    final dateStr = getDateCellStrFromCellData(
+    final dateStr = getDateCellText(
+      context,
       state.fieldInfo,
       state.cellData,
     );

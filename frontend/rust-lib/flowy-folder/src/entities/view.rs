@@ -5,7 +5,7 @@ use client_api::entity::{
   AFAccessLevel, AFRole, MentionablePerson, MentionablePersonType, MentionablePersonWithAccess,
   MentionablePersonWithLastMentionedTime,
 };
-use collab_folder::{View, ViewIcon, ViewLayout};
+use collab_folder::{SpaceInfo, View, ViewIcon, ViewLayout};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
 use flowy_folder_pub::cloud::gen_view_id;
@@ -90,6 +90,21 @@ pub struct ViewPB {
   // If true, the view is locked and cannot be edited.
   #[pb(index = 13, one_of)]
   pub is_locked: Option<bool>,
+}
+
+impl ViewPB {
+  pub fn space_info(&self) -> Option<SpaceInfo> {
+    let extra = self.extra.as_ref()?;
+    serde_json::from_str::<SpaceInfo>(extra).ok()
+  }
+
+  pub fn is_space(&self) -> bool {
+    if let Some(space_info) = self.space_info() {
+      space_info.is_space
+    } else {
+      false
+    }
+  }
 }
 
 pub fn view_pb_without_child_views(view: View) -> ViewPB {

@@ -22,10 +22,10 @@ use flowy_user_pub::cloud::{
 };
 use flowy_user_pub::entities::*;
 use flowy_user_pub::sql::{
-  UserTableChangeset, WorkspaceMemberTable, WorkspaceSettingsChangeset, WorkspaceSettingsTable,
-  insert_local_workspace, select_all_user_workspace, select_user_profile, select_user_workspace,
-  select_workspace_member, select_workspace_setting, update_user_profile, update_workspace_setting,
-  upsert_workspace_member, upsert_workspace_setting,
+  WorkspaceMemberTable, WorkspaceSettingsChangeset, WorkspaceSettingsTable, insert_local_workspace,
+  select_all_user_workspace, select_user_profile, select_user_workspace, select_workspace_member,
+  select_workspace_setting, update_workspace_setting, upsert_workspace_member,
+  upsert_workspace_setting,
 };
 use lazy_static::lazy_static;
 use lib_infra::async_trait::async_trait;
@@ -144,15 +144,6 @@ impl UserAuthService for LocalServerUserServiceImpl {
 #[async_trait]
 impl UserProfileService for LocalServerUserServiceImpl {
   async fn update_user(&self, uid: i64, params: UpdateUserParams) -> Result<(), FlowyError> {
-    let uid = self.logged_user.user_id()?;
-    let mut conn = self.logged_user.get_sqlite_db(uid)?;
-    let changeset = UserTableChangeset {
-      id: uid.to_string(),
-      name: params.name,
-      email: params.email,
-      metadata: None,
-    };
-    update_user_profile(&mut conn, changeset)?;
     Ok(())
   }
 

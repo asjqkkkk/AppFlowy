@@ -1,7 +1,6 @@
 import 'package:appflowy_backend/appflowy_backend.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/user_profile.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_setting.pb.dart';
 import 'package:appflowy_result/appflowy_result.dart';
 
@@ -18,16 +17,13 @@ class UserSettingsBackendService {
     );
   }
 
-  Future<FlowyResult<UserSettingPB, FlowyError>> getUserSetting() {
-    return UserEventGetUserSetting().send();
-  }
-
   Future<FlowyResult<void, FlowyError>> setAppearanceSetting(
     AppearanceSettingsPB setting,
   ) {
     return UserEventSetAppearanceSetting(setting).send();
   }
 
+  /// Fetches the user's date/time settings from disk
   Future<DateTimeSettingsPB> getDateTimeSettings() async {
     final result = await UserEventGetDateTimeSettings().send();
 

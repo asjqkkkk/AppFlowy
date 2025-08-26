@@ -1,3 +1,4 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/startup/tasks/device_info_task.dart';
@@ -54,13 +55,21 @@ class SettingsAccountView extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      if (!isLocal)
+                      if (!isLocal) ...[
                         _commonLayout(
                           title:
                               LocaleKeys.settings_accountPage_email_title.tr(),
                           subtitle: userProfile.email,
                           context: context,
                         ),
+                        AFDivider(color: theme.borderColorScheme.primary),
+                        VSpace(20),
+                      ],
+                      // Date & Language Settings
+                      UserAccountSetting(userProfile: userProfile),
+                      VSpace(20),
+                      AFDivider(color: theme.borderColorScheme.primary),
+                      VSpace(20),
                       if (!isLocal)
                         _commonLayout(
                           title: LocaleKeys.newSettings_myAccount_password_title

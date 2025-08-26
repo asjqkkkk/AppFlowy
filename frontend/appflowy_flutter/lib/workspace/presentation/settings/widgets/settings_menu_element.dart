@@ -1,6 +1,5 @@
 import 'package:appflowy/workspace/application/settings/settings_dialog_bloc.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
-import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
 
 class SettingsMenuElement extends StatelessWidget {
@@ -28,22 +27,26 @@ class SettingsMenuElement extends StatelessWidget {
       borderRadius: theme.borderRadius.m,
       borderColor: (_, __, ___, ____) => Colors.transparent,
       backgroundColor: (_, isHovering, __, ___) {
+        if (page == selectedPage) {
+          return theme.fillColorScheme.themeSelect;
+        }
         if (isHovering) {
           return theme.fillColorScheme.contentHover;
-        } else if (page == selectedPage) {
-          return theme.fillColorScheme.themeSelect;
         }
         return Colors.transparent;
       },
       builder: (_, __, ___) {
         return Row(
+          spacing: theme.spacing.m,
           children: [
             icon,
-            HSpace(theme.spacing.m),
-            Text(
-              label,
-              style: theme.textStyle.body.standard(
-                color: theme.textColorScheme.primary,
+            Expanded(
+              child: Text(
+                label,
+                style: theme.textStyle.body.standard(
+                  color: theme.textColorScheme.primary,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],

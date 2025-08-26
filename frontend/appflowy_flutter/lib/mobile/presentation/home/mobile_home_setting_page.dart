@@ -104,7 +104,9 @@ class _MobileHomeSettingPageState extends State<MobileHomeSettingPage> {
                       if (state.userProfile.userAuthType == AuthTypePB.Server)
                         const WorkspaceSettingGroup(),
                       const AppearanceSettingGroup(),
-                      const LanguageSettingGroup(),
+                      LanguageAndTimeDateSettingGroup(
+                        userProfile: state.userProfile,
+                      ),
                       if (Env.enableCustomCloud) const CloudSettingGroup(),
                       if (isAuthEnabled)
                         AiSettingsGroup(

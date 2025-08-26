@@ -1,9 +1,11 @@
+use std::convert::From;
+
+use collab_database::views::{CalendarLayout, CalendarLayoutSetting};
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
 use flowy_error::ErrorCode;
 
 use crate::entities::RowMetaPB;
 use crate::entities::parser::NotEmptyStr;
-use crate::services::setting::{CalendarLayout, CalendarLayoutSetting};
 
 use super::CellIdPB;
 
@@ -15,8 +17,8 @@ pub struct CalendarLayoutSettingPB {
   #[pb(index = 2)]
   pub layout_ty: CalendarLayoutPB,
 
-  #[pb(index = 3)]
-  pub first_day_of_week: i32,
+  #[pb(index = 3, one_of)]
+  pub first_day_of_week: Option<i32>,
 
   #[pb(index = 4)]
   pub show_weekends: bool,
@@ -25,7 +27,7 @@ pub struct CalendarLayoutSettingPB {
   pub show_week_numbers: bool,
 }
 
-impl std::convert::From<CalendarLayoutSettingPB> for CalendarLayoutSetting {
+impl From<CalendarLayoutSettingPB> for CalendarLayoutSetting {
   fn from(pb: CalendarLayoutSettingPB) -> Self {
     CalendarLayoutSetting {
       layout_ty: pb.layout_ty.into(),
@@ -37,7 +39,7 @@ impl std::convert::From<CalendarLayoutSettingPB> for CalendarLayoutSetting {
   }
 }
 
-impl std::convert::From<CalendarLayoutSetting> for CalendarLayoutSettingPB {
+impl From<CalendarLayoutSetting> for CalendarLayoutSettingPB {
   fn from(params: CalendarLayoutSetting) -> Self {
     CalendarLayoutSettingPB {
       field_id: params.field_id,
@@ -58,7 +60,7 @@ pub enum CalendarLayoutPB {
   DayLayout = 2,
 }
 
-impl std::convert::From<CalendarLayoutPB> for CalendarLayout {
+impl From<CalendarLayoutPB> for CalendarLayout {
   fn from(pb: CalendarLayoutPB) -> Self {
     match pb {
       CalendarLayoutPB::MonthLayout => CalendarLayout::Month,
@@ -67,7 +69,7 @@ impl std::convert::From<CalendarLayoutPB> for CalendarLayout {
     }
   }
 }
-impl std::convert::From<CalendarLayout> for CalendarLayoutPB {
+impl From<CalendarLayout> for CalendarLayoutPB {
   fn from(layout: CalendarLayout) -> Self {
     match layout {
       CalendarLayout::Month => CalendarLayoutPB::MonthLayout,

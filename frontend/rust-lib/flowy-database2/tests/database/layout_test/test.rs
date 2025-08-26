@@ -1,6 +1,5 @@
 use crate::database::layout_test::script::DatabaseLayoutTest;
-use collab_database::views::DatabaseLayout;
-use flowy_database2::services::setting::{BoardLayoutSetting, CalendarLayoutSetting};
+use collab_database::views::{BoardLayoutSetting, CalendarLayoutSetting, DatabaseLayout};
 
 #[tokio::test]
 async fn board_layout_setting_test() {

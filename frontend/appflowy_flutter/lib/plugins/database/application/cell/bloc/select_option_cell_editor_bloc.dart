@@ -92,6 +92,7 @@ class SelectOptionCellEditorBloc
             filter = "";
             await _createOption(
               name: state.createSelectOptionSuggestion!.name,
+              color: state.createSelectOptionSuggestion!.color,
             );
             emit(state.copyWith(clearFilter: true));
           },
@@ -199,22 +200,8 @@ class SelectOptionCellEditorBloc
 
   Future<void> _createOption({
     required String name,
+    required SelectOptionColorPB color,
   }) async {
-    int hash = 0;
-
-    for (var i = 0; i < name.length; i++) {
-      hash = (hash << 5) - hash + name.codeUnitAt(i);
-      hash = hash & 0xFFFFFFFF; // Keep it within unsigned 32-bit range
-
-      // If the 31st bit is set (sign bit), convert to negative signed 32-bit equivalent
-      if ((hash & 0x80000000) != 0) {
-        hash = hash - 0x100000000;
-      }
-    }
-
-    final index = (hash.abs() % 10) + 1;
-    final color = SelectOptionColorPB.values[index];
-
     final result = await _selectOptionService.create(
       name: name,
       color: color,
@@ -238,6 +225,7 @@ class SelectOptionCellEditorBloc
       filter = "";
       _createOption(
         name: state.createSelectOptionSuggestion!.name,
+        color: state.createSelectOptionSuggestion!.color,
       );
       emit(
         state.copyWith(

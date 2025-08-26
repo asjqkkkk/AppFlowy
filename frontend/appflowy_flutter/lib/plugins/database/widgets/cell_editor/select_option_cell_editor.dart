@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:io';
 
 import 'package:appflowy/features/workspace/workspace.dart';
@@ -242,12 +241,6 @@ class _TextField extends StatelessWidget {
       builder: (context, state) {
         final theme = AppFlowyTheme.of(context);
 
-        final optionMap = LinkedHashMap<String, SelectOptionPB>.fromIterable(
-          state.selectedOptions,
-          key: (option) => option.name,
-          value: (option) => option,
-        );
-
         return Material(
           color: Colors.transparent,
           child: Padding(
@@ -258,9 +251,8 @@ class _TextField extends StatelessWidget {
               bottom: theme.spacing.xs,
             ),
             child: SelectOptionTextField(
-              options: state.options,
               focusNode: focusNode,
-              selectedOptionMap: optionMap,
+              selectedOptions: state.selectedOptions,
               distanceToText: _editorPanelWidth * 0.7,
               textController: textEditingController,
               scrollController: scrollController,
@@ -282,12 +274,11 @@ class _TextField extends StatelessWidget {
                       ),
                     );
               },
-              onRemove: (name) =>
-                  context.read<SelectOptionCellEditorBloc>().add(
-                        SelectOptionCellEditorEvent.unselectOption(
-                          optionMap[name]!.id,
-                        ),
-                      ),
+              onRemove: (id) {
+                context
+                    .read<SelectOptionCellEditorBloc>()
+                    .add(SelectOptionCellEditorEvent.unselectOption(id));
+              },
             ),
           ),
         );

@@ -69,7 +69,7 @@ class DateFormatList extends StatelessWidget {
     required this.onSelected,
   });
 
-  final DateFormatPB selectedFormat;
+  final DateFormatPB? selectedFormat;
   final Function(DateFormatPB format) onSelected;
 
   @override
@@ -161,7 +161,7 @@ class TimeFormatList extends StatelessWidget {
     required this.onSelected,
   });
 
-  final TimeFormatPB selectedFormat;
+  final TimeFormatPB? selectedFormat;
   final Function(TimeFormatPB format) onSelected;
 
   @override

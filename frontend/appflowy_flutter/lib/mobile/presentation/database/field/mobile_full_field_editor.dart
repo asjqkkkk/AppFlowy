@@ -1,10 +1,10 @@
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/flowy_search_text_field.dart';
+import 'package:appflowy/plugins/database/application/field/type_option/select_type_option_actions.dart';
 import 'package:appflowy/plugins/database/widgets/cell_editor/mobile_select_option_color_list.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/database/card/card_detail/widgets/widgets.dart';
@@ -48,6 +48,24 @@ class FieldOptionValues {
   factory FieldOptionValues.fromField({required FieldPB field}) {
     final fieldType = field.fieldType;
     final buffer = field.typeOptionData;
+
+    final DateFormatPB? dateFormat;
+    final TimeFormatPB? timeFormat;
+    switch (fieldType) {
+      case FieldType.DateTime:
+        final typeOption = DateTypeOptionPB.fromBuffer(buffer);
+        dateFormat = typeOption.hasDateFormat() ? typeOption.dateFormat : null;
+        timeFormat = typeOption.hasTimeFormat() ? typeOption.timeFormat : null;
+      case FieldType.LastEditedTime:
+      case FieldType.CreatedTime:
+        final typeOption = TimestampTypeOptionPB.fromBuffer(buffer);
+        dateFormat = typeOption.hasDateFormat() ? typeOption.dateFormat : null;
+        timeFormat = typeOption.hasTimeFormat() ? typeOption.timeFormat : null;
+      default:
+        dateFormat = null;
+        timeFormat = null;
+    }
+
     return FieldOptionValues(
       type: fieldType,
       name: field.name,
@@ -55,20 +73,8 @@ class FieldOptionValues {
       numberFormat: fieldType == FieldType.Number
           ? NumberTypeOptionPB.fromBuffer(buffer).format
           : null,
-      dateFormat: switch (fieldType) {
-        FieldType.DateTime => DateTypeOptionPB.fromBuffer(buffer).dateFormat,
-        FieldType.LastEditedTime ||
-        FieldType.CreatedTime =>
-          TimestampTypeOptionPB.fromBuffer(buffer).dateFormat,
-        _ => null
-      },
-      timeFormat: switch (fieldType) {
-        FieldType.DateTime => DateTypeOptionPB.fromBuffer(buffer).timeFormat,
-        FieldType.LastEditedTime ||
-        FieldType.CreatedTime =>
-          TimestampTypeOptionPB.fromBuffer(buffer).timeFormat,
-        _ => null
-      },
+      dateFormat: dateFormat,
+      timeFormat: timeFormat,
       includeTime: switch (fieldType) {
         FieldType.LastEditedTime ||
         FieldType.CreatedTime =>
@@ -294,14 +300,14 @@ class _MobileFieldEditorState extends State<MobileFieldEditor> {
       case FieldType.DateTime:
         return [
           _DateOption(
-            selectedFormat: values.dateFormat ?? DateFormatPB.Local,
+            selectedFormat: values.dateFormat,
             onSelected: (format) => _updateOptionValues(
               dateFormat: format,
             ),
           ),
           const _Divider(),
           _TimeOption(
-            selectedFormat: values.timeFormat ?? TimeFormatPB.TwelveHour,
+            selectedFormat: values.timeFormat,
             onSelected: (format) => _updateOptionValues(
               timeFormat: format,
             ),
@@ -336,15 +342,11 @@ class _MobileFieldEditorState extends State<MobileFieldEditor> {
         return [
           _SelectOption(
             mode: widget.mode,
-            selectOption: values.selectOption,
-            onAddOptions: (options) {
-              if (values.selectOption.lastOrNull?.name.isEmpty == true) {
-                // ignore the add action if the last one doesn't have a name
-                return;
-              }
+            options: values.selectOption,
+            onAddOptions: (option) {
               setState(() {
                 _updateOptionValues(
-                  selectOption: values.selectOption + options,
+                  selectOption: [...values.selectOption, option],
                 );
               });
             },
@@ -497,7 +499,7 @@ class _DateOption extends StatefulWidget {
     required this.onSelected,
   });
 
-  final DateFormatPB selectedFormat;
+  final DateFormatPB? selectedFormat;
   final Function(DateFormatPB format) onSelected;
 
   @override
@@ -505,7 +507,7 @@ class _DateOption extends StatefulWidget {
 }
 
 class _DateOptionState extends State<_DateOption> {
-  DateFormatPB selectedFormat = DateFormatPB.Local;
+  DateFormatPB? selectedFormat;
 
   @override
   void initState() {
@@ -551,7 +553,7 @@ class _TimeOption extends StatefulWidget {
     required this.onSelected,
   });
 
-  final TimeFormatPB selectedFormat;
+  final TimeFormatPB? selectedFormat;
   final Function(TimeFormatPB format) onSelected;
 
   @override
@@ -559,7 +561,7 @@ class _TimeOption extends StatefulWidget {
 }
 
 class _TimeOptionState extends State<_TimeOption> {
-  TimeFormatPB selectedFormat = TimeFormatPB.TwelveHour;
+  TimeFormatPB? selectedFormat;
 
   @override
   void initState() {
@@ -767,19 +769,17 @@ class _NumberFormatListState extends State<_NumberFormatList> {
 
 // single select or multi select
 class _SelectOption extends StatelessWidget {
-  _SelectOption({
+  const _SelectOption({
     required this.mode,
-    required this.selectOption,
+    required this.options,
     required this.onAddOptions,
     required this.onUpdateOptions,
   });
 
-  final List<SelectOptionPB> selectOption;
-  final void Function(List<SelectOptionPB> options) onAddOptions;
+  final List<SelectOptionPB> options;
+  final void Function(SelectOptionPB option) onAddOptions;
   final void Function(List<SelectOptionPB> options) onUpdateOptions;
   final FieldOptionMode mode;
-
-  final random = Random();
 
   @override
   Widget build(BuildContext context) {
@@ -798,45 +798,33 @@ class _SelectOption extends StatelessWidget {
           ),
         ),
         _SelectOptionList(
-          selectOptions: selectOption,
+          options: options,
           onUpdateOptions: onUpdateOptions,
           isPro: isPro,
         ),
-        FlowyOptionTile.text(
-          text: LocaleKeys.grid_field_addOption.tr(),
-          leftIcon: const FlowySvg(
-            FlowySvgs.add_s,
-            size: Size.square(20),
-          ),
-          onTap: () {
-            final newOption = _createNewOption();
-
-            onAddOptions([newOption]);
+        _NewSelectOptionTile(
+          onCreate: (name) {
+            final newOption = SelectOptionPB(
+              id: nanoid(4),
+              name: name,
+              color: newSelectOptionColor(options),
+            );
+            onAddOptions(newOption);
           },
         ),
       ],
-    );
-  }
-
-  SelectOptionPB _createNewOption() {
-    final color = SelectOptionColorPB.values[random.nextInt(10)];
-
-    return SelectOptionPB(
-      id: nanoid(4),
-      name: '',
-      color: color,
     );
   }
 }
 
 class _SelectOptionList extends StatefulWidget {
   const _SelectOptionList({
-    required this.selectOptions,
+    required this.options,
     required this.isPro,
     required this.onUpdateOptions,
   });
 
-  final List<SelectOptionPB> selectOptions;
+  final List<SelectOptionPB> options;
   final bool isPro;
   final void Function(List<SelectOptionPB> options) onUpdateOptions;
 
@@ -851,14 +839,14 @@ class _SelectOptionListState extends State<_SelectOptionList> {
   void initState() {
     super.initState();
 
-    options = widget.selectOptions;
+    options = widget.options;
   }
 
   @override
   void didUpdateWidget(covariant _SelectOptionList oldWidget) {
     super.didUpdateWidget(oldWidget);
 
-    options = widget.selectOptions;
+    options = widget.options;
   }
 
   @override
@@ -868,7 +856,7 @@ class _SelectOptionListState extends State<_SelectOptionList> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.selectOptions.isEmpty) {
+    if (widget.options.isEmpty) {
       return const SizedBox.shrink();
     }
     return ListView(
@@ -876,12 +864,12 @@ class _SelectOptionListState extends State<_SelectOptionList> {
       padding: EdgeInsets.zero,
       // disable the inner scroll physics, so the outer ListView can scroll
       physics: const NeverScrollableScrollPhysics(),
-      children: widget.selectOptions
+      children: widget.options
           .mapIndexed(
             (index, option) => _SelectOptionTile(
               option: option,
               showTopBorder: index == 0,
-              showBottomBorder: index != widget.selectOptions.length - 1,
+              showBottomBorder: index != widget.options.length - 1,
               isPro: widget.isPro,
               onUpdateOption: (option) {
                 _updateOption(index, option);
@@ -920,7 +908,8 @@ class _SelectOptionTile extends StatefulWidget {
 }
 
 class _SelectOptionTileState extends State<_SelectOptionTile> {
-  final TextEditingController controller = TextEditingController();
+  final controller = TextEditingController();
+  final focusNode = FocusNode();
   late SelectOptionPB option;
 
   @override
@@ -929,11 +918,25 @@ class _SelectOptionTileState extends State<_SelectOptionTile> {
 
     controller.text = widget.option.name;
     option = widget.option;
+
+    focusNode.addListener(() {
+      if (focusNode.hasFocus) {
+        return;
+      }
+      if (controller.text.isNotEmpty && controller.text != option.name) {
+        setState(() {
+          option.freeze();
+          option = option.rebuild((p0) => p0.name = controller.text);
+          widget.onUpdateOption(option);
+        });
+      }
+    });
   }
 
   @override
   void dispose() {
     controller.dispose();
+    focusNode.dispose();
     super.dispose();
   }
 
@@ -941,6 +944,7 @@ class _SelectOptionTileState extends State<_SelectOptionTile> {
   Widget build(BuildContext context) {
     return FlowyOptionTile.textField(
       controller: controller,
+      focusNode: focusNode,
       textFieldHintText: LocaleKeys.grid_field_typeANewOption.tr(),
       showTopBorder: widget.showTopBorder,
       showBottomBorder: widget.showBottomBorder,
@@ -953,17 +957,76 @@ class _SelectOptionTileState extends State<_SelectOptionTile> {
             option = option.rebuild((p0) => p0.color = color);
             widget.onUpdateOption(option);
           });
-          context.pop();
         },
       ),
-      onTextChanged: (name) {
-        setState(() {
-          option.freeze();
-          option = option.rebuild((p0) => p0.name = name);
-          widget.onUpdateOption(option);
-        });
-      },
     );
+  }
+}
+
+class _NewSelectOptionTile extends StatefulWidget {
+  const _NewSelectOptionTile({
+    required this.onCreate,
+  });
+
+  final void Function(String name) onCreate;
+
+  @override
+  State<_NewSelectOptionTile> createState() => _NewSelectOptionTileState();
+}
+
+class _NewSelectOptionTileState extends State<_NewSelectOptionTile> {
+  final textController = TextEditingController();
+  final focusNode = FocusNode();
+
+  bool isCreatingNewOption = false;
+
+  @override
+  void initState() {
+    super.initState();
+    focusNode.addListener(() {
+      if (focusNode.hasFocus || !isCreatingNewOption) {
+        return;
+      }
+      if (textController.text.isNotEmpty) {
+        widget.onCreate(textController.text);
+      }
+      setState(() => isCreatingNewOption = false);
+    });
+  }
+
+  @override
+  void dispose() {
+    textController.dispose();
+    focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isCreatingNewOption) {
+      return FlowyOptionTile.text(
+        text: LocaleKeys.grid_field_addOption.tr(),
+        leftIcon: const FlowySvg(
+          FlowySvgs.add_s,
+          size: Size.square(20),
+        ),
+        onTap: startCreatingNewOption,
+      );
+    }
+
+    return FlowyOptionTile.textField(
+      controller: textController,
+      focusNode: focusNode,
+      textFieldHintText: LocaleKeys.grid_field_typeANewOption.tr(),
+    );
+  }
+
+  void startCreatingNewOption() {
+    setState(() {
+      isCreatingNewOption = true;
+      textController.clear();
+      focusNode.requestFocus();
+    });
   }
 }
 
@@ -995,7 +1058,10 @@ class _SelectOptionColor extends StatelessWidget {
           builder: (context) {
             return OptionColorList(
               selectedColor: color,
-              onSelectColor: onChanged,
+              onSelectColor: (color) {
+                onChanged(color);
+                context.pop();
+              },
               isPro: isPro,
             );
           },

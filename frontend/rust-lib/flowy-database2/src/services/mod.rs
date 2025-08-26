@@ -6,7 +6,6 @@ pub mod field;
 pub mod field_settings;
 pub mod filter;
 pub mod group;
-pub mod setting;
 pub mod share;
 pub mod snapshot;
 pub mod sort;

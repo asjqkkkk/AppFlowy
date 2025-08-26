@@ -225,12 +225,12 @@ void main() {
       await gridResponseFuture();
 
       expect(
-        bloc.state.dateTypeOptionPB.dateFormat,
-        DateFormatPB.Friendly,
+        bloc.state.dateTypeOptionPB.hasDateFormat(),
+        isFalse,
       );
       expect(
-        bloc.state.dateTypeOptionPB.timeFormat,
-        TimeFormatPB.TwentyFourHour,
+        bloc.state.dateTypeOptionPB.hasTimeFormat(),
+        isFalse,
       );
 
       bloc.add(

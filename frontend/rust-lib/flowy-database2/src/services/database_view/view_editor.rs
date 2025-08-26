@@ -28,13 +28,12 @@ use crate::services::filter::{Filter, FilterChangeset, FilterController};
 use crate::services::group::{
   DidMoveGroupRowResult, GroupChangeset, GroupController, MoveGroupRowContext, UpdatedCells,
 };
-use crate::services::setting::CalendarLayoutSetting;
 use crate::services::sort::{Sort, SortChangeset, SortController};
 use collab_database::database::{gen_database_calculation_id, gen_database_sort_id, gen_row_id};
 use collab_database::entity::DatabaseView;
 use collab_database::fields::Field;
 use collab_database::rows::{Cell, Cells, CreateRowParams, Row, RowCell, RowDetail, RowId};
-use collab_database::views::{DatabaseLayout, RowOrder};
+use collab_database::views::{CalendarLayoutSetting, DatabaseLayout, RowOrder};
 use dashmap::DashMap;
 use flowy_error::{FlowyError, FlowyResult};
 use std::borrow::Cow;

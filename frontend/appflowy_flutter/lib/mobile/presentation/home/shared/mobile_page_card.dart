@@ -15,8 +15,6 @@ import 'package:appflowy/shared/icon_emoji_picker/tab.dart';
 import 'package:appflowy/util/string_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
-import 'package:appflowy/workspace/application/settings/date_time/time_format_ext.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/home_sizes.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -246,10 +244,9 @@ class MobileViewPage extends StatelessWidget {
     final difference = now.difference(dateTime);
     final String date;
 
-    final dateFormate =
-        context.read<AppearanceSettingsCubit>().state.dateFormat;
-    final timeFormate =
-        context.read<AppearanceSettingsCubit>().state.timeFormat;
+    final state = context.read<AppearanceSettingsCubit>().state;
+    final dateFormat = state.dateFormat;
+    final timeFormat = state.timeFormat;
 
     if (difference.inMinutes < 1) {
       date = LocaleKeys.sideBar_justNow.tr();
@@ -259,9 +256,9 @@ class MobileViewPage extends StatelessWidget {
           .tr(namedArgs: {'count': difference.inMinutes.toString()});
     } else if (difference.inHours >= 1 && dateTime.isToday) {
       // in same day
-      date = timeFormate.formatTime(dateTime);
+      date = timeFormat.getDateFormat().format(dateTime);
     } else {
-      date = dateFormate.formatDate(dateTime, false);
+      date = dateFormat.getDateFormat().format(dateTime);
     }
 
     if (difference.inHours >= 1) {

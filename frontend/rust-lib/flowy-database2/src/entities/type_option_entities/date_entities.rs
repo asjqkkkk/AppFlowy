@@ -66,11 +66,11 @@ pub struct DateCellChangesetPB {
 // Date
 #[derive(Clone, Debug, Default, ProtoBuf)]
 pub struct DateTypeOptionPB {
-  #[pb(index = 1)]
-  pub date_format: DateFormatPB,
+  #[pb(index = 1, one_of)]
+  pub date_format: Option<DateFormatPB>,
 
-  #[pb(index = 2)]
-  pub time_format: TimeFormatPB,
+  #[pb(index = 2, one_of)]
+  pub time_format: Option<TimeFormatPB>,
 
   #[pb(index = 3)]
   pub timezone_id: String,
@@ -79,8 +79,8 @@ pub struct DateTypeOptionPB {
 impl From<DateTypeOption> for DateTypeOptionPB {
   fn from(data: DateTypeOption) -> Self {
     Self {
-      date_format: data.date_format.into(),
-      time_format: data.time_format.into(),
+      date_format: data.date_format.map(Into::into),
+      time_format: data.time_format.map(Into::into),
       timezone_id: data.timezone_id,
     }
   }
@@ -89,8 +89,8 @@ impl From<DateTypeOption> for DateTypeOptionPB {
 impl From<DateTypeOptionPB> for DateTypeOption {
   fn from(data: DateTypeOptionPB) -> Self {
     Self {
-      date_format: data.date_format.into(),
-      time_format: data.time_format.into(),
+      date_format: data.date_format.map(Into::into),
+      time_format: data.time_format.map(Into::into),
       timezone_id: data.timezone_id,
     }
   }

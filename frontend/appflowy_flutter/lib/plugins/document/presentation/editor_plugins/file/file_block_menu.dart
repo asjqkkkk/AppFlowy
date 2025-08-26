@@ -4,7 +4,6 @@ import 'package:appflowy/plugins/document/application/prelude.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_block.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/file/file_util.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/pop_up_action.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
@@ -136,10 +135,10 @@ class _FileBlockMenuState extends State<FileBlockMenu> {
             child: FlowyText.regular(
               [FileUrlType.cloud, FileUrlType.local].contains(urlType)
                   ? LocaleKeys.document_plugins_file_uploadedAt.tr(
-                      args: [dateFormat.formatDate(uploadedAt, false)],
+                      args: [dateFormat.getDateFormat().format(uploadedAt)],
                     )
                   : LocaleKeys.document_plugins_file_linkedAt.tr(
-                      args: [dateFormat.formatDate(uploadedAt, false)],
+                      args: [dateFormat.getDateFormat().format(uploadedAt)],
                     ),
               fontSize: 14,
               maxLines: 2,

@@ -12,6 +12,9 @@ use serde_repr::*;
 use uuid::Uuid;
 
 pub const USER_METADATA_ICON_URL: &str = "icon_url";
+pub const USER_METADATA_DATE_FORMAT: &str = "date_format";
+pub const USER_METADATA_TIME_FORMAT: &str = "time_format";
+pub const USER_METADATA_START_WEEK_ON: &str = "start_week_on";
 pub const USER_METADATA_UPDATE_AT: &str = "updated_at";
 
 pub trait UserAuthResponse {

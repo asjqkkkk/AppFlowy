@@ -1,7 +1,4 @@
-import 'dart:collection';
-
 import 'package:appflowy/plugins/database/widgets/cell_editor/select_option_text_field.dart';
-import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -21,8 +18,7 @@ void main() {
     final textController = TextEditingController();
 
     final textField = SelectOptionTextField(
-      options: const [],
-      selectedOptionMap: LinkedHashMap<String, SelectOptionPB>(),
+      selectedOptions: [],
       distanceToText: 0.0,
       onSubmitted: () => submit = textController.text,
       onPaste: (options, remaining) {

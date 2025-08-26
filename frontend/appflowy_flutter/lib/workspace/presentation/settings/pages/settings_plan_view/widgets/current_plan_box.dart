@@ -1,7 +1,6 @@
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/util/int64_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/application/settings/plan/settings_plan_bloc.dart';
 import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_plan_comparison_dialog.dart';
@@ -174,10 +173,9 @@ class _CanceledInfo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final appearance = context.read<AppearanceSettingsCubit>().state;
-    final canceledDate = appearance.dateFormat.formatDate(
-      subscriptionInfo.subscription.endDate.toDateTime(),
-      false,
-    );
+    final canceledDate = appearance.dateFormat.getDateFormat().format(
+          subscriptionInfo.subscription.endDate.toDateTime(),
+        );
 
     return Column(
       children: [

@@ -9,6 +9,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 
 part 'settings_user_bloc.freezed.dart';
 
+/// TODO(Richard): move to features/settings
 class SettingsUserViewBloc extends Bloc<SettingsUserEvent, SettingsUserState> {
   SettingsUserViewBloc(this.userProfile)
       : _userListener = UserListener(userProfile: userProfile),

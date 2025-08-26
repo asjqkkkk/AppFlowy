@@ -23,12 +23,8 @@ impl CellDataProtobufEncoder for TimestampTypeOption {
     &self,
     cell_data: <Self as TypeOption>::CellData,
   ) -> <Self as TypeOption>::CellProtobufType {
-    let timestamp = cell_data.timestamp;
-    let date_time = self.stringify_cell_data(cell_data);
-
     TimestampCellDataPB {
-      date_time,
-      timestamp,
+      timestamp: cell_data.timestamp,
     }
   }
 }

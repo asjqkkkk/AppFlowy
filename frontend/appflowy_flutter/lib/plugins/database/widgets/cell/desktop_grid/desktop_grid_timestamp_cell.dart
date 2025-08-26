@@ -40,7 +40,11 @@ class DesktopGridTimestampCellSkin extends IEditableTimestampCellSkin {
         return Padding(
           padding: padding,
           child: FlowyText(
-            state.dateStr,
+            getTimestampCellText(
+              context,
+              state.fieldInfo,
+              state.dateTime,
+            ),
             overflow: state.wrap ? null : TextOverflow.ellipsis,
             maxLines: state.wrap ? null : 1,
           ),

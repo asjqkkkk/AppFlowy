@@ -32,6 +32,7 @@ class DesktopAppFlowyDatePicker extends AppFlowyDatePicker {
     super.onIncludeTimeChanged,
     super.onIsRangeChanged,
     super.onReminderSelected,
+    super.startWeekOnMonday = false,
     this.popoverMutex,
     this.options = const [],
   });
@@ -116,6 +117,7 @@ class DesktopAppFlowyDatePickerState
               startDay: isRange ? startDateTime : null,
               endDay: isRange ? endDateTime : null,
               focusedDay: focusedDateTime,
+              startWeekOnMonday: widget.startWeekOnMonday,
               onCalendarCreated: (controller) {
                 pageController = controller;
               },

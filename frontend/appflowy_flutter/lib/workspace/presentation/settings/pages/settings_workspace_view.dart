@@ -11,8 +11,6 @@ import 'package:appflowy/util/font_family_extension.dart';
 import 'package:appflowy/workspace/application/appearance_defaults.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/appearance/base_appearance.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
-import 'package:appflowy/workspace/application/settings/date_time/time_format_ext.dart';
 import 'package:appflowy/workspace/application/settings/workspace/workspace_settings_bloc.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/workspace/_sidebar_workspace_icon.dart';
@@ -34,7 +32,6 @@ import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
-import 'package:flowy_infra/language.dart';
 import 'package:flowy_infra/plugins/bloc/dynamic_plugin_bloc.dart';
 import 'package:flowy_infra/plugins/bloc/dynamic_plugin_event.dart';
 import 'package:flowy_infra/plugins/bloc/dynamic_plugin_state.dart';
@@ -175,25 +172,6 @@ class SettingsWorkspaceView extends StatelessWidget {
               ),
               const SettingsCategorySpacer(),
 
-              SettingsCategory(
-                title: LocaleKeys.settings_workspacePage_dateTime_title.tr(),
-                children: [
-                  const _DateTimeFormatLabel(),
-                  const _TimeFormatSwitcher(),
-                  SettingsDashedDivider(
-                    color: Theme.of(context).colorScheme.outline,
-                  ),
-                  const _DateFormatDropdown(),
-                ],
-              ),
-              const SettingsCategorySpacer(),
-
-              SettingsCategory(
-                title: LocaleKeys.settings_workspacePage_language_title.tr(),
-                children: const [LanguageDropdown()],
-              ),
-              const SettingsCategorySpacer(),
-
               if (userProfile.userAuthType == AuthTypePB.Server) ...[
                 SingleSettingAction(
                   label: LocaleKeys.settings_workspacePage_manageWorkspace_title
@@ -325,38 +303,6 @@ class _WorkspaceNameSettingState extends State<_WorkspaceNameSetting> {
           .read<WorkspaceSettingsBloc>()
           .add(WorkspaceSettingsEvent.updateWorkspaceName(name));
     }
-  }
-}
-
-@visibleForTesting
-class LanguageDropdown extends StatelessWidget {
-  const LanguageDropdown({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AppearanceSettingsCubit, AppearanceSettingsState>(
-      builder: (context, state) {
-        return SettingsDropdown<Locale>(
-          key: const Key('LanguageDropdown'),
-          expandWidth: false,
-          onChanged: (locale) => context
-              .read<AppearanceSettingsCubit>()
-              .setLocale(context, locale),
-          selectedOption: state.locale,
-          options: EasyLocalization.of(context)!
-              .supportedLocales
-              .map(
-                (locale) => buildDropdownMenuEntry<Locale>(
-                  context,
-                  selectedValue: state.locale,
-                  value: locale,
-                  label: languageFromLocale(locale),
-                ),
-              )
-              .toList(),
-        );
-      },
-    );
   }
 }
 
@@ -512,118 +458,6 @@ class _LayoutDirectionSelect extends StatelessWidget {
           ],
         );
       },
-    );
-  }
-}
-
-class _DateFormatDropdown extends StatelessWidget {
-  const _DateFormatDropdown();
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<AppearanceSettingsCubit, AppearanceSettingsState>(
-      builder: (context, state) {
-        return Padding(
-          padding: const EdgeInsets.only(top: 8.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              FlowyText.regular(
-                LocaleKeys.settings_workspacePage_dateTime_dateFormat_label
-                    .tr(),
-                fontSize: 16,
-              ),
-              const VSpace(8),
-              SettingsDropdown<UserDateFormatPB>(
-                key: const Key('DateFormatDropdown'),
-                expandWidth: false,
-                onChanged: (format) => context
-                    .read<AppearanceSettingsCubit>()
-                    .setDateFormat(format),
-                selectedOption: state.dateFormat,
-                options: UserDateFormatPB.values
-                    .map(
-                      (format) => buildDropdownMenuEntry<UserDateFormatPB>(
-                        context,
-                        value: format,
-                        label: _formatLabel(format),
-                      ),
-                    )
-                    .toList(),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  String _formatLabel(UserDateFormatPB format) => switch (format) {
-        UserDateFormatPB.Locally =>
-          LocaleKeys.settings_workspacePage_dateTime_dateFormat_local.tr(),
-        UserDateFormatPB.US =>
-          LocaleKeys.settings_workspacePage_dateTime_dateFormat_us.tr(),
-        UserDateFormatPB.ISO =>
-          LocaleKeys.settings_workspacePage_dateTime_dateFormat_iso.tr(),
-        UserDateFormatPB.Friendly =>
-          LocaleKeys.settings_workspacePage_dateTime_dateFormat_friendly.tr(),
-        UserDateFormatPB.DayMonthYear =>
-          LocaleKeys.settings_workspacePage_dateTime_dateFormat_dmy.tr(),
-        _ => "Unknown format",
-      };
-}
-
-class _DateTimeFormatLabel extends StatelessWidget {
-  const _DateTimeFormatLabel();
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-
-    return BlocBuilder<AppearanceSettingsCubit, AppearanceSettingsState>(
-      builder: (context, state) {
-        return FlowyText.regular(
-          LocaleKeys.settings_workspacePage_dateTime_example.tr(
-            args: [
-              state.dateFormat.formatDate(now, false),
-              state.timeFormat.formatTime(now),
-              now.timeZoneName,
-            ],
-          ),
-          maxLines: 2,
-          fontSize: 16,
-          color: AFThemeExtension.of(context).secondaryTextColor,
-        );
-      },
-    );
-  }
-}
-
-class _TimeFormatSwitcher extends StatelessWidget {
-  const _TimeFormatSwitcher();
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: FlowyText.regular(
-            LocaleKeys.settings_workspacePage_dateTime_24HourTime.tr(),
-            fontSize: 16,
-          ),
-        ),
-        const HSpace(16),
-        Toggle(
-          value: context.watch<AppearanceSettingsCubit>().state.timeFormat ==
-              UserTimeFormatPB.TwentyFourHour,
-          onChanged: (value) =>
-              context.read<AppearanceSettingsCubit>().setTimeFormat(
-                    value
-                        ? UserTimeFormatPB.TwentyFourHour
-                        : UserTimeFormatPB.TwelveHour,
-                  ),
-        ),
-      ],
     );
   }
 }

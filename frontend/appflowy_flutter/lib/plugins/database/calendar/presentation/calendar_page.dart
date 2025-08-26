@@ -197,10 +197,24 @@ class _CalendarPageState extends State<CalendarPage> {
                       child: CircularProgressIndicator.adaptive(),
                     );
                   }
+
+                  final int firstDayOfWeek;
+                  if (state.settings == null) {
+                    firstDayOfWeek = 0;
+                  } else if (state.settings!.hasFirstDayOfWeek()) {
+                    firstDayOfWeek = state.settings!.firstDayOfWeek;
+                  } else {
+                    firstDayOfWeek = context
+                        .read<UserWorkspaceBloc>()
+                        .state
+                        .userProfile
+                        .startWeekOn;
+                  }
+
                   return _buildCalendar(
                     context,
                     _eventController,
-                    state.settings?.firstDayOfWeek ?? 0,
+                    firstDayOfWeek,
                   );
                 },
               );

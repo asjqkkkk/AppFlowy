@@ -1,4 +1,4 @@
-import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:flutter/widgets.dart';
 
 import 'widgets/reminder_selector.dart';
@@ -23,13 +23,14 @@ abstract class AppFlowyDatePicker extends StatefulWidget {
     this.onIncludeTimeChanged,
     this.onIsRangeChanged,
     this.onReminderSelected,
+    this.startWeekOnMonday = false,
   });
 
   final DateTime? dateTime;
   final DateTime? endDateTime;
 
-  final DateFormatPB dateFormat;
-  final TimeFormatPB timeFormat;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat timeFormat;
 
   /// Called when the date is picked, whether by submitting a date from the top
   /// or by selecting a date in the calendar. Will not be called if isRange is
@@ -55,6 +56,8 @@ abstract class AppFlowyDatePicker extends StatefulWidget {
 
   final ReminderOption reminderOption;
   final OnReminderSelected? onReminderSelected;
+
+  final bool startWeekOnMonday;
 }
 
 abstract class AppFlowyDatePickerState<T extends AppFlowyDatePicker>

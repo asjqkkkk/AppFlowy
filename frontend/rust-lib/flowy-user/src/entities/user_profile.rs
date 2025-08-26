@@ -44,6 +44,18 @@ pub struct UserProfilePB {
 
   #[pb(index = 7)]
   pub workspace_type: WorkspaceTypePB,
+
+  #[pb(index = 8)]
+  pub date_format: i32,
+
+  #[pb(index = 9)]
+  pub time_format: i32,
+
+  #[pb(index = 10)]
+  pub start_week_on: i32,
+
+  #[pb(index = 11)]
+  pub language: String,
 }
 
 #[derive(ProtoBuf_Enum, Eq, PartialEq, Debug, Clone)]
@@ -71,6 +83,22 @@ impl From<UserProfile> for UserProfilePB {
         .unwrap_or_default(),
       user_auth_type: user_profile.auth_type.into(),
       workspace_type: user_profile.workspace_type.into(),
+      date_format: user_profile
+        .metadata
+        .get_typed(MetadataKey::DateFormat)
+        .unwrap_or(3),
+      time_format: user_profile
+        .metadata
+        .get_typed(MetadataKey::Custom(USER_METADATA_TIME_FORMAT.to_owned()))
+        .unwrap_or(1),
+      start_week_on: user_profile
+        .metadata
+        .get_typed(MetadataKey::Custom(USER_METADATA_START_WEEK_ON.to_owned()))
+        .unwrap_or_default(),
+      language: user_profile
+        .metadata
+        .get_typed(MetadataKey::Language)
+        .unwrap_or_default(),
     }
   }
 }
@@ -91,6 +119,18 @@ pub struct UpdateUserProfilePayloadPB {
 
   #[pb(index = 5, one_of)]
   pub icon_url: Option<String>,
+
+  #[pb(index = 6, one_of)]
+  pub date_format: Option<i32>,
+
+  #[pb(index = 7, one_of)]
+  pub time_format: Option<i32>,
+
+  #[pb(index = 8, one_of)]
+  pub start_week_on: Option<i32>,
+
+  #[pb(index = 9, one_of)]
+  pub language: Option<String>,
 }
 
 impl UpdateUserProfilePayloadPB {
@@ -127,27 +167,40 @@ impl TryInto<UpdateUserParams> for UpdateUserProfilePayloadPB {
 
   fn try_into(self) -> Result<UpdateUserParams, Self::Error> {
     let mut params = UpdateUserParams::new();
-    params = match self.name {
-      None => params,
-      Some(name) => params.with_name(UserName::parse(name)?.0),
-    };
 
-    params = match self.email {
-      None => params,
-      Some(email) => params.with_email(UserEmail::parse(email)?.0),
-    };
-
-    params = match self.password {
-      None => params,
-      Some(password) => params.with_password(password),
-    };
-
-    params = match self.icon_url {
-      None => params,
-      Some(icon_url) => {
-        params.with_metadata_key(MetadataKey::IconUrl, UserIcon::parse(icon_url)?.0)
-      },
-    };
+    if let Some(name) = self.name {
+      params = params.with_name(UserName::parse(name)?.0);
+    }
+    if let Some(email) = self.email {
+      params = params.with_email(UserEmail::parse(email)?.0);
+    }
+    if let Some(password) = self.password {
+      params = params.with_password(password);
+    }
+    if let Some(icon_url) = self.icon_url {
+      params = params.with_metadata_key(MetadataKey::IconUrl, UserIcon::parse(icon_url)?.0);
+    }
+    if let Some(date_format) = self.date_format {
+      params = params.with_metadata_key(
+        MetadataKey::Custom(USER_METADATA_DATE_FORMAT.to_string()),
+        date_format,
+      );
+    }
+    if let Some(time_format) = self.time_format {
+      params = params.with_metadata_key(
+        MetadataKey::Custom(USER_METADATA_TIME_FORMAT.to_string()),
+        time_format,
+      );
+    }
+    if let Some(start_week_on) = self.start_week_on {
+      params = params.with_metadata_key(
+        MetadataKey::Custom(USER_METADATA_START_WEEK_ON.to_string()),
+        start_week_on,
+      );
+    }
+    if let Some(language) = self.language {
+      params = params.with_metadata_key(MetadataKey::Language, language);
+    }
 
     Ok(params)
   }

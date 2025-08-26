@@ -1,7 +1,7 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/util/int64_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/billing/settings_personal_sub_billing_bloc.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/single_setting_action.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/space/shared_widget.dart';
@@ -62,22 +62,20 @@ class PersonalSubscriptionAIAddonTile extends StatelessWidget {
 
   String _getDescription(
     SubscriptionState subscriptionState,
-    UserDateFormatPB dateFormat,
+    UserDateFormat dateFormat,
     PersonalSubscriptionPB subscription,
   ) {
     if (subscriptionState == SubscriptionState.cancelled) {
-      final endDate = dateFormat.formatDate(
-        subscription.endDate.toDateTime(),
-        false,
-      );
+      final endDate = dateFormat.getDateFormat().format(
+            subscription.endDate.toDateTime(),
+          );
       return canceledDescription.tr(args: [endDate]);
     }
 
     if (subscriptionState == SubscriptionState.actived) {
-      final endDate = dateFormat.formatDate(
-        subscription.endDate.toDateTime(),
-        false,
-      );
+      final endDate = dateFormat.getDateFormat().format(
+            subscription.endDate.toDateTime(),
+          );
       return activeDescription.tr(args: [endDate]);
     }
 

@@ -51,16 +51,19 @@ class HomeSettingBloc extends Bloc<HomeSettingEvent, HomeSettingState> {
             emit(state.copyWith(workspaceSetting: value.setting));
           },
           changeMenuStatus: (_CollapseMenu e) {
-            final status = e.status;
-            if (state.menuStatus == status) return;
-            if (status != MenuStatus.floating) {
-              _appearanceSettingsCubit.saveIsMenuCollapsed(
-                status == MenuStatus.expanded ? false : true,
+            final newStatus = e.status;
+
+            if (state.menuStatus == newStatus) {
+              return;
+            }
+
+            if (newStatus != MenuStatus.floating) {
+              _appearanceSettingsCubit.setMenuPreferences(
+                isCollapsed: newStatus != MenuStatus.expanded,
               );
             }
-            emit(
-              state.copyWith(menuStatus: status),
-            );
+
+            emit(state.copyWith(menuStatus: newStatus));
           },
           collapseNotificationPanel: (_) {
             final isNotificationPanelCollapsed =
@@ -108,7 +111,9 @@ class HomeSettingBloc extends Bloc<HomeSettingEvent, HomeSettingState> {
             }
           },
           editPanelResizeEnd: (_EditPanelResizeEnd e) {
-            _appearanceSettingsCubit.saveMenuOffset(state.resizeOffset);
+            _appearanceSettingsCubit.setMenuPreferences(
+              offset: state.resizeOffset,
+            );
             emit(state.copyWith(resizeType: MenuResizeType.slide));
           },
         );

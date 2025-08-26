@@ -48,7 +48,8 @@ class _DateCellState extends State<DateCardCell> {
       },
       child: BlocBuilder<DateCellBloc, DateCellState>(
         builder: (context, state) {
-          final dateStr = getDateCellStrFromCellData(
+          final dateStr = getDateCellText(
+            context,
             state.fieldInfo,
             state.cellData,
           );

@@ -1,6 +1,7 @@
 import 'package:appflowy/env/cloud_env.dart';
 import 'package:appflowy/features/profile_setting/presentation/settings_profile_view.dart';
 import 'package:appflowy/features/workspace/logic/workspace_bloc.dart';
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/shared/share/constants.dart';
@@ -270,9 +271,18 @@ class _LanguageSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SettingsCategory(
-      title: LocaleKeys.settings_workspacePage_language_title.tr(),
-      children: const [LanguageDropdown()],
+    final theme = AppFlowyTheme.of(context);
+
+    return BlocBuilder<AppearanceSettingsCubit, AppearanceSettingsState>(
+      builder: (context, state) {
+        return LanguageSection(
+          theme: theme,
+          locale: state.locale,
+          onSelect: (locale) {
+            context.read<AppearanceSettingsCubit>().setLocale(context, locale);
+          },
+        );
+      },
     );
   }
 }

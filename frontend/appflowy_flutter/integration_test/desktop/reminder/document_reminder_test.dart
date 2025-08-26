@@ -1,7 +1,7 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_block.dart';
 import 'package:appflowy/user/application/user_settings_service.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/presentation/notifications/widgets/notification_item.dart';
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/date_time.pbenum.dart';
@@ -48,8 +48,14 @@ void main() {
       expect(mentionAttr['type'], MentionType.date.name);
       expect(mentionAttr['date'], tomorrow.toIso8601String());
 
+      final dateTime = combineDateTimeFormat(
+        UserDateFormat.friendly,
+        UserTimeFormat.twentyFourHour,
+        includeTime: true,
+      ).format(tomorrow);
+
       await tester.tap(
-        find.text(dateTimeSettings.dateFormat.formatDate(tomorrow, false)),
+        find.text(dateTime),
       );
       await tester.pumpAndSettle();
 
@@ -144,6 +150,12 @@ Future<DateTime> _insertReminderTomorrow(WidgetTester tester) async {
       LogicalKeyboardKey.keyO,
       LogicalKeyboardKey.keyW,
     ],
+    tester: tester,
+    withKeyUp: true,
+  );
+
+  await FlowyTestKeyboard.simulateKeyDownEvent(
+    [LogicalKeyboardKey.arrowDown],
     tester: tester,
   );
 

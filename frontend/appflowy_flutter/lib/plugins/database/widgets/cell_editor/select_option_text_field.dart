@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/select/select_option_editor.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/select_option_entities.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -9,8 +7,7 @@ import 'package:flutter/material.dart';
 class SelectOptionTextField extends StatefulWidget {
   const SelectOptionTextField({
     super.key,
-    required this.options,
-    required this.selectedOptionMap,
+    required this.selectedOptions,
     required this.distanceToText,
     required this.textSeparators,
     required this.textController,
@@ -22,18 +19,17 @@ class SelectOptionTextField extends StatefulWidget {
     this.scrollController,
   });
 
-  final List<SelectOptionPB> options;
-  final LinkedHashMap<String, SelectOptionPB> selectedOptionMap;
+  final List<SelectOptionPB> selectedOptions;
   final double distanceToText;
   final List<String> textSeparators;
   final TextEditingController textController;
   final ScrollController? scrollController;
   final FocusNode focusNode;
 
-  final Function() onSubmitted;
-  final Function(String) newText;
-  final Function(List<String>, String) onPaste;
-  final Function(String) onRemove;
+  final void Function() onSubmitted;
+  final void Function(String) newText;
+  final void Function(List<String>, String) onPaste;
+  final void Function(String) onRemove;
 
   @override
   State<SelectOptionTextField> createState() => _SelectOptionTextFieldState();
@@ -52,7 +48,7 @@ class _SelectOptionTextFieldState extends State<SelectOptionTextField> {
 
   @override
   void didUpdateWidget(covariant oldWidget) {
-    if (oldWidget.selectedOptionMap.length < widget.selectedOptionMap.length) {
+    if (oldWidget.selectedOptions.length < widget.selectedOptions.length) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         _scrollToEnd();
       });
@@ -113,18 +109,9 @@ class _SelectOptionTextFieldState extends State<SelectOptionTextField> {
   }
 
   Widget? _renderTags(BuildContext context) {
-    if (widget.selectedOptionMap.isEmpty) {
+    if (widget.selectedOptions.isEmpty) {
       return null;
     }
-
-    final children = widget.selectedOptionMap.values
-        .map(
-          (option) => SelectOptionTag(
-            option: option,
-            onRemove: (option) => widget.onRemove(option),
-          ),
-        )
-        .toList();
 
     return Focus(
       descendantsAreFocusable: false,
@@ -145,7 +132,17 @@ class _SelectOptionTextFieldState extends State<SelectOptionTextField> {
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               controller: widget.scrollController,
-              child: Wrap(spacing: 4, children: children),
+              child: Wrap(
+                spacing: 4,
+                children: widget.selectedOptions
+                    .map(
+                      (option) => SelectOptionTag(
+                        option: option,
+                        onRemove: (id) => widget.onRemove(id),
+                      ),
+                    )
+                    .toList(),
+              ),
             ),
           ),
         ),

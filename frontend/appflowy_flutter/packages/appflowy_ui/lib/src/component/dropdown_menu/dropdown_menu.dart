@@ -18,7 +18,7 @@ class AFDropDownMenu<T extends AFDropDownMenuMixin> extends StatefulWidget {
     super.key,
     required this.items,
     required this.selectedItems,
-    this.onSelected,
+    this.onSelect,
     this.closeOnSelect,
     this.controller,
     this.isClearEnabled = true,
@@ -34,7 +34,7 @@ class AFDropDownMenu<T extends AFDropDownMenuMixin> extends StatefulWidget {
 
   final List<T> items;
   final List<T> selectedItems;
-  final void Function(T? value)? onSelected;
+  final void Function(T? value)? onSelect;
   final bool? closeOnSelect;
   final AFPopoverController? controller;
   final String? errorText;
@@ -103,7 +103,7 @@ class _AFDropDownMenuState<T extends AFDropDownMenuMixin>
               child: _DropdownPopoverContents(
                 items: widget.items,
                 onSelected: (item) {
-                  widget.onSelected?.call(item);
+                  widget.onSelect?.call(item);
                   if ((widget.closeOnSelect == null && !widget.isMultiselect) ||
                       widget.closeOnSelect == true) {
                     controller.hide();

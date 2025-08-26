@@ -1,9 +1,7 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/appflowy_date_picker_base.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/desktop_date_picker.dart';
-import 'package:appflowy/workspace/presentation/widgets/date_picker/utils/date_time_format_ext.dart';
-import 'package:appflowy/workspace/presentation/widgets/date_picker/utils/user_time_format_ext.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/reminder_selector.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/date_time.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:flowy_infra_ui/style_widget/decoration.dart';
@@ -19,8 +17,9 @@ class DatePickerOptions {
     this.selectedDay,
     this.includeTime = false,
     this.isRange = false,
-    this.dateFormat = UserDateFormatPB.Friendly,
-    this.timeFormat = UserTimeFormatPB.TwentyFourHour,
+    this.startWeekOnMonday = false,
+    this.dateFormat = UserDateFormat.friendly,
+    this.timeFormat = UserTimeFormat.twentyFourHour,
     this.selectedReminderOption,
     this.onDaySelected,
     this.onRangeSelected,
@@ -33,8 +32,9 @@ class DatePickerOptions {
   final DateTime? selectedDay;
   final bool includeTime;
   final bool isRange;
-  final UserDateFormatPB dateFormat;
-  final UserTimeFormatPB timeFormat;
+  final bool startWeekOnMonday;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat timeFormat;
   final ReminderOption? selectedReminderOption;
 
   final DaySelectedCallback? onDaySelected;
@@ -48,8 +48,9 @@ class DatePickerOptions {
     DateTime? selectedDay,
     bool? includeTime,
     bool? isRange,
-    UserDateFormatPB? dateFormat,
-    UserTimeFormatPB? timeFormat,
+    bool? startWeekOnMonday,
+    UserDateFormat? dateFormat,
+    UserTimeFormat? timeFormat,
     ReminderOption? selectedReminderOption,
     DaySelectedCallback? onDaySelected,
     RangeSelectedCallback? onRangeSelected,
@@ -62,6 +63,7 @@ class DatePickerOptions {
       selectedDay: selectedDay ?? this.selectedDay,
       includeTime: includeTime ?? this.includeTime,
       isRange: isRange ?? this.isRange,
+      startWeekOnMonday: startWeekOnMonday ?? this.startWeekOnMonday,
       dateFormat: dateFormat ?? this.dateFormat,
       timeFormat: timeFormat ?? this.timeFormat,
       selectedReminderOption:
@@ -205,8 +207,9 @@ class _AnimatedDatePickerState extends State<_AnimatedDatePicker> {
         child: DesktopAppFlowyDatePicker(
           includeTime: options.includeTime,
           isRange: options.isRange,
-          dateFormat: options.dateFormat.simplified,
-          timeFormat: options.timeFormat.simplified,
+          dateFormat: options.dateFormat,
+          timeFormat: options.timeFormat,
+          startWeekOnMonday: options.startWeekOnMonday,
           dateTime: options.selectedDay,
           popoverMutex: widget.popoverMutex,
           reminderOption: options.selectedReminderOption ?? ReminderOption.none,

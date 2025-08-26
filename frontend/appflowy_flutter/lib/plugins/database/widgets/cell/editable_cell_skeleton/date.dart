@@ -1,3 +1,4 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/date_cell_bloc.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/date_cell_editor_bloc.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller.dart';
@@ -7,11 +8,10 @@ import 'package:appflowy/plugins/database/application/field/field_info.dart';
 import 'package:appflowy/plugins/database/application/field/type_option/type_option_data_parser.dart';
 import 'package:appflowy/plugins/database/widgets/cell/editable_cell_builder.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
-import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:intl/intl.dart';
 
 import '../desktop_grid/desktop_grid_date_cell.dart';
 import '../desktop_row_detail/desktop_row_detail_date_cell.dart';
@@ -97,45 +97,42 @@ class _DateCellState extends GridCellState<EditableDateCell> {
   }
 
   @override
-  String? onCopy() => getDateCellStrFromCellData(
+  String? onCopy() => getDateCellText(
+        context,
         cellBloc.state.fieldInfo,
         cellBloc.state.cellData,
       );
 }
 
-String getDateCellStrFromCellData(FieldInfo field, DateCellData cellData) {
+String getDateCellText(
+  BuildContext context,
+  FieldInfo field,
+  DateCellData cellData,
+) {
   if (cellData.dateTime == null) {
     return "";
   }
 
-  final DateTypeOptionPB(:dateFormat, :timeFormat) =
+  final appearanceState = context.read<AppearanceSettingsCubit>().state;
+  final dateTypeOption =
       DateTypeOptionDataParser().fromBuffer(field.field.typeOptionData);
 
-  final format = cellData.includeTime
-      ? DateFormat("${dateFormat.pattern} ${timeFormat.pattern}")
-      : DateFormat(dateFormat.pattern);
+  final dateFormat = dateTypeOption.hasDateFormat()
+      ? UserDateFormat.fromDbPB(dateTypeOption.dateFormat)
+      : appearanceState.dateFormat;
+  final timeFormat = dateTypeOption.hasTimeFormat()
+      ? UserTimeFormat.fromDbPB(dateTypeOption.timeFormat)
+      : appearanceState.timeFormat;
+
+  final format = combineDateTimeFormat(
+    dateFormat,
+    timeFormat,
+    includeTime: cellData.includeTime,
+  );
 
   if (cellData.isRange) {
     return "${format.format(cellData.dateTime!)} → ${format.format(cellData.endDateTime!)}";
   } else {
     return format.format(cellData.dateTime!);
   }
-}
-
-extension GetDateFormatExtension on DateFormatPB {
-  String get pattern => switch (this) {
-        DateFormatPB.Local => 'MM/dd/y',
-        DateFormatPB.US => 'y/MM/dd',
-        DateFormatPB.ISO => 'y-MM-dd',
-        DateFormatPB.Friendly => 'MMM dd, y',
-        DateFormatPB.DayMonthYear => 'dd/MM/y',
-        _ => 'MMM dd, y',
-      };
-}
-
-extension GetTimeFormatExtension on TimeFormatPB {
-  String get pattern => switch (this) {
-        TimeFormatPB.TwelveHour => 'hh:mm a',
-        _ => 'HH:mm',
-      };
 }

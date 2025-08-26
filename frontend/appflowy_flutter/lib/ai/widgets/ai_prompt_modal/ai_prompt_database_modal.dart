@@ -597,7 +597,7 @@ class FieldSelector extends StatelessWidget {
                       ),
                     ),
                   ),
-            onSelected: (value) {
+            onSelect: (value) {
               if (value == null) {
                 return;
               }

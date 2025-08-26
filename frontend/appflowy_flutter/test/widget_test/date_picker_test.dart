@@ -1,5 +1,5 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
-import 'package:appflowy/plugins/database/widgets/cell/editable_cell_skeleton/date.dart';
 import 'package:appflowy/plugins/database/widgets/field/type_option_editor/date/date_time_format.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/appflowy_date_picker_base.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/desktop_date_picker.dart';
@@ -7,7 +7,6 @@ import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/date
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/date_time_text_field.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/end_time_button.dart';
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
-import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -48,8 +47,8 @@ class _MockDatePicker extends StatefulWidget {
   });
 
   final _DatePickerDataStub? data;
-  final DateFormatPB? dateFormat;
-  final TimeFormatPB? timeFormat;
+  final UserDateFormat? dateFormat;
+  final UserTimeFormat? timeFormat;
 
   @override
   State<_MockDatePicker> createState() => _MockDatePickerState();
@@ -57,24 +56,24 @@ class _MockDatePicker extends StatefulWidget {
 
 class _MockDatePickerState extends State<_MockDatePicker> {
   late final _DatePickerDataStub data;
-  late DateFormatPB dateFormat;
-  late TimeFormatPB timeFormat;
+  late UserDateFormat dateFormat;
+  late UserTimeFormat timeFormat;
 
   @override
   void initState() {
     super.initState();
     data = widget.data ?? _DatePickerDataStub.empty();
-    dateFormat = widget.dateFormat ?? DateFormatPB.Friendly;
-    timeFormat = widget.timeFormat ?? TimeFormatPB.TwelveHour;
+    dateFormat = widget.dateFormat ?? UserDateFormat.friendly;
+    timeFormat = widget.timeFormat ?? UserTimeFormat.twelveHour;
   }
 
-  void updateDateFormat(DateFormatPB dateFormat) async {
+  void updateDateFormat(UserDateFormat dateFormat) async {
     setState(() {
       this.dateFormat = dateFormat;
     });
   }
 
-  void updateTimeFormat(TimeFormatPB timeFormat) async {
+  void updateTimeFormat(UserTimeFormat timeFormat) async {
     setState(() {
       this.timeFormat = timeFormat;
     });
@@ -243,8 +242,8 @@ void main() {
       await tester.pumpWidget(
         WidgetTestApp(
           child: _MockDatePicker(
-            dateFormat: DateFormatPB.Friendly,
-            timeFormat: TimeFormatPB.TwelveHour,
+            dateFormat: UserDateFormat.friendly,
+            timeFormat: UserTimeFormat.twelveHour,
             data: _DatePickerDataStub(
               dateTime: date,
               endDateTime: null,
@@ -259,33 +258,33 @@ void main() {
       final dateText = find.descendant(
         of: find.byKey(const ValueKey('date_time_text_field_date')),
         matching:
-            find.text(DateFormat(DateFormatPB.Friendly.pattern).format(date)),
+            find.text(UserDateFormat.friendly.getDateFormat().format(date)),
       );
       expect(dateText, findsOneWidget);
 
       final timeText = find.descendant(
         of: find.byKey(const ValueKey('date_time_text_field_time')),
         matching:
-            find.text(DateFormat(TimeFormatPB.TwelveHour.pattern).format(date)),
+            find.text(UserTimeFormat.twelveHour.getDateFormat().format(date)),
       );
       expect(timeText, findsOneWidget);
 
       _MockDatePickerState mockState = getMockState(tester);
-      mockState.updateDateFormat(DateFormatPB.US);
+      mockState.updateDateFormat(UserDateFormat.us);
       await tester.pumpAndSettle();
       final dateText2 = find.descendant(
         of: find.byKey(const ValueKey('date_time_text_field_date')),
-        matching: find.text(DateFormat(DateFormatPB.US.pattern).format(date)),
+        matching: find.text(UserDateFormat.us.getDateFormat().format(date)),
       );
       expect(dateText2, findsOneWidget);
 
       mockState = getMockState(tester);
-      mockState.updateTimeFormat(TimeFormatPB.TwentyFourHour);
+      mockState.updateTimeFormat(UserTimeFormat.twentyFourHour);
       await tester.pumpAndSettle();
       final timeText2 = find.descendant(
         of: find.byKey(const ValueKey('date_time_text_field_time')),
         matching: find
-            .text(DateFormat(TimeFormatPB.TwentyFourHour.pattern).format(date)),
+            .text(UserTimeFormat.twentyFourHour.getDateFormat().format(date)),
       );
       expect(timeText2, findsOneWidget);
     });
@@ -601,14 +600,14 @@ void main() {
 
       final dateText = find.descendant(
         of: find.byKey(const ValueKey('date_time_text_field_date')),
-        matching: find
-            .text(DateFormat(DateFormatPB.Friendly.pattern).format(expected)),
+        matching:
+            find.text(UserDateFormat.friendly.getDateFormat().format(expected)),
       );
       expect(dateText, findsOneWidget);
       final timeText = find.descendant(
         of: find.byKey(const ValueKey('date_time_text_field_time')),
         matching: find
-            .text(DateFormat(TimeFormatPB.TwelveHour.pattern).format(expected)),
+            .text(UserTimeFormat.twelveHour.getDateFormat().format(expected)),
       );
       expect(timeText, findsOneWidget);
 
@@ -706,7 +705,7 @@ void main() {
 
       expect(
         find.text(
-          DateFormat(DateFormatPB.Friendly.pattern).format(fourteenth),
+          UserDateFormat.friendly.getDateFormat().format(fourteenth),
         ),
         findsNWidgets(2),
       );
@@ -727,7 +726,7 @@ void main() {
         find.descendant(
           of: find.byKey(const ValueKey('date_time_text_field')),
           matching: find.text(
-            DateFormat(DateFormatPB.Friendly.pattern).format(fourteenth),
+            UserDateFormat.friendly.getDateFormat().format(fourteenth),
           ),
         ),
         findsOneWidget,
@@ -737,7 +736,7 @@ void main() {
         find.descendant(
           of: find.byKey(const ValueKey('end_date_time_text_field')),
           matching: find.text(
-            DateFormat(DateFormatPB.Friendly.pattern).format(day),
+            UserDateFormat.friendly.getDateFormat().format(day),
           ),
         ),
         findsOneWidget,
@@ -798,7 +797,7 @@ void main() {
         find.descendant(
           of: find.byKey(const ValueKey('date_time_text_field')),
           matching: find.text(
-            DateFormat(DateFormatPB.Friendly.pattern).format(start),
+            UserDateFormat.friendly.getDateFormat().format(start),
           ),
         ),
         findsOneWidget,
@@ -808,7 +807,7 @@ void main() {
         find.descendant(
           of: find.byKey(const ValueKey('end_date_time_text_field')),
           matching: find.text(
-            DateFormat(DateFormatPB.Friendly.pattern).format(end),
+            UserDateFormat.friendly.getDateFormat().format(end),
           ),
         ),
         findsOneWidget,
@@ -873,7 +872,7 @@ void main() {
         find.descendant(
           of: find.byKey(const ValueKey('date_time_text_field')),
           matching: find.text(
-            DateFormat(DateFormatPB.Friendly.pattern).format(start),
+            UserDateFormat.friendly.getDateFormat().format(start),
           ),
         ),
         findsOneWidget,

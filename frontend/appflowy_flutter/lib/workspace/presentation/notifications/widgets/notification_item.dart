@@ -1,8 +1,8 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/notifications/widgets/widgets.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
@@ -198,10 +198,13 @@ class _NotificationItemState extends State<NotificationItem> {
 
   String _scheduledString(Int64 secondsSinceEpoch, bool includeTime) {
     final appearance = context.read<AppearanceSettingsCubit>().state;
-    return appearance.dateFormat.formatDate(
-      DateTime.fromMillisecondsSinceEpoch(secondsSinceEpoch.toInt() * 1000),
-      includeTime,
+
+    return combineDateTimeFormat(
+      appearance.dateFormat,
       appearance.timeFormat,
+      includeTime: includeTime,
+    ).format(
+      DateTime.fromMillisecondsSinceEpoch(secondsSinceEpoch.toInt() * 1000),
     );
   }
 

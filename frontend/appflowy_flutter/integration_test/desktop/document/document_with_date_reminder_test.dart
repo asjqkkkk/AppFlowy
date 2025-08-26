@@ -1,14 +1,13 @@
 import 'dart:io';
 
+import 'package:appflowy/features/settings/data/models/date_time_format.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_date_block.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/desktop_date_picker.dart';
 import 'package:appflowy/workspace/presentation/widgets/toggle/toggle.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -24,6 +23,14 @@ void main() {
     IntegrationTestWidgetsFlutterBinding.ensureInitialized();
     TestWidgetsFlutterBinding.ensureInitialized();
   });
+
+  DateFormat getDateFormat(bool includeTime) {
+    return combineDateTimeFormat(
+      UserDateFormat.friendly,
+      UserTimeFormat.twentyFourHour,
+      includeTime: includeTime,
+    );
+  }
 
   group('date or reminder block in document:', () {
     testWidgets("insert date with time block", (tester) async {
@@ -42,13 +49,8 @@ void main() {
         LocaleKeys.document_slashMenu_name_dateOrReminder.tr(),
       );
 
-      final dateTimeSettings = DateTimeSettingsPB(
-        dateFormat: UserDateFormatPB.Friendly,
-        timeFormat: UserTimeFormatPB.TwentyFourHour,
-      );
-      final DateTime currentDateTime = DateTime.now();
-      final String formattedDate =
-          dateTimeSettings.dateFormat.formatDate(currentDateTime, false);
+      final currentDateTime = DateTime.now();
+      final formattedDate = getDateFormat(false).format(currentDateTime);
 
       // get current date in editor
       expect(find.byType(MentionDateBlock), findsOneWidget);
@@ -95,13 +97,8 @@ void main() {
         LocaleKeys.document_slashMenu_name_dateOrReminder.tr(),
       );
 
-      final dateTimeSettings = DateTimeSettingsPB(
-        dateFormat: UserDateFormatPB.Friendly,
-        timeFormat: UserTimeFormatPB.TwentyFourHour,
-      );
-      final DateTime currentDateTime = DateTime.now();
-      final String formattedDate =
-          dateTimeSettings.dateFormat.formatDate(currentDateTime, false);
+      final currentDateTime = DateTime.now();
+      final formattedDate = getDateFormat(false).format(currentDateTime);
 
       // get current date in editor
       expect(find.byType(MentionDateBlock), findsOneWidget);
@@ -145,13 +142,8 @@ void main() {
         LocaleKeys.document_slashMenu_name_dateOrReminder.tr(),
       );
 
-      final dateTimeSettings = DateTimeSettingsPB(
-        dateFormat: UserDateFormatPB.Friendly,
-        timeFormat: UserTimeFormatPB.TwentyFourHour,
-      );
-      final DateTime currentDateTime = DateTime.now();
-      final String formattedDate =
-          dateTimeSettings.dateFormat.formatDate(currentDateTime, false);
+      final currentDateTime = DateTime.now();
+      final formattedDate = getDateFormat(false).format(currentDateTime);
 
       // get current date in editor
       expect(find.byType(MentionDateBlock), findsOneWidget);
@@ -270,14 +262,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // verify
-      final dateTimeSettings = DateTimeSettingsPB(
-        dateFormat: UserDateFormatPB.Friendly,
-        timeFormat: UserTimeFormatPB.TwentyFourHour,
-      );
       final now = DateTime.now();
       final fifteenthOfLastMonth = DateTime(now.year, now.month - 1, 15);
-      final formattedDate =
-          dateTimeSettings.dateFormat.formatDate(fifteenthOfLastMonth, false);
+      final formattedDate = getDateFormat(false).format(fifteenthOfLastMonth);
 
       expect(find.byType(MentionDateBlock), findsOneWidget);
       expect(find.text('@$formattedDate'), findsOneWidget);
@@ -411,14 +398,9 @@ void main() {
       await tester.pumpAndSettle();
 
       // verify
-      final dateTimeSettings = DateTimeSettingsPB(
-        dateFormat: UserDateFormatPB.Friendly,
-        timeFormat: UserTimeFormatPB.TwentyFourHour,
-      );
       final now = DateTime.now();
       final fifteenthOfLastMonth = DateTime(now.year, now.month - 1, 15);
-      final formattedDate =
-          dateTimeSettings.dateFormat.formatDate(fifteenthOfLastMonth, false);
+      final formattedDate = getDateFormat(false).format(fifteenthOfLastMonth);
 
       expect(find.byType(MentionDateBlock), findsOneWidget);
       expect(find.text('@$formattedDate'), findsOneWidget);

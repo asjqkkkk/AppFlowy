@@ -1,7 +1,7 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/util/int64_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/settings/billing/settings_workspace_sub_billing_bloc.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/application/settings/plan/workspace_subscription_ext.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_billing_view/widgets/change_period_dialog.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/single_setting_action.dart';
@@ -56,7 +56,7 @@ class WorkspaceSubscriptionAIAddonTile extends StatelessWidget {
   Widget _buildMainAction(
     BuildContext context,
     bool isCanceled,
-    UserDateFormatPB dateFormat,
+    UserDateFormat dateFormat,
   ) {
     return SingleSettingAction(
       label: label,
@@ -69,15 +69,14 @@ class WorkspaceSubscriptionAIAddonTile extends StatelessWidget {
     );
   }
 
-  String _getDescription(bool isCanceled, UserDateFormatPB dateFormat) {
+  String _getDescription(bool isCanceled, UserDateFormat dateFormat) {
     if (subscriptionInfo == null) {
       return description.tr();
     }
 
-    final endDate = dateFormat.formatDate(
-      subscriptionInfo!.addOnSubscription.endDate.toDateTime(),
-      false,
-    );
+    final endDate = dateFormat.getDateFormat().format(
+          subscriptionInfo!.addOnSubscription.endDate.toDateTime(),
+        );
 
     return isCanceled
         ? canceledDescription.tr(args: [endDate])

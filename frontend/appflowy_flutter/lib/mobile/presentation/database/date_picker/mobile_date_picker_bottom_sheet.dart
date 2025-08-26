@@ -1,8 +1,10 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/date_cell_editor_bloc.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller_builder.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/mobile_date_picker.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/mobile_date_header.dart';
 import 'package:flutter/material.dart';
@@ -50,13 +52,20 @@ class MobileDateCellEditorBottomSheet extends StatelessWidget {
       child: BlocBuilder<DateCellEditorBloc, DateCellEditorState>(
         builder: (context, state) {
           final dateCellBloc = context.read<DateCellEditorBloc>();
+          final appearanceState = context.read<AppearanceSettingsCubit>().state;
+
           return MobileAppFlowyDatePicker(
             dateTime: state.dateTime,
             endDateTime: state.endDateTime,
             isRange: state.isRange,
             includeTime: state.includeTime,
-            dateFormat: state.dateTypeOptionPB.dateFormat,
-            timeFormat: state.dateTypeOptionPB.timeFormat,
+            dateFormat: state.dateTypeOptionPB.hasDateFormat()
+                ? UserDateFormat.fromDbPB(state.dateTypeOptionPB.dateFormat)
+                : appearanceState.dateFormat,
+            timeFormat: state.dateTypeOptionPB.hasTimeFormat()
+                ? UserTimeFormat.fromDbPB(state.dateTypeOptionPB.timeFormat)
+                : appearanceState.timeFormat,
+            startWeekOnMonday: appearanceState.startWeekOnMonday,
             reminderOption: state.reminderOption,
             onDaySelected: (selectedDay) {
               dateCellBloc.add(DateCellEditorEvent.updateDateTime(selectedDay));

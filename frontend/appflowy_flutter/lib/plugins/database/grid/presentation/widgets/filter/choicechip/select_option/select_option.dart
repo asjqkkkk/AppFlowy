@@ -35,7 +35,7 @@ class SelectOptionFilterChoicechip extends StatelessWidget {
         builder: (context, filter, field) {
           return ChoiceChipButton(
             fieldInfo: field,
-            filterDesc: filter.getContentDescription(field),
+            filterDesc: filter.getContentDescription(context, field),
           );
         },
       ),

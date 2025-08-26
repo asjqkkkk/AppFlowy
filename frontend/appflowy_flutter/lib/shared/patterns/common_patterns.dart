@@ -58,3 +58,6 @@ final appleNotesRegex = RegExp(_appleNotesPattern);
 
 const _emptyLinePattern = r'^\s*$';
 final emptyLineRegex = RegExp(_emptyLinePattern);
+
+const _localePattern = r'^([a-zA-Z]{2,3})(?:[_-]([A-Z]{2}))?$';
+final localePattern = RegExp(_localePattern);

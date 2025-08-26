@@ -18,8 +18,8 @@ class DateTypeOptionButton extends StatelessWidget {
     required this.popoverMutex,
   });
 
-  final DateFormatPB dateFormat;
-  final TimeFormatPB timeFormat;
+  final DateFormatPB? dateFormat;
+  final TimeFormatPB? timeFormat;
   final Function(DateFormatPB) onDateFormatChanged;
   final Function(TimeFormatPB) onTimeFormatChanged;
   final PopoverMutex? popoverMutex;
