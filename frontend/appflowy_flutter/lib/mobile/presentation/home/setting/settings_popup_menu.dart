@@ -1,4 +1,7 @@
 import 'package:appflowy/core/helpers/url_launcher.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -10,8 +13,8 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart'
     hide PopupMenuButton, PopupMenuDivider, PopupMenuItem, PopupMenuEntry;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 enum _MobileSettingsPopupMenuItem {
   settings,
@@ -31,83 +34,95 @@ class HomePageSettingsPopupMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isGuest =
-        context.read<UserWorkspaceBloc>().state.currentWorkspace?.role ==
-            AFRolePB.Guest;
-    return PopupMenuButton<_MobileSettingsPopupMenuItem>(
-      offset: const Offset(0, 36),
-      padding: EdgeInsets.zero,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(
-          Radius.circular(12.0),
-        ),
-      ),
-      shadowColor: const Color(0x68000000),
-      elevation: 10,
-      color: context.popupMenuBackgroundColor,
-      itemBuilder: (BuildContext context) =>
-          <PopupMenuEntry<_MobileSettingsPopupMenuItem>>[
-        _buildItem(
-          value: _MobileSettingsPopupMenuItem.settings,
-          svg: FlowySvgs.m_notification_settings_s,
-          text: LocaleKeys.settings_popupMenuItem_settings.tr(),
-        ),
-        // only show the member items in cloud mode
-        if (userProfile.workspaceType == WorkspaceTypePB.ServerW &&
-            !isGuest) ...[
-          const PopupMenuDivider(height: 0.5),
-          _buildItem(
-            value: _MobileSettingsPopupMenuItem.members,
-            svg: FlowySvgs.m_settings_member_s,
-            text: LocaleKeys.settings_popupMenuItem_members.tr(),
-          ),
-        ],
-        // hide the trash button if the user is a guest
-        if (!isGuest) ...[
-          const PopupMenuDivider(height: 0.5),
-          _buildItem(
-            value: _MobileSettingsPopupMenuItem.trash,
-            svg: FlowySvgs.trash_s,
-            text: LocaleKeys.settings_popupMenuItem_trash.tr(),
-          ),
-        ],
-        const PopupMenuDivider(height: 0.5),
-        _buildItem(
-          value: _MobileSettingsPopupMenuItem.helpAndDocumentation,
-          svg: FlowySvgs.help_and_documentation_s,
-          text: LocaleKeys.settings_popupMenuItem_helpAndDocumentation.tr(),
-        ),
-        const PopupMenuDivider(height: 0.5),
-        _buildItem(
-          value: _MobileSettingsPopupMenuItem.help,
-          svg: FlowySvgs.message_support_s,
-          text: LocaleKeys.settings_popupMenuItem_getSupport.tr(),
-        ),
-      ],
-      onSelected: (_MobileSettingsPopupMenuItem value) {
-        switch (value) {
-          case _MobileSettingsPopupMenuItem.members:
-            _openMembersPage(context);
-            break;
-          case _MobileSettingsPopupMenuItem.trash:
-            _openTrashPage(context);
-            break;
-          case _MobileSettingsPopupMenuItem.settings:
-            _openSettingsPage(context);
-            break;
-          case _MobileSettingsPopupMenuItem.help:
-            _openHelpPage(context);
-            break;
-          case _MobileSettingsPopupMenuItem.helpAndDocumentation:
-            _openHelpAndDocumentationPage(context);
-            break;
-        }
-      },
-      child: const Padding(
-        padding: EdgeInsets.all(8.0),
-        child: FlowySvg(
-          FlowySvgs.m_settings_more_s,
-        ),
+    final currentWorkspace =
+        context.read<UserWorkspaceBloc>().state.currentWorkspace;
+    final isGuest = currentWorkspace?.role == AFRolePB.Guest;
+    final currentWorkspaceId = currentWorkspace?.workspaceId ?? '';
+    return BlocProvider(
+      create: (context) => ProfileSettingBloc(
+        userProfile: userProfile,
+        workspaceId: currentWorkspaceId,
+      )..add(ProfileSettingEvent.initial()),
+      child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
+        builder: (context, state) {
+          return PopupMenuButton<_MobileSettingsPopupMenuItem>(
+            offset: const Offset(0, 36),
+            padding: EdgeInsets.zero,
+            shape: const RoundedRectangleBorder(
+              borderRadius: BorderRadius.all(
+                Radius.circular(12.0),
+              ),
+            ),
+            shadowColor: const Color(0x68000000),
+            elevation: 10,
+            color: context.popupMenuBackgroundColor,
+            itemBuilder: (BuildContext context) =>
+                <PopupMenuEntry<_MobileSettingsPopupMenuItem>>[
+              _buildItem(
+                value: _MobileSettingsPopupMenuItem.settings,
+                svg: FlowySvgs.m_notification_settings_s,
+                text: LocaleKeys.settings_popupMenuItem_settings.tr(),
+              ),
+              // only show the member items in cloud mode
+              if (userProfile.workspaceType == WorkspaceTypePB.ServerW &&
+                  !isGuest) ...[
+                const PopupMenuDivider(height: 0.5),
+                _buildItem(
+                  value: _MobileSettingsPopupMenuItem.members,
+                  svg: FlowySvgs.m_settings_member_s,
+                  text: LocaleKeys.settings_popupMenuItem_members.tr(),
+                ),
+              ],
+              // hide the trash button if the user is a guest
+              if (!isGuest) ...[
+                const PopupMenuDivider(height: 0.5),
+                _buildItem(
+                  value: _MobileSettingsPopupMenuItem.trash,
+                  svg: FlowySvgs.trash_s,
+                  text: LocaleKeys.settings_popupMenuItem_trash.tr(),
+                ),
+              ],
+              const PopupMenuDivider(height: 0.5),
+              _buildItem(
+                value: _MobileSettingsPopupMenuItem.helpAndDocumentation,
+                svg: FlowySvgs.help_and_documentation_s,
+                text:
+                    LocaleKeys.settings_popupMenuItem_helpAndDocumentation.tr(),
+              ),
+              const PopupMenuDivider(height: 0.5),
+              _buildItem(
+                value: _MobileSettingsPopupMenuItem.help,
+                svg: FlowySvgs.message_support_s,
+                text: LocaleKeys.settings_popupMenuItem_getSupport.tr(),
+              ),
+            ],
+            onSelected: (_MobileSettingsPopupMenuItem value) {
+              switch (value) {
+                case _MobileSettingsPopupMenuItem.members:
+                  _openMembersPage(context);
+                  break;
+                case _MobileSettingsPopupMenuItem.trash:
+                  _openTrashPage(context);
+                  break;
+                case _MobileSettingsPopupMenuItem.settings:
+                  _openSettingsPage(context);
+                  break;
+                case _MobileSettingsPopupMenuItem.help:
+                  _openHelpPage(context);
+                  break;
+                case _MobileSettingsPopupMenuItem.helpAndDocumentation:
+                  _openHelpAndDocumentationPage(context);
+                  break;
+              }
+            },
+            child: const Padding(
+              padding: EdgeInsets.all(8.0),
+              child: FlowySvg(
+                FlowySvgs.m_settings_more_s,
+              ),
+            ),
+          );
+        },
       ),
     );
   }
@@ -140,7 +155,8 @@ class HomePageSettingsPopupMenu extends StatelessWidget {
   }
 
   void _openSettingsPage(BuildContext context) {
-    context.push(MobileHomeSettingPage.routeName);
+    final profileSettingBloc = context.read<ProfileSettingBloc?>();
+    context.push(MobileHomeSettingPage.routeName, extra: profileSettingBloc);
   }
 
   void _openHelpAndDocumentationPage(BuildContext context) {

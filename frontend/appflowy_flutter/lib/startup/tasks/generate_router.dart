@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
 import 'package:appflowy/mobile/presentation/chat/mobile_chat_screen.dart';
 import 'package:appflowy/mobile/presentation/database/board/mobile_board_screen.dart';
 import 'package:appflowy/mobile/presentation/database/mobile_calendar_screen.dart';
@@ -201,8 +202,10 @@ GoRoute _mobileHomeSettingPageRoute() {
     parentNavigatorKey: AppGlobals.rootNavKey,
     path: MobileHomeSettingPage.routeName,
     pageBuilder: (context, state) {
-      return const MaterialExtendedPage(
-        child: MobileHomeSettingPage(),
+      return MaterialExtendedPage(
+        child: MobileHomeSettingPage(
+          profileSettingBloc: state.extra as ProfileSettingBloc?,
+        ),
         name: MobileHomeSettingPage.routeName,
       );
     },

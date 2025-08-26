@@ -157,16 +157,18 @@ class _MobileViewPageState extends State<MobileViewPage> {
             child: Builder(
               builder: (context) {
                 final workspaceId = context
-                    .watch<UserWorkspaceBloc?>()
-                    ?.state
-                    .currentWorkspace
-                    ?.workspaceId;
+                        .watch<UserWorkspaceBloc?>()
+                        ?.state
+                        .currentWorkspace
+                        ?.workspaceId ??
+                    '';
 
                 final body = _buildBody(context, state);
                 return BlocBuilder<ViewBloc, ViewState>(
                   builder: (context, state) {
-                    if (workspaceId != null && userProfilePB != null) {
+                    if (userProfilePB != null) {
                       return BlocProvider(
+                        key: ValueKey(workspaceId),
                         create: (_) => ProfileSettingBloc(
                           userProfile: userProfilePB,
                           workspaceId: workspaceId,

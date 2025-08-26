@@ -1,5 +1,9 @@
+import 'package:appflowy/features/profile_setting/logic/profile_setting_bloc.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_event.dart';
+import 'package:appflowy/features/profile_setting/logic/profile_setting_state.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/mobile/presentation/home/workspaces/workspace_builder.dart';
 import 'package:appflowy/mobile/presentation/presentation.dart';
 import 'package:appflowy/shared/popup_menu/appflowy_popup_menu.dart';
 import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
@@ -9,8 +13,8 @@ import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart'
     hide PopupMenuButton, PopupMenuDivider, PopupMenuItem, PopupMenuEntry;
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:provider/provider.dart';
 
 enum _NotificationSettingsPopupMenuItem {
   settings,
@@ -25,69 +29,94 @@ class NotificationSettingsPopupMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<_NotificationSettingsPopupMenuItem>(
-      offset: const Offset(0, 36),
-      padding: EdgeInsets.zero,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.all(
-          Radius.circular(12.0),
-        ),
-      ),
-      // todo: replace it with shadows
-      shadowColor: const Color(0x68000000),
-      elevation: 10,
-      color: context.popupMenuBackgroundColor,
-      itemBuilder: (BuildContext context) =>
-          <PopupMenuEntry<_NotificationSettingsPopupMenuItem>>[
-        _buildItem(
-          value: _NotificationSettingsPopupMenuItem.settings,
-          svg: FlowySvgs.m_notification_settings_s,
-          text: LocaleKeys.settings_notifications_settings_settings.tr(),
-        ),
-        const PopupMenuDivider(height: 0.5),
-        _buildItem(
-          value: _NotificationSettingsPopupMenuItem.markAllAsRead,
-          svg: FlowySvgs.m_notification_mark_as_read_s,
-          text: LocaleKeys.settings_notifications_settings_markAllAsRead.tr(),
-        ),
-        const PopupMenuDivider(height: 0.5),
-        _buildItem(
-          value: _NotificationSettingsPopupMenuItem.archiveAll,
-          svg: FlowySvgs.m_notification_archived_s,
-          text: LocaleKeys.settings_notifications_settings_archiveAll.tr(),
-        ),
-        // only visible in debug mode
-        if (kDebugMode) ...[
-          const PopupMenuDivider(height: 0.5),
-          _buildItem(
-            value: _NotificationSettingsPopupMenuItem.unarchiveAll,
-            svg: FlowySvgs.m_notification_archived_s,
-            text: 'Unarchive all (Debug Mode)',
+    return WorkspaceBuilder(
+      builder: (context, bloc) {
+        return BlocProvider(
+          create: (context) {
+            return ProfileSettingBloc(
+              userProfile: bloc.userProfile,
+              workspaceId: bloc.state.currentWorkspace?.workspaceId ?? '',
+            )..add(ProfileSettingEvent.initial());
+          },
+          child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
+            builder: (context, state) {
+              return PopupMenuButton<_NotificationSettingsPopupMenuItem>(
+                offset: const Offset(0, 36),
+                padding: EdgeInsets.zero,
+                shape: const RoundedRectangleBorder(
+                  borderRadius: BorderRadius.all(
+                    Radius.circular(12.0),
+                  ),
+                ),
+                // todo: replace it with shadows
+                shadowColor: const Color(0x68000000),
+                elevation: 10,
+                color: context.popupMenuBackgroundColor,
+                itemBuilder: (BuildContext context) =>
+                    <PopupMenuEntry<_NotificationSettingsPopupMenuItem>>[
+                  _buildItem(
+                    value: _NotificationSettingsPopupMenuItem.settings,
+                    svg: FlowySvgs.m_notification_settings_s,
+                    text: LocaleKeys.settings_notifications_settings_settings
+                        .tr(),
+                  ),
+                  const PopupMenuDivider(height: 0.5),
+                  _buildItem(
+                    value: _NotificationSettingsPopupMenuItem.markAllAsRead,
+                    svg: FlowySvgs.m_notification_mark_as_read_s,
+                    text: LocaleKeys
+                        .settings_notifications_settings_markAllAsRead
+                        .tr(),
+                  ),
+                  const PopupMenuDivider(height: 0.5),
+                  _buildItem(
+                    value: _NotificationSettingsPopupMenuItem.archiveAll,
+                    svg: FlowySvgs.m_notification_archived_s,
+                    text: LocaleKeys.settings_notifications_settings_archiveAll
+                        .tr(),
+                  ),
+                  // only visible in debug mode
+                  if (kDebugMode) ...[
+                    const PopupMenuDivider(height: 0.5),
+                    _buildItem(
+                      value: _NotificationSettingsPopupMenuItem.unarchiveAll,
+                      svg: FlowySvgs.m_notification_archived_s,
+                      text: 'Unarchive all (Debug Mode)',
+                    ),
+                  ],
+                ],
+                onSelected: (_NotificationSettingsPopupMenuItem value) {
+                  switch (value) {
+                    case _NotificationSettingsPopupMenuItem.markAllAsRead:
+                      _onMarkAllAsRead(context);
+                      break;
+                    case _NotificationSettingsPopupMenuItem.archiveAll:
+                      _onArchiveAll(context);
+                      break;
+                    case _NotificationSettingsPopupMenuItem.settings:
+                      final profileSettingBloc =
+                          context.read<ProfileSettingBloc>();
+                      context.push(
+                        MobileHomeSettingPage.routeName,
+                        extra: profileSettingBloc,
+                      );
+                      break;
+                    case _NotificationSettingsPopupMenuItem.unarchiveAll:
+                      _onUnarchiveAll(context);
+                      break;
+                  }
+                },
+                child: const Padding(
+                  padding: EdgeInsets.all(8.0),
+                  child: FlowySvg(
+                    FlowySvgs.m_settings_more_s,
+                  ),
+                ),
+              );
+            },
           ),
-        ],
-      ],
-      onSelected: (_NotificationSettingsPopupMenuItem value) {
-        switch (value) {
-          case _NotificationSettingsPopupMenuItem.markAllAsRead:
-            _onMarkAllAsRead(context);
-            break;
-          case _NotificationSettingsPopupMenuItem.archiveAll:
-            _onArchiveAll(context);
-            break;
-          case _NotificationSettingsPopupMenuItem.settings:
-            context.push(MobileHomeSettingPage.routeName);
-            break;
-          case _NotificationSettingsPopupMenuItem.unarchiveAll:
-            _onUnarchiveAll(context);
-            break;
-        }
+        );
       },
-      child: const Padding(
-        padding: EdgeInsets.all(8.0),
-        child: FlowySvg(
-          FlowySvgs.m_settings_more_s,
-        ),
-      ),
     );
   }
 
