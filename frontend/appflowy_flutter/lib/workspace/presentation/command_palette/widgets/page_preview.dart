@@ -1,3 +1,4 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -10,7 +11,6 @@ import 'package:appflowy/shared/icon_emoji_picker/flowy_icon_emoji_picker.dart';
 import 'package:appflowy/util/int64_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -250,7 +250,11 @@ class PagePreview extends StatelessWidget {
             .standard(color: theme.textColorScheme.primary),
       ),
       Text(
-        dateFormat.formatDate(time, true, timeFormat),
+        combineDateTimeFormat(
+          dateFormat,
+          timeFormat,
+          includeTime: true,
+        ).format(time),
         style: theme.textStyle.caption
             .standard(color: theme.textColorScheme.secondary),
       ),

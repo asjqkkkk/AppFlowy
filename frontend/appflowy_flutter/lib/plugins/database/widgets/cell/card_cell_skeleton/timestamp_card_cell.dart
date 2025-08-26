@@ -5,6 +5,7 @@ import 'package:appflowy/plugins/database/application/cell/bloc/timestamp_cell_b
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import '../editable_cell_skeleton/timestamp.dart';
 import 'card_cell.dart';
 
 class TimestampCardCellStyle extends CardCellStyle {
@@ -44,17 +45,17 @@ class _TimestampCellState extends State<TimestampCardCell> {
         );
       },
       child: BlocBuilder<TimestampCellBloc, TimestampCellState>(
-        buildWhen: (previous, current) => previous.dateStr != current.dateStr,
+        buildWhen: (previous, current) => previous.dateTime != current.dateTime,
         builder: (context, state) {
-          if (state.dateStr.isEmpty) {
-            return const SizedBox.shrink();
-          }
-
           return Container(
             alignment: AlignmentDirectional.centerStart,
             padding: widget.style.padding,
             child: Text(
-              state.dateStr,
+              getTimestampCellText(
+                context,
+                state.fieldInfo,
+                state.dateTime,
+              ),
               style: widget.style.textStyle,
             ),
           );

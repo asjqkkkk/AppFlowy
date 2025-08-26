@@ -216,6 +216,11 @@ class _OptionNameTextFieldState extends State<_OptionNameTextField> {
   @override
   void initState() {
     super.initState();
+    focusNode.addListener(() {
+      if (!focusNode.hasFocus) {
+        onSubmit(textController.text);
+      }
+    });
     if (widget.autoFocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         focusNode.requestFocus();
@@ -241,13 +246,20 @@ class _OptionNameTextFieldState extends State<_OptionNameTextField> {
         controller: textController,
         autoFocus: widget.autoFocus,
         focusNode: focusNode,
-        onSubmitted: (newName) {
-          if (widget.name != newName) {
-            widget.onSubmitted(newName);
-          }
-        },
       ),
     );
+  }
+
+  void onSubmit(String newName) {
+    if (widget.name == newName) {
+      return;
+    }
+    if (newName.isEmpty) {
+      textController.text = widget.name;
+      return;
+    }
+
+    widget.onSubmitted(newName);
   }
 }
 
@@ -306,7 +318,12 @@ class SelectOptionTag extends StatelessWidget {
           ? MouseRegion(
               cursor: SystemMouseCursors.click,
               child: GestureDetector(
-                onTap: () => onRemove?.call(text),
+                onTap: () {
+                  if (option == null) {
+                    return;
+                  }
+                  onRemove?.call(option!.id);
+                },
                 behavior: HitTestBehavior.opaque,
                 child: FlowySvg(
                   FlowySvgs.close_s,

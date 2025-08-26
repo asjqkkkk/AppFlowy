@@ -1,6 +1,7 @@
 import 'package:appflowy/plugins/database/application/field/field_info.dart';
 import 'package:appflowy/plugins/database/application/field/filter_entities.dart';
 import 'package:appflowy/plugins/database/grid/application/filter/filter_editor_bloc.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
@@ -41,7 +42,7 @@ class DateFilterChoicechip extends StatelessWidget {
         builder: (context, filter, field) {
           return ChoiceChipButton(
             fieldInfo: field,
-            filterDesc: filter.getContentDescription(field),
+            filterDesc: filter.getContentDescription(context, field),
           );
         },
       ),
@@ -161,14 +162,17 @@ class _DateFilterEditorState extends State<DateFilterEditor> {
 
   Widget _buildFilterContentField(DateTimeFilter filter) {
     final isRange = filter.condition.isRange;
-    String? text;
+    final appearanceState = context.read<AppearanceSettingsCubit>().state;
+    final format = appearanceState.dateFormat.getDateFormat();
 
-    if (isRange) {
-      text =
-          "${filter.start?.defaultFormat ?? ""} - ${filter.end?.defaultFormat ?? ""}";
-      text = text == " - " ? null : text;
+    final String text;
+
+    if (isRange && filter.start != null && filter.end != null) {
+      text = "${format.format(filter.start!)} - ${format.format(filter.end!)}";
+    } else if (filter.timestamp != null) {
+      text = format.format(filter.timestamp!);
     } else {
-      text = filter.timestamp.defaultFormat;
+      text = "";
     }
 
     return AppFlowyPopover(
@@ -188,7 +192,7 @@ class _DateFilterEditorState extends State<DateFilterEditor> {
         ),
         onTap: popooverController.show,
         text: FlowyText(
-          text ?? "",
+          text,
           overflow: TextOverflow.ellipsis,
         ),
       ),
@@ -201,8 +205,8 @@ class _DateFilterEditorState extends State<DateFilterEditor> {
               return DesktopAppFlowyDatePicker(
                 isRange: isRange,
                 includeTime: false,
-                dateFormat: DateFormatPB.Friendly,
-                timeFormat: TimeFormatPB.TwentyFourHour,
+                dateFormat: appearanceState.dateFormat,
+                timeFormat: appearanceState.timeFormat,
                 dateTime: isRange ? filter.start : filter.timestamp,
                 endDateTime: isRange ? filter.end : null,
                 onDaySelected: (selectedDay) {
@@ -410,11 +414,5 @@ extension DateFilterConditionPBExtension on DateFilterConditionPB {
 extension DateTimeChoicechipExtension on DateTime {
   DateTime get considerLocal {
     return DateTime(year, month, day);
-  }
-}
-
-extension DateTimeDefaultFormatExtension on DateTime? {
-  String? get defaultFormat {
-    return this != null ? DateFormat('dd/MM/yyyy').format(this!) : null;
   }
 }

@@ -1,6 +1,5 @@
+use collab_database::views::BoardLayoutSetting;
 use flowy_derive::ProtoBuf;
-
-use crate::services::setting::BoardLayoutSetting;
 
 #[derive(Debug, Clone, Default, Eq, PartialEq, ProtoBuf)]
 pub struct BoardLayoutSettingPB {

@@ -666,6 +666,12 @@
         "loginLabel": "Log in",
         "logoutLabel": "Log out"
       },
+      "dateAndTime": {
+        "title": "Date & Time Format",
+        "dateFormat": "Date format",
+        "timeFormat": "Time format",
+        "startWeekOn": "Start week on"
+      },
       "isUpToDate": "@:appName is up to date!",
       "officialVersion": "Version {version} (Official build)"
     },
@@ -1390,8 +1396,8 @@
       },
       "timeFormat": {
         "label": "Time format",
-        "twelveHour": "Twelve hour",
-        "twentyFourHour": "Twenty four hour"
+        "twelveHour": "12-hour",
+        "twentyFourHour": "24-hour"
       },
       "showNamingDialogWhenCreatingPage": "Show naming dialog when creating a page",
       "enableRTLToolbarItems": "Enable RTL toolbar items",

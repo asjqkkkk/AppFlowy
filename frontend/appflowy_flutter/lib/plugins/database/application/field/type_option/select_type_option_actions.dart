@@ -117,7 +117,7 @@ class SingleSelectAction extends ISelectOptionAction {
 }
 
 SelectOptionColorPB newSelectOptionColor(List<SelectOptionPB> options) {
-  final colorFrequency = List.filled(SelectOptionColorPB.values.length, 0);
+  final colorFrequency = List.filled(10, 0);
 
   for (final option in options) {
     colorFrequency[option.color.value]++;

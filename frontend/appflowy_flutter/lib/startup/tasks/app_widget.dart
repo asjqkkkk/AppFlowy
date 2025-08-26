@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/shared/clipboard_state.dart';
@@ -21,8 +22,10 @@ import 'package:appflowy/workspace/application/sidebar/rename_view/rename_view_b
 import 'package:appflowy/workspace/application/tabs/tabs_bloc.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/presentation/command_palette/command_palette.dart';
+import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
+import 'package:appflowy_result/appflowy_result.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme.dart';
@@ -55,17 +58,33 @@ class InitAppWidgetTask extends LaunchTask {
     await loadIconGroups();
 
     final widget = context.getIt<EntryPoint>().create(context.config);
+
+    final UserSettings userSettings;
+    final userProfile = await UserEventGetUserProfile().send().toNullable();
+
     final appearanceSetting =
         await UserSettingsBackendService().getAppearanceSetting();
-    final dateTimeSettings =
-        await UserSettingsBackendService().getDateTimeSettings();
+
+    if (userProfile == null) {
+      userSettings = UserSettings(
+        locale: Locale(
+          appearanceSetting.locale.languageCode,
+          appearanceSetting.locale.countryCode,
+        ),
+        startWeekOnMonday: false,
+        dateFormat: UserDateFormat.friendly,
+        timeFormat: UserTimeFormat.twentyFourHour,
+      );
+    } else {
+      userSettings = UserSettings.fromUserProfile(userProfile);
+    }
 
     // If the passed-in context is not the same as the context of the
     // application widget, the application widget will be rebuilt.
     final app = ApplicationWidget(
       key: ValueKey(context),
       appearanceSetting: appearanceSetting,
-      dateTimeSettings: dateTimeSettings,
+      userSettings: userSettings,
       appTheme: await appTheme(appearanceSetting.theme),
       child: widget,
     );
@@ -119,8 +138,6 @@ class InitAppWidgetTask extends LaunchTask {
         ),
       ),
     );
-
-    return;
   }
 }
 
@@ -130,13 +147,13 @@ class ApplicationWidget extends StatefulWidget {
     required this.child,
     required this.appTheme,
     required this.appearanceSetting,
-    required this.dateTimeSettings,
+    required this.userSettings,
   });
 
   final Widget child;
   final AppTheme appTheme;
   final AppearanceSettingsPB appearanceSetting;
-  final DateTimeSettingsPB dateTimeSettings;
+  final UserSettings userSettings;
 
   @override
   State<ApplicationWidget> createState() => _ApplicationWidgetState();
@@ -167,18 +184,18 @@ class _ApplicationWidgetState extends State<ApplicationWidget> {
     return MultiBlocProvider(
       providers: [
         if (FeatureFlag.search.isOn)
-          BlocProvider<CommandPaletteBloc>(create: (_) => CommandPaletteBloc()),
-        BlocProvider<AppearanceSettingsCubit>(
+          BlocProvider(create: (_) => CommandPaletteBloc()),
+        BlocProvider(
           create: (_) => AppearanceSettingsCubit(
-            widget.appearanceSetting,
-            widget.dateTimeSettings,
-            widget.appTheme,
+            appearanceSettings: widget.appearanceSetting,
+            appTheme: widget.appTheme,
+            userSettings: widget.userSettings,
           )..readLocaleWhenAppLaunch(context),
         ),
-        BlocProvider<NotificationSettingsCubit>(
+        BlocProvider(
           create: (_) => NotificationSettingsCubit(),
         ),
-        BlocProvider<DocumentAppearanceCubit>(
+        BlocProvider(
           create: (_) => DocumentAppearanceCubit()..fetch(),
         ),
         BlocProvider.value(value: getIt<RenameViewBloc>()),

@@ -1,7 +1,5 @@
 use collab_database::fields::Field;
-use collab_database::fields::date_type_option::{
-  DateFormat, DateTypeOption, TimeFormat, TimeTypeOption,
-};
+use collab_database::fields::date_type_option::{DateTypeOption, TimeTypeOption};
 use collab_database::fields::select_type_option::{SelectOption, SingleSelectTypeOption};
 use collab_database::fields::text_type_option::RichTextTypeOption;
 use collab_database::fields::timestamp_type_option::TimestampTypeOption;
@@ -48,13 +46,10 @@ pub fn create_single_select_field(grid_id: &str) -> (CreateFieldParams, Field) {
   };
   (params, single_select_field)
 }
+
 #[allow(dead_code)]
 pub fn create_date_field(grid_id: &str) -> (CreateFieldParams, Field) {
-  let date_type_option = DateTypeOption {
-    date_format: DateFormat::US,
-    time_format: TimeFormat::TwentyFourHour,
-    timezone_id: "Etc/UTC".to_owned(),
-  };
+  let date_type_option = DateTypeOption::default_utc();
 
   let field = FieldBuilder::new(FieldType::DateTime, date_type_option.clone())
     .name("Date")
@@ -74,8 +69,8 @@ pub fn create_date_field(grid_id: &str) -> (CreateFieldParams, Field) {
 
 pub fn create_timestamp_field(grid_id: &str, field_type: FieldType) -> (CreateFieldParams, Field) {
   let timestamp_type_option = TimestampTypeOption {
-    date_format: DateFormat::US,
-    time_format: TimeFormat::TwentyFourHour,
+    date_format: None,
+    time_format: None,
     include_time: true,
     field_type: field_type.into(),
     timezone: None,

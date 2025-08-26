@@ -13,6 +13,7 @@ class MobileDatePicker extends StatefulWidget {
     this.endDay,
     required this.focusedDay,
     required this.isRange,
+    this.startWeekOnMonday = false,
     this.onDaySelected,
     this.onRangeSelected,
     this.onPageChanged,
@@ -24,6 +25,7 @@ class MobileDatePicker extends StatefulWidget {
   final DateTime focusedDay;
 
   final bool isRange;
+  final bool startWeekOnMonday;
 
   final void Function(DateTime)? onDaySelected;
   final void Function(DateTime?, DateTime?)? onRangeSelected;
@@ -59,6 +61,7 @@ class _MobileDatePickerState extends State<MobileDatePicker> {
       onRangeSelected: (start, end, focusedDay) {
         widget.onRangeSelected?.call(start, end);
       },
+      startWeekOnMonday: widget.startWeekOnMonday,
       selectedDay: widget.selectedDay,
       startDay: widget.startDay,
       endDay: widget.endDay,

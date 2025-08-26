@@ -1,4 +1,5 @@
 import 'package:appflowy/env/cloud_env.dart';
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/workspace/application/user/settings_user_bloc.dart';
@@ -110,6 +111,11 @@ class _SettingsAccountViewState extends State<SettingsAccountView> {
                   ],
                 ),
               ],
+
+              // Date & Language Settings
+              UserAccountSetting(
+                userProfile: widget.userProfile,
+              ),
 
               // App version
               SettingsCategory(

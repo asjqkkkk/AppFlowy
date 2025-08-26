@@ -19,15 +19,17 @@ class MultiSelectNotificationItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final settings = context.read<AppearanceSettingsCubit>().state;
-    final dateFormate = settings.dateFormat;
-    final timeFormate = settings.timeFormat;
-    return BlocProvider<NotificationReminderBloc>(
-      create: (context) => NotificationReminderBloc()
-        ..add(
+    final dateFormat = settings.dateFormat;
+    final timeFormat = settings.timeFormat;
+    return BlocProvider(
+      create: (context) => NotificationReminderBloc(
+        dateFormat: dateFormat,
+        timeFormat: timeFormat,
+      )..add(
           NotificationReminderEvent.initial(
             reminder,
-            dateFormate,
-            timeFormate,
+            dateFormat.toUserPB(),
+            timeFormat.toUserPB(),
           ),
         ),
       child: BlocBuilder<NotificationReminderBloc, NotificationReminderState>(

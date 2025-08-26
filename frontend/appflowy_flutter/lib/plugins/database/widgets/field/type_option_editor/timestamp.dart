@@ -58,7 +58,8 @@ class TimestampTypeOptionEditorFactory implements TypeOptionEditorFactory {
       constraints: BoxConstraints.loose(const Size(460, 440)),
       popupBuilder: (popoverContext) {
         return DateFormatList(
-          selectedFormat: typeOption.dateFormat,
+          selectedFormat:
+              typeOption.hasDateFormat() ? typeOption.dateFormat : null,
           onSelected: (format) {
             final newTypeOption =
                 _updateTypeOption(typeOption: typeOption, dateFormat: format);
@@ -87,7 +88,8 @@ class TimestampTypeOptionEditorFactory implements TypeOptionEditorFactory {
       constraints: BoxConstraints.loose(const Size(460, 440)),
       popupBuilder: (BuildContext popoverContext) {
         return TimeFormatList(
-          selectedFormat: typeOption.timeFormat,
+          selectedFormat:
+              typeOption.hasTimeFormat() ? typeOption.timeFormat : null,
           onSelected: (format) {
             final newTypeOption =
                 _updateTypeOption(typeOption: typeOption, timeFormat: format);

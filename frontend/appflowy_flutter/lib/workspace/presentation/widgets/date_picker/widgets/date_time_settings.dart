@@ -15,8 +15,8 @@ class DateTimeSetting extends StatefulWidget {
     required this.onTimeFormatChanged,
   });
 
-  final DateFormatPB dateFormat;
-  final TimeFormatPB timeFormat;
+  final DateFormatPB? dateFormat;
+  final TimeFormatPB? timeFormat;
   final Function(DateFormatPB) onDateFormatChanged;
   final Function(TimeFormatPB) onTimeFormatChanged;
 

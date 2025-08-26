@@ -20,6 +20,7 @@ class FlowyOptionTile extends StatelessWidget {
     this.text,
     this.textColor,
     this.controller,
+    this.focusNode,
     this.leading,
     this.onTap,
     this.trailing,
@@ -69,6 +70,7 @@ class FlowyOptionTile extends StatelessWidget {
 
   factory FlowyOptionTile.textField({
     required TextEditingController controller,
+    FocusNode? focusNode,
     void Function(String value)? onTextChanged,
     void Function(String value)? onTextSubmitted,
     EdgeInsets textFieldPadding = const EdgeInsets.symmetric(
@@ -85,6 +87,7 @@ class FlowyOptionTile extends StatelessWidget {
     return FlowyOptionTile._(
       type: FlowyOptionTileType.textField,
       controller: controller,
+      focusNode: focusNode,
       textFieldPadding: textFieldPadding,
       showTopBorder: showTopBorder,
       showBottomBorder: showBottomBorder,
@@ -163,6 +166,7 @@ class FlowyOptionTile extends StatelessWidget {
   final String? text;
   final Color? textColor;
   final TextEditingController? controller;
+  final FocusNode? focusNode;
   final EdgeInsets textFieldPadding;
   final void Function()? onTap;
   final Widget? leading;
@@ -282,6 +286,7 @@ class FlowyOptionTile extends StatelessWidget {
         alignment: Alignment.center,
         child: TextField(
           controller: controller,
+          focusNode: focusNode,
           autofocus: autofocus ?? false,
           textInputAction: TextInputAction.done,
           decoration: InputDecoration(

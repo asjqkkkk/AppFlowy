@@ -1,9 +1,12 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/plugins/database/application/cell/bloc/timestamp_cell_bloc.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller.dart';
 import 'package:appflowy/plugins/database/application/cell/cell_controller_builder.dart';
 import 'package:appflowy/plugins/database/application/database_controller.dart';
+import 'package:appflowy/plugins/database/application/field/field_info.dart';
 import 'package:appflowy/plugins/database/widgets/cell/editable_cell_builder.dart';
 import 'package:appflowy/plugins/database/widgets/row/cells/cell_container.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -90,5 +93,35 @@ class _TimestampCellState extends GridCellState<EditableTimestampCell> {
   }
 
   @override
-  String? onCopy() => cellBloc.state.dateStr;
+  String? onCopy() => getTimestampCellText(
+        context,
+        cellBloc.state.fieldInfo,
+        cellBloc.state.dateTime,
+      );
+}
+
+String getTimestampCellText(
+  BuildContext context,
+  FieldInfo field,
+  DateTime dateTime,
+) {
+  final appearanceState = context.read<AppearanceSettingsCubit>().state;
+  final typeOption =
+      TimestampTypeOptionPB.fromBuffer(field.field.typeOptionData);
+
+  final dateFormat = typeOption.hasDateFormat()
+      ? UserDateFormat.fromDbPB(typeOption.dateFormat)
+      : appearanceState.dateFormat;
+  final timeFormat = typeOption.hasTimeFormat()
+      ? UserTimeFormat.fromDbPB(typeOption.timeFormat)
+      : appearanceState.timeFormat;
+  final includeTime = typeOption.includeTime;
+
+  final format = combineDateTimeFormat(
+    dateFormat,
+    timeFormat,
+    includeTime: includeTime,
+  );
+
+  return format.format(dateTime);
 }

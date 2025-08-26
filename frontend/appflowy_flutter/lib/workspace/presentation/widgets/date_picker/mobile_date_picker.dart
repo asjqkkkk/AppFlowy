@@ -1,3 +1,4 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/base/app_bar/app_bar_actions.dart';
@@ -5,10 +6,8 @@ import 'package:appflowy/mobile/presentation/bottom_sheet/show_mobile_bottom_she
 import 'package:appflowy/mobile/presentation/widgets/flowy_mobile_option_decorate_box.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_option_tile.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/drag_handle.dart';
-import 'package:appflowy/plugins/database/widgets/cell/editable_cell_skeleton/date.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/mobile_date_editor.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/reminder_selector.dart';
-import 'package:appflowy_backend/protobuf/flowy-database2/date_entities.pbenum.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/cupertino.dart';
@@ -33,6 +32,7 @@ class MobileAppFlowyDatePicker extends AppFlowyDatePicker {
     super.onIsRangeChanged,
     super.onReminderSelected,
     this.onClearDate,
+    super.startWeekOnMonday = false,
   });
 
   final VoidCallback? onClearDate;
@@ -69,6 +69,7 @@ class _MobileAppFlowyDatePickerState
             startDay: isRange ? startDateTime : null,
             endDay: isRange ? endDateTime : null,
             focusedDay: focusedDateTime,
+            startWeekOnMonday: widget.startWeekOnMonday,
             onDaySelected: (selectedDay) {
               onDateSelectedFromDatePicker(selectedDay, null);
             },
@@ -136,7 +137,7 @@ class _ReminderSelector extends StatelessWidget {
 
   final ReminderOption? selectedReminderOption;
   final OnReminderSelected onReminderSelected;
-  final TimeFormatPB timeFormat;
+  final UserTimeFormat timeFormat;
   final bool hasTime;
 
   @override
@@ -192,7 +193,7 @@ class _ReminderSelector extends StatelessWidget {
                         String label = o.label;
                         if (o.withoutTime && !o.timeExempt) {
                           const time = "09:00";
-                          final t = timeFormat == TimeFormatPB.TwelveHour
+                          final t = timeFormat == UserTimeFormat.twelveHour
                               ? "$time AM"
                               : time;
 
@@ -272,8 +273,8 @@ class _TimePicker extends StatelessWidget {
   final bool includeTime;
   final bool isRange;
 
-  final DateFormatPB dateFormat;
-  final TimeFormatPB timeFormat;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat timeFormat;
 
   final void Function(DateTime time) onStartTimeChanged;
   final void Function(DateTime time)? onEndTimeChanged;
@@ -333,7 +334,7 @@ class _TimePicker extends StatelessWidget {
               final result = await _showDateTimePicker(
                 context,
                 isStartDay ? dateTime : endDateTime,
-                use24hFormat: timeFormat == TimeFormatPB.TwentyFourHour,
+                use24hFormat: timeFormat == UserTimeFormat.twentyFourHour,
                 mode: CupertinoDatePickerMode.date,
               );
               handleDateTimePickerResult(result, isStartDay, true);
@@ -360,7 +361,7 @@ class _TimePicker extends StatelessWidget {
               final result = await _showDateTimePicker(
                 context,
                 isStartDay ? dateTime : endDateTime,
-                use24hFormat: timeFormat == TimeFormatPB.TwentyFourHour,
+                use24hFormat: timeFormat == UserTimeFormat.twentyFourHour,
                 mode: CupertinoDatePickerMode.date,
               );
               handleDateTimePickerResult(result, isStartDay, true);
@@ -386,7 +387,7 @@ class _TimePicker extends StatelessWidget {
               final result = await _showDateTimePicker(
                 context,
                 isStartDay ? dateTime : endDateTime,
-                use24hFormat: timeFormat == TimeFormatPB.TwentyFourHour,
+                use24hFormat: timeFormat == UserTimeFormat.twentyFourHour,
                 mode: CupertinoDatePickerMode.time,
               );
               handleDateTimePickerResult(result, isStartDay, false);
@@ -491,14 +492,14 @@ class _TimePicker extends StatelessWidget {
     if (dateTime == null) {
       return "";
     }
-    return DateFormat(dateFormat.pattern).format(dateTime);
+    return dateFormat.getDateFormat().format(dateTime);
   }
 
   String getTimeStr(DateTime? dateTime) {
     if (dateTime == null || !includeTime) {
       return "";
     }
-    return DateFormat(timeFormat.pattern).format(dateTime);
+    return timeFormat.getDateFormat().format(dateTime);
   }
 }
 

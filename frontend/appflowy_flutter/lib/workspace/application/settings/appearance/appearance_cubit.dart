@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:appflowy/core/config/kv.dart';
 import 'package:appflowy/core/config/kv_keys.dart';
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/startup/startup.dart';
 import 'package:appflowy/user/application/user_settings_service.dart';
@@ -14,14 +15,13 @@ import 'package:appflowy_backend/protobuf/flowy-user/date_time.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/user_setting.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart'
     show AppFlowyEditorLocalizations;
+import 'package:appflowy_result/appflowy_result.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flowy_infra/theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:universal_platform/universal_platform.dart';
-
-part 'appearance_cubit.freezed.dart';
 
 /// [AppearanceSettingsCubit] is used to modify the appearance of AppFlowy.
 /// It includes:
@@ -33,46 +33,22 @@ part 'appearance_cubit.freezed.dart';
 /// - [UserTimeFormatPB]
 ///
 class AppearanceSettingsCubit extends Cubit<AppearanceSettingsState> {
-  AppearanceSettingsCubit(
-    AppearanceSettingsPB appearanceSettings,
-    DateTimeSettingsPB dateTimeSettings,
-    AppTheme appTheme,
-  )   : _appearanceSettings = appearanceSettings,
-        _dateTimeSettings = dateTimeSettings,
+  AppearanceSettingsCubit({
+    required AppearanceSettingsPB appearanceSettings,
+    required AppTheme appTheme,
+    required UserSettings userSettings,
+  })  : _appearanceSettings = appearanceSettings,
         super(
           AppearanceSettingsState.initial(
-            appTheme,
-            appearanceSettings.themeMode,
-            appearanceSettings.font,
-            appearanceSettings.layoutDirection,
-            appearanceSettings.textDirection,
-            appearanceSettings.enableRtlToolbarItems,
-            appearanceSettings.locale,
-            appearanceSettings.isMenuCollapsed,
-            appearanceSettings.menuOffset,
-            dateTimeSettings.dateFormat,
-            dateTimeSettings.timeFormat,
-            dateTimeSettings.timezoneId,
-            appearanceSettings.documentSetting.cursorColor.isEmpty
-                ? null
-                : Color(
-                    int.parse(appearanceSettings.documentSetting.cursorColor),
-                  ),
-            appearanceSettings.documentSetting.selectionColor.isEmpty
-                ? null
-                : Color(
-                    int.parse(
-                      appearanceSettings.documentSetting.selectionColor,
-                    ),
-                  ),
-            1.0,
+            appearanceSettings: appearanceSettings,
+            appTheme: appTheme,
+            userSettings: userSettings,
           ),
         ) {
     readTextScaleFactor();
   }
 
   final AppearanceSettingsPB _appearanceSettings;
-  final DateTimeSettingsPB _dateTimeSettings;
 
   Future<void> setTextScaleFactor(double textScaleFactor) async {
     // only saved in local storage, this value is not synced across devices
@@ -165,100 +141,68 @@ class AppearanceSettingsCubit extends Cubit<AppearanceSettingsState> {
   }
 
   /// Resets the current font family for the user preferences
-  void resetFontFamily() =>
-      setFontFamily(DefaultAppearanceSettings.kDefaultFontFamily);
+  void resetFontFamily() {
+    setFontFamily(DefaultAppearanceSettings.kDefaultFontFamily);
+  }
 
   /// Update document cursor color in the appearance settings and emit an updated state.
   void setDocumentCursorColor(Color color) {
     _appearanceSettings.documentSetting.cursorColor = color.toHexString();
     _saveAppearanceSettings();
-    emit(state.copyWith(documentCursorColor: color));
   }
 
   /// Reset document cursor color in the appearance settings
   void resetDocumentCursorColor() {
     _appearanceSettings.documentSetting.cursorColor = '';
     _saveAppearanceSettings();
-    emit(state.copyWith(documentCursorColor: null));
   }
 
   /// Update document selection color in the appearance settings and emit an updated state.
   void setDocumentSelectionColor(Color color) {
     _appearanceSettings.documentSetting.selectionColor = color.toHexString();
     _saveAppearanceSettings();
-    emit(state.copyWith(documentSelectionColor: color));
   }
 
   /// Reset document selection color in the appearance settings
   void resetDocumentSelectionColor() {
     _appearanceSettings.documentSetting.selectionColor = '';
     _saveAppearanceSettings();
-    emit(state.copyWith(documentSelectionColor: null));
   }
 
   /// Updates the current locale and notify the listeners the locale was
-  /// changed. Fallback to [en] locale if [newLocale] is not supported.
-  void setLocale(BuildContext context, Locale newLocale) {
+  /// changed. Fallback to [en-US] locale if [newLocale] is not supported.
+  void setLocale(BuildContext context, Locale newLocale) async {
     if (!context.supportedLocales.contains(newLocale)) {
-      // Log.warn("Unsupported locale: $newLocale, Fallback to locale: en");
+      // Log.warn("Unsupported locale: $newLocale, Fallback to locale: en-US");
       newLocale = const Locale('en', 'US');
     }
 
-    context.setLocale(newLocale).catchError((e) {
-      Log.warn('Catch error in setLocale: $e}');
-    });
-
-    // Sync the app's locale with the editor (initialization and update)
-    AppFlowyEditorLocalizations.load(newLocale);
-
-    if (state.locale != newLocale) {
-      _appearanceSettings.locale.languageCode = newLocale.languageCode;
-      _appearanceSettings.locale.countryCode = newLocale.countryCode ?? "";
-      _saveAppearanceSettings();
-      emit(state.copyWith(locale: newLocale));
-    }
-  }
-
-  // Saves the menus current visibility
-  void saveIsMenuCollapsed(bool collapsed) {
-    _appearanceSettings.isMenuCollapsed = collapsed;
-    _saveAppearanceSettings();
-  }
-
-  // Saves the current resize offset of the menu
-  void saveMenuOffset(double offset) {
-    _appearanceSettings.menuOffset = offset;
-    _saveAppearanceSettings();
-  }
-
-  /// Saves key/value setting to disk.
-  /// Removes the key if the passed in value is null
-  void setKeyValue(String key, String? value) {
-    if (key.isEmpty) {
-      Log.warn("The key should not be empty");
+    if (newLocale == state.locale) {
       return;
     }
 
-    if (value == null) {
-      _appearanceSettings.settingKeyValue.remove(key);
-    }
+    await context.setLocale(newLocale).catchError((e) {
+      Log.warn('Catch error in setLocale: $e');
+    });
+    await AppFlowyEditorLocalizations.load(newLocale);
 
-    if (_appearanceSettings.settingKeyValue[key] != value) {
-      if (value == null) {
-        _appearanceSettings.settingKeyValue.remove(key);
-      } else {
-        _appearanceSettings.settingKeyValue[key] = value;
-      }
-    }
-    _saveAppearanceSettings();
+    emit(
+      state.copyWith(locale: newLocale),
+    );
+    _appearanceSettings.locale.languageCode = newLocale.languageCode;
+    _appearanceSettings.locale.countryCode = newLocale.countryCode ?? "";
+    await _saveAppearanceSettings();
   }
 
-  String? getValue(String key) {
-    if (key.isEmpty) {
-      Log.warn("The key should not be empty");
-      return null;
-    }
-    return _appearanceSettings.settingKeyValue[key];
+  /// Sets sidebar menu preferences
+  void setMenuPreferences({
+    bool? isCollapsed,
+    double? offset,
+  }) {
+    _appearanceSettings.isMenuCollapsed =
+        isCollapsed ?? _appearanceSettings.isMenuCollapsed;
+    _appearanceSettings.menuOffset = offset ?? _appearanceSettings.menuOffset;
+    _saveAppearanceSettings();
   }
 
   /// Called when the application launches.
@@ -274,58 +218,41 @@ class AppearanceSettingsCubit extends Cubit<AppearanceSettingsState> {
     setLocale(context, state.locale);
   }
 
-  void setDateFormat(UserDateFormatPB format) {
-    _dateTimeSettings.dateFormat = format;
-    _saveDateTimeSettings();
-    emit(state.copyWith(dateFormat: format));
-  }
-
-  void setTimeFormat(UserTimeFormatPB format) {
-    _dateTimeSettings.timeFormat = format;
-    _saveDateTimeSettings();
-    emit(state.copyWith(timeFormat: format));
-  }
-
-  Future<void> _saveDateTimeSettings() async {
-    final result = await UserSettingsBackendService()
-        .setDateTimeSettings(_dateTimeSettings);
-    result.fold(
-      (_) => null,
-      (error) => Log.error(error),
+  void setDateTimeFormat({
+    UserDateFormat? dateFormat,
+    UserTimeFormat? timeFormat,
+    bool? startWeekOnMonday,
+  }) async {
+    emit(
+      state.copyWith(
+        dateFormat: dateFormat,
+        timeFormat: timeFormat,
+        startWeekOnMonday: startWeekOnMonday,
+      ),
     );
   }
 
   Future<void> _saveAppearanceSettings() async {
-    final result = await UserSettingsBackendService()
-        .setAppearanceSetting(_appearanceSettings);
-    result.fold(
-      (l) => null,
-      (error) => Log.error(error),
-    );
+    await UserSettingsBackendService()
+        .setAppearanceSetting(_appearanceSettings)
+        .onFailure(Log.error);
   }
 }
 
 ThemeMode _themeModeFromPB(ThemeModePB themeModePB) {
-  switch (themeModePB) {
-    case ThemeModePB.Light:
-      return ThemeMode.light;
-    case ThemeModePB.Dark:
-      return ThemeMode.dark;
-    case ThemeModePB.System:
-    default:
-      return ThemeMode.system;
-  }
+  return switch (themeModePB) {
+    ThemeModePB.Light => ThemeMode.light,
+    ThemeModePB.Dark => ThemeMode.dark,
+    _ => ThemeMode.system,
+  };
 }
 
 ThemeModePB _themeModeToPB(ThemeMode themeMode) {
-  switch (themeMode) {
-    case ThemeMode.light:
-      return ThemeModePB.Light;
-    case ThemeMode.dark:
-      return ThemeModePB.Dark;
-    case ThemeMode.system:
-      return ThemeModePB.System;
-  }
+  return switch (themeMode) {
+    ThemeMode.light => ThemeModePB.Light,
+    ThemeMode.dark => ThemeModePB.Dark,
+    ThemeMode.system => ThemeModePB.System,
+  };
 }
 
 enum LayoutDirection {
@@ -352,85 +279,115 @@ enum AppFlowyTextDirection {
   static AppFlowyTextDirection fromTextDirectionPB(
     TextDirectionPB? textDirectionPB,
   ) {
-    switch (textDirectionPB) {
-      case TextDirectionPB.LTR:
-        return AppFlowyTextDirection.ltr;
-      case TextDirectionPB.RTL:
-        return AppFlowyTextDirection.rtl;
-      case TextDirectionPB.AUTO:
-        return AppFlowyTextDirection.auto;
-      default:
-        return AppFlowyTextDirection.ltr;
-    }
+    return switch (textDirectionPB) {
+      TextDirectionPB.LTR => AppFlowyTextDirection.ltr,
+      TextDirectionPB.RTL => AppFlowyTextDirection.rtl,
+      TextDirectionPB.AUTO => AppFlowyTextDirection.auto,
+      _ => AppFlowyTextDirection.ltr
+    };
   }
 
   TextDirectionPB toTextDirectionPB() {
-    switch (this) {
-      case AppFlowyTextDirection.ltr:
-        return TextDirectionPB.LTR;
-      case AppFlowyTextDirection.rtl:
-        return TextDirectionPB.RTL;
-      case AppFlowyTextDirection.auto:
-        return TextDirectionPB.AUTO;
-    }
+    return switch (this) {
+      AppFlowyTextDirection.ltr => TextDirectionPB.LTR,
+      AppFlowyTextDirection.rtl => TextDirectionPB.RTL,
+      AppFlowyTextDirection.auto => TextDirectionPB.AUTO
+    };
   }
 }
 
-@freezed
-class AppearanceSettingsState with _$AppearanceSettingsState {
-  const AppearanceSettingsState._();
+class AppearanceSettingsState extends Equatable {
+  const AppearanceSettingsState({
+    required this.appTheme,
+    required this.themeMode,
+    required this.font,
+    required this.layoutDirection,
+    required this.textDirection,
+    required this.enableRtlToolbarItems,
+    required this.locale,
+    required this.isMenuCollapsed,
+    required this.menuOffset,
+    required this.dateFormat,
+    required this.timeFormat,
+    required this.timezoneId,
+    required this.startWeekOnMonday,
+    required this.textScaleFactor,
+  });
 
-  const factory AppearanceSettingsState({
+  factory AppearanceSettingsState.initial({
+    required AppearanceSettingsPB appearanceSettings,
     required AppTheme appTheme,
-    required ThemeMode themeMode,
-    required String font,
-    required LayoutDirection layoutDirection,
-    required AppFlowyTextDirection textDirection,
-    required bool enableRtlToolbarItems,
-    required Locale locale,
-    required bool isMenuCollapsed,
-    required double menuOffset,
-    required UserDateFormatPB dateFormat,
-    required UserTimeFormatPB timeFormat,
-    required String timezoneId,
-    required Color? documentCursorColor,
-    required Color? documentSelectionColor,
-    required double textScaleFactor,
-  }) = _AppearanceSettingsState;
-
-  factory AppearanceSettingsState.initial(
-    AppTheme appTheme,
-    ThemeModePB themeModePB,
-    String font,
-    LayoutDirectionPB layoutDirectionPB,
-    TextDirectionPB? textDirectionPB,
-    bool enableRtlToolbarItems,
-    LocaleSettingsPB localePB,
-    bool isMenuCollapsed,
-    double menuOffset,
-    UserDateFormatPB dateFormat,
-    UserTimeFormatPB timeFormat,
-    String timezoneId,
-    Color? documentCursorColor,
-    Color? documentSelectionColor,
-    double textScaleFactor,
-  ) {
+    required UserSettings userSettings,
+  }) {
     return AppearanceSettingsState(
       appTheme: appTheme,
-      font: font,
-      layoutDirection: LayoutDirection.fromLayoutDirectionPB(layoutDirectionPB),
-      textDirection: AppFlowyTextDirection.fromTextDirectionPB(textDirectionPB),
-      enableRtlToolbarItems: enableRtlToolbarItems,
-      themeMode: _themeModeFromPB(themeModePB),
-      locale: Locale(localePB.languageCode, localePB.countryCode),
-      isMenuCollapsed: isMenuCollapsed,
-      menuOffset: menuOffset,
-      dateFormat: dateFormat,
-      timeFormat: timeFormat,
-      timezoneId: timezoneId,
-      documentCursorColor: documentCursorColor,
-      documentSelectionColor: documentSelectionColor,
-      textScaleFactor: textScaleFactor,
+      font: appearanceSettings.font,
+      layoutDirection: LayoutDirection.fromLayoutDirectionPB(
+        appearanceSettings.layoutDirection,
+      ),
+      textDirection: AppFlowyTextDirection.fromTextDirectionPB(
+        appearanceSettings.textDirection,
+      ),
+      enableRtlToolbarItems: appearanceSettings.enableRtlToolbarItems,
+      themeMode: _themeModeFromPB(appearanceSettings.themeMode),
+      locale: userSettings.locale,
+      isMenuCollapsed: appearanceSettings.isMenuCollapsed,
+      menuOffset: appearanceSettings.menuOffset,
+      dateFormat: userSettings.dateFormat,
+      timeFormat: userSettings.timeFormat,
+      timezoneId: "",
+      startWeekOnMonday: userSettings.startWeekOnMonday,
+      textScaleFactor: 1.0,
+    );
+  }
+
+  final AppTheme appTheme;
+  final ThemeMode themeMode;
+  final String font;
+  final LayoutDirection layoutDirection;
+  final AppFlowyTextDirection textDirection;
+  final bool enableRtlToolbarItems;
+  final Locale locale;
+  final bool isMenuCollapsed;
+  final double menuOffset;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat timeFormat;
+  final String timezoneId;
+  final bool startWeekOnMonday;
+  final double textScaleFactor;
+
+  AppearanceSettingsState copyWith({
+    AppTheme? appTheme,
+    ThemeMode? themeMode,
+    String? font,
+    LayoutDirection? layoutDirection,
+    AppFlowyTextDirection? textDirection,
+    bool? enableRtlToolbarItems,
+    Locale? locale,
+    bool? isMenuCollapsed,
+    double? menuOffset,
+    UserDateFormat? dateFormat,
+    UserTimeFormat? timeFormat,
+    String? timezoneId,
+    bool? startWeekOnMonday,
+    double? textScaleFactor,
+  }) {
+    return AppearanceSettingsState(
+      appTheme: appTheme ?? this.appTheme,
+      themeMode: themeMode ?? this.themeMode,
+      font: font ?? this.font,
+      layoutDirection: layoutDirection ?? this.layoutDirection,
+      textDirection: textDirection ?? this.textDirection,
+      enableRtlToolbarItems:
+          enableRtlToolbarItems ?? this.enableRtlToolbarItems,
+      locale: locale ?? this.locale,
+      isMenuCollapsed: isMenuCollapsed ?? this.isMenuCollapsed,
+      menuOffset: menuOffset ?? this.menuOffset,
+      dateFormat: dateFormat ?? this.dateFormat,
+      timeFormat: timeFormat ?? this.timeFormat,
+      timezoneId: timezoneId ?? this.timezoneId,
+      startWeekOnMonday: startWeekOnMonday ?? this.startWeekOnMonday,
+      textScaleFactor: textScaleFactor ?? this.textScaleFactor,
     );
   }
 
@@ -446,4 +403,22 @@ class AppearanceSettingsState with _$AppearanceSettingsState {
       builtInCodeFontFamily,
     );
   }
+
+  @override
+  List<Object?> get props => [
+        appTheme,
+        themeMode,
+        font,
+        layoutDirection,
+        textDirection,
+        enableRtlToolbarItems,
+        locale,
+        isMenuCollapsed,
+        menuOffset,
+        dateFormat,
+        timeFormat,
+        timezoneId,
+        startWeekOnMonday,
+        textScaleFactor,
+      ];
 }

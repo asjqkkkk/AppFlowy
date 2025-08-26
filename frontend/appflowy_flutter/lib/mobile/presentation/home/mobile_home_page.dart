@@ -1,3 +1,4 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/application/mobile_router.dart';
 import 'package:appflowy/mobile/presentation/home/mobile_home_page_header.dart';
@@ -12,6 +13,7 @@ import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_bloc.dart';
 import 'package:appflowy/workspace/application/favorite/favorite_bloc.dart';
 import 'package:appflowy/workspace/application/menu/sidebar_sections_bloc.dart';
+import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/application/sidebar/space/space_bloc.dart';
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/workspace/presentation/home/errors/workspace_failed_screen.dart';
@@ -24,64 +26,124 @@ import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart'
     hide AFRolePB;
-import 'package:appflowy_backend/protobuf/flowy-folder/workspace.pb.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_result/appflowy_result.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:provider/provider.dart';
 
-class MobileHomeScreen extends StatelessWidget {
+class MobileHomeScreen extends StatefulWidget {
   const MobileHomeScreen({super.key});
 
   static const routeName = '/home';
 
   @override
+  State<MobileHomeScreen> createState() => _MobileHomeScreenState();
+}
+
+class _MobileHomeScreenState extends State<MobileHomeScreen> {
+  bool isLoading = true;
+  UserProfilePB? userProfile;
+
+  @override
+  void initState() {
+    super.initState();
+
+    fetchData().then((userProfile) {
+      setState(() => isLoading = false);
+      updateLocale(userProfile);
+    });
+
+    getIt<MenuSharedState>().addLatestViewListener(onLatestViewChange);
+    getIt<ReminderBloc>().add(const ReminderEvent.started());
+  }
+
+  @override
+  void dispose() {
+    getIt<MenuSharedState>().removeLatestViewListener(onLatestViewChange);
+
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: Future.wait([
-        FolderEventGetCurrentWorkspaceSetting().send(),
-        getIt<AuthService>().getUser(),
-      ]),
-      builder: (context, snapshots) {
-        if (!snapshots.hasData) {
-          return const Center(child: CircularProgressIndicator.adaptive());
-        }
+    if (isLoading) {
+      return const Center(
+        child: CircularProgressIndicator.adaptive(),
+      );
+    }
 
-        final workspaceLatest = snapshots.data?[0].fold(
-          (workspaceLatestPB) {
-            return workspaceLatestPB as WorkspaceLatestPB?;
-          },
-          (error) => null,
-        );
-        final userProfile = snapshots.data?[1].fold(
-          (userProfilePB) {
-            return userProfilePB as UserProfilePB?;
-          },
-          (error) => null,
-        );
+    // In the unlikely case either of the above is null, eg.
+    // when a workspace is already open this can happen.
+    if (this.userProfile == null) {
+      return const WorkspaceFailedScreen();
+    }
 
-        // In the unlikely case either of the above is null, eg.
-        // when a workspace is already open this can happen.
-        if (workspaceLatest == null || userProfile == null) {
-          return const WorkspaceFailedScreen();
-        }
+    final userProfile = this.userProfile!;
 
-        return Scaffold(
-          body: SafeArea(
-            bottom: false,
-            child: Provider.value(
+    return Scaffold(
+      body: SafeArea(
+        bottom: false,
+        child: MultiBlocProvider(
+          providers: [
+            Provider.value(
               value: userProfile,
-              child: MobileHomePage(
-                userProfile: userProfile,
-                workspaceLatest: workspaceLatest,
-              ),
             ),
+            BlocProvider(
+              create: (_) => UserWorkspaceBloc(
+                userProfile: userProfile,
+                repository: RustWorkspaceRepositoryImpl(
+                  userId: userProfile.id,
+                ),
+              )..add(UserWorkspaceEvent.initialize()),
+            ),
+            BlocProvider(
+              create: (context) =>
+                  FavoriteBloc()..add(const FavoriteEvent.initial()),
+            ),
+            BlocProvider.value(
+              value: getIt<ReminderBloc>()..add(const ReminderEvent.started()),
+            ),
+          ],
+          child: BlocListener<UserWorkspaceBloc, UserWorkspaceState>(
+            listener: (context, state) {
+              updateLocale(state.userProfile);
+            },
+            child: MobileHomePage(userProfile: userProfile),
           ),
-        );
-      },
+        ),
+      ),
     );
+  }
+
+  Future<UserProfilePB?> fetchData() async {
+    userProfile = await getIt<AuthService>().getUser().toNullable();
+
+    return userProfile;
+  }
+
+  void updateLocale(UserProfilePB? userProfile) {
+    if (userProfile == null) {
+      return;
+    }
+    final userSettings = UserSettings.fromUserProfile(userProfile);
+    context.read<AppearanceSettingsCubit>()
+      ..setLocale(context, userSettings.locale)
+      ..setDateTimeFormat(
+        dateFormat: userSettings.dateFormat,
+        timeFormat: userSettings.timeFormat,
+        startWeekOnMonday: userSettings.startWeekOnMonday,
+      );
+  }
+
+  void onLatestViewChange() async {
+    final id = getIt<MenuSharedState>().latestOpenView?.id;
+    if (id == null || id.isEmpty) {
+      return;
+    }
+    await FolderEventOpenView(ViewIdPB(value: id)).send();
   }
 }
 
@@ -92,77 +154,15 @@ class MobileHomePage extends StatefulWidget {
   const MobileHomePage({
     super.key,
     required this.userProfile,
-    required this.workspaceLatest,
   });
 
   final UserProfilePB userProfile;
-  final WorkspaceLatestPB workspaceLatest;
 
   @override
   State<MobileHomePage> createState() => _MobileHomePageState();
 }
 
 class _MobileHomePageState extends State<MobileHomePage> {
-  Loading? loadingIndicator;
-
-  @override
-  void initState() {
-    super.initState();
-
-    getIt<MenuSharedState>().addLatestViewListener(_onLatestViewChange);
-    getIt<ReminderBloc>().add(const ReminderEvent.started());
-  }
-
-  @override
-  void dispose() {
-    getIt<MenuSharedState>().removeLatestViewListener(_onLatestViewChange);
-
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (_) => UserWorkspaceBloc(
-            userProfile: widget.userProfile,
-            repository: RustWorkspaceRepositoryImpl(
-              userId: widget.userProfile.id,
-            ),
-          )..add(UserWorkspaceEvent.initialize()),
-        ),
-        BlocProvider(
-          create: (context) =>
-              FavoriteBloc()..add(const FavoriteEvent.initial()),
-        ),
-        BlocProvider.value(
-          value: getIt<ReminderBloc>()..add(const ReminderEvent.started()),
-        ),
-      ],
-      child: _HomePage(userProfile: widget.userProfile),
-    );
-  }
-
-  void _onLatestViewChange() async {
-    final id = getIt<MenuSharedState>().latestOpenView?.id;
-    if (id == null || id.isEmpty) {
-      return;
-    }
-    await FolderEventOpenView(ViewIdPB(value: id)).send();
-  }
-}
-
-class _HomePage extends StatefulWidget {
-  const _HomePage({required this.userProfile});
-
-  final UserProfilePB userProfile;
-
-  @override
-  State<_HomePage> createState() => _HomePageState();
-}
-
-class _HomePageState extends State<_HomePage> {
   Loading? loadingIndicator;
 
   @override

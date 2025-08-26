@@ -1,9 +1,8 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_data_pb_extension.dart';
 import 'package:appflowy/plugins/document/application/document_service.dart';
 import 'package:appflowy/user/application/reminder/reminder_extension.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
-import 'package:appflowy/workspace/application/settings/date_time/time_format_ext.dart';
 import 'package:appflowy/workspace/application/view/prelude.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
@@ -19,22 +18,19 @@ part 'notification_reminder_bloc.freezed.dart';
 
 class NotificationReminderBloc
     extends Bloc<NotificationReminderEvent, NotificationReminderState> {
-  NotificationReminderBloc() : super(NotificationReminderState.initial()) {
+  NotificationReminderBloc({
+    required this.dateFormat,
+    required this.timeFormat,
+  }) : super(NotificationReminderState.initial()) {
     on<NotificationReminderEvent>((event, emit) async {
       await event.when(
         initial: (reminder, dateFormat, timeFormat) async {
           this.reminder = reminder;
-          this.dateFormat = dateFormat;
-          this.timeFormat = timeFormat;
 
           add(const NotificationReminderEvent.reset());
         },
         reset: () async {
-          final scheduledAt = await _getScheduledAt(
-            reminder,
-            dateFormat,
-            timeFormat,
-          );
+          final scheduledAt = await _getScheduledAt(reminder);
           final view = await _getView(reminder);
 
           if (view == null) {
@@ -86,18 +82,12 @@ class NotificationReminderBloc
   }
 
   late final ReminderPB reminder;
-  late final UserDateFormatPB dateFormat;
-  late final UserTimeFormatPB timeFormat;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat timeFormat;
 
-  Future<String> _getScheduledAt(
-    ReminderPB reminder,
-    UserDateFormatPB dateFormat,
-    UserTimeFormatPB timeFormat,
-  ) async {
+  Future<String> _getScheduledAt(ReminderPB reminder) async {
     return _formatTimestamp(
       reminder.scheduledAt.toInt() * 1000,
-      timeFormat: timeFormat,
-      dateFormate: dateFormat,
     );
   }
 
@@ -150,11 +140,7 @@ class NotificationReminderBloc
     return null;
   }
 
-  String _formatTimestamp(
-    int timestamp, {
-    required UserDateFormatPB dateFormate,
-    required UserTimeFormatPB timeFormat,
-  }) {
+  String _formatTimestamp(int timestamp) {
     final now = DateTime.now();
     final dateTime = DateTime.fromMillisecondsSinceEpoch(timestamp);
     final difference = now.difference(dateTime);
@@ -168,9 +154,9 @@ class NotificationReminderBloc
           .tr(namedArgs: {'count': difference.inMinutes.toString()});
     } else if (difference.inHours >= 1 && dateTime.isToday) {
       // in same day
-      date = timeFormat.formatTime(dateTime);
+      date = timeFormat.getDateFormat().format(dateTime);
     } else {
-      date = dateFormate.formatDate(dateTime, false);
+      date = dateFormat.getDateFormat().format(dateTime);
     }
 
     return date;

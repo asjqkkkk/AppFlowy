@@ -6,6 +6,7 @@ import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/view/view_bloc.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
+import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/material.dart';
@@ -286,7 +287,7 @@ class _OverlayContentState extends State<OverlayContent> {
                         ),
                       ),
                     ),
-                    Divider(height: 1.0),
+                    AFDivider(),
                   ],
                   DecoratedBox(
                     decoration: markdownText.isNotEmpty

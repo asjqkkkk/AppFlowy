@@ -69,7 +69,7 @@ class _DropdownMenuPageState extends State<DropdownMenuPage> {
               selectedItems: selectedItems,
               isDisabled: isDisabled,
               // isMultiselect: isMultiselect,
-              onSelected: (value) {
+              onSelect: (value) {
                 if (value != null) {
                   setState(() {
                     if (isMultiselect) {

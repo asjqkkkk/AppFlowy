@@ -16,6 +16,7 @@ class DatePicker extends StatefulWidget {
     this.endDay,
     this.selectedDay,
     required this.focusedDay,
+    this.startWeekOnMonday = false,
     this.onDaySelected,
     this.onRangeSelected,
     this.onCalendarCreated,
@@ -30,6 +31,8 @@ class DatePicker extends StatefulWidget {
   final DateTime? selectedDay;
 
   final DateTime focusedDay;
+
+  final bool startWeekOnMonday;
 
   final void Function(
     DateTime selectedDay,
@@ -92,6 +95,9 @@ class _DatePickerState extends State<DatePicker> {
         onCalendarCreated: widget.onCalendarCreated,
         headerVisible: calendarStyle.headerVisible,
         headerStyle: calendarStyle.headerStyle,
+        startingDayOfWeek: widget.startWeekOnMonday
+            ? StartingDayOfWeek.monday
+            : StartingDayOfWeek.sunday,
         calendarStyle: CalendarStyle(
           cellMargin: const EdgeInsets.all(3.5),
           defaultDecoration: boxDecoration,

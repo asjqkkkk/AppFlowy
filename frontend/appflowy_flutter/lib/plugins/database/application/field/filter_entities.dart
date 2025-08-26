@@ -18,6 +18,9 @@ import 'package:equatable/equatable.dart';
 import 'package:fixnum/fixnum.dart';
 import 'package:flowy_infra_ui/flowy_infra_ui.dart';
 import 'package:flutter/widgets.dart';
+import 'package:provider/provider.dart';
+
+import '../../../../workspace/application/settings/appearance/appearance_cubit.dart';
 
 abstract class DatabaseFilter extends Equatable {
   const DatabaseFilter({
@@ -100,9 +103,10 @@ abstract class DatabaseFilter extends Equatable {
 
   bool get canAttachContent;
 
-  String getContentDescription(FieldInfo field);
+  String getContentDescription(BuildContext context, FieldInfo field);
 
   Widget getMobileDescription(
+    BuildContext context,
     FieldInfo field, {
     required VoidCallback onExpand,
     required void Function(DatabaseFilter filter) onUpdate,
@@ -135,7 +139,7 @@ final class TextFilter extends DatabaseFilter {
       condition != TextFilterConditionPB.TextIsNotEmpty;
 
   @override
-  String getContentDescription(FieldInfo field) {
+  String getContentDescription(BuildContext context, FieldInfo field) {
     final filterDesc = condition.choicechipPrefix;
 
     if (condition == TextFilterConditionPB.TextIsEmpty ||
@@ -148,6 +152,7 @@ final class TextFilter extends DatabaseFilter {
 
   @override
   Widget getMobileDescription(
+    BuildContext context,
     FieldInfo field, {
     required VoidCallback onExpand,
     required void Function(DatabaseFilter filter) onUpdate,
@@ -213,7 +218,7 @@ final class NumberFilter extends DatabaseFilter {
       condition != NumberFilterConditionPB.NumberIsNotEmpty;
 
   @override
-  String getContentDescription(FieldInfo field) {
+  String getContentDescription(BuildContext context, FieldInfo field) {
     if (condition == NumberFilterConditionPB.NumberIsEmpty ||
         condition == NumberFilterConditionPB.NumberIsNotEmpty) {
       return condition.shortName;
@@ -224,6 +229,7 @@ final class NumberFilter extends DatabaseFilter {
 
   @override
   Widget getMobileDescription(
+    BuildContext context,
     FieldInfo field, {
     required VoidCallback onExpand,
     required void Function(DatabaseFilter filter) onUpdate,
@@ -283,7 +289,8 @@ final class CheckboxFilter extends DatabaseFilter {
   bool get canAttachContent => false;
 
   @override
-  String getContentDescription(FieldInfo field) => condition.filterName;
+  String getContentDescription(BuildContext context, FieldInfo field) =>
+      condition.filterName;
 
   @override
   Uint8List writeToBuffer() {
@@ -322,7 +329,8 @@ final class ChecklistFilter extends DatabaseFilter {
   bool get canAttachContent => false;
 
   @override
-  String getContentDescription(FieldInfo field) => condition.filterName;
+  String getContentDescription(BuildContext context, FieldInfo field) =>
+      condition.filterName;
 
   @override
   Uint8List writeToBuffer() {
@@ -369,7 +377,7 @@ final class SelectOptionFilter extends DatabaseFilter {
       condition != SelectOptionFilterConditionPB.OptionIsNotEmpty;
 
   @override
-  String getContentDescription(FieldInfo field) {
+  String getContentDescription(BuildContext context, FieldInfo field) {
     if (!canAttachContent || optionIds.isEmpty) {
       return condition.i18n;
     }
@@ -386,6 +394,7 @@ final class SelectOptionFilter extends DatabaseFilter {
 
   @override
   Widget getMobileDescription(
+    BuildContext context,
     FieldInfo field, {
     required VoidCallback onExpand,
     required void Function(DatabaseFilter filter) onUpdate,
@@ -565,42 +574,50 @@ final class DateTimeFilter extends DatabaseFilter {
       ].contains(condition);
 
   @override
-  String getContentDescription(FieldInfo field) {
+  String getContentDescription(BuildContext context, FieldInfo field) {
+    final condition = this.condition.toCondition();
+    final prefix = condition.choiceChipPrefix;
+
+    final appearanceState = context.read<AppearanceSettingsCubit>().state;
+    final format = appearanceState.dateFormat.getDateFormat();
+
     return switch (condition) {
-      DateFilterConditionPB.DateStartIsEmpty ||
-      DateFilterConditionPB.DateStartIsNotEmpty ||
-      DateFilterConditionPB.DateEndIsEmpty ||
-      DateFilterConditionPB.DateEndIsNotEmpty =>
-        condition.toCondition().choiceChipPrefix,
-      DateFilterConditionPB.DateStartsOn ||
-      DateFilterConditionPB.DateEndsOn =>
-        timestamp?.defaultFormat ?? "",
-      DateFilterConditionPB.DateStartsBetween ||
-      DateFilterConditionPB.DateEndsBetween =>
-        "${condition.toCondition().choiceChipPrefix} ${start?.defaultFormat ?? ""} - ${end?.defaultFormat ?? ""}",
-      _ =>
-        "${condition.toCondition().choiceChipPrefix} ${timestamp?.defaultFormat ?? ""}"
+      DateTimeFilterCondition.between when start != null && end != null =>
+        "$prefix ${format.format(start!)} - ${format.format(end!)}",
+      DateTimeFilterCondition.on when timestamp != null =>
+        format.format(timestamp!),
+      DateTimeFilterCondition.isEmpty ||
+      DateTimeFilterCondition.isNotEmpty =>
+        prefix,
+      _ when timestamp != null => "$prefix ${format.format(timestamp!)}",
+      _ => prefix,
     };
   }
 
   @override
   Widget getMobileDescription(
+    BuildContext context,
     FieldInfo field, {
     required VoidCallback onExpand,
     required void Function(DatabaseFilter filter) onUpdate,
   }) {
-    String? text;
+    final appearanceState = context.read<AppearanceSettingsCubit>().state;
+    final format = appearanceState.dateFormat.getDateFormat();
 
-    if (condition.isRange) {
-      text = "${start?.defaultFormat ?? ""} - ${end?.defaultFormat ?? ""}";
-      text = text == " - " ? null : text;
+    final String text;
+
+    if (condition.isRange && start != null && end != null) {
+      text = "${format.format(start!)} - ${format.format(end!)}";
+    } else if (timestamp != null) {
+      text = format.format(timestamp!);
     } else {
-      text = timestamp.defaultFormat;
+      text = "";
     }
+
     return FilterItemInnerButton(
       onTap: onExpand,
       child: FlowyText(
-        text ?? "",
+        text,
         overflow: TextOverflow.ellipsis,
       ),
     );
@@ -715,7 +732,7 @@ final class TimeFilter extends DatabaseFilter {
       condition != NumberFilterConditionPB.NumberIsNotEmpty;
 
   @override
-  String getContentDescription(FieldInfo field) {
+  String getContentDescription(BuildContext context, FieldInfo field) {
     if (condition == NumberFilterConditionPB.NumberIsEmpty ||
         condition == NumberFilterConditionPB.NumberIsNotEmpty) {
       return condition.shortName;

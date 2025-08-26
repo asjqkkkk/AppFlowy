@@ -8,7 +8,7 @@ use collab_database::fields::select_type_option::{
 };
 use collab_database::fields::summary_type_option::SummarizationTypeOption;
 use collab_database::fields::timestamp_type_option::TimestampTypeOption;
-use collab_database::views::{DatabaseLayout, LayoutSetting, LayoutSettings};
+use collab_database::views::{BoardLayoutSetting, DatabaseLayout, LayoutSetting, LayoutSettings};
 use strum::IntoEnumIterator;
 
 use crate::database::mock_data::{COMPLETED, FACEBOOK, GOOGLE, PAUSED, PLANNED, TWITTER};
@@ -16,7 +16,6 @@ use event_integration_test::database_event::TestRowBuilder;
 use flowy_database2::entities::FieldType;
 use flowy_database2::services::field::FieldBuilder;
 use flowy_database2::services::field_settings::default_field_settings_for_fields;
-use flowy_database2::services::setting::BoardLayoutSetting;
 
 // Kanban board unit test mock data
 pub fn make_test_board() -> DatabaseData {
@@ -43,8 +42,8 @@ pub fn make_test_board() -> DatabaseData {
       FieldType::DateTime => {
         // Date
         let date_type_option = DateTypeOption {
-          date_format: DateFormat::US,
-          time_format: TimeFormat::TwentyFourHour,
+          date_format: Some(DateFormat::US),
+          time_format: Some(TimeFormat::TwentyFourHour),
           timezone_id: "Etc/UTC".to_owned(),
         };
         let name = "Time";
@@ -56,8 +55,8 @@ pub fn make_test_board() -> DatabaseData {
       FieldType::LastEditedTime | FieldType::CreatedTime => {
         // LastEditedTime and CreatedTime
         let date_type_option = TimestampTypeOption {
-          date_format: DateFormat::US,
-          time_format: TimeFormat::TwentyFourHour,
+          date_format: Some(DateFormat::US),
+          time_format: Some(TimeFormat::TwentyFourHour),
           include_time: true,
           field_type: field_type.into(),
           timezone: None,

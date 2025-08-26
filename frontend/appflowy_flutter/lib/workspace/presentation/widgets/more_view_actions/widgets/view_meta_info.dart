@@ -1,6 +1,5 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/date_time.pbenum.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/style_widget/text.dart';
@@ -17,8 +16,8 @@ class ViewMetaInfo extends StatelessWidget {
     this.createdAt,
   });
 
-  final UserDateFormatPB dateFormat;
-  final UserTimeFormatPB timeFormat;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat timeFormat;
   final Counters? documentCounters;
   final Counters? titleCounters;
   final DateTime? createdAt;
@@ -67,7 +66,13 @@ class ViewMetaInfo extends StatelessWidget {
               const VSpace(2),
             FlowyText.regular(
               LocaleKeys.moreAction_createdAt.tr(
-                args: [dateFormat.formatDate(createdAt!, true, timeFormat)],
+                args: [
+                  combineDateTimeFormat(
+                    dateFormat,
+                    timeFormat,
+                    includeTime: true,
+                  ).format(createdAt!),
+                ],
               ),
               fontSize: 12,
               maxLines: 2,

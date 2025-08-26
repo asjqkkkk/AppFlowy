@@ -51,8 +51,8 @@ pub fn make_test_grid() -> DatabaseData {
       FieldType::DateTime => {
         // Date
         let date_type_option = DateTypeOption {
-          date_format: DateFormat::US,
-          time_format: TimeFormat::TwentyFourHour,
+          date_format: Some(DateFormat::US),
+          time_format: Some(TimeFormat::TwentyFourHour),
           timezone_id: "Etc/UTC".to_owned(),
         };
         let name = "Time";
@@ -64,8 +64,8 @@ pub fn make_test_grid() -> DatabaseData {
       FieldType::LastEditedTime | FieldType::CreatedTime => {
         // LastEditedTime and CreatedTime
         let timestamp_type_option = TimestampTypeOption {
-          date_format: DateFormat::US,
-          time_format: TimeFormat::TwentyFourHour,
+          date_format: Some(DateFormat::US),
+          time_format: Some(TimeFormat::TwentyFourHour),
           include_time: true,
           field_type: field_type.into(),
           timezone: None,

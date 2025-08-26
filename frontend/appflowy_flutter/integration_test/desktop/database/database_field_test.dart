@@ -352,7 +352,7 @@ void main() {
       tester.assertCellContent(
         rowIndex: 0,
         fieldType: FieldType.DateTime,
-        content: DateFormat('dd/MM/y hh:mm a').format(now),
+        content: DateFormat('dd/MM/y h:mm a').format(now),
       );
     });
 

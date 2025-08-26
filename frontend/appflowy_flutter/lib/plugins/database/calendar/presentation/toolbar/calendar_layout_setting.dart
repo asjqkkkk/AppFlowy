@@ -74,7 +74,9 @@ class _CalendarLayoutSettingState extends State<CalendarLayoutSetting> {
                 );
               case CalendarLayoutSettingAction.firstDayOfWeek:
                 return FirstDayOfWeek(
-                  firstDayOfWeek: settings.firstDayOfWeek,
+                  firstDayOfWeek: settings.hasFirstDayOfWeek()
+                      ? settings.firstDayOfWeek
+                      : null,
                   popoverMutex: popoverMutex,
                   onUpdated: (firstDayOfWeek) => bloc.add(
                     CalendarSettingEvent.updateLayoutSetting(
@@ -265,7 +267,7 @@ class FirstDayOfWeek extends StatelessWidget {
     required this.onUpdated,
   });
 
-  final int firstDayOfWeek;
+  final int? firstDayOfWeek;
   final PopoverMutex popoverMutex;
   final Function(int firstDayOfWeek) onUpdated;
 

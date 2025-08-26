@@ -1,8 +1,7 @@
-use collab_database::fields::Field;
-use collab_database::views::DatabaseLayout;
+use collab_database::views::{BoardLayoutSetting, DatabaseLayout};
+use collab_database::{fields::Field, views::CalendarLayoutSetting};
 
 use flowy_database2::entities::{FieldType, LayoutSettingChangeset, LayoutSettingParams};
-use flowy_database2::services::setting::{BoardLayoutSetting, CalendarLayoutSetting};
 
 use crate::database::database_editor::DatabaseEditorTest;
 

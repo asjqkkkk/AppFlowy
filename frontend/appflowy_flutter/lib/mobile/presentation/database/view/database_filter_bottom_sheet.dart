@@ -372,6 +372,7 @@ class _FilterItem extends StatelessWidget {
                 if (filter.canAttachContent) ...[
                   const VSpace(6),
                   filter.getMobileDescription(
+                    context,
                     field,
                     onExpand: () => context
                         .read<MobileFilterEditorCubit>()

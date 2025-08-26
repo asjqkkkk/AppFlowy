@@ -1,10 +1,11 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/application/document_appearance_cubit.dart';
 import 'package:appflowy/user/application/user_settings_service.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
 import 'package:appflowy/workspace/presentation/settings/pages/settings_workspace_view.dart';
 import 'package:appflowy/workspace/presentation/settings/shared/settings_radio_select.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/user_setting.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:bloc_test/bloc_test.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/theme.dart';
@@ -25,45 +26,29 @@ class MockDocumentAppearanceCubit extends Mock
 class MockDocumentAppearance extends Mock implements DocumentAppearance {}
 
 void main() {
-  late AppearanceSettingsPB appearanceSettings;
-  late DateTimeSettingsPB dateTimeSettings;
+  late AppearanceSettingsPB appearanceSetting;
 
   setUp(() async {
     await AppFlowyUnitTest.ensureInitialized();
-    appearanceSettings =
+    appearanceSetting =
         await UserSettingsBackendService().getAppearanceSetting();
-    dateTimeSettings = await UserSettingsBackendService().getDateTimeSettings();
     registerFallbackValue(AppFlowyTextDirection.ltr);
   });
 
   testWidgets('TextDirectionSelect update default text direction setting',
       (WidgetTester tester) async {
     final appearanceSettingsState = AppearanceSettingsState.initial(
-      AppTheme.fallback,
-      appearanceSettings.themeMode,
-      appearanceSettings.font,
-      appearanceSettings.layoutDirection,
-      appearanceSettings.textDirection,
-      appearanceSettings.enableRtlToolbarItems,
-      appearanceSettings.locale,
-      appearanceSettings.isMenuCollapsed,
-      appearanceSettings.menuOffset,
-      dateTimeSettings.dateFormat,
-      dateTimeSettings.timeFormat,
-      dateTimeSettings.timezoneId,
-      appearanceSettings.documentSetting.cursorColor.isEmpty
-          ? null
-          : Color(
-              int.parse(appearanceSettings.documentSetting.cursorColor),
-            ),
-      appearanceSettings.documentSetting.selectionColor.isEmpty
-          ? null
-          : Color(
-              int.parse(
-                appearanceSettings.documentSetting.selectionColor,
-              ),
-            ),
-      1.0,
+      appearanceSettings: appearanceSetting,
+      appTheme: AppTheme.fallback,
+      userSettings: UserSettings(
+        locale: Locale(
+          appearanceSetting.locale.languageCode,
+          appearanceSetting.locale.countryCode,
+        ),
+        startWeekOnMonday: false,
+        dateFormat: UserDateFormat.local,
+        timeFormat: UserTimeFormat.twelveHour,
+      ),
     );
     final mockAppearanceSettingsBloc = MockAppearanceSettingsBloc();
     when(() => mockAppearanceSettingsBloc.state).thenReturn(

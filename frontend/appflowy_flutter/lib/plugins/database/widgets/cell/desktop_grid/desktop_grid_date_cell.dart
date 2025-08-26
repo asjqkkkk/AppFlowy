@@ -29,11 +29,11 @@ class DesktopGridDateCellSkin extends IEditableDateCellSkin {
       child: Align(
         alignment: AlignmentDirectional.centerStart,
         child: state.fieldInfo.wrapCellContent ?? false
-            ? _buildCellContent(state, compactModeNotifier)
+            ? _buildCellContent(context, state, compactModeNotifier)
             : SingleChildScrollView(
                 physics: const NeverScrollableScrollPhysics(),
                 scrollDirection: Axis.horizontal,
-                child: _buildCellContent(state, compactModeNotifier),
+                child: _buildCellContent(context, state, compactModeNotifier),
               ),
       ),
       popupBuilder: (BuildContext popoverContent) {
@@ -49,11 +49,13 @@ class DesktopGridDateCellSkin extends IEditableDateCellSkin {
   }
 
   Widget _buildCellContent(
+    BuildContext context,
     DateCellState state,
     ValueNotifier<bool> compactModeNotifier,
   ) {
     final wrap = state.fieldInfo.wrapCellContent ?? false;
-    final dateStr = getDateCellStrFromCellData(
+    final dateStr = getDateCellText(
+      context,
       state.fieldInfo,
       state.cellData,
     );

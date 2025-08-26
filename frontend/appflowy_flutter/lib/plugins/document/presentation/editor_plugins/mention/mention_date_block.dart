@@ -1,3 +1,4 @@
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
@@ -7,14 +8,11 @@ import 'package:appflowy/user/application/reminder/reminder_bloc.dart';
 import 'package:appflowy/user/application/reminder/reminder_extension.dart';
 import 'package:appflowy/util/theme_extension.dart';
 import 'package:appflowy/workspace/application/settings/appearance/appearance_cubit.dart';
-import 'package:appflowy/workspace/application/settings/date_time/date_format_ext.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/mobile_date_picker.dart';
-import 'package:appflowy/workspace/presentation/widgets/date_picker/utils/date_time_format_ext.dart';
-import 'package:appflowy/workspace/presentation/widgets/date_picker/utils/user_time_format_ext.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/date_picker_dialog.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/mobile_date_header.dart';
 import 'package:appflowy/workspace/presentation/widgets/date_picker/widgets/reminder_selector.dart';
-import 'package:appflowy_backend/protobuf/flowy-user/reminder.pb.dart';
+import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:collection/collection.dart';
@@ -94,123 +92,124 @@ class _MentionDateBlockState extends State<MentionDateBlock> {
     }
 
     final appearance = context.read<AppearanceSettingsCubit?>();
-    final reminder = context.read<ReminderBloc?>();
+    final reminderBloc = context.watch<ReminderBloc?>();
 
-    if (appearance == null || reminder == null) {
+    if (appearance == null || reminderBloc == null) {
       return const SizedBox.shrink();
     }
 
-    return BlocBuilder<AppearanceSettingsCubit, AppearanceSettingsState>(
-      buildWhen: (previous, current) =>
-          previous.dateFormat != current.dateFormat ||
-          previous.timeFormat != current.timeFormat,
-      builder: (context, appearance) =>
-          BlocBuilder<ReminderBloc, ReminderState>(
-        builder: (context, state) {
-          final formattedDate = appearance.dateFormat
-              .formatDate(parsedDate!, _includeTime, appearance.timeFormat);
+    final (dateFormat, timeFormat, startWeekOnMonday) = context.select<
+        AppearanceSettingsCubit, (UserDateFormat, UserTimeFormat, bool)>(
+      (cubit) => (
+        cubit.state.dateFormat,
+        cubit.state.timeFormat,
+        cubit.state.startWeekOnMonday
+      ),
+    );
 
-          final options = DatePickerOptions(
-            focusedDay: parsedDate,
-            selectedDay: parsedDate,
-            includeTime: _includeTime,
-            dateFormat: appearance.dateFormat,
-            timeFormat: appearance.timeFormat,
-            selectedReminderOption: _reminderOption,
-            onIncludeTimeChanged: (includeTime, dateTime, _) {
-              _includeTime = includeTime;
+    final formattedDate = combineDateTimeFormat(
+      dateFormat,
+      timeFormat,
+      includeTime: _includeTime,
+    ).format(parsedDate!);
 
-              if (_reminderOption != ReminderOption.none) {
-                _updateReminder(
-                  widget.reminderOption,
-                  context,
-                  includeTime,
-                );
-              } else if (dateTime != null) {
-                parsedDate = dateTime;
-                _updateBlock(
-                  dateTime,
-                  includeTime: includeTime,
-                );
-              }
-            },
-            onDaySelected: (selectedDay) {
-              parsedDate = selectedDay;
+    final options = DatePickerOptions(
+      focusedDay: parsedDate,
+      selectedDay: parsedDate,
+      includeTime: _includeTime,
+      dateFormat: dateFormat,
+      timeFormat: timeFormat,
+      selectedReminderOption: _reminderOption,
+      startWeekOnMonday: startWeekOnMonday,
+      onIncludeTimeChanged: (includeTime, dateTime, _) {
+        _includeTime = includeTime;
 
-              if (_reminderOption != ReminderOption.none) {
-                _updateReminder(
-                  _reminderOption,
-                  context,
-                  _includeTime,
-                );
-              } else {
-                final rootContext = widget.editorState.document.root.context;
-                if (rootContext != null && _reminderId != null) {
-                  rootContext.read<ReminderBloc?>()?.add(
-                        ReminderEvent.removeReminder(reminderId: _reminderId!),
-                      );
-                }
-                _updateBlock(selectedDay, includeTime: _includeTime);
-              }
-            },
-            onReminderSelected: (reminderOption) {
-              _reminderOption = reminderOption;
-              _updateReminder(reminderOption, context, _includeTime);
-            },
+        if (_reminderOption != ReminderOption.none) {
+          _updateReminder(
+            widget.reminderOption,
+            context,
+            includeTime,
           );
+        } else if (dateTime != null) {
+          parsedDate = dateTime;
+          _updateBlock(
+            dateTime,
+            includeTime: includeTime,
+          );
+        }
+      },
+      onDaySelected: (selectedDay) {
+        parsedDate = selectedDay;
 
-          Color? color;
-          final reminder = getReminder(context);
-          if (reminder != null) {
-            if (reminder.type == ReminderType.today) {
-              color = Theme.of(context).isLightMode
-                  ? const Color(0xFFFE0299)
-                  : Theme.of(context).colorScheme.error;
-            }
+        if (_reminderOption != ReminderOption.none) {
+          _updateReminder(
+            _reminderOption,
+            context,
+            _includeTime,
+          );
+        } else {
+          final rootContext = widget.editorState.document.root.context;
+          if (rootContext != null && _reminderId != null) {
+            rootContext.read<ReminderBloc?>()?.add(
+                  ReminderEvent.removeReminder(reminderId: _reminderId!),
+                );
           }
-          final textStyle = widget.textStyle?.copyWith(
-            color: color,
-            leadingDistribution: TextLeadingDistribution.even,
-          );
+          _updateBlock(selectedDay, includeTime: _includeTime);
+        }
+      },
+      onReminderSelected: (reminderOption) {
+        _reminderOption = reminderOption;
+        _updateReminder(reminderOption, context, _includeTime);
+      },
+    );
 
-          // when font size equals 14, the icon size is 16.0.
-          // scale the icon size based on the font size.
-          final iconSize = (widget.textStyle?.fontSize ?? 14.0) / 14.0 * 16.0;
-          final theme = AppFlowyTheme.of(context);
-          return GestureDetector(
-            onTapDown: (details) {
-              _showDatePicker(
-                context: context,
-                offset: details.globalPosition,
-                options: options,
-              );
-            },
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: Wrap(
-                crossAxisAlignment: WrapCrossAlignment.center,
-                children: [
-                  Text(
-                    '@$formattedDate',
-                    style: textStyle,
-                    strutStyle: textStyle != null
-                        ? StrutStyle.fromTextStyle(textStyle)
-                        : null,
-                  ),
-                  HSpace(theme.spacing.xs),
-                  FlowySvg(
-                    _reminderId != null
-                        ? FlowySvgs.reminder_clock_s
-                        : FlowySvgs.date_s,
-                    size: Size.square(iconSize),
-                    color: textStyle?.color,
-                  ),
-                  HSpace(theme.spacing.m),
-                ],
-              ),
+    Color? color;
+    final reminder = getReminder(context);
+    if (reminder != null && reminder.type == ReminderType.today) {
+      color = Theme.of(context).isLightMode
+          ? const Color(0xFFFE0299)
+          : Theme.of(context).colorScheme.error;
+    }
+    final textStyle = widget.textStyle?.copyWith(
+      color: color,
+      leadingDistribution: TextLeadingDistribution.even,
+    );
+
+    // when font size equals 14, the icon size is 16.0.
+    // scale the icon size based on the font size.
+    final iconSize = (widget.textStyle?.fontSize ?? 14.0) / 14.0 * 16.0;
+    final theme = AppFlowyTheme.of(context);
+    return GestureDetector(
+      onTapDown: (details) {
+        _showDatePicker(
+          context: context,
+          offset: details.globalPosition,
+          options: options,
+        );
+      },
+      child: MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text(
+              '@$formattedDate',
+              style: textStyle,
+              strutStyle: textStyle != null
+                  ? StrutStyle.fromTextStyle(textStyle)
+                  : null,
             ),
-          );
-        },
+            HSpace(theme.spacing.xs),
+            FlowySvg(
+              _reminderId != null
+                  ? FlowySvgs.reminder_clock_s
+                  : FlowySvgs.date_s,
+              size: Size.square(iconSize),
+              color: textStyle?.color,
+            ),
+            HSpace(theme.spacing.m),
+          ],
+        ),
       ),
     );
   }
@@ -385,8 +384,9 @@ class _DatePickerBottomSheet extends StatelessWidget {
             dateTime: parsedDate,
             includeTime: includeTime,
             isRange: options.isRange,
-            dateFormat: options.dateFormat.simplified,
-            timeFormat: options.timeFormat.simplified,
+            startWeekOnMonday: options.startWeekOnMonday,
+            dateFormat: options.dateFormat,
+            timeFormat: options.timeFormat,
             reminderOption: reminderOption,
             onDaySelected: options.onDaySelected,
             onIncludeTimeChanged: options.onIncludeTimeChanged,

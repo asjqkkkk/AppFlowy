@@ -1,6 +1,5 @@
 import 'package:any_date/any_date.dart';
-import 'package:appflowy/plugins/database/widgets/cell/editable_cell_skeleton/date.dart';
-import 'package:appflowy_backend/protobuf/flowy-database2/date_entities.pbenum.dart';
+import 'package:appflowy/features/settings/settings.dart';
 import 'package:appflowy_popover/appflowy_popover.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra/size.dart';
@@ -27,8 +26,8 @@ class DateTimeTextField extends StatefulWidget {
   final DateTime? dateTime;
   final bool includeTime;
   final void Function(DateTime dateTime)? onSubmitted;
-  final DateFormatPB dateFormat;
-  final TimeFormatPB? timeFormat;
+  final UserDateFormat dateFormat;
+  final UserTimeFormat? timeFormat;
   final PopoverMutex? popoverMutex;
   final ValueNotifier<bool>? isTabPressed;
   final RefreshDateTimeTextFieldController? refreshTextController;
@@ -50,8 +49,9 @@ class _DateTimeTextFieldState extends State<DateTimeTextField> {
 
   bool justSubmitted = false;
 
-  DateFormat get dateFormat => DateFormat(widget.dateFormat.pattern);
-  DateFormat get timeFormat => DateFormat(widget.timeFormat?.pattern);
+  DateFormat get dateFormat => widget.dateFormat.getDateFormat();
+  DateFormat get timeFormat =>
+      widget.timeFormat?.getDateFormat() ?? DateFormat();
 
   @override
   void initState() {
@@ -136,9 +136,8 @@ class _DateTimeTextFieldState extends State<DateTimeTextField> {
       return;
     }
 
-    final expected = widget.dateTime == null
-        ? ""
-        : DateFormat(widget.dateFormat.pattern).format(widget.dateTime!);
+    final expected =
+        widget.dateTime == null ? "" : dateFormat.format(widget.dateTime!);
     if (expected != dateTextController.text.trim()) {
       onDateTextFieldSubmitted();
     }
@@ -150,9 +149,8 @@ class _DateTimeTextFieldState extends State<DateTimeTextField> {
       return;
     }
 
-    final expected = widget.dateTime == null
-        ? ""
-        : DateFormat(widget.timeFormat!.pattern).format(widget.dateTime!);
+    final expected =
+        widget.dateTime == null ? "" : timeFormat.format(widget.dateTime!);
     if (expected != timeTextController.text.trim()) {
       onTimeTextFieldSubmitted();
     }
@@ -301,9 +299,10 @@ class _DateTimeTextFieldState extends State<DateTimeTextField> {
                         focusNode: timeFocusNode,
                         controller: timeTextController,
                         style: Theme.of(context).textTheme.bodyMedium,
-                        maxLength: widget.timeFormat == TimeFormatPB.TwelveHour
-                            ? 8 // 12:34 PM = 8 characters
-                            : 5, // 12:34 = 5 characters
+                        maxLength:
+                            widget.timeFormat == UserTimeFormat.twelveHour
+                                ? 8 // 12:34 PM = 8 characters
+                                : 5, // 12:34 = 5 characters
                         inputFormatters: [
                           FilteringTextInputFormatter.allow(
                             RegExp('[0-9:AaPpMm]'),

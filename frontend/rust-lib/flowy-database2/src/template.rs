@@ -6,13 +6,14 @@ use collab_database::fields::select_type_option::{
   SelectOption, SelectOptionColor, SingleSelectTypeOption,
 };
 use collab_database::rows::CreateRowParams;
-use collab_database::views::{DatabaseLayout, LayoutSettings};
+use collab_database::views::{
+  BoardLayoutSetting, CalendarLayoutSetting, DatabaseLayout, LayoutSettings,
+};
 
 use crate::entities::FieldType;
 use crate::services::cell::{insert_select_option_cell, insert_text_cell};
 use crate::services::field::{FieldBuilder, TypeOptionHandlerCache};
 use crate::services::field_settings::default_field_settings_for_fields;
-use crate::services::setting::{BoardLayoutSetting, CalendarLayoutSetting};
 
 pub fn make_default_grid<T: ToString>(view_id: T, name: &str) -> CreateDatabaseParams {
   let database_id = gen_database_id();
@@ -72,9 +73,9 @@ pub fn make_default_board<T: ToString>(view_id: T, name: &str) -> CreateDatabase
   let text_field_id = text_field.id.clone();
 
   // single select
-  let to_do_option = SelectOption::with_color("To Do", SelectOptionColor::Purple);
-  let doing_option = SelectOption::with_color("Doing", SelectOptionColor::Orange);
-  let done_option = SelectOption::with_color("Done", SelectOptionColor::Yellow);
+  let to_do_option = SelectOption::with_color("To Do", SelectOptionColor::Cream);
+  let doing_option = SelectOption::with_color("Doing", SelectOptionColor::Blue);
+  let done_option = SelectOption::with_color("Done", SelectOptionColor::Aqua);
   let mut single_select_type_option = SingleSelectTypeOption::default();
   single_select_type_option
     .options

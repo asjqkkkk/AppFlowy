@@ -18,7 +18,11 @@ class MobileGridTimestampCellSkin extends IEditableTimestampCellSkin {
       alignment: Alignment.centerLeft,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: FlowyText(
-        state.dateStr,
+        getTimestampCellText(
+          context,
+          state.fieldInfo,
+          state.dateTime,
+        ),
         fontSize: 15,
         overflow: TextOverflow.ellipsis,
       ),

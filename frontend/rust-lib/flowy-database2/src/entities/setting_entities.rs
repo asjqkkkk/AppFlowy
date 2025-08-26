@@ -1,6 +1,6 @@
 use std::convert::TryInto;
 
-use collab_database::views::DatabaseLayout;
+use collab_database::views::{BoardLayoutSetting, CalendarLayoutSetting, DatabaseLayout};
 use strum_macros::EnumIter;
 
 use flowy_derive::{ProtoBuf, ProtoBuf_Enum};
@@ -13,7 +13,6 @@ use crate::entities::{
   RepeatedFieldSettingsPB, RepeatedFilterPB, RepeatedGroupSettingPB, RepeatedSortPB,
   UpdateFilterDataPB, UpdateFilterTypePB, UpdateGroupPB, UpdateSortPayloadPB,
 };
-use crate::services::setting::{BoardLayoutSetting, CalendarLayoutSetting};
 
 use super::{BoardLayoutSettingPB, ReorderSortPayloadPB};
 
