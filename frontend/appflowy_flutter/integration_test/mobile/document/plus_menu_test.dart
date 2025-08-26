@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:appflowy/generated/locale_keys.g.dart';
-import 'package:appflowy/mobile/presentation/inline_actions/mobile_inline_actions_menu.dart';
+import 'package:appflowy/mobile/presentation/inline_actions/mobile_inline_actions_handler.dart';
 import 'package:appflowy/mobile/presentation/inline_actions/mobile_inline_actions_menu_group.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_page_block.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/plugins.dart';
@@ -57,7 +57,7 @@ void main() {
     testWidgets('show plus menu', (tester) async {
       await tester.launchInAnonymousMode();
       await tester.createPageAndShowPlusMenu(title);
-      final menuWidget = find.byType(MobileInlineActionsMenu);
+      final menuWidget = find.byType(MobileInlineActionsHandler);
       expect(menuWidget, findsOneWidget);
     });
 
