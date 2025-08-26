@@ -4,6 +4,7 @@ sealed class ProfileSettingEvent {
   const ProfileSettingEvent();
 
   const factory ProfileSettingEvent.initial() = ProfileSettingInitialEvent;
+  const factory ProfileSettingEvent.refresh() = ProfileSettingRefreshEvent;
   const factory ProfileSettingEvent.updateName(String name) =
       ProfileSettingUpdateNameEvent;
   const factory ProfileSettingEvent.updateAboutMe(String aboutMe) =
@@ -18,6 +19,10 @@ sealed class ProfileSettingEvent {
 
 class ProfileSettingInitialEvent implements ProfileSettingEvent {
   const ProfileSettingInitialEvent();
+}
+
+class ProfileSettingRefreshEvent implements ProfileSettingEvent {
+  const ProfileSettingRefreshEvent();
 }
 
 class ProfileSettingUpdateNameEvent implements ProfileSettingEvent {

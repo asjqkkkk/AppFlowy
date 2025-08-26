@@ -101,7 +101,6 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
             )..add(const HomeSettingEvent.initial()),
           ),
           BlocProvider<ProfileSettingBloc>(
-            key: ValueKey(workspaceLatest.workspaceId),
             create: (_) => ProfileSettingBloc(
               userProfile: userProfile,
               workspaceId: workspaceLatest.workspaceId,
@@ -172,6 +171,9 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
                         context
                             .read<HomeBloc>()
                             .add(const HomeEvent.refreshLatestView());
+                        context.read<ProfileSettingBloc>().add(
+                              ProfileSettingEvent.refresh(),
+                            );
                       },
                     ),
                   ],

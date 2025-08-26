@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:appflowy/features/profile_setting/data/banner.dart';
+import 'package:appflowy/features/profile_setting/data/profile.dart';
 import 'package:appflowy/features/profile_setting/data/repository/profile_setting_repository.dart';
 import 'package:appflowy/features/profile_setting/data/repository/rust_profile_setting_repository.dart';
 import 'package:appflowy_backend/log.dart';
@@ -20,6 +21,7 @@ class ProfileSettingBloc
             RustProfileSettingRepository(userProfile: userProfile),
         super(ProfileSettingState.empty()) {
     on<ProfileSettingInitialEvent>(_onInitial);
+    on<ProfileSettingRefreshEvent>(_onRefresh);
     on<ProfileSettingUpdateNameEvent>(_onUpdateName);
     on<ProfileSettingUpdateAboutMeEvent>(_onUpdateAboutMe);
     on<ProfileSettingUpdateAvatarEvent>(_onUpdateAvatarUrl);
@@ -35,22 +37,38 @@ class ProfileSettingBloc
     ProfileSettingInitialEvent event,
     Emitter<ProfileSettingState> emit,
   ) async {
-    final result = await repository.getProfile(
-      userProfile.id.toString(),
-    );
-    result.fold((v) {
-      if (isClosed) return;
+    final profile = await _refreshProfile();
+    if (isClosed) return;
+    if (profile == null) {
+      emit(state.copyWith(status: ProfileSettingStatus.failed));
+    } else {
       emit(
         state.copyWith(
-          profile: v,
+          profile: profile,
           status: ProfileSettingStatus.idle,
-          selectedBanner: v.banner,
+          selectedBanner: profile.banner,
         ),
       );
-    }, (e) {
-      if (isClosed) return;
+    }
+  }
+
+  Future<void> _onRefresh(
+    ProfileSettingRefreshEvent event,
+    Emitter<ProfileSettingState> emit,
+  ) async {
+    final profile = await _refreshProfile();
+    if (isClosed) return;
+    if (profile == null) {
       emit(state.copyWith(status: ProfileSettingStatus.failed));
-    });
+    } else {
+      emit(
+        state.copyWith(
+          profile: profile,
+          status: ProfileSettingStatus.idle,
+          selectedBanner: profile.banner,
+        ),
+      );
+    }
   }
 
   Future<void> _onUpdateName(
@@ -109,6 +127,11 @@ class ProfileSettingBloc
     final newProfile = state.profile.copyWith(banner: event.banner);
     emit(state.copyWith(profile: newProfile, selectedBanner: event.banner));
     await repository.updateProfile(newProfile);
+  }
+
+  Future<Profile?> _refreshProfile() async {
+    final result = await repository.getProfile(userProfile.id.toString());
+    return result.toNullable();
   }
 }
 

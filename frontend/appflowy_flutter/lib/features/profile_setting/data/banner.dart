@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:appflowy/util/color_to_hex_string.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:equatable/equatable.dart';
 
@@ -25,8 +26,8 @@ abstract class BannerData extends Equatable {
     try {
       if (uri.scheme == 'image') {
         if (uri.host == 'color-image') {
-          final color = Color(int.parse(uri.queryParameters['color'] ?? ''));
-          return ColorBanner(color: color);
+          final colorString = uri.queryParameters['color'] ?? '';
+          return ColorBanner(color: colorString.toColor()!);
         } else if (uri.host == 'asset-image') {
           final path = uri.queryParameters['path'] ?? '';
           return AssetImageBanner(path: path);
@@ -34,7 +35,7 @@ abstract class BannerData extends Equatable {
           final imageUrl = uri.queryParameters['url'] ?? '';
           return NetworkImageBanner(url: imageUrl);
         }
-      } else if(uri.scheme == 'http' || uri.scheme == 'https') {
+      } else if (uri.scheme == 'http' || uri.scheme == 'https') {
         return NetworkImageBanner(url: url);
       }
     } catch (e) {
@@ -65,7 +66,7 @@ class ColorBanner extends BannerData {
   List<Object?> get props => [color];
 
   @override
-  String get toUrl => 'image://color-image?color=${color.toString()}';
+  String get toUrl => 'image://color-image?color=${color.toHexString()}';
 }
 
 class AssetImageBanner extends BannerData {
@@ -90,4 +91,17 @@ class NetworkImageBanner extends BannerData {
 
   @override
   String get toUrl => url;
+}
+
+extension ColorExtension on String {
+  Color? toColor() {
+    var hexColor = replaceAll('#', '').replaceAll("0x", '');
+    if (hexColor.length == 6) {
+      hexColor = "FF$hexColor";
+    }
+    if (hexColor.length == 8) {
+      return Color(int.parse("0x$hexColor"));
+    }
+    return null;
+  }
 }
