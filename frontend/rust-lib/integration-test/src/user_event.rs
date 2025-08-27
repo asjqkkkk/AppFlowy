@@ -550,7 +550,11 @@ impl EventIntegrationTest {
       .await;
   }
 
-  pub async fn open_workspace(&self, workspace_id: &str, workspace_type: WorkspaceTypePB) {
+  pub async fn open_workspace(
+    &self,
+    workspace_id: &str,
+    workspace_type: WorkspaceTypePB,
+  ) -> UserProfilePB {
     let payload = OpenUserWorkspacePB {
       workspace_id: workspace_id.to_string(),
       workspace_type,
@@ -559,7 +563,8 @@ impl EventIntegrationTest {
       .event(UserEvent::OpenWorkspace)
       .payload(payload)
       .async_send()
-      .await;
+      .await
+      .parse_or_panic::<UserProfilePB>()
   }
 
   pub async fn leave_workspace(&self, workspace_id: &str) {

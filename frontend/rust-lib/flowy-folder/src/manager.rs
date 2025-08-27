@@ -441,11 +441,18 @@ impl FolderManager {
 
   pub async fn get_workspace_setting_pb(&self) -> FlowyResult<WorkspaceLatestPB> {
     let workspace_id = self.user.workspace_id()?;
-    let latest_view = self.get_current_view().await;
-    Ok(WorkspaceLatestPB {
-      workspace_id: workspace_id.to_string(),
-      latest_view,
-    })
+    match self.get_current_view_for_workspace(&workspace_id).await {
+      Ok(view) => Ok(WorkspaceLatestPB {
+        workspace_id: workspace_id.to_string(),
+        latest_view: view,
+        page_error: None,
+      }),
+      Err(err) => Ok(WorkspaceLatestPB {
+        workspace_id: workspace_id.to_string(),
+        latest_view: ViewPB::default(), // Just a placeholder
+        page_error: Some(err.code as i32),
+      }),
+    }
   }
 
   /// All the views will become a space under the workspace.
@@ -1588,7 +1595,8 @@ impl FolderManager {
           let workspace_id = self.user.workspace_id()?.to_string();
           let setting = WorkspaceLatestPB {
             workspace_id: workspace_id.to_string(),
-            latest_view: Some(view_pb_without_child_views(view.as_ref().clone())),
+            latest_view: view_pb_without_child_views(view.as_ref().clone()),
+            page_error: None,
           };
           folder_notification_builder(workspace_id, FolderNotification::DidUpdateWorkspaceSetting)
             .payload(setting)
@@ -1601,34 +1609,67 @@ impl FolderManager {
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
-  pub(crate) async fn get_current_view(&self) -> Option<ViewPB> {
-    let uid = self.user.user_id().ok()?;
-    let db = self.user.sqlite_connection(uid).ok()?;
-    let workspace_id = self.user.workspace_id().ok()?.to_string();
+  pub(crate) async fn get_current_view_for_workspace(
+    &self,
+    workspace_id: &Uuid,
+  ) -> FlowyResult<ViewPB> {
+    let uid = self.user.user_id()?;
+    let db = self.user.sqlite_connection(uid)?;
+    let workspace_id_str = workspace_id.to_string();
 
-    let mut recent_view_id = match select_latest_recent_view(db, uid, &workspace_id) {
+    let recent_view_id = match select_latest_recent_view(db, uid, &workspace_id_str) {
       Ok(value) => value.map(|v| v.view_id),
       Err(_) => None,
     };
 
-    // If there is no recent view, we will try to get the current view from the folder.
+    // If there is no recent view, we will try to get the first non-space view from the workspace.
     if recent_view_id.is_none() {
-      if let Ok(workspace_id) = self.user.workspace_id() {
-        self.sync_recent_views(workspace_id, uid, 30, 0, None);
-      }
-
-      let lock = self.mutex_folder.load_full()?;
+      self.sync_recent_views(*workspace_id, uid, 30, 0, None);
+      let lock = self
+        .mutex_folder
+        .load_full()
+        .ok_or_else(folder_not_init_error)?;
       let folder = lock.read().await;
-      let view_id = folder.get_current_view(uid)?;
-      recent_view_id = Some(view_id);
-      drop(folder);
-    }
+      let workspace_views = folder.get_views_belong_to(&workspace_id_str, uid);
+      // Find the first space, then find the first view within that space
+      let first_space = workspace_views.iter().find(|view| {
+        if let Some(space_info) = view.space_info() {
+          space_info.is_space
+        } else {
+          false
+        }
+      });
 
-    let current = self
-      .get_view_pb_with_children(&recent_view_id?)
-      .await
-      .ok()?;
-    Some(current)
+      let first_view_in_first_space = if let Some(space) = first_space {
+        // Get all child views of the first space and find the first one
+        folder
+          .get_views_belong_to(&space.id, uid)
+          .into_iter()
+          .next()
+      } else {
+        None
+      };
+
+      if let Some(view) = first_view_in_first_space {
+        drop(folder);
+        // it might return view that current user has no access to
+        // explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
+        self.get_view_pb_with_children(&view.id).await
+      } else {
+        // Fallback to the original behavior if no non-space views are found
+        let view_id = folder
+          .get_current_view(uid)
+          .ok_or_else(FlowyError::record_not_found)?;
+        // explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
+        drop(folder);
+
+        self.get_view_pb_with_children(&view_id).await
+      }
+    } else {
+      self
+        .get_view_pb_with_children(&recent_view_id.unwrap())
+        .await
+    }
   }
 
   #[cfg(debug_assertions)]
@@ -2385,6 +2426,12 @@ impl FolderManager {
           .await
         {
           Ok(recent_views) => {
+            debug!(
+              "Fetched {} recent views from cloud for user {} in workspace {}",
+              recent_views.len(),
+              uid,
+              workspace_id
+            );
             if let Ok(mut db) = user.sqlite_connection(uid) {
               let _ = upsert_user_recent_views(
                 &mut db,

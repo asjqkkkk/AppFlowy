@@ -445,14 +445,14 @@ pub async fn get_all_workspace_handler(
 pub async fn open_workspace_handler(
   data: AFPluginData<OpenUserWorkspacePB>,
   manager: AFPluginState<Weak<UserManager>>,
-) -> Result<(), FlowyError> {
+) -> DataResult<UserProfilePB, FlowyError> {
   let manager = upgrade_manager(manager)?;
   let params = data.try_into_inner()?;
   let workspace_id = Uuid::from_str(&params.workspace_id)?;
-  manager
+  let user_profile = manager
     .open_workspace(&workspace_id, WorkspaceType::from(params.workspace_type))
     .await?;
-  Ok(())
+  data_result_ok(user_profile)
 }
 
 #[tracing::instrument(level = "info", skip(data, manager), err)]

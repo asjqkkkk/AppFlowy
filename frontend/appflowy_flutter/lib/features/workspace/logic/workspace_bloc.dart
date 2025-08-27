@@ -284,12 +284,17 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     );
 
     final currentWorkspace = result.fold(
-      (s) => _findWorkspaceById(event.workspaceId),
+      (userProfile) => _findWorkspaceById(event.workspaceId),
       (e) => state.currentWorkspace,
     );
 
+    final updatedUserProfile = result.fold(
+      (userProfile) => userProfile,
+      (e) => state.userProfile,
+    );
+
     result
-      ..onSuccess((s) {
+      ..onSuccess((userProfile) {
         add(
           UserWorkspaceEvent.fetchWorkspaceSubscriptionInfo(
             workspaceId: event.workspaceId,
@@ -297,7 +302,7 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
         );
 
         Log.info(
-          'open workspace success: ${event.workspaceId}, current workspace: ${currentWorkspace?.toProto3Json()}',
+          'open workspace success: ${event.workspaceId}, current workspace: ${currentWorkspace?.toProto3Json()}, updated user profile: ${userProfile.name}',
         );
       })
       ..onFailure((f) {
@@ -307,10 +312,14 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
     emit(
       state.copyWith(
         currentWorkspace: currentWorkspace,
+        userProfile: updatedUserProfile,
         actionResult: WorkspaceActionResult(
           actionType: WorkspaceActionType.open,
           isLoading: false,
-          result: result,
+          result: result.fold(
+            (_) => FlowyResult.success(null),
+            (e) => FlowyResult.failure(e),
+          ),
         ),
       ),
     );
@@ -631,9 +640,20 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
 
     if (currentWorkspace != null && result.shouldOpenWorkspace == true) {
       Log.info('init open workspace: ${currentWorkspace.workspaceId}');
-      await repository.openWorkspace(
+      final openResult = await repository.openWorkspace(
         workspaceId: currentWorkspace.workspaceId,
         workspaceType: currentWorkspace.workspaceType,
+      );
+      
+      // Update user profile if workspace opened successfully
+      openResult.fold(
+        (updatedUserProfile) {
+          Log.info('init workspace opened successfully, updated user profile: ${updatedUserProfile.name}');
+          emit(state.copyWith(userProfile: updatedUserProfile));
+        },
+        (error) {
+          Log.error('Failed to open workspace during init: $error');
+        },
       );
     }
 

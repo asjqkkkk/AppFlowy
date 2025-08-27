@@ -157,7 +157,7 @@ impl UserManager {
     &self,
     workspace_id: &Uuid,
     workspace_type: WorkspaceType,
-  ) -> FlowyResult<()> {
+  ) -> FlowyResult<UserProfilePB> {
     let current_workspace_id = self.workspace_id()?;
     if current_workspace_id != *workspace_id {
       info!("close workspace: {:?}", current_workspace_id);
@@ -255,11 +255,7 @@ impl UserManager {
     }
 
     let pb = UserProfilePB::from(profile);
-    send_notification(uid, UserNotification::DidOpenWorkspace)
-      .payload(pb)
-      .send();
-
-    Ok(())
+    Ok(pb)
   }
 
   #[instrument(level = "info", skip(self), err)]

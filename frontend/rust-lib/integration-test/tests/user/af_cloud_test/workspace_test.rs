@@ -124,7 +124,7 @@ async fn af_cloud_workspace_current_view_test() {
 
   let mut views = test.get_all_workspace_views().await;
   views.sort_by(|a, b| a.create_time.cmp(&b.create_time));
-  let latest_view = test.get_latest_workspace().await.latest_view.unwrap();
+  let latest_view = test.get_latest_workspace().await.latest_view;
   dbg!(&latest_view);
   assert_eq!(latest_view.parent_view_id, views[0].id);
   assert_eq!(latest_view.name, "Getting started");
@@ -139,7 +139,7 @@ async fn af_cloud_workspace_current_view_test() {
     .await;
   test.insert_document_text(&view.id, "hello world", 0).await;
 
-  let latest_view = test.get_latest_workspace().await.latest_view.unwrap();
+  let latest_view = test.get_latest_workspace().await.latest_view;
   assert_eq!(latest_view.name, "my shared document");
   dbg!(&latest_view);
   assert_eq!(latest_view.id, view.id);
@@ -157,7 +157,7 @@ async fn af_cloud_workspace_current_view_test() {
   let disk_recent_view = test_2.folder_manager.get_disk_recent_views().unwrap();
   dbg!(&disk_recent_view);
 
-  let latest_view = test_2.get_latest_workspace().await.latest_view.unwrap();
+  let latest_view = test_2.get_latest_workspace().await.latest_view;
   dbg!(&latest_view);
   assert_eq!(latest_view.name, "my shared document");
   drop(test_2);
@@ -167,7 +167,7 @@ async fn af_cloud_workspace_current_view_test() {
   test_3.af_cloud_sign_up_with_email(&profile.email).await;
   let get_until = async {
     loop {
-      let latest_view = test_3.get_latest_workspace().await.latest_view.unwrap();
+      let latest_view = test_3.get_latest_workspace().await.latest_view;
       if latest_view.name == "my shared document" {
         break;
       }

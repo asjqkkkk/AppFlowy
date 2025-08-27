@@ -138,8 +138,11 @@ pub struct WorkspaceLatestPB {
   #[pb(index = 1)]
   pub workspace_id: String,
 
-  #[pb(index = 2, one_of)]
-  pub latest_view: Option<ViewPB>,
+  #[pb(index = 2)]
+  pub latest_view: ViewPB,
+
+  #[pb(index = 3, one_of)]
+  pub page_error: Option<i32>,
 }
 
 #[derive(ProtoBuf, Default)]

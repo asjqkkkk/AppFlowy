@@ -63,7 +63,7 @@ void main() {
           workspaceType: any(named: 'workspaceType'),
         ),
       ).thenAnswer(
-        (_) async => FlowyResult.success(null),
+        (_) async => FlowyResult.success(UserProfilePB()),
       );
       when(
         () => mockRepository.getWorkspaceSubscriptionInfo(
