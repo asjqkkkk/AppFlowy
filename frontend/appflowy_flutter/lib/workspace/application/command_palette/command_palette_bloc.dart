@@ -6,6 +6,7 @@ import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_event.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_state.dart';
 import 'package:appflowy/workspace/application/command_palette/search_service.dart';
+import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart'
@@ -338,7 +339,13 @@ class CommandPaletteBloc
       final combinedItem = combinedItems.values.elementAt(i);
       final hasPermission =
           i < batchPermission.length && batchPermission[i] == true;
-      if (!hasPermission) {
+      final cacheView = state.cachedViews[combinedItem.id];
+      // 1. the view without permission
+      // 2. space view is always invisible
+      // 3. root view(workspace itself) is always invisible
+      if (!hasPermission ||
+          cacheView?.isSpace == true ||
+          cacheView?.parentViewId == '') {
         removedItems.add(combinedItem.id);
       }
     }
