@@ -27,8 +27,9 @@ use client_api::entity::guest_dto::{
 };
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
-  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, PageMentionAncestorViewInfo,
-  PageMentionUpdate, PublishInfo,
+  CreateExportTask, CreateExportTaskResponse, CreateImportTaskType,
+  MentionablePersonWithLastMentionedTime, PageMentionAncestorViewInfo, PageMentionUpdate,
+  PublishInfo,
 };
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
@@ -2480,12 +2481,16 @@ impl FolderManager {
         {
           Ok(result) => {
             // Save to local database
-            let persons: Vec<_> = result.persons.to_vec();
+            let persons: Vec<MentionablePersonWithLastMentionedTime> = result.persons.to_vec();
             let cloned_workspace_id = workspace_id;
             if let Ok(mut db) = user.sqlite_connection(uid) {
               if let Err(err) = db.immediate_transaction(|conn| {
                 delete_workspace_all_mentionable_persons(conn, &cloned_workspace_id.to_string())?;
-                insert_mentionable_persons_from_entities(conn, cloned_workspace_id, persons)?;
+                insert_mentionable_persons_from_entities(
+                  conn,
+                  cloned_workspace_id,
+                  persons.clone(),
+                )?;
                 Ok::<_, FlowyError>(())
               }) {
                 error!(
@@ -2495,27 +2500,23 @@ impl FolderManager {
               }
             }
 
+            let mut persons_pb: Vec<MentionablePersonPB> =
+              persons.into_iter().map(|person| person.into()).collect();
+            sort_mentionable_persons(&mut persons_pb);
+            let current_persons: Vec<String> = persons_pb.iter().map(|p| p.email.clone()).collect();
             let payload = GetMentionablePersonsResponsePB {
-              persons: result
-                .persons
-                .into_iter()
-                .map(|person| person.into())
-                .collect(),
+              persons: persons_pb,
             };
             // Notify the caller or send a notification
             if let Some(rx) = rx {
               let _ = rx.send(Ok(payload));
-            } else {
-              let current_persons: Vec<String> =
-                payload.persons.iter().map(|p| p.email.clone()).collect();
-              if previous_persons != current_persons {
-                folder_notification_builder(
-                  workspace_id.to_string(),
-                  FolderNotification::DidReloadMentionablePersons,
-                )
-                .payload(payload)
-                .send();
-              }
+            } else if previous_persons != current_persons {
+              folder_notification_builder(
+                workspace_id.to_string(),
+                FolderNotification::DidReloadMentionablePersons,
+              )
+              .payload(payload)
+              .send();
             }
           },
           Err(err) => {
@@ -3340,10 +3341,11 @@ impl FolderManager {
 
     let mut db = self.user.sqlite_connection(uid)?;
     let disk_persons = select_all_mentionable_persons(&mut db, &workspace_id.to_string())?;
-    let persons = disk_persons
+    let mut persons = disk_persons
       .into_iter()
       .map(|person| person.to_entity().into())
       .collect::<Vec<MentionablePersonPB>>();
+    sort_mentionable_persons(&mut persons);
 
     let prev_person = persons.iter().map(|v| v.email.clone()).collect();
 
@@ -3596,6 +3598,15 @@ pub(crate) fn get_workspace_private_view_pbs(
       view_pb_with_child_views(view, child_views)
     })
     .collect()
+}
+
+pub(crate) fn sort_mentionable_persons(persons: &mut [MentionablePersonPB]) {
+  persons.sort_by(|a, b| {
+    b.last_mentioned_at
+      .cmp(&a.last_mentioned_at)
+      .then_with(|| a.name.cmp(&b.name))
+      .then_with(|| a.email.cmp(&b.email))
+  });
 }
 
 #[allow(clippy::large_enum_variant)]
