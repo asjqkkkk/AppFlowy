@@ -99,14 +99,6 @@ class MentionMenu extends StatelessWidget {
                               previous.sendNotification !=
                               current.sendNotification,
                         ),
-                        BlocListener<RecentViewsBloc, RecentViewsState>(
-                          listener: (context, state) =>
-                              context.read<MentionBloc>().add(
-                                    MentionEvent.updateViews(
-                                      state.views.map((e) => e.item).toList(),
-                                    ),
-                                  ),
-                        ),
                       ],
                       child: MentionMenuShortcuts(
                         scrollController: controller,

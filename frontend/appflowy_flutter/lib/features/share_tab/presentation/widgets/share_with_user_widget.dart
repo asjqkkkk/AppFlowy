@@ -122,19 +122,14 @@ class _ShareWithUserWidgetState extends State<ShareWithUserWidget> {
         invitedUsers = state.users;
     Set<SharedUser> availableUsers = invitedUsers.toSet();
     final emails = availableUsers.map((e) => e.email).toSet();
+    final personsToUsers = state.persons
+        .where((p) => !emails.contains(p.email))
+        .map((p) => p.toShareUser());
+    availableUsers.addAll(personsToUsers);
 
-    /// If the page is private or shared, include all users here
-    /// 1. for the invited persons, we can change their access level at once
-    /// 2. for the uninvited persons, we can invite them with specific access level
-    if (isPrivateOrShared) {
-      availableUsers.addAll(
-        state.persons
-            .where((p) => !emails.contains(p.email))
-            .map((p) => p.toShareUser()),
-      );
-    } else {
-      /// if the page is public, all the member should not be invited again,
-      /// because they already have full access
+    /// if the page is public, all the member should not be invited again,
+    /// because they already have full access
+    if (!isPrivateOrShared) {
       availableUsers =
           availableUsers.where((u) => u.role == ShareRole.guest).toSet();
     }

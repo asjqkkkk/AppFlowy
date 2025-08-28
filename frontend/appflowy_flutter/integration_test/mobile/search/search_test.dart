@@ -44,19 +44,16 @@ void main() {
       );
 
       /// clear text
-      final clearButton = find.byFlowySvg(FlowySvgs.clear_s);
+      final clearButton = find.byFlowySvg(FlowySvgs.search_clear_m);
       await tester.tapButton(clearButton);
       expect(find.byType(MobileSearchRecentList), findsOneWidget);
       expect(find.byType(MobileSearchResultList), findsNothing);
 
-      /// tap cancel button
-      final cancelButton = find.text(LocaleKeys.button_cancel.tr());
-      expect(cancelButton, findsNothing);
-      await tester.enterText(searchTextField, query);
+      /// clear text by inputting nothing
+      await tester.enterText(searchTextField, '');
       await tester.pumpAndSettle();
-      expect(cancelButton, findsOneWidget);
-      await tester.tapButton(cancelButton);
-      expect(cancelButton, findsNothing);
+      expect(find.byType(MobileSearchRecentList), findsOneWidget);
+      expect(find.byType(MobileSearchResultList), findsNothing);
     });
   });
 
