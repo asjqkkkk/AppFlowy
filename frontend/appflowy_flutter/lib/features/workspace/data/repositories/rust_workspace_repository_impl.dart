@@ -44,7 +44,7 @@ class RustWorkspaceRepositoryImpl implements WorkspaceRepository {
   }
 
   @override
-  Future<FlowyResult<void, FlowyError>> openWorkspace({
+  Future<FlowyResult<UserProfilePB, FlowyError>> openWorkspace({
     required String workspaceId,
     required WorkspaceTypePB workspaceType,
   }) async {

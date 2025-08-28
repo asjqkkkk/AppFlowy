@@ -29,7 +29,8 @@ use client_api::entity::guest_dto::{
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, MentionablePerson,
-  PageMentionAncestorViewInfo, PageMentionUpdate, PublishInfo, WorkspaceMemberProfile,
+  MentionablePersonWithLastMentionedTime, PageMentionAncestorViewInfo, PageMentionUpdate,
+  PublishInfo,
 };
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;
@@ -442,11 +443,18 @@ impl FolderManager {
 
   pub async fn get_workspace_setting_pb(&self) -> FlowyResult<WorkspaceLatestPB> {
     let workspace_id = self.user.workspace_id()?;
-    let latest_view = self.get_current_view().await;
-    Ok(WorkspaceLatestPB {
-      workspace_id: workspace_id.to_string(),
-      latest_view,
-    })
+    match self.get_current_view_for_workspace(&workspace_id).await {
+      Ok(view) => Ok(WorkspaceLatestPB {
+        workspace_id: workspace_id.to_string(),
+        latest_view: view,
+        page_error: None,
+      }),
+      Err(err) => Ok(WorkspaceLatestPB {
+        workspace_id: workspace_id.to_string(),
+        latest_view: ViewPB::default(), // Just a placeholder
+        page_error: Some(err.code as i32),
+      }),
+    }
   }
 
   /// All the views will become a space under the workspace.
@@ -1589,7 +1597,8 @@ impl FolderManager {
           let workspace_id = self.user.workspace_id()?.to_string();
           let setting = WorkspaceLatestPB {
             workspace_id: workspace_id.to_string(),
-            latest_view: Some(view_pb_without_child_views(view.as_ref().clone())),
+            latest_view: view_pb_without_child_views(view.as_ref().clone()),
+            page_error: None,
           };
           folder_notification_builder(workspace_id, FolderNotification::DidUpdateWorkspaceSetting)
             .payload(setting)
@@ -1602,34 +1611,67 @@ impl FolderManager {
   }
 
   #[tracing::instrument(level = "trace", skip(self))]
-  pub(crate) async fn get_current_view(&self) -> Option<ViewPB> {
-    let uid = self.user.user_id().ok()?;
-    let db = self.user.sqlite_connection(uid).ok()?;
-    let workspace_id = self.user.workspace_id().ok()?.to_string();
+  pub(crate) async fn get_current_view_for_workspace(
+    &self,
+    workspace_id: &Uuid,
+  ) -> FlowyResult<ViewPB> {
+    let uid = self.user.user_id()?;
+    let db = self.user.sqlite_connection(uid)?;
+    let workspace_id_str = workspace_id.to_string();
 
-    let mut recent_view_id = match select_latest_recent_view(db, uid, &workspace_id) {
+    let recent_view_id = match select_latest_recent_view(db, uid, &workspace_id_str) {
       Ok(value) => value.map(|v| v.view_id),
       Err(_) => None,
     };
 
-    // If there is no recent view, we will try to get the current view from the folder.
+    // If there is no recent view, we will try to get the first non-space view from the workspace.
     if recent_view_id.is_none() {
-      if let Ok(workspace_id) = self.user.workspace_id() {
-        self.sync_recent_views(workspace_id, uid, 30, 0, None);
-      }
-
-      let lock = self.mutex_folder.load_full()?;
+      self.sync_recent_views(*workspace_id, uid, 30, 0, None);
+      let lock = self
+        .mutex_folder
+        .load_full()
+        .ok_or_else(folder_not_init_error)?;
       let folder = lock.read().await;
-      let view_id = folder.get_current_view(uid)?;
-      recent_view_id = Some(view_id);
-      drop(folder);
-    }
+      let workspace_views = folder.get_views_belong_to(&workspace_id_str, uid);
+      // Find the first space, then find the first view within that space
+      let first_space = workspace_views.iter().find(|view| {
+        if let Some(space_info) = view.space_info() {
+          space_info.is_space
+        } else {
+          false
+        }
+      });
 
-    let current = self
-      .get_view_pb_with_children(&recent_view_id?)
-      .await
-      .ok()?;
-    Some(current)
+      let first_view_in_first_space = if let Some(space) = first_space {
+        // Get all child views of the first space and find the first one
+        folder
+          .get_views_belong_to(&space.id, uid)
+          .into_iter()
+          .next()
+      } else {
+        None
+      };
+
+      if let Some(view) = first_view_in_first_space {
+        drop(folder);
+        // it might return view that current user has no access to
+        // explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
+        self.get_view_pb_with_children(&view.id).await
+      } else {
+        // Fallback to the original behavior if no non-space views are found
+        let view_id = folder
+          .get_current_view(uid)
+          .ok_or_else(FlowyError::record_not_found)?;
+        // explicitly drop the folder lock to avoid deadlock when following calls contains 'self'
+        drop(folder);
+
+        self.get_view_pb_with_children(&view_id).await
+      }
+    } else {
+      self
+        .get_view_pb_with_children(&recent_view_id.unwrap())
+        .await
+    }
   }
 
   #[cfg(debug_assertions)]
@@ -2386,6 +2428,12 @@ impl FolderManager {
           .await
         {
           Ok(recent_views) => {
+            debug!(
+              "Fetched {} recent views from cloud for user {} in workspace {}",
+              recent_views.len(),
+              uid,
+              workspace_id
+            );
             if let Ok(mut db) = user.sqlite_connection(uid) {
               let _ = upsert_user_recent_views(
                 &mut db,
@@ -2434,12 +2482,16 @@ impl FolderManager {
         {
           Ok(result) => {
             // Save to local database
-            let persons: Vec<_> = result.persons.to_vec();
+            let persons: Vec<MentionablePersonWithLastMentionedTime> = result.persons.to_vec();
             let cloned_workspace_id = workspace_id;
             if let Ok(mut db) = user.sqlite_connection(uid) {
               if let Err(err) = db.immediate_transaction(|conn| {
                 delete_workspace_all_mentionable_persons(conn, &cloned_workspace_id.to_string())?;
-                insert_mentionable_persons_from_entities(conn, cloned_workspace_id, persons)?;
+                insert_mentionable_persons_from_entities(
+                  conn,
+                  cloned_workspace_id,
+                  persons.clone(),
+                )?;
                 Ok::<_, FlowyError>(())
               }) {
                 error!(
@@ -2449,27 +2501,23 @@ impl FolderManager {
               }
             }
 
+            let mut persons_pb: Vec<MentionablePersonPB> =
+              persons.into_iter().map(|person| person.into()).collect();
+            sort_mentionable_persons(&mut persons_pb);
+            let current_persons: Vec<String> = persons_pb.iter().map(|p| p.email.clone()).collect();
             let payload = GetMentionablePersonsResponsePB {
-              persons: result
-                .persons
-                .into_iter()
-                .map(|person| person.into())
-                .collect(),
+              persons: persons_pb,
             };
             // Notify the caller or send a notification
             if let Some(rx) = rx {
               let _ = rx.send(Ok(payload));
-            } else {
-              let current_persons: Vec<String> =
-                payload.persons.iter().map(|p| p.email.clone()).collect();
-              if previous_persons != current_persons {
-                folder_notification_builder(
-                  workspace_id.to_string(),
-                  FolderNotification::DidReloadMentionablePersons,
-                )
-                .payload(payload)
-                .send();
-              }
+            } else if previous_persons != current_persons {
+              folder_notification_builder(
+                workspace_id.to_string(),
+                FolderNotification::DidReloadMentionablePersons,
+              )
+              .payload(payload)
+              .send();
             }
           },
           Err(err) => {
@@ -3294,10 +3342,11 @@ impl FolderManager {
 
     let mut db = self.user.sqlite_connection(uid)?;
     let disk_persons = select_all_mentionable_persons(&mut db, &workspace_id.to_string())?;
-    let persons = disk_persons
+    let mut persons = disk_persons
       .into_iter()
       .map(|person| person.to_entity().into())
       .collect::<Vec<MentionablePersonPB>>();
+    sort_mentionable_persons(&mut persons);
 
     let prev_person = persons.iter().map(|v| v.email.clone()).collect();
 
@@ -3596,6 +3645,15 @@ pub(crate) fn get_workspace_private_view_pbs(
       view_pb_with_child_views(view, child_views)
     })
     .collect()
+}
+
+pub(crate) fn sort_mentionable_persons(persons: &mut [MentionablePersonPB]) {
+  persons.sort_by(|a, b| {
+    b.last_mentioned_at
+      .cmp(&a.last_mentioned_at)
+      .then_with(|| a.name.cmp(&b.name))
+      .then_with(|| a.email.cmp(&b.email))
+  });
 }
 
 #[allow(clippy::large_enum_variant)]

@@ -107,9 +107,14 @@ class _MobileSearchPageState extends State<MobileSearchPage> {
                       ? LocaleKeys.search_searchOrAskAI.tr()
                       : LocaleKeys.search_label.tr(),
                   query: state.query ?? '',
-                  onChanged: (value) => context.read<CommandPaletteBloc>().add(
-                        CommandPaletteEvent.searchChanged(search: value),
-                      ),
+                  onChanged: (v) {
+                    final bloc = context.read<CommandPaletteBloc>();
+                    if (v.isEmpty) {
+                      bloc.add(CommandPaletteEvent.clearSearch());
+                    } else {
+                      bloc.add(CommandPaletteEvent.searchChanged(search: v));
+                    }
+                  },
                 ),
                 Flexible(
                   child: NotificationListener(

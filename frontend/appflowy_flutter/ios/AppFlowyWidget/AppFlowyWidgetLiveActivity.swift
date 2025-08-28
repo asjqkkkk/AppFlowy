@@ -6,15 +6,15 @@
 //
 
 import ActivityKit
-import WidgetKit
 import SwiftUI
+import WidgetKit
 
 struct AppFlowyWidgetAttributes: ActivityAttributes {
   public struct ContentState: Codable, Hashable {
     // Dynamic stateful properties about your activity go here!
     var emoji: String
   }
-  
+
   // Fixed non-changing properties about your activity go here!
   var name: String
 }
@@ -28,7 +28,7 @@ struct AppFlowyWidgetLiveActivity: Widget {
       }
       .activityBackgroundTint(Color.cyan)
       .activitySystemActionForegroundColor(Color.black)
-      
+
     } dynamicIsland: { context in
       DynamicIsland {
         // Expanded UI goes here.  Compose the expanded UI through
@@ -66,9 +66,8 @@ extension AppFlowyWidgetAttributes.ContentState {
   fileprivate static var smiley: AppFlowyWidgetAttributes.ContentState {
     AppFlowyWidgetAttributes.ContentState(emoji: "😀")
   }
-  
+
   fileprivate static var starEyes: AppFlowyWidgetAttributes.ContentState {
     AppFlowyWidgetAttributes.ContentState(emoji: "🤩")
   }
 }
-

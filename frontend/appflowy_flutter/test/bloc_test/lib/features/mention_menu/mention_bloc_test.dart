@@ -1,6 +1,7 @@
 import 'package:appflowy/features/mension_person/data/repositories/mention_repository.dart';
 import 'package:appflowy/features/mension_person/data/repositories/mock_mention_repository.dart';
 import 'package:appflowy/features/mension_person/logic/mention_bloc.dart';
+import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../../../util.dart';
@@ -19,7 +20,7 @@ void main() {
       workspaceId: workspaceId,
       sendNotification: false,
       query: '',
-    )..add(MentionEvent.init());
+    );
   });
 
   tearDown(() async {
@@ -28,6 +29,12 @@ void main() {
   });
 
   group('Mention Menu', () {
+    test('init bloc', () async {
+      expect(bloc.state.persons, isEmpty);
+      bloc.add(const MentionEvent.init());
+      await blocResponseFuture();
+      expect(bloc.state.persons, isNotEmpty);
+    });
     test('toggle send notification', () async {
       expect(bloc.state.sendNotification, isFalse);
       bloc.add(const MentionEvent.toggleSendNotification());
@@ -72,6 +79,22 @@ void main() {
       bloc.add(const MentionEvent.selectItem(testId2));
       await blocResponseFuture();
       expect(bloc.state.selectedId, testId2);
+    });
+
+    test('update views', () async {
+      expect(bloc.state.views, isEmpty);
+      final views = [
+        ViewPB(id: '1'),
+        ViewPB(id: '2'),
+        ViewPB(id: '3'),
+        ViewPB(id: '4'),
+      ];
+      await blocResponseFuture();
+      expect(bloc.state.filterViews.length, 0);
+
+      bloc.add(MentionEvent.updateViews(views));
+      await blocResponseFuture();
+      expect(bloc.state.filterViews.length, 4);
     });
   });
 }

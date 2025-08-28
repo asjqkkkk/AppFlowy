@@ -11,6 +11,7 @@ enum HomeScreenWidgetKeys {
   workspaces('appflowy_home_screen_widget_data_workspaces'),
   iOSRecent('favorite_widget'),
   iOSFavorite('recent_widget'),
+  iOSQuickAccess('quick_access_widget'),
   clearData('appflowy_home_screen_widget_clear_data');
 
   const HomeScreenWidgetKeys(
@@ -58,4 +59,8 @@ abstract class HomeScreenWidgetRepository {
   );
 
   Future<bool> isAuthenticated();
+
+  Future<String?> getAuthToken();
+
+  Future<String?> getBaseURL();
 }

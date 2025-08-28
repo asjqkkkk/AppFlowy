@@ -136,12 +136,19 @@ class _SearchFieldState extends State<SearchField> {
                   hasText ? BoxConstraints.loose(Size(48, 28)) : null,
               suffixIcon: hasText ? _buildSuffixIcon(context) : null,
             ),
-            onChanged: (value) => context.read<CommandPaletteBloc>().add(
+            onChanged: (value) {
+              final bloc = context.read<CommandPaletteBloc>();
+              if (value.isNotEmpty) {
+                bloc.add(
                   CommandPaletteEvent.searchChanged(
                     search: value,
                     role: myRole,
                   ),
-                ),
+                );
+              } else {
+                bloc.add(const CommandPaletteEvent.clearSearch());
+              }
+            },
           );
         },
       ),

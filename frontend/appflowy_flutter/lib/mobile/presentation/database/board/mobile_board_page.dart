@@ -120,7 +120,7 @@ class _BoardContentState extends State<_BoardContent> {
 
   @override
   Widget build(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
+    final screenWidth = MediaQuery.sizeOf(context).width;
     final config = AppFlowyBoardConfig(
       groupCornerRadius: 8,
       groupBackgroundColor: Theme.of(context).colorScheme.secondary,

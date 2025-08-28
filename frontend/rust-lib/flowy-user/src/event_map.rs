@@ -154,7 +154,7 @@ pub enum UserEvent {
   #[event(output = "RepeatedUserWorkspacePB")]
   GetAllWorkspace = 17,
 
-  #[event(input = "OpenUserWorkspacePB")]
+  #[event(input = "OpenUserWorkspacePB", output = "UserProfilePB")]
   OpenWorkspace = 21,
 
   #[event(input = "UserWorkspaceIdPB", output = "UserWorkspacePB")]

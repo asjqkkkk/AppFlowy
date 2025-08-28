@@ -21,9 +21,11 @@ import 'package:appflowy/workspace/presentation/home/errors/workspace_failed_scr
 import 'package:appflowy/workspace/presentation/home/hotkeys.dart';
 import 'package:appflowy/workspace/presentation/home/menu/sidebar/sidebar.dart';
 import 'package:appflowy/workspace/presentation/widgets/edit_panel/panel_animation.dart';
+import 'package:appflowy/workspace/presentation/widgets/dialogs.dart';
 import 'package:appflowy/workspace/presentation/widgets/float_bubble/question_bubble.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart';
 import 'package:appflowy_backend/protobuf/flowy-user/protobuf.dart';
 import 'package:appflowy_result/appflowy_result.dart';
@@ -72,8 +74,8 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
       );
     }
 
-    // In the unlikely case either of the above is null, eg.
-    // when a workspace is already open this can happen.
+    // If workspace settings are null, show WorkspaceFailedScreen
+    // This should be rare now since backend returns WorkspaceLatestPB with error_code
     if (this.workspaceLatest == null || this.userProfile == null) {
       return const WorkspaceFailedScreen();
     }
@@ -88,10 +90,10 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
           BlocProvider.value(
             value: getIt<ReminderBloc>(),
           ),
-          BlocProvider<TabsBloc>.value(value: getIt<TabsBloc>()),
-          BlocProvider<HomeBloc>(
-            create: (_) =>
-                HomeBloc(workspaceLatest)..add(const HomeEvent.initial()),
+          BlocProvider.value(value: getIt<TabsBloc>()),
+          BlocProvider(
+            create: (_) => HomeBloc(workspaceLatest.workspaceId)
+              ..add(const HomeEvent.initial()),
           ),
           BlocProvider<HomeSettingBloc>(
             create: (_) => HomeSettingBloc(
@@ -136,6 +138,9 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
 
                 // switch to the space that contains the last opened view
                 _switchToSpace(view);
+              } else {
+                getIt<TabsBloc>()
+                    .add(TabsEvent.openPlugin(plugin: BlankPagePlugin()));
               }
             },
             child: BlocBuilder<HomeSettingBloc, HomeSettingState>(
@@ -149,6 +154,30 @@ class _DesktopHomeScreenState extends State<DesktopHomeScreen> {
                 )..add(UserWorkspaceEvent.initialize()),
                 child: MultiBlocListener(
                   listeners: [
+                    BlocListener<HomeBloc, HomeState>(
+                      listenWhen: (previous, current) =>
+                          previous.pageError != current.pageError,
+                      listener: (context, state) {
+                        final error = state.pageError;
+                        if (error != null) {
+                          // Check if it's a permission error
+                          if (error.code == ErrorCode.NotEnoughPermissions) {
+                            // Show toast for permission issues and open blank page
+                            showToastNotification(
+                              message:
+                                  'You don\'t have permission to access this page',
+                              type: ToastificationType.error,
+                            );
+                            // Open blank page instead
+                            getIt<TabsBloc>().add(
+                              TabsEvent.openPlugin(
+                                plugin: BlankPagePlugin(),
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
                     BlocListener<UserWorkspaceBloc, UserWorkspaceState>(
                       listener: (context, state) {
                         updateLocale(state.userProfile);

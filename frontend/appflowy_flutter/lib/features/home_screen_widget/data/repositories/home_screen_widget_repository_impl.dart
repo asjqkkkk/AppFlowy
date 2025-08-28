@@ -5,6 +5,7 @@ import 'package:appflowy/features/home_screen_widget/data/models/home_screen_wid
 import 'package:appflowy/features/home_screen_widget/data/models/home_screen_widget_item.dart';
 import 'package:appflowy/features/home_screen_widget/data/models/home_screen_workspace_info.dart';
 import 'package:appflowy/features/home_screen_widget/data/repositories/home_screen_widget_repository.dart';
+import 'package:appflowy/shared/af_user_profile_extension.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
@@ -89,6 +90,9 @@ class HomeScreenWidgetRepositoryImpl implements HomeScreenWidgetRepository {
       await Future.wait([
         HomeWidget.updateWidget(iOSName: HomeScreenWidgetKeys.iOSFavorite.key),
         HomeWidget.updateWidget(iOSName: HomeScreenWidgetKeys.iOSRecent.key),
+        HomeWidget.updateWidget(
+          iOSName: HomeScreenWidgetKeys.iOSQuickAccess.key,
+        ),
       ]);
 
       return FlowyResult.success(null);
@@ -132,6 +136,20 @@ class HomeScreenWidgetRepositoryImpl implements HomeScreenWidgetRepository {
   Future<bool> isAuthenticated() async {
     final result = await UserEventGetUserProfile().send();
     return result.isSuccess;
+  }
+
+  @override
+  Future<String?> getAuthToken() async {
+    final result = await UserEventGetUserProfile().send();
+    return result.fold(
+      (profile) => profile.authToken,
+      (error) => null,
+    );
+  }
+
+  @override
+  Future<String?> getBaseURL() async {
+    return getAppFlowyCloudUrl();
   }
 
   @override
@@ -212,12 +230,7 @@ class HomeScreenWidgetRepositoryImpl implements HomeScreenWidgetRepository {
         }
       }
 
-      final userProfileResult = await UserEventGetUserProfile().send();
-
-      final authToken = userProfileResult.fold(
-        (profile) => jsonDecode(profile.token)['access_token'],
-        (error) => null,
-      );
+      final authToken = await getAuthToken();
 
       if (authToken == null) {
         return FlowyResult.failure(

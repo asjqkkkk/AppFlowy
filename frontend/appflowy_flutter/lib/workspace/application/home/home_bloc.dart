@@ -4,19 +4,20 @@ import 'package:appflowy/workspace/application/home/home_state.dart';
 import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
 import 'package:appflowy_backend/log.dart';
-import 'package:appflowy_backend/protobuf/flowy-folder/workspace.pb.dart'
-    show WorkspaceLatestPB;
+import 'package:appflowy_backend/protobuf/flowy-error/code.pbenum.dart';
+import 'package:appflowy_backend/protobuf/flowy-error/errors.pb.dart';
+import 'package:flowy_infra/uuid.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'home_event.dart';
 export 'home_state.dart';
 
 class HomeBloc extends Bloc<HomeEvent, HomeState> {
-  HomeBloc(WorkspaceLatestPB workspaceSetting)
+  HomeBloc(String workspaceId)
       : _workspaceListener = FolderListener(
-          workspaceId: workspaceSetting.workspaceId,
+          workspaceId: workspaceId,
         ),
-        super(HomeState.initial(workspaceSetting)) {
+        super(HomeState.initial(workspaceId)) {
     on<HomeInitialEvent>(_onInitial);
     on<HomeShowLoadingEvent>(_onShowLoading);
     on<HomeDidReceiveWorkspaceSettingEvent>(_onDidReceiveWorkspaceSetting);
@@ -37,7 +38,7 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
   ) async {
     Future.delayed(const Duration(milliseconds: 300), () {
       if (!isClosed) {
-        add(HomeEvent.didReceiveWorkspaceSetting(state.workspaceSetting));
+        add(const HomeEvent.refreshLatestView());
       }
     });
 
@@ -65,7 +66,15 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     await FolderEventGetCurrentWorkspaceSetting().send().then((result) {
       result.fold(
         (latest) => add(HomeEvent.didReceiveWorkspaceSetting(latest)),
-        (r) => Log.error(r),
+        (error) {
+          Log.error(error);
+          // This should rarely happen now since backend returns WorkspaceLatestPB with error_code
+          emit(
+            state.copyWith(
+              pageError: error,
+            ),
+          );
+        },
       );
     });
   }
@@ -74,19 +83,38 @@ class HomeBloc extends Bloc<HomeEvent, HomeState> {
     HomeDidReceiveWorkspaceSettingEvent event,
     Emitter<HomeState> emit,
   ) {
-    final latestView = event.setting.hasLatestView()
-        ? event.setting.latestView
-        : state.latestView;
+    final setting = event.setting;
 
-    if (latestView != null && latestView.isSpace) {
+    // Check if there's an error code in the workspace setting
+    if (setting.hasPageError()) {
+      final errorCodeValue = setting.pageError;
+      final errorCode = ErrorCode.valueOf(errorCodeValue);
+      if (errorCode != null) {
+        // Create a FlowyError from the error code
+        final error = FlowyError()
+          ..code = errorCode
+          ..msg = uuid().toString();
+
+        emit(
+          state.copyWith(
+            pageError: error,
+            clearLatestView: true, // Explicitly clear the latest view
+          ),
+        );
+        return;
+      }
+    }
+
+    final latestView = setting.latestView;
+    if (latestView.isSpace) {
       // If the latest view is a space, we don't need to open it.
       return;
     }
 
     emit(
       state.copyWith(
-        workspaceSetting: event.setting,
         latestView: latestView,
+        clearPageError: true, // Clear any previous page error
       ),
     );
   }

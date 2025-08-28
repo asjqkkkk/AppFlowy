@@ -28,7 +28,7 @@ abstract class WorkspaceRepository {
   });
 
   /// Opens a workspace.
-  Future<FlowyResult<void, FlowyError>> openWorkspace({
+  Future<FlowyResult<UserProfilePB, FlowyError>> openWorkspace({
     required String workspaceId,
     required WorkspaceTypePB workspaceType,
   });

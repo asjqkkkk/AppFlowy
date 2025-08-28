@@ -65,7 +65,20 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     if (query.isNotEmpty) {
       add(MentionEvent.query(query));
     } else {
-      add(MentionEvent.getPersons(workspaceId: workspaceId));
+      await refreshPersonList(emit);
+      final (views, pageItems) = await _getViewsAndPageItems(query);
+      final filterViewItems = _filterViews(query, views);
+      final itemMap =
+          state.itemMap.clearItems([MentionMenuType.page]).addItems(pageItems);
+      if (!emit.isDone) {
+        emit(
+          state.copyWith(
+            itemMap: itemMap,
+            filterViews: filterViewItems,
+            views: views,
+          ),
+        );
+      }
     }
   }
 
@@ -79,25 +92,18 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
           query,
           state.persons,
         );
-    List<ViewPB> views = [];
-    if (query.isEmpty) {
-      views = (await readRecentViews()).map((e) => e.item).toList();
-    } else {
-      views = await readAllViews();
-    }
-    views =
-        views.where((e) => !e.isSpace && e.parentViewId.isNotEmpty).toList();
-    final viewItems = _getPageItems(query, views);
+    final (views, pageItems) = await _getViewsAndPageItems(query);
     final itemMap = state.itemMap
         .clearItems(MentionMenuType.values)
-        .addItems([...dateAndReminderItems, ...personItems, ...viewItems]);
+        .addItems([...dateAndReminderItems, ...personItems, ...pageItems]);
 
     emit(
       state.copyWith(
         query: query,
         selectedId: itemMap.items.first.id,
         itemMap: itemMap,
-        filterViews: _filterViews(query, state.views),
+        views: views,
+        filterViews: _filterViews(query, views),
       ),
     );
   }
@@ -154,8 +160,8 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
     UpdateViews event,
     Emitter<MentionState> emit,
   ) async {
-    final List<MentionMenuItem> items = _getPageItems(state.query, event.views);
     final query = state.query;
+    final List<MentionMenuItem> items = _getPageItems(query, event.views);
     final newItems =
         state.itemMap.clearItems([MentionMenuType.page]).addItems(items);
     emit(
@@ -276,6 +282,26 @@ class MentionBloc extends Bloc<MentionEvent, MentionState> {
         selectedId: selectedId,
       ),
     );
+  }
+
+  Future<(List<ViewPB>, List<MentionMenuItem>)> _getViewsAndPageItems(
+    String query,
+  ) async {
+    final views = await _searchPages(query);
+    final pageItems = _getPageItems(query, views);
+    return (views, pageItems);
+  }
+
+  Future<List<ViewPB>> _searchPages(String query) async {
+    List<ViewPB> views = [];
+    if (query.isEmpty) {
+      views = (await readRecentViews()).map((e) => e.item).toList();
+    } else {
+      views = await readAllViews();
+    }
+    views =
+        views.where((e) => !e.isSpace && e.parentViewId.isNotEmpty).toList();
+    return views;
   }
 
   List<MentionMenuItem> _getPersonItems(

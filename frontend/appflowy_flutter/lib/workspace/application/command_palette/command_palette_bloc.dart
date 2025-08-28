@@ -6,8 +6,10 @@ import 'package:appflowy/util/debounce.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_event.dart';
 import 'package:appflowy/workspace/application/command_palette/command_palette_state.dart';
 import 'package:appflowy/workspace/application/command_palette/search_service.dart';
+import 'package:appflowy/workspace/application/view/view_ext.dart';
 import 'package:appflowy/workspace/application/view/view_service.dart';
 import 'package:appflowy_backend/dispatch/dispatch.dart';
+import 'package:appflowy_backend/log.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/protobuf.dart'
     hide AFRolePB;
 import 'package:appflowy_backend/protobuf/flowy-search/result.pb.dart';
@@ -76,9 +78,12 @@ class CommandPaletteBloc
     /// and the icon data for the search results is empty
     /// Fetching all views can temporarily resolve these issues
     final result = await ViewBackendService.getAllViewsWithPermissionCheck();
-    final views = result.toNullable()?.items ?? [];
-    if (views.isEmpty || isClosed) return;
-    add(CommandPaletteEvent.updateCachedViews(views: views));
+    result.fold((v) {
+      if (v.items.isEmpty || isClosed) return;
+      add(CommandPaletteEvent.updateCachedViews(views: v.items));
+    }, (e) {
+      Log.error('Failed to refresh cached views: ${e.msg}');
+    });
   }
 
   FutureOr<void> _onRefreshCachedViews(
@@ -120,6 +125,7 @@ class CommandPaletteBloc
       emit(
         state.copyWith(
           searching: false,
+          query: '',
           serverResponseItems: [],
           localResponseItems: [],
           combinedResponseItems: {},
@@ -301,7 +307,13 @@ class CommandPaletteBloc
     CommandPaletteClearSearchEvent event,
     Emitter<CommandPaletteState> emit,
   ) {
-    emit(CommandPaletteState.initial().copyWith(trash: state.trash));
+    _searchDebounce.dispose();
+    emit(
+      CommandPaletteState.initial().copyWith(
+        trash: state.trash,
+        cachedViews: state.cachedViews,
+      ),
+    );
   }
 
   FutureOr<void> _onGoingToAskAI(
@@ -338,7 +350,13 @@ class CommandPaletteBloc
       final combinedItem = combinedItems.values.elementAt(i);
       final hasPermission =
           i < batchPermission.length && batchPermission[i] == true;
-      if (!hasPermission) {
+      final cacheView = state.cachedViews[combinedItem.id];
+      // 1. the view without permission
+      // 2. space view is always invisible
+      // 3. root view(workspace itself) is always invisible
+      if (!hasPermission ||
+          cacheView?.isSpace == true ||
+          cacheView?.parentViewId == '') {
         removedItems.add(combinedItem.id);
       }
     }

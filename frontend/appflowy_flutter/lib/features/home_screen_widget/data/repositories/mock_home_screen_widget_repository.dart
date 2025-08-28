@@ -225,4 +225,14 @@ class MockHomeScreenWidgetRepository implements HomeScreenWidgetRepository {
 
     return FlowyResult.success(workspaces);
   }
+
+  @override
+  Future<String?> getAuthToken() async {
+    return null;
+  }
+
+  @override
+  Future<String?> getBaseURL() async {
+    return 'https://beta.appflowy.cloud';
+  }
 }

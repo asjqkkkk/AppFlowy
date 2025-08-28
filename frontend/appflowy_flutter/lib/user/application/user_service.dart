@@ -145,7 +145,7 @@ class UserBackendService implements IUserBackendService {
     );
   }
 
-  Future<FlowyResult<void, FlowyError>> openWorkspace(
+  Future<FlowyResult<UserProfilePB, FlowyError>> openWorkspace(
     String workspaceId,
     WorkspaceTypePB workspaceType,
   ) {

@@ -3,6 +3,9 @@ PODS:
     - Flutter
   - appflowy_backend (0.0.1):
     - Flutter
+  - CocoaLumberjack (3.9.0):
+    - CocoaLumberjack/Core (= 3.9.0)
+  - CocoaLumberjack/Core (3.9.0)
   - connectivity_plus (0.0.1):
     - Flutter
     - ReachabilitySwift
@@ -87,6 +90,8 @@ PODS:
     - FlutterMacOS
   - super_native_extensions (0.0.1):
     - Flutter
+  - SVGKit (3.0.0):
+    - CocoaLumberjack (~> 3.0)
   - SwiftyGif (5.4.5)
   - Toast (4.1.1)
   - url_launcher_ios (0.0.1):
@@ -120,15 +125,18 @@ DEPENDENCIES:
   - shared_preferences_foundation (from `.symlinks/plugins/shared_preferences_foundation/darwin`)
   - sqflite_darwin (from `.symlinks/plugins/sqflite_darwin/darwin`)
   - super_native_extensions (from `.symlinks/plugins/super_native_extensions/ios`)
+  - SVGKit
   - url_launcher_ios (from `.symlinks/plugins/url_launcher_ios/ios`)
   - webview_flutter_wkwebview (from `.symlinks/plugins/webview_flutter_wkwebview/darwin`)
 
 SPEC REPOS:
   trunk:
+    - CocoaLumberjack
     - DKImagePickerController
     - DKPhotoGallery
     - ReachabilitySwift
     - SDWebImage
+    - SVGKit
     - SwiftyGif
     - Toast
 
@@ -189,6 +197,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   app_links: 3da4c36b46cac3bf24eb897f1a6ce80bda109874
   appflowy_backend: 78f6a053f756e6bc29bcc5a2106cbe77b756e97a
+  CocoaLumberjack: 5644158777912b7de7469fa881f8a3f259c2512a
   connectivity_plus: 481668c94744c30c53b8895afb39159d1e619bdf
   device_info_plus: 21fcca2080fbcd348be798aa36c3e5ed849eefbe
   DKImagePickerController: 946cec48c7873164274ecc4624d19e3da4c1ef3c
@@ -215,11 +224,12 @@ SPEC CHECKSUMS:
   shared_preferences_foundation: 9e1978ff2562383bd5676f64ec4e9aa8fa06a6f7
   sqflite_darwin: 20b2a3a3b70e43edae938624ce550a3cbf66a3d0
   super_native_extensions: b763c02dc3a8fd078389f410bf15149179020cb4
+  SVGKit: 1ad7513f8c74d9652f94ed64ddecda1a23864dea
   SwiftyGif: 706c60cf65fa2bc5ee0313beece843c8eb8194d4
   Toast: 1f5ea13423a1e6674c4abdac5be53587ae481c4e
   url_launcher_ios: 694010445543906933d732453a59da0a173ae33d
   webview_flutter_wkwebview: 44d4dee7d7056d5ad185d25b38404436d56c547c
 
-PODFILE CHECKSUM: 6ae3e6b018e8d4495bf89be0a9667f93a881b25a
+PODFILE CHECKSUM: db3893a076a093a74c7b7dea235a24fb872a2184
 
 COCOAPODS: 1.16.2
