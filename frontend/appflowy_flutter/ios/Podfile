@@ -42,6 +42,7 @@ target 'AppFlowyWidgetExtension' do
   # platform :ios, '17.0'
 
   pod 'home_widget', :path => '.symlinks/plugins/home_widget/ios'
+  pod 'SVGKit'
 end
 
 post_install do |installer|

@@ -8,6 +8,7 @@ import 'package:universal_platform/universal_platform.dart';
 
 @pragma("vm:entry-point")
 FutureOr<void> homeScreenWidgetBackgroundCallback(Uri? data) async {
+  Log.info('Home screen widget background callback: $data');
   return null;
 }
 

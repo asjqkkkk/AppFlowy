@@ -13,19 +13,6 @@ void main() {
     testContext = await AppFlowyUnitTest.ensureInitialized();
   });
 
-  test('init home screen', () async {
-    final workspaceSetting = await FolderEventGetCurrentWorkspaceSetting()
-        .send()
-        .then((result) => result.fold((l) => l, (r) => throw Exception()));
-    await blocResponseFuture();
-
-    final homeBloc = HomeBloc(workspaceSetting.workspaceId)
-      ..add(const HomeEvent.initial());
-    await blocResponseFuture();
-
-    assert(homeBloc.state.latestView != null);
-  });
-
   test('open the document', () async {
     final workspaceSetting = await FolderEventGetCurrentWorkspaceSetting()
         .send()

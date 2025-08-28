@@ -13,7 +13,10 @@ struct FavoritesProvider: AppIntentTimelineProvider {
     )
   }
 
-  func snapshot(for configuration: FavoritesConfigurationAppIntent, in context: Context) async
+  func snapshot(
+    for configuration: FavoritesConfigurationAppIntent,
+    in context: Context
+  ) async
     -> FavoritesEntry
   {
 
@@ -28,7 +31,9 @@ struct FavoritesProvider: AppIntentTimelineProvider {
       )
     }
 
-    let isLoggedIn = WidgetDataReader.isUserLoggedIn(for: configuredWorkspace.id)
+    let isLoggedIn = WidgetDataReader.isUserLoggedIn(
+      for: configuredWorkspace.id
+    )
     let pages = WidgetDataReader.getFavoritePages(for: configuredWorkspace.id)
 
     return FavoritesEntry(
@@ -40,7 +45,10 @@ struct FavoritesProvider: AppIntentTimelineProvider {
     )
   }
 
-  func timeline(for configuration: FavoritesConfigurationAppIntent, in context: Context) async
+  func timeline(
+    for configuration: FavoritesConfigurationAppIntent,
+    in context: Context
+  ) async
     -> Timeline<FavoritesEntry>
   {
     if WidgetDataReader.shouldClearData() {
@@ -52,7 +60,11 @@ struct FavoritesProvider: AppIntentTimelineProvider {
         workspace: nil,
         isUserLoggedIn: false
       )
-      let nextUpdate = Calendar.current.date(byAdding: .minute, value: 1, to: Date())!
+      let nextUpdate = Calendar.current.date(
+        byAdding: .minute,
+        value: 1,
+        to: Date()
+      )!
       return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 
@@ -65,11 +77,17 @@ struct FavoritesProvider: AppIntentTimelineProvider {
         workspace: nil,
         isUserLoggedIn: false
       )
-      let nextUpdate = Calendar.current.date(byAdding: .hour, value: 1, to: Date())!
+      let nextUpdate = Calendar.current.date(
+        byAdding: .hour,
+        value: 1,
+        to: Date()
+      )!
       return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 
-    let isLoggedIn = WidgetDataReader.isUserLoggedIn(for: configuredWorkspace.id)
+    let isLoggedIn = WidgetDataReader.isUserLoggedIn(
+      for: configuredWorkspace.id
+    )
     let pages = WidgetDataReader.getFavoritePages(for: configuredWorkspace.id)
 
     let entry = FavoritesEntry(
@@ -80,7 +98,11 @@ struct FavoritesProvider: AppIntentTimelineProvider {
       isUserLoggedIn: isLoggedIn
     )
 
-    let nextUpdate = Calendar.current.date(byAdding: .hour, value: 1, to: Date())!
+    let nextUpdate = Calendar.current.date(
+      byAdding: .hour,
+      value: 1,
+      to: Date()
+    )!
     return Timeline(entries: [entry], policy: .after(nextUpdate))
   }
 }
@@ -97,7 +119,10 @@ struct RecentProvider: AppIntentTimelineProvider {
     )
   }
 
-  func snapshot(for configuration: RecentConfigurationAppIntent, in context: Context) async
+  func snapshot(
+    for configuration: RecentConfigurationAppIntent,
+    in context: Context
+  ) async
     -> RecentEntry
   {
 
@@ -112,7 +137,9 @@ struct RecentProvider: AppIntentTimelineProvider {
       )
     }
 
-    let isLoggedIn = WidgetDataReader.isUserLoggedIn(for: configuredWorkspace.id)
+    let isLoggedIn = WidgetDataReader.isUserLoggedIn(
+      for: configuredWorkspace.id
+    )
     let pages = WidgetDataReader.getRecentPages(for: configuredWorkspace.id)
 
     return RecentEntry(
@@ -124,7 +151,10 @@ struct RecentProvider: AppIntentTimelineProvider {
     )
   }
 
-  func timeline(for configuration: RecentConfigurationAppIntent, in context: Context) async
+  func timeline(
+    for configuration: RecentConfigurationAppIntent,
+    in context: Context
+  ) async
     -> Timeline<RecentEntry>
   {
     if WidgetDataReader.shouldClearData() {
@@ -136,7 +166,11 @@ struct RecentProvider: AppIntentTimelineProvider {
         workspace: nil,
         isUserLoggedIn: false
       )
-      let nextUpdate = Calendar.current.date(byAdding: .minute, value: 1, to: Date())!
+      let nextUpdate = Calendar.current.date(
+        byAdding: .minute,
+        value: 1,
+        to: Date()
+      )!
       return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 
@@ -149,11 +183,17 @@ struct RecentProvider: AppIntentTimelineProvider {
         workspace: nil,
         isUserLoggedIn: false
       )
-      let nextUpdate = Calendar.current.date(byAdding: .hour, value: 1, to: Date())!
+      let nextUpdate = Calendar.current.date(
+        byAdding: .hour,
+        value: 1,
+        to: Date()
+      )!
       return Timeline(entries: [entry], policy: .after(nextUpdate))
     }
 
-    let isLoggedIn = WidgetDataReader.isUserLoggedIn(for: configuredWorkspace.id)
+    let isLoggedIn = WidgetDataReader.isUserLoggedIn(
+      for: configuredWorkspace.id
+    )
     let pages = WidgetDataReader.getRecentPages(for: configuredWorkspace.id)
 
     let entry = RecentEntry(
@@ -164,7 +204,11 @@ struct RecentProvider: AppIntentTimelineProvider {
       isUserLoggedIn: isLoggedIn
     )
 
-    let nextUpdate = Calendar.current.date(byAdding: .hour, value: 1, to: Date())!
+    let nextUpdate = Calendar.current.date(
+      byAdding: .hour,
+      value: 1,
+      to: Date()
+    )!
     return Timeline(entries: [entry], policy: .after(nextUpdate))
   }
 }
@@ -187,16 +231,236 @@ struct RecentEntry: TimelineEntry {
   let isUserLoggedIn: Bool
 }
 
+@available(iOS 16.0, *)
+struct QuickAccessProvider: AppIntentTimelineProvider {
+  func placeholder(in context: Context) -> QuickAccessEntry {
+    QuickAccessEntry(
+      date: Date(),
+      configuration: QuickAccessConfigurationAppIntent(),
+      page: nil,
+      workspace: nil,
+      isUserLoggedIn: false
+    )
+  }
+
+  func snapshot(
+    for configuration: QuickAccessConfigurationAppIntent,
+    in context: Context
+  ) async
+    -> QuickAccessEntry
+  {
+    guard let configuredWorkspace = configuration.workspace else {
+      return QuickAccessEntry(
+        date: Date(),
+        configuration: configuration,
+        page: nil,
+        workspace: nil,
+        isUserLoggedIn: false
+      )
+    }
+
+    let isLoggedIn = WidgetDataReader.isUserLoggedIn(
+      for: configuredWorkspace.id
+    )
+    let page = WidgetDataReader.getQuickAccessPage(for: configuredWorkspace.id)
+
+    return QuickAccessEntry(
+      date: Date(),
+      configuration: configuration,
+      page: page,
+      workspace: configuredWorkspace,
+      isUserLoggedIn: isLoggedIn
+    )
+  }
+
+  private func downloadAndCacheCoverImage(coverType: String, coverValue: String)
+    async
+  {
+    let cacheKey = getCacheKey(for: coverType, value: coverValue)
+
+    guard let userDefaults = UserDefaults(suiteName: appGroupID) else {
+      return
+    }
+
+    var imageURL: URL?
+
+    switch coverType {
+    case "built_in":
+      return
+    case "unsplash":
+      imageURL = URL(string: "\(coverValue)&width=200")
+    case "custom":
+      imageURL = URL(string: "\(coverValue)")
+    default:
+      return
+    }
+
+    guard let url = imageURL else { return }
+
+    do {
+      let (data, _) = try await URLSession.shared.data(from: url)
+
+      if let uiImage = UIImage(data: data),
+        let compressedData = uiImage.jpegData(compressionQuality: 0.7)
+      {
+        userDefaults.set(compressedData, forKey: cacheKey)
+      } else {
+        userDefaults.set(data, forKey: cacheKey)
+      }
+    } catch {
+
+    }
+  }
+
+  private func downloadAndCacheIconImage(_ iconUrl: String) async {
+    guard let userDefaults = UserDefaults(suiteName: appGroupID),
+      let url = URL(string: iconUrl)
+    else {
+      return
+    }
+
+    let cacheKey = "appflowy_home_screen_widget_icon_\(iconUrl)"
+
+    do {
+      let (data, _) = try await URLSession.shared.data(from: url)
+
+      if let uiImage = UIImage(data: data),
+        let compressedData = uiImage.jpegData(compressionQuality: 0.7)
+      {
+        userDefaults.set(compressedData, forKey: cacheKey)
+      } else {
+        userDefaults.set(data, forKey: cacheKey)
+      }
+    } catch {
+
+    }
+  }
+
+  private func getCacheKey(for coverType: String, value: String) -> String {
+    return "appflowy_home_screen_widget_data_\(coverType)_\(value)"
+  }
+
+  func timeline(
+    for configuration: QuickAccessConfigurationAppIntent,
+    in context: Context
+  ) async
+    -> Timeline<QuickAccessEntry>
+  {
+    if WidgetDataReader.shouldClearData() {
+      WidgetDataReader.checkAndClearData()
+      let entry = QuickAccessEntry(
+        date: Date(),
+        configuration: configuration,
+        page: nil,
+        workspace: nil,
+        isUserLoggedIn: false
+      )
+      let nextUpdate = Calendar.current.date(
+        byAdding: .minute,
+        value: 1,
+        to: Date()
+      )!
+      return Timeline(entries: [entry], policy: .after(nextUpdate))
+    }
+
+    guard let configuredWorkspace = configuration.workspace else {
+      let entry = QuickAccessEntry(
+        date: Date(),
+        configuration: configuration,
+        page: nil,
+        workspace: nil,
+        isUserLoggedIn: false
+      )
+      let nextUpdate = Calendar.current.date(
+        byAdding: .hour,
+        value: 1,
+        to: Date()
+      )!
+      return Timeline(entries: [entry], policy: .after(nextUpdate))
+    }
+
+    guard let configuredPage = configuration.selectedPage else {
+      let entry = QuickAccessEntry(
+        date: Date(),
+        configuration: configuration,
+        page: nil,
+        workspace: nil,
+        isUserLoggedIn: false
+      )
+      let nextUpdate = Calendar.current.date(
+        byAdding: .hour,
+        value: 1,
+        to: Date()
+      )!
+      return Timeline(entries: [entry], policy: .after(nextUpdate))
+    }
+
+    let isLoggedIn = WidgetDataReader.isUserLoggedIn(
+      for: configuredWorkspace.id
+    )
+    let page = QuickAccessPageItem(
+      id: configuredPage.id,
+      title: configuredPage.title,
+      icon: configuredPage.icon,
+      layout: configuredPage.layout,
+      iconType: configuredPage.iconType,
+      imageUrl: nil,
+      coverType: configuredPage.coverType,
+      coverValue: configuredPage.coverValue
+    )
+
+    if let coverType = page.coverType, let coverValue = page.coverValue {
+      await downloadAndCacheCoverImage(
+        coverType: coverType,
+        coverValue: coverValue
+      )
+    }
+
+    if page.iconType == 1 {
+      await downloadAndCacheIconImage(page.icon)
+    }
+
+    IconHelper.shared.loadIcons()
+
+    let entry = QuickAccessEntry(
+      date: Date(),
+      configuration: configuration,
+      page: page,
+      workspace: configuredWorkspace,
+      isUserLoggedIn: isLoggedIn
+    )
+
+    let nextUpdate = Calendar.current.date(
+      byAdding: .hour,
+      value: 1,
+      to: Date()
+    )!
+    return Timeline(entries: [entry], policy: .after(nextUpdate))
+  }
+}
+
+@available(iOS 16.0, *)
+struct QuickAccessEntry: TimelineEntry {
+  let date: Date
+  let configuration: QuickAccessConfigurationAppIntent
+  let page: QuickAccessPageItem?
+  let workspace: Workspace?
+  let isUserLoggedIn: Bool
+}
+
 struct WidgetIconView: View {
   let widgetType: SimpleWidgetType
-  
+
   var body: some View {
-    let name = switch widgetType {
-    case .recent:
-      "recent"
-    case .favorites:
-      "favorite"
-    }
+    let name =
+      switch widgetType {
+      case .recent:
+        "recent"
+      case .favorites:
+        "favorite"
+      case .quickAccess:
+        "quick_access"
+      }
     Image(name)
       .resizable()
       .aspectRatio(contentMode: .fit)
@@ -271,7 +535,8 @@ struct PageRowView: View {
   let fontSize: CGFloat
 
   var body: some View {
-    let urlString = "appflowy-flutter://open-page/\(workspaceId)/\(page.id)?homeWidget"
+    let urlString =
+      "appflowy-flutter://open-page/\(workspaceId)/\(page.id)?homeWidget"
 
     return Link(destination: URL(string: urlString)!) {
       HStack(alignment: .center, spacing: 6) {
@@ -286,11 +551,12 @@ struct PageRowView: View {
       }
     }
   }
-  
+
   @ViewBuilder
   private var iconView: some View {
     if let imagePath = page.imageUrl,
-       let uiImage = UIImage(contentsOfFile: imagePath) {
+      let uiImage = UIImage(contentsOfFile: imagePath)
+    {
       Image(uiImage: uiImage)
         .resizable()
         .aspectRatio(contentMode: .fit)
@@ -326,14 +592,14 @@ struct PageRowPlaceholderView: View {
 struct EmptyFavoritesView: View {
   let titleSize: CGFloat
   let subtitleSize: CGFloat
-  
+
   var body: some View {
     VStack(spacing: 8) {
       Text("No Favorite Pages")
         .font(.system(size: titleSize, weight: .bold))
         .foregroundColor(.primary)
         .multilineTextAlignment(.center)
-      
+
       Text("Pages you’ve favorited will show here")
         .font(.system(size: subtitleSize, weight: .regular))
         .foregroundColor(.secondary)
@@ -350,7 +616,8 @@ struct CreateDocumentButtonView: View {
   let bottomPadding: CGFloat
 
   var body: some View {
-    let urlString = "appflowy-flutter://create-document/\(workspaceId)?homeWidget"
+    let urlString =
+      "appflowy-flutter://create-document/\(workspaceId)?homeWidget"
 
     return Link(destination: URL(string: urlString)!) {
       ZStack {
@@ -372,7 +639,7 @@ struct PlaceholderView: View {
   let iconSize: CGFloat
   let titleSize: CGFloat
   let subtitleSize: CGFloat
-  
+
   private var verticalSpacing: CGFloat {
     switch iconSize {
     case 48:
@@ -427,15 +694,17 @@ struct PageListView: View {
           title: "",
           icon: "",
           layout: 0
-        ))
+        )
+      )
     }
     return result
   }
-  
+
   private var shouldShowMoreFavorites: Bool {
-    return widgetType == .favorites && pages.count > maxItems && widgetFamily == .systemLarge
+    return widgetType == .favorites && pages.count > maxItems
+      && widgetFamily == .systemLarge
   }
-  
+
   private var displayItemCount: Int {
     if shouldShowMoreFavorites {
       return maxItems - 1
@@ -445,7 +714,8 @@ struct PageListView: View {
 
   var body: some View {
     VStack(alignment: .leading, spacing: 0) {
-      ForEach(paddedPages.prefix(displayItemCount).indices, id: \.self) { index in
+      ForEach(paddedPages.prefix(displayItemCount).indices, id: \.self) {
+        index in
         let page = paddedPages[index]
         if index < pages.count && index < displayItemCount {
           PageRowView(
@@ -465,10 +735,11 @@ struct PageListView: View {
           .padding(.bottom, spacing)
         }
       }
-      
+
       if shouldShowMoreFavorites {
-        let urlString = "appflowy-flutter://open-favorites/\(workspaceId)?homeWidget"
-        
+        let urlString =
+          "appflowy-flutter://open-favorites/\(workspaceId)?homeWidget"
+
         Link(destination: URL(string: urlString)!) {
           HStack(alignment: .center, spacing: 6) {
             Text("More favorites...")
@@ -476,7 +747,7 @@ struct PageListView: View {
               .foregroundColor(.secondary)
               .lineLimit(1)
               .frame(height: 22)
-            
+
             Spacer()
           }
         }
@@ -508,24 +779,28 @@ struct WidgetContentView: View {
         }
       }
       .frame(
-        maxWidth: .infinity, maxHeight: .infinity,
+        maxWidth: .infinity,
+        maxHeight: .infinity,
         alignment: (workspace == nil || !isUserLoggedIn) ? .center : .topLeading
       )
       .containerBackground(Color(UIColor.systemBackground), for: .widget)
 
       if workspace != nil && isUserLoggedIn && !pages.isEmpty {
-        CreateDocumentButtonView(workspaceId: workspace!.id, bottomPadding: config.createButtonBottomPadding)
+        CreateDocumentButtonView(
+          workspaceId: workspace!.id,
+          bottomPadding: config.createButtonBottomPadding
+        )
       }
     }
   }
-  
+
   private var topPadding: CGFloat {
     var topPadding = 10.0
-    // workaround to make the header doesn't follow the safe area
-    if (widgetType == .favorites && pages.isEmpty) {
-      if (widgetFamily == .systemLarge) {
+
+    if widgetType == .favorites && pages.isEmpty {
+      if widgetFamily == .systemLarge {
         topPadding = 0.0
-      } else if (widgetFamily == .systemMedium) {
+      } else if widgetFamily == .systemMedium {
         topPadding = -3.0
       }
     }
@@ -711,7 +986,9 @@ struct FavoritesWidget: Widget {
 
   var body: some WidgetConfiguration {
     AppIntentConfiguration(
-      kind: kind, intent: FavoritesConfigurationAppIntent.self, provider: FavoritesProvider()
+      kind: kind,
+      intent: FavoritesConfigurationAppIntent.self,
+      provider: FavoritesProvider()
     ) { entry in
       FavoritesWidgetEntryView(entry: entry)
     }
@@ -727,7 +1004,9 @@ struct RecentWidget: Widget {
 
   var body: some WidgetConfiguration {
     AppIntentConfiguration(
-      kind: kind, intent: RecentConfigurationAppIntent.self, provider: RecentProvider()
+      kind: kind,
+      intent: RecentConfigurationAppIntent.self,
+      provider: RecentProvider()
     ) { entry in
       RecentWidgetEntryView(entry: entry)
     }
@@ -738,11 +1017,374 @@ struct RecentWidget: Widget {
 }
 
 @available(iOS 16.0, *)
+struct QuickAccessView: View {
+  let page: QuickAccessPageItem?
+  let workspace: SimpleWorkspace?
+  let widgetFamily: WidgetFamily
+  let isUserLoggedIn: Bool
+  @Environment(\.colorScheme) var colorScheme
+
+  var body: some View {
+    if let page = page, workspace != nil && isUserLoggedIn {
+      configuredPageView(page: page)
+    } else {
+      emptyStateView
+        .containerBackground(Color(UIColor.systemBackground), for: .widget)
+    }
+  }
+
+  @ViewBuilder
+  private func configuredPageView(page: QuickAccessPageItem) -> some View {
+    let urlString =
+      "appflowy-flutter://open-page/\(workspace?.id ?? "")/\(page.id)?homeWidget"
+
+    Link(destination: URL(string: urlString)!) {
+      ZStack(
+        alignment: .topLeading,
+        content: {
+          coverImageView(
+            page: page,
+            height: 48,
+            edgeToEdge: true
+          )
+
+          HStack {
+            pageIcon(page: page)
+            Spacer()
+          }
+          .padding(.top, 8)
+
+          Text(page.title.uppercased())
+            .font(.system(size: titleFontSize, weight: .semibold))
+            .foregroundColor(.primary)
+            .lineLimit(2)
+            .lineSpacing(4)
+            .padding(.top, 68)
+        }
+      )
+
+    }
+    .containerBackground(for: .widget) {
+      Color.clear
+    }
+  }
+
+  @ViewBuilder
+  private var emptyStateView: some View {
+    VStack(spacing: 4) {
+      Image("default_preview_icon")
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: emptyIconSize, height: emptyIconSize)
+        .foregroundColor(.secondary)
+
+      if emptySubtitleSize > 0 {
+        Text("Tap and hold to\n begin")
+          .font(.system(size: emptySubtitleSize, weight: .regular))
+          .foregroundColor(.secondary)
+          .multilineTextAlignment(.center)
+          .lineSpacing(2)
+      }
+    }
+    .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  @ViewBuilder
+  private func pageIcon(page: QuickAccessPageItem) -> some View {
+
+    if page.iconType == 1,
+      let userDefaults = UserDefaults(suiteName: appGroupID),
+      let imageData = userDefaults.data(
+        forKey: "appflowy_home_screen_widget_icon_\(page.icon)"
+      ),
+      let uiImage = UIImage(data: imageData)
+    {
+      Image(uiImage: uiImage)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: iconSize, height: iconSize)
+    } else if let imagePath = page.imageUrl,
+      let uiImage = UIImage(contentsOfFile: imagePath)
+    {
+      Image(uiImage: uiImage)
+        .resizable()
+        .aspectRatio(contentMode: .fit)
+        .frame(width: iconSize, height: iconSize)
+    } else if page.iconType == 2,
+      let iconData = IconHelper.parseIconString(page.icon)
+    {
+
+      if let svgContent = IconHelper.getSVGContent(
+        groupName: iconData.groupName,
+        iconName: iconData.iconName
+      ),
+        let svgImage = IconHelper.createSVGImage(
+          from: svgContent,
+          color: IconHelper.colorFromHex(iconData.color),
+          size: CGSize(width: iconSize * 0.8, height: iconSize * 0.8)
+        )
+      {
+        Image(uiImage: svgImage)
+          .frame(width: iconSize, height: iconSize)
+          .padding(.top, 4)
+      } else {
+
+        RoundedRectangle(cornerRadius: 4)
+          .fill(IconHelper.colorFromHexToSwiftUIColor(iconData.color))
+          .frame(width: iconSize * 0.7, height: iconSize * 0.7)
+          .frame(width: iconSize, height: iconSize)
+      }
+    } else if page.icon.isEmpty {
+      let layout = page.layout;
+      let name = switch layout {
+      case 0:
+        "document"
+      case 1:
+        "grid"
+      case 2:
+        "board"
+      case 3:
+        "calendar"
+      case 4:
+        "chat"
+      default:
+        "document"
+      }
+      
+      Image(name)
+        .frame(width: iconSize, height: iconSize)
+        .padding(.top, -6)
+    } else {
+      Text(page.icon)
+        .font(.system(size: iconSize))
+    }
+  }
+
+  @ViewBuilder
+  private func coverImageView(
+    page: QuickAccessPageItem,
+    height: CGFloat? = nil,
+    edgeToEdge: Bool = false
+  ) -> some View {
+    coverContentView(page: page, height: height, edgeToEdge: edgeToEdge)
+      .clipShape(
+        .rect(
+          topLeadingRadius: 16,
+          bottomLeadingRadius: 8,
+          bottomTrailingRadius: 8,
+          topTrailingRadius: 16
+        )
+      )
+      .padding(EdgeInsets(top: -18, leading: -10, bottom: 80, trailing: -10))
+  }
+
+  @ViewBuilder
+  private func coverContentView(
+    page: QuickAccessPageItem,
+    height: CGFloat?,
+    edgeToEdge: Bool
+  ) -> some View {
+    if let coverType = page.coverType,
+      let coverValue = page.coverValue
+    {
+      switch coverType {
+      case "color":
+        Rectangle()
+          .fill(ColorMapper.stringToColor(coverValue, colorScheme: colorScheme))
+          .frame(height: 48)
+      case "gradient":
+        Rectangle()
+          .fill(ColorMapper.stringToGradient(coverValue))
+          .frame(height: 48)
+      case "built_in":
+        Image("cover_\(coverValue)")
+          .resizable()
+          .aspectRatio(contentMode: .fill)
+          .frame(height: height)
+          .frame(maxWidth: edgeToEdge ? .infinity : nil)
+      default:
+        if let uiImage = getCachedCoverImage(
+          coverType: coverType,
+          coverValue: coverValue
+        ) {
+          Image(uiImage: uiImage)
+            .resizable()
+            .aspectRatio(contentMode: .fill)
+            .frame(height: height)
+            .frame(maxWidth: edgeToEdge ? .infinity : nil)
+        } else {
+          defaultBackground
+            .frame(height: 48)
+        }
+      }
+    } else {
+      defaultBackground
+        .frame(height: 48)
+    }
+  }
+
+  private func getCachedCoverImage(coverType: String, coverValue: String)
+    -> UIImage?
+  {
+    let cacheKey = "appflowy_home_screen_widget_data_\(coverType)_\(coverValue)"
+    guard let userDefaults = UserDefaults(suiteName: appGroupID),
+      let data = userDefaults.data(forKey: cacheKey)
+    else {
+      return nil
+    }
+    return UIImage(data: data)
+  }
+
+  @ViewBuilder
+  private var defaultBackground: some View {
+    LinearGradient(
+      gradient: Gradient(colors: []),
+      startPoint: .topLeading,
+      endPoint: .bottomTrailing
+    )
+  }
+
+  private var iconSize: CGFloat {
+    switch widgetFamily {
+    case .systemSmall: return 36
+    case .systemMedium: return 36
+    case .systemLarge: return 36
+    default: return 36
+    }
+  }
+
+  private var titleFontSize: CGFloat {
+    switch widgetFamily {
+    case .systemSmall: return 16
+    case .systemMedium: return 16
+    case .systemLarge: return 18
+    default: return 16
+    }
+  }
+
+  private var previewFontSize: CGFloat {
+    switch widgetFamily {
+    case .systemSmall: return 0
+    case .systemMedium: return 14
+    case .systemLarge: return 16
+    default: return 0
+    }
+  }
+
+  private var titleLineLimit: Int {
+    switch widgetFamily {
+    case .systemSmall: return 2
+    case .systemMedium: return 2
+    case .systemLarge: return 2
+    default: return 2
+    }
+  }
+
+  private var previewLineLimit: Int {
+    switch widgetFamily {
+    case .systemSmall: return 0
+    case .systemMedium: return 2
+    case .systemLarge: return 3
+    default: return 2
+    }
+  }
+
+  private var showTextPreview: Bool {
+    widgetFamily != .systemSmall
+  }
+
+  private var contentPadding: EdgeInsets {
+    switch widgetFamily {
+    case .systemSmall:
+      return EdgeInsets(top: 12, leading: 12, bottom: 12, trailing: 12)
+    case .systemMedium:
+      return EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+    case .systemLarge:
+      return EdgeInsets(top: 20, leading: 20, bottom: 20, trailing: 20)
+    default: return EdgeInsets(top: 16, leading: 16, bottom: 16, trailing: 16)
+    }
+  }
+
+  private var emptyIconSize: CGFloat {
+    switch widgetFamily {
+    case .systemSmall: return 72
+    case .systemMedium: return 0
+    case .systemLarge: return 80
+    default: return 0
+    }
+  }
+
+  private var emptyTitleSize: CGFloat {
+    switch widgetFamily {
+    case .systemSmall: return 18
+    case .systemMedium: return 20
+    case .systemLarge: return 20
+    default: return 20
+    }
+  }
+
+  private var emptySubtitleSize: CGFloat {
+    switch widgetFamily {
+    case .systemSmall: return 12
+    case .systemMedium: return 14
+    case .systemLarge: return 14
+    default: return 14
+    }
+  }
+}
+
+@available(iOS 16.0, *)
+struct QuickAccessWidgetEntryView: View {
+  var entry: QuickAccessProvider.Entry
+  @Environment(\.widgetFamily) var widgetFamily
+
+  var body: some View {
+    let simpleWorkspace = entry.workspace.map { workspace in
+      SimpleWorkspace(
+        id: workspace.id,
+        name: workspace.name,
+        email: workspace.email,
+        icon: workspace.icon
+      )
+    }
+
+    QuickAccessView(
+      page: entry.page,
+      workspace: simpleWorkspace,
+      widgetFamily: widgetFamily,
+      isUserLoggedIn: entry.isUserLoggedIn
+    )
+  }
+}
+
+@available(iOS 16.0, *)
+struct QuickAccessWidget: Widget {
+  let kind: String = "quick_access_widget"
+
+  var body: some WidgetConfiguration {
+    AppIntentConfiguration(
+      kind: kind,
+      intent: QuickAccessConfigurationAppIntent.self,
+      provider: QuickAccessProvider()
+    ) { entry in
+      QuickAccessWidgetEntryView(entry: entry)
+    }
+    .configurationDisplayName("Quick Access")
+    .description("Quick access to your most important page.")
+    .supportedFamilies([.systemSmall])
+  }
+}
+
+@available(iOS 16.0, *)
 extension FavoritesConfigurationAppIntent {
   fileprivate static var defaultWorkspace: FavoritesConfigurationAppIntent {
     let intent = FavoritesConfigurationAppIntent()
     intent.workspace = Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻")
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    )
     return intent
   }
 
@@ -758,7 +1400,11 @@ extension RecentConfigurationAppIntent {
   fileprivate static var defaultWorkspace: RecentConfigurationAppIntent {
     let intent = RecentConfigurationAppIntent()
     intent.workspace = Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻")
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    )
     return intent
   }
 
@@ -769,27 +1415,216 @@ extension RecentConfigurationAppIntent {
   }
 }
 
+@available(iOS 16.0, *)
+extension QuickAccessConfigurationAppIntent {
+  fileprivate static var defaultPage1: QuickAccessConfigurationAppIntent {
+    let intent = QuickAccessConfigurationAppIntent()
+    intent.workspace = Workspace(
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    )
+    intent.selectedPage = PageEntity(
+      id: "qa1",
+      title: "Product Requirements",
+      icon: "📋",
+      iconType: 0,
+      layout: 0,
+      coverType: "1",
+      coverValue: nil,
+      workspaceId: "/Users/lucas.xu/Desktop/cover.png"
+    )
+    return intent
+  }
+
+  fileprivate static var defaultPage2: QuickAccessConfigurationAppIntent {
+    let intent = QuickAccessConfigurationAppIntent()
+    intent.workspace = Workspace(
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    )
+    intent.selectedPage = PageEntity(
+      id: "qa1",
+      title: "Product",
+      icon: "🎞️",
+      iconType: 0,
+      layout: 0,
+      coverType: "1",
+      coverValue: "/Users/lucas.xu/Desktop/cover.png",
+      workspaceId: ""
+    )
+    return intent
+  }
+
+  fileprivate static var noPage: QuickAccessConfigurationAppIntent {
+    let intent = QuickAccessConfigurationAppIntent()
+    intent.workspace = nil
+    intent.selectedPage = nil
+    return intent
+  }
+}
+
+@available(iOS 17.0, *)
+#Preview("Quick Access Small", as: .systemSmall) {
+  QuickAccessWidget()
+} timeline: {
+  QuickAccessEntry(
+    date: .now,
+    configuration: .defaultPage2,
+    page: QuickAccessPageItem.mockPage,
+    workspace: Workspace(
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
+  QuickAccessEntry(
+    date: .now,
+    configuration: .defaultPage2,
+    page: QuickAccessPageItem.mockPage2,
+    workspace: Workspace(
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
+  QuickAccessEntry(
+    date: .now,
+    configuration: .defaultPage1,
+    page: QuickAccessPageItem.mockPage3,
+    workspace: Workspace(
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
+  QuickAccessEntry(
+    date: .now,
+    configuration: .defaultPage1,
+    page: QuickAccessPageItem.mockPage4,
+    workspace: Workspace(
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
+  QuickAccessEntry(
+    date: .now,
+    configuration: .noPage,
+    page: nil,
+    workspace: nil,
+    isUserLoggedIn: false
+  )
+}
+
+//@available(iOS 17.0, *)
+//#Preview("Quick Access Medium", as: .systemMedium) {
+//  QuickAccessWidget()
+//} timeline: {
+//  QuickAccessEntry(
+//    date: .now,
+//    configuration: .defaultPage1,
+//    page: QuickAccessPageItem.mockPage,
+//    workspace: Workspace(
+//      id: "1",
+//      name: "AppFlowy.IO",
+//      email: "lucas.xu@appflowy.io",
+//      icon: "🐻"
+//    ),
+//    isUserLoggedIn: true
+//  )
+//  QuickAccessEntry(
+//    date: .now,
+//    configuration: .noPage,
+//    page: nil,
+//    workspace: nil,
+//    isUserLoggedIn: false
+//  )
+//}
+//
+//@available(iOS 17.0, *)
+//#Preview("Quick Access Large", as: .systemLarge) {
+//  QuickAccessWidget()
+//} timeline: {
+//  QuickAccessEntry(
+//    date: .now,
+//    configuration: .defaultPage1,
+//    page: QuickAccessPageItem.mockPage,
+//    workspace: Workspace(
+//      id: "1",
+//      name: "AppFlowy.IO",
+//      email: "lucas.xu@appflowy.io",
+//      icon: "🐻"
+//    ),
+//    isUserLoggedIn: true
+//  )
+//  QuickAccessEntry(
+//    date: .now,
+//    configuration: .noPage,
+//    page: nil,
+//    workspace: nil,
+//    isUserLoggedIn: false
+//  )
+//}
+
 @available(iOS 17.0, *)
 #Preview("Favorites Medium", as: .systemMedium) {
   FavoritesWidget()
 } timeline: {
   FavoritesEntry(
-    date: .now, configuration: .defaultWorkspace, pages: PageItem.mockFavoritePages1,
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: PageItem.mockFavoritePages1,
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   FavoritesEntry(
-    date: .now, configuration: .defaultWorkspace, pages: PageItem.mockFavoritePages2,
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: PageItem.mockFavoritePages2,
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   FavoritesEntry(
-    date: .now, configuration: .defaultWorkspace, pages: [],
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: [],
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   FavoritesEntry(
-    date: .now, configuration: .noWorkspace, pages: [], workspace: nil, isUserLoggedIn: false)
+    date: .now,
+    configuration: .noWorkspace,
+    pages: [],
+    workspace: nil,
+    isUserLoggedIn: false
+  )
 }
 
 @available(iOS 17.0, *)
@@ -797,12 +1632,24 @@ extension RecentConfigurationAppIntent {
   RecentWidget()
 } timeline: {
   RecentEntry(
-    date: .now, configuration: .defaultWorkspace, pages: PageItem.mockRecentPages,
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: PageItem.mockRecentPages,
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   RecentEntry(
-    date: .now, configuration: .noWorkspace, pages: [], workspace: nil, isUserLoggedIn: false)
+    date: .now,
+    configuration: .noWorkspace,
+    pages: [],
+    workspace: nil,
+    isUserLoggedIn: false
+  )
 }
 
 @available(iOS 17.0, *)
@@ -810,22 +1657,48 @@ extension RecentConfigurationAppIntent {
   FavoritesWidget()
 } timeline: {
   FavoritesEntry(
-    date: .now, configuration: .defaultWorkspace, pages: PageItem.mockFavoritePages1,
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: PageItem.mockFavoritePages1,
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   FavoritesEntry(
-    date: .now, configuration: .defaultWorkspace, pages: PageItem.mockFavoritePages2,
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: PageItem.mockFavoritePages2,
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   FavoritesEntry(
-    date: .now, configuration: .defaultWorkspace, pages: [],
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: [],
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   FavoritesEntry(
-    date: .now, configuration: .noWorkspace, pages: [], workspace: nil, isUserLoggedIn: false)
+    date: .now,
+    configuration: .noWorkspace,
+    pages: [],
+    workspace: nil,
+    isUserLoggedIn: false
+  )
 }
 
 @available(iOS 17.0, *)
@@ -833,10 +1706,22 @@ extension RecentConfigurationAppIntent {
   RecentWidget()
 } timeline: {
   RecentEntry(
-    date: .now, configuration: .defaultWorkspace, pages: PageItem.mockRecentPages,
+    date: .now,
+    configuration: .defaultWorkspace,
+    pages: PageItem.mockRecentPages,
     workspace: Workspace(
-      id: "1", name: "AppFlowy.IO", email: "lucas.xu@appflowy.io", icon: "🐻"),
-    isUserLoggedIn: true)
+      id: "1",
+      name: "AppFlowy.IO",
+      email: "lucas.xu@appflowy.io",
+      icon: "🐻"
+    ),
+    isUserLoggedIn: true
+  )
   RecentEntry(
-    date: .now, configuration: .noWorkspace, pages: [], workspace: nil, isUserLoggedIn: false)
+    date: .now,
+    configuration: .noWorkspace,
+    pages: [],
+    workspace: nil,
+    isUserLoggedIn: false
+  )
 }

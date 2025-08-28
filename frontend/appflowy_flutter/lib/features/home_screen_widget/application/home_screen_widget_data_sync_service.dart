@@ -98,13 +98,10 @@ class HomeScreenWidgetDataSyncService {
     required HomeScreenWidgetSyncReason reason,
   }) async {
     try {
-      final result = await Future.wait([
-        _repository.getFavoritePages(workspaceId: workspace.id),
-        _repository.getRecentPages(workspaceId: workspace.id),
-      ]);
-
-      final favoritesResult = result[0];
-      final recentResult = result[1];
+      final favoritesResult = await _repository.getFavoritePages(workspaceId: workspace.id);
+      final recentResult = await _repository.getRecentPages(workspaceId: workspace.id);
+      final authToken = await _repository.getAuthToken();
+      final baseURL = await _repository.getBaseURL();
 
       final favorites = favoritesResult.fold(
         (favoritesList) => favoritesList,
@@ -130,6 +127,8 @@ class HomeScreenWidgetDataSyncService {
         workspaces: [workspace],
         favorites: favorites,
         recent: recent,
+        baseURL: baseURL,
+        authToken: authToken,
       );
 
       await _repository.syncWorkspaceWidgetData(workspace.id, widgetData);

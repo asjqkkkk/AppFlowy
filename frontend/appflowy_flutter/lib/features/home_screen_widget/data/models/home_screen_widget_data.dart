@@ -9,6 +9,8 @@ class HomeScreenWidgetData {
     required this.favorites,
     required this.recent,
     required this.lastSync,
+    this.baseURL,
+    this.authToken,
   });
 
   factory HomeScreenWidgetData.notLoggedIn() {
@@ -27,6 +29,8 @@ class HomeScreenWidgetData {
     required List<HomeScreenWorkspaceInfo> workspaces,
     required List<HomeScreenWidgetItem> favorites,
     required List<HomeScreenWidgetItem> recent,
+    String? baseURL,
+    String? authToken,
   }) {
     return HomeScreenWidgetData(
       isUserLogin: true,
@@ -35,6 +39,8 @@ class HomeScreenWidgetData {
       favorites: favorites,
       recent: recent,
       lastSync: DateTime.now(),
+      baseURL: baseURL,
+      authToken: authToken,
     );
   }
 
@@ -44,6 +50,8 @@ class HomeScreenWidgetData {
   final List<HomeScreenWidgetItem> favorites;
   final List<HomeScreenWidgetItem> recent;
   final DateTime lastSync;
+  final String? baseURL;
+  final String? authToken;
 
   Map<String, dynamic> toJson() => {
         'is_user_login': isUserLogin,
@@ -53,6 +61,8 @@ class HomeScreenWidgetData {
         'favorites': favorites.map((item) => item.toJson()).toList(),
         'recent': recent.map((item) => item.toJson()).toList(),
         'last_sync': lastSync.toIso8601String(),
+        'base_url': baseURL,
+        'auth_token': authToken,
       };
 
   HomeScreenWidgetData copyWith({
@@ -62,6 +72,8 @@ class HomeScreenWidgetData {
     List<HomeScreenWidgetItem>? favorites,
     List<HomeScreenWidgetItem>? recent,
     DateTime? lastSync,
+    String? baseURL,
+    String? authToken,
   }) {
     return HomeScreenWidgetData(
       isUserLogin: isUserLogin ?? this.isUserLogin,
@@ -70,6 +82,8 @@ class HomeScreenWidgetData {
       favorites: favorites ?? this.favorites,
       recent: recent ?? this.recent,
       lastSync: lastSync ?? this.lastSync,
+      baseURL: baseURL ?? this.baseURL,
+      authToken: authToken ?? this.authToken,
     );
   }
 

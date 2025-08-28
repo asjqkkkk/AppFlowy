@@ -81,20 +81,12 @@
 			);
 			target = FB2AFA612E4DD7D600322BC3 /* AppFlowyWidgetExtension */;
 		};
-		FBB9A5A32E52FCB10097287F /* Exceptions for "AppFlowyWidget" folder in "Runner" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				AppIntent.swift,
-			);
-			target = 97C146ED1CF9000F007C117D /* Runner */;
-		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		FB2AFA672E4DD7D600322BC3 /* AppFlowyWidget */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				FBB9A5A32E52FCB10097287F /* Exceptions for "AppFlowyWidget" folder in "Runner" target */,
 				FB2AFA7A2E4DD7D700322BC3 /* Exceptions for "AppFlowyWidget" folder in "AppFlowyWidgetExtension" target */,
 			);
 			explicitFileTypes = {
