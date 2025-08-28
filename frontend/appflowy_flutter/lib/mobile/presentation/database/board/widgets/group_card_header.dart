@@ -2,10 +2,12 @@ import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/mobile/presentation/bottom_sheet/bottom_sheet.dart';
 import 'package:appflowy/mobile/presentation/widgets/flowy_mobile_quick_action_button.dart';
+import 'package:appflowy/plugins/database/application/field/type_option/type_option_data_parser.dart';
 import 'package:appflowy/plugins/database/board/application/board_bloc.dart';
 import 'package:appflowy/util/field_type_extension.dart';
 import 'package:appflowy_backend/protobuf/flowy-database2/protobuf.dart';
 import 'package:appflowy_board/appflowy_board.dart';
+import 'package:collection/collection.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -25,19 +27,18 @@ class GroupCardHeader extends StatefulWidget {
 }
 
 class _GroupCardHeaderState extends State<GroupCardHeader> {
-  late final TextEditingController _controller =
-      TextEditingController.fromValue(
-    TextEditingValue(
-      selection: TextSelection.collapsed(
-        offset: widget.groupData.headerData.groupName.length,
-      ),
-      text: widget.groupData.headerData.groupName,
-    ),
-  );
+  final textController = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+
+    textController.text = getGroupOption()?.name ?? '';
+  }
 
   @override
   void dispose() {
-    _controller.dispose();
+    textController.dispose();
     super.dispose();
   }
 
@@ -47,8 +48,11 @@ class _GroupCardHeaderState extends State<GroupCardHeader> {
     final titleTextStyle = Theme.of(context).textTheme.bodyMedium!.copyWith(
           fontWeight: FontWeight.w600,
         );
+
     return BlocBuilder<BoardBloc, BoardState>(
       builder: (context, state) {
+        final boardBloc = context.read<BoardBloc>();
+
         Widget title = Text(
           widget.groupData.headerData.groupName,
           style: titleTextStyle,
@@ -58,16 +62,22 @@ class _GroupCardHeaderState extends State<GroupCardHeader> {
         // header can be edited if it's not default group(no status) and the field type can be edited
         if (!boardCustomData.group.isDefault &&
             boardCustomData.fieldType.canEditHeader) {
-          title = GestureDetector(
-            onTap: () => context
-                .read<BoardBloc>()
-                .add(BoardEvent.startEditingHeader(widget.groupData.id)),
-            child: Text(
-              widget.groupData.headerData.groupName,
-              style: titleTextStyle,
-              overflow: TextOverflow.ellipsis,
-            ),
+          final option = getGroupOption(
           );
+          if (option != null) {
+            title = GestureDetector(
+              onTap: () {
+                boardBloc.add(
+                  BoardEvent.startEditingHeader(widget.groupData.id),
+                );
+              },
+              child: Text(
+                option.name,
+                style: titleTextStyle,
+                overflow: TextOverflow.ellipsis,
+              ),
+            );
+          }
         }
 
         final isEditing = state.maybeMap(
@@ -77,20 +87,21 @@ class _GroupCardHeaderState extends State<GroupCardHeader> {
 
         if (isEditing) {
           title = TextField(
-            controller: _controller,
+            controller: textController,
             autofocus: true,
-            onEditingComplete: () => context.read<BoardBloc>().add(
-                  BoardEvent.endEditingHeader(
-                    widget.groupData.id,
-                    _controller.text,
-                  ),
-                ),
+            onEditingComplete: () => boardBloc.add(
+              BoardEvent.endEditingHeader(
+                widget.groupData.id,
+                null,
+              ),
+            ),
             style: titleTextStyle,
-            onTapOutside: (_) => context.read<BoardBloc>().add(
-                  // group header switch from TextField to Text
-                  // group name won't be changed
-                  BoardEvent.endEditingHeader(widget.groupData.id, null),
-                ),
+            onTapOutside: (_) => boardBloc.add(
+              BoardEvent.endEditingHeader(
+                widget.groupData.id,
+                textController.text,
+              ),
+            ),
           );
         }
 
@@ -181,4 +192,28 @@ class _GroupCardHeaderState extends State<GroupCardHeader> {
           ),
         _ => const SizedBox.shrink(),
       };
+
+  SelectOptionPB? getGroupOption(
+  ) {
+    final databaseController = context.read<BoardBloc>().databaseController;
+    final groupId = widget.groupData.id;
+    final customData = widget.groupData.customData as GroupData;
+    final fieldId = customData.fieldInfo.id;
+    final field = databaseController.fieldController.getField(fieldId);
+    if (field == null) {
+      return null;
+    }
+
+    final selectOptions = switch (field.fieldType) {
+      FieldType.MultiSelect => MultiSelectTypeOptionDataParser()
+          .fromBuffer(field.field.typeOptionData)
+          .options,
+      FieldType.SingleSelect => SingleSelectTypeOptionDataParser()
+          .fromBuffer(field.field.typeOptionData)
+          .options,
+      _ => <SelectOptionPB>[],
+    };
+
+    return selectOptions.firstWhereOrNull((e) => e.id == groupId);
+  }
 }

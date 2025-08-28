@@ -644,11 +644,13 @@ class UserWorkspaceBloc extends Bloc<UserWorkspaceEvent, UserWorkspaceState> {
         workspaceId: currentWorkspace.workspaceId,
         workspaceType: currentWorkspace.workspaceType,
       );
-      
+
       // Update user profile if workspace opened successfully
       openResult.fold(
         (updatedUserProfile) {
-          Log.info('init workspace opened successfully, updated user profile: ${updatedUserProfile.name}');
+          Log.info(
+            'init workspace opened successfully, updated user profile: ${updatedUserProfile.name}',
+          );
           emit(state.copyWith(userProfile: updatedUserProfile));
         },
         (error) {

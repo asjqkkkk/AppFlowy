@@ -136,14 +136,14 @@ class GroupOptionsButton extends StatelessWidget {
   }
 
   void run(BuildContext context, GroupOption option, GroupPB group) {
+    final bloc = context.read<BoardBloc>();
+
     switch (option) {
       case GroupOption.rename:
         isEditing?.value = true;
         break;
       case GroupOption.hide:
-        context
-            .read<BoardBloc>()
-            .add(BoardEvent.setGroupVisibility(group, false));
+        bloc.add(BoardEvent.setGroupVisibility(group, false));
         break;
       case GroupOption.delete:
         showConfirmDeletionDialog(
@@ -151,9 +151,7 @@ class GroupOptionsButton extends StatelessWidget {
           name: LocaleKeys.board_column_label.tr(),
           description: LocaleKeys.board_column_deleteColumnConfirmation.tr(),
           onConfirm: () {
-            context
-                .read<BoardBloc>()
-                .add(BoardEvent.deleteGroup(group.groupId));
+            bloc.add(BoardEvent.deleteGroup(group.groupId));
           },
         );
         break;
