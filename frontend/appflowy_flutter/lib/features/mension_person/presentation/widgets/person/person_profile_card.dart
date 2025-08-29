@@ -387,6 +387,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           url: url,
           radius: 0,
           name: person.name,
+          email: person.email,
           size: AFAvatarSize.xl,
           backgroundColor:
               (url.isNotEmpty && !isEmojiAvatar) ? Colors.transparent : null,

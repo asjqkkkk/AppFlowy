@@ -7,6 +7,7 @@ class UserAvatar extends StatelessWidget {
     super.key,
     required this.iconUrl,
     required this.name,
+    required this.email,
     required this.size,
     this.isHovering = false,
     this.header,
@@ -15,6 +16,7 @@ class UserAvatar extends StatelessWidget {
 
   final String iconUrl;
   final String name;
+  final String email;
 
   final AFAvatarSize size;
   final Decoration? decoration;
@@ -42,6 +44,7 @@ class UserAvatar extends StatelessWidget {
         child: AFAvatar(
           url: iconUrl,
           name: name,
+          email: email,
           size: size,
           cacheManager: CustomImageCacheManager(),
           httpHeaders: header,

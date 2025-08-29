@@ -37,6 +37,7 @@ class SidebarUser extends StatelessWidget {
             UserAvatar(
               iconUrl: state.userProfile.iconUrl,
               name: state.userProfile.name,
+              email: state.userProfile.email,
               size: AFAvatarSize.s,
             ),
             const HSpace(8),

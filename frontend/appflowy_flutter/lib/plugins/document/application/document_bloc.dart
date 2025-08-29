@@ -387,6 +387,7 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
       selectionColor: basicColor.withValues(alpha: 0.6).toHexString(),
       userName: user.name,
       userAvatar: user.iconUrl,
+      userEmail: user.email,
     );
     await _documentService.syncAwarenessStates(
       documentId: documentId,
@@ -411,6 +412,7 @@ class DocumentBloc extends Bloc<DocumentEvent, DocumentState> {
       selectionColor: basicColor.withValues(alpha: 0.6).toHexString(),
       userName: user.name,
       userAvatar: user.iconUrl,
+      userEmail: user.email,
     );
     await _documentService.syncAwarenessStates(
       documentId: documentId,

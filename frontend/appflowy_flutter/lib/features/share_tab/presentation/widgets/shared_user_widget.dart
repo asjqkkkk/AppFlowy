@@ -38,6 +38,7 @@ class SharedUserWidget extends StatelessWidget {
       leading: AFAvatar(
         name: user.name,
         url: user.avatarUrl,
+        email: user.email,
       ),
       title: _buildTitle(context),
       subtitle: _buildSubtitle(context),

@@ -40,11 +40,13 @@ class ChatUserAvatar extends StatelessWidget {
     required this.iconUrl,
     required this.name,
     this.defaultName,
+    required this.email,
   });
 
   final String iconUrl;
   final String name;
   final String? defaultName;
+  final String email;
 
   @override
   Widget build(BuildContext context) {

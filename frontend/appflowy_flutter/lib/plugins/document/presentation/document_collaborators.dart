@@ -124,6 +124,7 @@ class _UserAvatar extends StatelessWidget {
         child: UserAvatar(
           iconUrl: user.userAvatar,
           name: user.userName,
+          email: user.userEmail,
           size: AFAvatarSize.m,
           header: header,
         ),

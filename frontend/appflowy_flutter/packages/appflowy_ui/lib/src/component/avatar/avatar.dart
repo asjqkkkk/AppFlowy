@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:appflowy_ui/src/theme/appflowy_theme.dart';
 import 'package:appflowy_ui/src/theme/definition/theme_data.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:crypto/crypto.dart';
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 import 'package:flutter/material.dart';
 
@@ -58,6 +60,7 @@ class AFAvatar extends StatelessWidget {
   const AFAvatar({
     super.key,
     this.name,
+    required this.email,
     this.url,
     this.size = AFAvatarSize.m,
     this.textColor,
@@ -72,6 +75,9 @@ class AFAvatar extends StatelessWidget {
 
   /// The name of the avatar. Used for initials if [child] and [url] are not provided.
   final String? name;
+
+  /// The email corresponding to the avatar. Used to create gravatar url as fallback.
+  final String email;
 
   /// The URL of the avatar image. Used if [child] is not provided.
   final String? url;
@@ -132,6 +138,12 @@ class AFAvatar extends StatelessWidget {
     );
   }
 
+  String _getGravatarUrl(String email) {
+    final encodedEmail = utf8.encode(email);
+    final hash = sha256.convert(encodedEmail);
+    return 'https://gravatar.com/avatar/$hash?d=404';
+  }
+
   Widget _buildAvatarContent({
     required double avatarSize,
     required Color bgColor,
@@ -147,11 +159,13 @@ class AFAvatar extends StatelessWidget {
           child: child,
         ),
       );
-    } else if (url != null && url!.isNotEmpty) {
+    } else {
+      final imageUrl =
+          (url?.isNotEmpty ?? false) ? url! : _getGravatarUrl(email);
       return ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: CachedNetworkImage(
-          imageUrl: url!,
+          imageUrl: imageUrl,
           width: avatarSize,
           height: avatarSize,
           fit: BoxFit.cover,
@@ -165,12 +179,6 @@ class AFAvatar extends StatelessWidget {
             textStyle,
           ),
         ),
-      );
-    } else {
-      return _buildInitialsCircle(
-        avatarSize,
-        bgColor,
-        textStyle,
       );
     }
   }

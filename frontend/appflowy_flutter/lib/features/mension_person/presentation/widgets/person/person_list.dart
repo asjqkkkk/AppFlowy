@@ -77,6 +77,7 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
               url: person.avatarUrl,
               size: AFAvatarSize.s,
               name: person.name,
+              email: person.email,
             ),
             selected: selected,
             title: person.name,

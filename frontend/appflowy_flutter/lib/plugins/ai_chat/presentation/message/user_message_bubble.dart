@@ -62,6 +62,7 @@ class ChatUserMessageBubble extends StatelessWidget {
     return BlocBuilder<ChatMemberBloc, ChatMemberState>(
       builder: (context, state) {
         final member = state.members[message.author.id];
+        final email = member?.info.email ?? "";
         return SelectionContainer.disabled(
           child: BlocBuilder<ProfileSettingBloc, ProfileSettingState>(
             builder: (context, state) {
@@ -73,7 +74,7 @@ class ChatUserMessageBubble extends StatelessWidget {
                 avatarUrl = profile.avatarUrl;
                 name = profile.name;
               }
-              return ChatUserAvatar(iconUrl: avatarUrl, name: name);
+              return ChatUserAvatar(iconUrl: avatarUrl, name: name, email: email);
             },
           ),
         );

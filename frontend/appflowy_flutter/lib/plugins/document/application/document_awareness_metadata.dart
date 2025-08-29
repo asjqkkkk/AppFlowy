@@ -15,6 +15,8 @@ class DocumentAwarenessMetadata with _$DocumentAwarenessMetadata {
     // ignore: invalid_annotation_target
     @JsonKey(name: 'user_name') required String userName,
     // ignore: invalid_annotation_target
+    @JsonKey(name: 'user_email') required String userEmail,
+    // ignore: invalid_annotation_target
     @JsonKey(name: 'user_avatar') required String userAvatar,
   }) = _DocumentAwarenessMetadata;
 

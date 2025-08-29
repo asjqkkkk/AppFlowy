@@ -19,11 +19,13 @@ class AccountUserProfile extends StatefulWidget {
     super.key,
     required this.name,
     required this.iconUrl,
+    required this.email,
     this.onSave,
   });
 
   final String name;
   final String iconUrl;
+  final String email;
   final void Function(String)? onSave;
 
   @override
@@ -87,6 +89,7 @@ class _AccountUserProfileState extends State<AccountUserProfile> {
           child: AFAvatar(
             url: widget.iconUrl,
             name: widget.name,
+            email: widget.email,
             size: AFAvatarSize.l,
           ),
         ),

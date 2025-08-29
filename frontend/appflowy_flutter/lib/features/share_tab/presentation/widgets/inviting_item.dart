@@ -64,6 +64,7 @@ class InvitingItem extends StatelessWidget {
             AFAvatar(
               url: user.avatarUrl,
               name: user.name,
+              email: user.email,
               size: AFAvatarSize.xs,
             ),
             HSpace(spacing.xs),
@@ -107,6 +108,7 @@ class InvitingItem extends StatelessWidget {
                 ? AFAvatar(
                     url: user.avatarUrl,
                     name: user.name,
+                    email: user.email,
                     size: AFAvatarSize.xs,
                   )
                 : FlowySvg(

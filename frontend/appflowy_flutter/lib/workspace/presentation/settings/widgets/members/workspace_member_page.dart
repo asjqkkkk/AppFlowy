@@ -419,6 +419,7 @@ class _MemberItem extends StatelessWidget {
               UserAvatar(
                 iconUrl: member.avatarUrl,
                 name: member.name,
+                email: member.email,
                 size: AFAvatarSize.s,
               ),
               HSpace(8),

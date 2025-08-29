@@ -132,7 +132,8 @@ class InviteDropDownMenuItem extends StatelessWidget {
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
       ),
-      leading: AFAvatar(name: user.name, url: user.avatarUrl),
+      leading:
+          AFAvatar(name: user.name, url: user.avatarUrl, email: user.email),
       title: _buildTitle(context),
       subtitle: Text(
         user.email,
