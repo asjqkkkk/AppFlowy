@@ -157,6 +157,7 @@ dependencies:
   visibility_detector: ^0.4.0+2
   pdfx: ^2.9.2
   path_drawing: ^1.0.1
+  image_size_getter: ^2.4.1
 
 dev_dependencies:
   # Introduce talker to log the bloc events, and only log the events in the development mode

@@ -26,6 +26,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart';
+import 'package:image_size_getter/file_input.dart';
+import 'package:image_size_getter/image_size_getter.dart' hide Size;
 import 'package:path/path.dart' as p;
 import 'package:string_validator/string_validator.dart';
 import 'package:universal_platform/universal_platform.dart';
@@ -336,6 +338,8 @@ class ImagePlaceholderState extends State<ImagePlaceholder> {
           continue;
         }
 
+        final file = File(url);
+        final imageSize = ImageSizeGetter.getSizeResult(FileInput(file));
         if (path != null) {
           if (isFirst) {
             isFirst = false;
@@ -343,6 +347,7 @@ class ImagePlaceholderState extends State<ImagePlaceholder> {
               CustomImageBlockKeys.url: path,
               CustomImageBlockKeys.imageType:
                   CustomImageType.internal.toIntValue(),
+              CustomImageBlockKeys.width: imageSize.size.width,
             });
           } else {
             transaction.insertNode(
@@ -350,6 +355,7 @@ class ImagePlaceholderState extends State<ImagePlaceholder> {
               customImageNode(
                 url: path,
                 type: CustomImageType.internal,
+                width: imageSize.size.width.toDouble(),
               ),
             );
           }
