@@ -1,3 +1,4 @@
+use client_api::entity::server_info_dto::ServerInfo;
 use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::DBConnection;
 use lib_infra::async_trait::async_trait;
@@ -13,6 +14,7 @@ pub trait AIUserService: Send + Sync + 'static {
   fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError>;
   fn application_root_dir(&self) -> Result<PathBuf, FlowyError>;
   fn user_data_dir(&self) -> Result<PathBuf, FlowyError>;
+  fn get_server_info(&self) -> Option<ServerInfo>;
 }
 
 #[derive(Clone, Default)]

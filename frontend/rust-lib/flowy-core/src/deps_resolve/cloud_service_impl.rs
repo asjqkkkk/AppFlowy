@@ -229,8 +229,7 @@ impl UserServerProvider for ServerProvider {
     self.encryption.set_secret(secret);
   }
 
-  async fn sync_server_info(&self, uid: i64) -> Result<ServerInfo, FlowyError> {
-    info!("Sync server info for user: {}", uid);
+  async fn sync_server_info(&self) -> Result<ServerInfo, FlowyError> {
     let client = self
       .get_server()?
       .get_client()

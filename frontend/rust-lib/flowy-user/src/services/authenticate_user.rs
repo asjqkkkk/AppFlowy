@@ -3,8 +3,12 @@ use crate::services::db::UserDB;
 use crate::services::entities::{UserConfig, UserPaths};
 
 use crate::entities::PersonalSubscriptionInfoPB;
+use crate::user_manager::manager_workspace_control::server_info_key;
 use arc_swap::ArcSwapOption;
+use client_api::entity::billing_dto::CommercialPlanFeatures;
+use client_api::entity::server_info_dto::{ServerInfo, SignedServerInfoData};
 use client_api::v2::CollabKVActionExt;
+use client_api::verify_signature;
 use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use collab_plugins::local_storage::kv::doc::CollabKVAction;
@@ -148,12 +152,25 @@ impl AuthenticateUser {
       && matches!(auth_provider, AuthProvider::Cloud);
 
     let is_vault_enabled = {
-      match self.get_cached_personal_subscription() {
-        None => false,
-        Some(info) => info
-          .subscriptions
-          .iter()
-          .any(|subscription| subscription.is_vault_active()),
+      match self.get_server_info() {
+        Some(server_info) => {
+          if server_info.self_hosted {
+            // Self-hosted path: Check commercial license features
+            server_info
+              .limit
+              .has_feature(CommercialPlanFeatures::VaultWorkspace)
+          } else {
+            // Official AppFlowy cloud path: Check personal subscriptions
+            match self.get_cached_personal_subscription() {
+              None => false,
+              Some(info) => info
+                .subscriptions
+                .iter()
+                .any(|subscription| subscription.is_vault_active()),
+            }
+          }
+        },
+        None => false, // No server info available
       }
     };
 
@@ -172,6 +189,21 @@ impl AuthenticateUser {
 
   pub fn device_id(&self) -> FlowyResult<String> {
     Ok(self.user_config.device_id.to_string())
+  }
+
+  /// Get server info for the current user.
+  /// Returns None if server info is not available or signature verification fails.
+  pub fn get_server_info(&self) -> Option<ServerInfo> {
+    let key = server_info_key().ok()?;
+    let info = self.store_preferences.get_object::<ServerInfo>(&key)?;
+    let data = SignedServerInfoData::from(&info);
+    match verify_signature(&info.sig, &data) {
+      Ok(_) => Some(info),
+      Err(err) => {
+        error!("Failed to verify server info signature: {}", err);
+        None
+      },
+    }
   }
 
   pub fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID {

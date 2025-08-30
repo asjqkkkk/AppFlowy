@@ -8,6 +8,7 @@ use crate::services::database_view::DatabaseLayoutDepsResolver;
 use crate::services::field_settings::default_field_settings_by_layout_map;
 use crate::services::share::csv::{CSVFormat, CSVImporter};
 use arc_swap::ArcSwapOption;
+use client_api::entity::server_info_dto::ServerInfo;
 use client_api::entity::{CreateCollabParams, TranslateItem};
 use collab::lock::RwLock;
 use collab::preclude::ClientID;
@@ -48,6 +49,7 @@ pub trait DatabaseUser: Send + Sync {
   fn workspace_id(&self) -> Result<Uuid, FlowyError>;
   fn workspace_database_object_id(&self) -> Result<Uuid, FlowyError>;
   fn collab_client_id(&self, workspace_id: &Uuid) -> ClientID;
+  fn get_server_info(&self) -> Option<ServerInfo>;
 }
 
 pub struct DatabaseManager {
@@ -89,6 +91,12 @@ impl DatabaseManager {
 
   fn collab_builder(&self) -> FlowyResult<Arc<WorkspaceCollabAdaptor>> {
     self.collab_builder.upgrade().ok_or(FlowyError::ref_drop())
+  }
+
+  /// Get server info for this database instance.
+  /// Returns None if server info is not accessible.
+  pub fn get_server_info(&self) -> Option<ServerInfo> {
+    self.user.get_server_info()
   }
 
   /// When initialize with new workspace, all the resources will be cleared.

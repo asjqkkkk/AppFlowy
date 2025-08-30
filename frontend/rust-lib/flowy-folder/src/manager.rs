@@ -25,6 +25,7 @@ use arc_swap::ArcSwapOption;
 use client_api::entity::guest_dto::{
   RevokeSharedViewAccessRequest, ShareViewWithGuestRequest, SharedUser, SharedViewDetails,
 };
+use client_api::entity::server_info_dto::ServerInfo;
 use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CreateExportTask, CreateExportTaskResponse, CreateImportTaskType,
@@ -92,6 +93,7 @@ pub trait FolderUser: Send + Sync {
   fn sqlite_connection(&self, uid: i64) -> Result<DBConnection, FlowyError>;
   fn is_folder_exist_on_disk(&self, uid: i64, workspace_id: &Uuid) -> FlowyResult<bool>;
   fn get_active_user_workspace(&self) -> FlowyResult<UserWorkspace>;
+  fn get_server_info(&self) -> Option<ServerInfo>;
 }
 
 pub struct FolderManager {
@@ -152,6 +154,12 @@ impl FolderManager {
       .cloud_service
       .upgrade()
       .ok_or_else(FlowyError::ref_drop)
+  }
+
+  /// Get server info for this folder instance.
+  /// Returns None if server info is not accessible.
+  pub fn get_server_info(&self) -> Option<ServerInfo> {
+    self.user.get_server_info()
   }
 
   pub fn register_operation_handler(

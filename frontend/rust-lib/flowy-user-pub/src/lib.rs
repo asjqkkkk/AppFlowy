@@ -1,5 +1,6 @@
 pub mod cloud;
 pub mod entities;
+pub mod server_info;
 pub mod session;
 pub mod sql;
 pub mod workspace_collab;
