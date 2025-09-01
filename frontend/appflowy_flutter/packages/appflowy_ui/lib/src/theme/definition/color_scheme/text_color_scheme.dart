@@ -7,9 +7,11 @@ class AppFlowyTextColorScheme {
     required this.tertiary,
     required this.quaternary,
     required this.onFill,
+    required this.inverse,
     required this.action,
     required this.actionHover,
     required this.info,
+    required this.infoLight,
     required this.infoHover,
     required this.infoOnFill,
     required this.success,
@@ -19,6 +21,7 @@ class AppFlowyTextColorScheme {
     required this.warningHover,
     required this.warningOnFill,
     required this.error,
+    required this.errorLight,
     required this.errorHover,
     required this.errorOnFill,
     required this.featured,
@@ -31,9 +34,11 @@ class AppFlowyTextColorScheme {
   final Color tertiary;
   final Color quaternary;
   final Color onFill;
+  final Color inverse;
   final Color action;
   final Color actionHover;
   final Color info;
+  final Color infoLight;
   final Color infoHover;
   final Color infoOnFill;
   final Color success;
@@ -43,6 +48,7 @@ class AppFlowyTextColorScheme {
   final Color warningHover;
   final Color warningOnFill;
   final Color error;
+  final Color errorLight;
   final Color errorHover;
   final Color errorOnFill;
   final Color featured;
@@ -79,6 +85,11 @@ class AppFlowyTextColorScheme {
         other.onFill,
         t,
       )!,
+      inverse: Color.lerp(
+        inverse,
+        other.inverse,
+        t,
+      )!,
       action: Color.lerp(
         action,
         other.action,
@@ -92,6 +103,11 @@ class AppFlowyTextColorScheme {
       info: Color.lerp(
         info,
         other.info,
+        t,
+      )!,
+      infoLight: Color.lerp(
+        infoLight,
+        other.infoLight,
         t,
       )!,
       infoHover: Color.lerp(
@@ -137,6 +153,11 @@ class AppFlowyTextColorScheme {
       error: Color.lerp(
         error,
         other.error,
+        t,
+      )!,
+      errorLight: Color.lerp(
+        errorLight,
+        other.errorLight,
         t,
       )!,
       errorHover: Color.lerp(

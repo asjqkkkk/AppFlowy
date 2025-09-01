@@ -6,6 +6,7 @@ use crate::deps_resolve::folder_deps::folder_deps_chat_impl::ChatFolderOperation
 use crate::deps_resolve::folder_deps::folder_deps_database_impl::DatabaseFolderOperation;
 use crate::deps_resolve::folder_deps::folder_deps_doc_impl::DocumentFolderOperation;
 use crate::server_layer::ServerProvider;
+use client_api::entity::server_info_dto::ServerInfo;
 use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
 use collab_entity::{CollabType, EncodedCollab};
@@ -119,6 +120,10 @@ impl FolderUser for FolderUserImpl {
 
   fn get_active_user_workspace(&self) -> FlowyResult<UserWorkspace> {
     self.upgrade_user()?.get_active_user_workspace()
+  }
+
+  fn get_server_info(&self) -> Option<ServerInfo> {
+    self.upgrade_user().ok()?.get_server_info()
   }
 }
 

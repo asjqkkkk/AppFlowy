@@ -122,6 +122,7 @@ pub extern "C" fn init_sdk(_port: i64, data: *mut c_char) -> i64 {
     .to_str()
     .expect("Failed to convert C string to Rust string");
   let configuration = AppFlowyDartConfiguration::from_str(serde_str);
+
   configuration.write_env();
 
   if configuration.authenticator_type == AuthenticatorType::AppFlowyCloud {

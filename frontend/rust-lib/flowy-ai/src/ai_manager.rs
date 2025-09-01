@@ -22,6 +22,7 @@ use crate::model_select::{
 use crate::notification::{ChatNotification, chat_notification_builder};
 use client_api::entity::billing_dto::PersonalPlan;
 use client_api::entity::chat_dto::{ChatSettings, UpdateChatParams};
+use client_api::entity::server_info_dto::ServerInfo;
 use dashmap::{DashMap, Entry};
 use flowy_ai_pub::cloud::{AIModel, ChatCloudService};
 use flowy_ai_pub::persistence::{
@@ -112,6 +113,12 @@ impl AIManager {
     let user_service = Arc::downgrade(&self.user_service);
     let cloud_service = Arc::downgrade(&self.cloud_service_wm);
     Arc::new(AICompletion::new(cloud_service, user_service))
+  }
+
+  /// Get server info for this AI instance.
+  /// Returns None if server info is not accessible.
+  pub fn get_server_info(&self) -> Option<ServerInfo> {
+    self.user_service.get_server_info()
   }
 
   pub async fn on_cancel_personal_subscriptions(&self, plan: &PersonalPlan) {

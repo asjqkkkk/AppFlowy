@@ -1,3 +1,4 @@
+use client_api::entity::server_info_dto::ServerInfo;
 use client_api::entity::TranslateRowResponse;
 use collab::core::collab::default_client_id;
 use collab::preclude::ClientID;
@@ -133,5 +134,9 @@ impl DatabaseUser for DatabaseUserImpl {
         default_client_id()
       },
     }
+  }
+
+  fn get_server_info(&self) -> Option<ServerInfo> {
+    self.upgrade_user().ok()?.get_server_info()
   }
 }

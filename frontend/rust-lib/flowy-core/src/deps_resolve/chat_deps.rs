@@ -1,3 +1,4 @@
+use client_api::entity::server_info_dto::ServerInfo;
 use collab::core::collab::{default_client_id, CollabOptions, DataSource};
 use collab::core::origin::CollabOrigin;
 use collab::preclude::updates::decoder::Decode;
@@ -217,6 +218,10 @@ impl AIUserService for AIUserServiceImpl {
 
   fn user_data_dir(&self) -> Result<PathBuf, FlowyError> {
     self.upgrade_user()?.get_user_data_dir()
+  }
+
+  fn get_server_info(&self) -> Option<ServerInfo> {
+    self.upgrade_user().ok()?.get_server_info()
   }
 }
 

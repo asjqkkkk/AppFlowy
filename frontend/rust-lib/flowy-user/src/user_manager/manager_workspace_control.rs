@@ -14,19 +14,21 @@ use flowy_error::{FlowyError, FlowyResult};
 use flowy_sqlite::kv::KVStorePreferences;
 use flowy_user_pub::cloud::UserServerProvider;
 use flowy_user_pub::entities::WorkspaceType;
+use flowy_user_pub::server_info::ServerInfoProvider;
+use lib_infra::async_trait::async_trait;
 use std::ops::Deref;
 use std::sync::{Arc, Weak};
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, instrument, trace, warn};
 use uuid::Uuid;
 
 fn sync_server_info_for_user(
-  uid: i64,
   server_provider: Weak<dyn UserServerProvider>,
   store_preferences: Weak<KVStorePreferences>,
+  ret: Option<tokio::sync::oneshot::Sender<Result<ServerInfo, FlowyError>>>,
 ) {
   tokio::spawn(async move {
-    info!("Syncing server info for user: {}", uid);
     let store_preferences = store_preferences
       .upgrade()
       .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade store preferences"))?;
@@ -35,21 +37,112 @@ fn sync_server_info_for_user(
       .upgrade()
       .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade cloud service"))?;
 
-    let server_info = server_provider.sync_server_info(uid).await?;
-    let key = format!("server_info_{}", uid);
+    match server_provider.sync_server_info().await {
+      Ok(server_info) => {
+        let key = server_info_key()?;
+        debug!("server info: {:?}", server_info);
+        store_preferences.set_object(&key, &server_info)?;
 
-    debug!("server info: {:?}", server_info);
-    store_preferences.set_object(&key, &server_info)?;
+        if let Some(ret) = ret {
+          let _ = ret.send(Ok(server_info));
+        }
+      },
+      Err(err) => {
+        if let Some(ret) = ret {
+          let _ = ret.send(Err(err));
+        }
+      },
+    }
     Ok::<_, FlowyError>(())
   });
 }
 
+/// URL-aware server info sync that stops when the server URL changes or cancellation token is triggered
+pub(crate) async fn sync_server_info_with_url(
+  server_url: String,
+  server_provider: Weak<dyn UserServerProvider>,
+  store_preferences: Weak<KVStorePreferences>,
+  cancel_token: CancellationToken,
+) {
+  let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(300)); // 5 minutes
+  info!("Started server sync for URL: {}", server_url);
+
+  loop {
+    tokio::select! {
+      _ = cancel_token.cancelled() => {
+        break;
+      }
+      _ = interval.tick() => {
+        // Check if server URL has changed before syncing
+        let current_url = match get_current_server_url() {
+          Ok(url) => url,
+          Err(_) => {
+            info!("Cannot get current server URL, stopping sync for: {}", server_url);
+            break;
+          }
+        };
+
+        if current_url != server_url {
+          info!("Server URL changed from {} to {}, stopping sync", server_url, current_url);
+          break;
+        }
+
+        // Perform sync with URL validation
+        debug!("Syncing server info for URL: {}", server_url);
+        if let Err(err) = sync_server_info_once( &server_provider, &store_preferences).await {
+          error!("Failed to sync server info for URL {}: {}", server_url, err);
+          // Continue the loop to retry on next interval
+        }
+      }
+    }
+  }
+
+  info!("Server sync stopped for URL: {}", server_url);
+}
+
+/// Performs a single server info sync operation
+async fn sync_server_info_once(
+  server_provider: &Weak<dyn UserServerProvider>,
+  store_preferences: &Weak<KVStorePreferences>,
+) -> Result<(), FlowyError> {
+  let store_preferences = store_preferences
+    .upgrade()
+    .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade store preferences"))?;
+
+  let server_provider = server_provider
+    .upgrade()
+    .ok_or_else(|| FlowyError::internal().with_context("Failed to upgrade cloud service"))?;
+
+  let server_info = server_provider.sync_server_info().await?;
+  let key = server_info_key()?;
+
+  debug!("server info: {:?}", server_info);
+  store_preferences.set_object(&key, &server_info)?;
+  Ok(())
+}
+
+/// Gets the current server URL from environment variables
+pub fn get_current_server_url() -> Result<String, FlowyError> {
+  use flowy_server_pub::af_cloud_config::APPFLOWY_CLOUD_BASE_URL;
+
+  std::env::var(APPFLOWY_CLOUD_BASE_URL).map_err(|_| {
+    FlowyError::internal().with_context("APPFLOWY_CLOUD_BASE_URL not found in environment")
+  })
+}
+pub fn server_info_key() -> FlowyResult<String> {
+  let url = get_current_server_url()?;
+  Ok(format!("server_info_{}", url))
+}
+
 impl UserManager {
-  fn sync_server_info(&self, uid: i64) {
+  pub fn sync_server_info(
+    &self,
+    ret: Option<tokio::sync::oneshot::Sender<Result<ServerInfo, FlowyError>>>,
+  ) {
     sync_server_info_for_user(
-      uid,
       self.cloud_service.clone(),
       Arc::downgrade(&self.store_preferences),
+      ret,
     );
   }
 
@@ -130,8 +223,7 @@ impl UserManager {
   }
 
   pub async fn get_server_info(&self) -> Option<ServerInfo> {
-    let uid = self.user_id().ok()?;
-    let key = format!("server_info_{}", uid);
+    let key = server_info_key().ok()?;
     let info = self.store_preferences.get_object::<ServerInfo>(&key)?;
     let data = SignedServerInfoData::from(&info);
     match verify_signature(&info.sig, &data) {
@@ -239,7 +331,15 @@ impl UserManager {
       "Initializing workspace controller for workspace: {}, type: {:?}, sync_enabled: {}",
       workspace_id, workspace_type, sync_enabled
     );
-    self.sync_server_info(uid);
+
+    // Start URL-bound server info sync
+    if let Ok(current_url) = get_current_server_url() {
+      self.start_server_sync_for_url(current_url);
+    } else {
+      // Fallback to old sync method if URL detection fails
+      self.sync_server_info(None);
+    }
+
     self.sync_client_default_timezone(uid);
 
     // build the workspace controller
@@ -459,5 +559,12 @@ impl WorkspaceControllerLifeCycle {
         }
       }
     });
+  }
+}
+
+#[async_trait]
+impl ServerInfoProvider for UserManager {
+  async fn get_server_info(&self) -> Option<ServerInfo> {
+    self.get_server_info().await
   }
 }

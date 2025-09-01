@@ -15,7 +15,9 @@ use crate::services::action_interceptor::ActionInterceptors;
 use crate::services::authenticate_user::AuthenticateUser;
 use crate::services::cloud_config::get_cloud_config;
 use crate::user_manager::manager_user_awareness::UserAwarenessLifeCycle;
-use crate::user_manager::manager_workspace_control::WorkspaceControllerLifeCycle;
+use crate::user_manager::manager_workspace_control::{
+  sync_server_info_with_url, WorkspaceControllerLifeCycle,
+};
 use crate::{errors::FlowyError, notification::*};
 use arc_swap::ArcSwapOption;
 use client_api::entity::auth_dto::{MetadataKey, UpdateUserParams};
@@ -39,6 +41,7 @@ use std::string::ToString;
 use std::sync::{Arc, Weak};
 use tokio_stream::wrappers::WatchStream;
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, event, info, instrument, warn};
 use uuid::Uuid;
 
@@ -52,11 +55,14 @@ pub struct UserManager {
   pub(crate) authenticate_user: Arc<AuthenticateUser>,
   pub(crate) user_awareness_by_wid: DashMap<Uuid, UserAwarenessLifeCycle>,
   pub(crate) controller_by_wid: Arc<DashMap<Uuid, WorkspaceControllerLifeCycle>>,
+  pub(crate) server_sync_registry: Arc<DashMap<String, CancellationToken>>,
 }
 
 impl Drop for UserManager {
   fn drop(&mut self) {
     tracing::trace!("[Drop] drop user manager");
+    // Stop all active server sync tasks
+    self.stop_all_server_sync();
   }
 }
 
@@ -81,6 +87,7 @@ impl UserManager {
       data_importer,
       controller_by_wid: Default::default(),
       user_awareness_by_wid: Default::default(),
+      server_sync_registry: Arc::new(DashMap::new()),
     });
 
     user_manager.spawn_periodically_check_workspace_control();
@@ -641,6 +648,39 @@ impl UserManager {
 
   pub fn token(&self) -> Result<Option<String>, FlowyError> {
     Ok(None)
+  }
+
+  /// Stops the background server sync task for a specific URL
+  pub fn stop_server_sync_for_url(&self, server_url: &str) {
+    if let Some((_, token)) = self.server_sync_registry.remove(server_url) {
+      token.cancel();
+    }
+  }
+
+  /// Starts a background server sync task bound to a specific URL
+  pub fn start_server_sync_for_url(&self, server_url: String) {
+    // Stop any existing sync for this URL first
+    self.stop_server_sync_for_url(&server_url);
+
+    let cancel_token = CancellationToken::new();
+    self
+      .server_sync_registry
+      .insert(server_url.clone(), cancel_token.clone());
+
+    tokio::spawn(sync_server_info_with_url(
+      server_url,
+      self.cloud_service.clone(),
+      Arc::downgrade(&self.store_preferences),
+      cancel_token,
+    ));
+  }
+
+  /// Stops all active server sync tasks
+  pub fn stop_all_server_sync(&self) {
+    for entry in self.server_sync_registry.iter() {
+      entry.value().cancel();
+    }
+    self.server_sync_registry.clear();
   }
 
   async fn save_user(&self, uid: i64, user: UserTable) -> Result<(), FlowyError> {
