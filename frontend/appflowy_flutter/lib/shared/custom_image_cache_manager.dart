@@ -35,6 +35,32 @@ class CustomImageCacheManager extends CacheManager
   }
 }
 
+class CustomAvatarCacheManager extends CacheManager
+    with ImageCacheManager
+    implements ICache {
+  CustomAvatarCacheManager._()
+      : super(
+          Config(
+            key,
+            fileSystem: CustomIOFileSystem(key),
+            stalePeriod: const Duration(hours: 1),
+          ),
+        );
+
+  factory CustomAvatarCacheManager() => _instance;
+
+  static final CustomAvatarCacheManager _instance =
+      CustomAvatarCacheManager._();
+
+  static const key = 'avatar_cache';
+
+  @override
+  Future<int> cacheSize() async => 0;
+
+  @override
+  Future<void> clearAll() async => emptyCache();
+}
+
 class CustomIOFileSystem implements FileSystem {
   CustomIOFileSystem(this._cacheKey) : _fileDir = createDirectory(_cacheKey);
   final Future<Directory> _fileDir;

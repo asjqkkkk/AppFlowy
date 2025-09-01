@@ -6,6 +6,7 @@ import 'package:appflowy/features/mension_person/presentation/widgets/mention_me
 import 'package:appflowy/features/workspace/workspace.dart';
 import 'package:appflowy/plugins/document/application/document_bloc.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/mention/mention_block.dart';
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -78,6 +79,7 @@ extension MentionMenuItemPersonWidgetsExtension on MentionMenuItem {
               size: AFAvatarSize.s,
               name: person.name,
               email: person.email,
+              cacheManager: CustomAvatarCacheManager(),
             ),
             selected: selected,
             title: person.name,

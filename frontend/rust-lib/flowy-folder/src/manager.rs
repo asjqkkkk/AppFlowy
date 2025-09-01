@@ -31,7 +31,7 @@ use client_api::entity::workspace_dto::{PublishInfoView, RecentViewItem};
 use client_api::entity::{
   CreateExportTask, CreateExportTaskResponse, CreateImportTaskType, MentionablePerson,
   MentionablePersonWithLastMentionedTime, PageMentionAncestorViewInfo, PageMentionUpdate,
-  PublishInfo,
+  PublishInfo, WorkspaceMemberProfile,
 };
 use collab::core::collab::DataSource;
 use collab::lock::RwLock;

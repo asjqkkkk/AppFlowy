@@ -2,6 +2,7 @@ import 'package:appflowy/features/mension_person/presentation/mention_menu.dart'
 import 'package:appflowy/features/share_tab/data/models/share_role.dart';
 import 'package:appflowy/features/share_tab/data/models/shared_user.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:flowy_infra_ui/widget/spacing.dart';
 import 'package:flutter/material.dart';
@@ -132,8 +133,12 @@ class InviteDropDownMenuItem extends StatelessWidget {
         vertical: theme.spacing.s,
         horizontal: theme.spacing.m,
       ),
-      leading:
-          AFAvatar(name: user.name, url: user.avatarUrl, email: user.email),
+      leading: AFAvatar(
+        name: user.name,
+        url: user.avatarUrl,
+        email: user.email,
+        cacheManager: CustomAvatarCacheManager(),
+      ),
       title: _buildTitle(context),
       subtitle: Text(
         user.email,

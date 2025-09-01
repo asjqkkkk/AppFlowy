@@ -46,7 +46,7 @@ class UserAvatar extends StatelessWidget {
           name: name,
           email: email,
           size: size,
-          cacheManager: CustomImageCacheManager(),
+          cacheManager: CustomAvatarCacheManager(),
           httpHeaders: header,
         ),
       ),

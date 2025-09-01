@@ -6,6 +6,7 @@ import 'package:appflowy/features/share_tab/data/models/shared_user.dart';
 import 'package:appflowy/features/share_tab/presentation/widgets/invite_text_field_popover.dart';
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flowy_infra_ui/widget/flowy_tooltip.dart';
@@ -66,6 +67,7 @@ class InvitingItem extends StatelessWidget {
               name: user.name,
               email: user.email,
               size: AFAvatarSize.xs,
+              cacheManager: CustomAvatarCacheManager(),
             ),
             HSpace(spacing.xs),
             ConstrainedBox(
@@ -110,6 +112,7 @@ class InvitingItem extends StatelessWidget {
                     name: user.name,
                     email: user.email,
                     size: AFAvatarSize.xs,
+                    cacheManager: CustomAvatarCacheManager(),
                   )
                 : FlowySvg(
                     FlowySvgs.guest_inviting_item_m,

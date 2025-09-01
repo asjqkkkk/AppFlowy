@@ -141,7 +141,11 @@ class AFAvatar extends StatelessWidget {
   String _getGravatarUrl(String email) {
     final encodedEmail = utf8.encode(email);
     final hash = sha256.convert(encodedEmail);
-    return 'https://gravatar.com/avatar/$hash?d=404';
+
+    /// to refresh gravatar ever hour
+    final date = DateTime.now(),
+        time = '${date.year}${date.month}${date.day}${date.hour}';
+    return 'https://gravatar.com/avatar/$hash?d=404&t=$time';
   }
 
   Widget _buildAvatarContent({
@@ -160,8 +164,7 @@ class AFAvatar extends StatelessWidget {
         ),
       );
     } else {
-      final imageUrl =
-          (url?.isNotEmpty ?? false) ? url! : _getGravatarUrl(email);
+      final imageUrl = (url ?? '').isNotEmpty ? url! : _getGravatarUrl(email);
       return ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
         child: CachedNetworkImage(
@@ -171,7 +174,12 @@ class AFAvatar extends StatelessWidget {
           fit: BoxFit.cover,
           cacheManager: cacheManager,
           httpHeaders: httpHeaders,
-          progressIndicatorBuilder: progressIndicatorBuilder,
+          progressIndicatorBuilder: progressIndicatorBuilder ??
+              (context, url, progress) => _buildInitialsCircle(
+                    avatarSize,
+                    bgColor,
+                    textStyle,
+                  ),
           // fallback to initials if the image is not found
           errorWidget: (context, error, stackTrace) => _buildInitialsCircle(
             avatarSize,

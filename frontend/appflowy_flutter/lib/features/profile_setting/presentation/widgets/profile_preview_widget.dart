@@ -186,11 +186,12 @@ extension ProfileCardBuildContextExtension on BuildContext {
         child: Transform.scale(
           scale: 90 / AFAvatarSize.xxl.size,
           child: AFAvatar(
+            email: profile.email,
             url: profile.avatarUrl,
             radius: 41,
             size: AFAvatarSize.xxl,
             name: profile.name,
-            cacheManager: CustomImageCacheManager(),
+            cacheManager: CustomAvatarCacheManager(),
             httpHeaders:
                 read<ProfileSettingBloc>().userProfile.buildRequestHeader(),
           ),

@@ -50,6 +50,7 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
               if (!isLocal) PickerTabType.custom,
               PickerTabType.emoji,
             ],
+            showRemoveButton: profile.avatarUrl.isNotEmpty,
             documentId: bloc.workspaceId,
             onSelectedEmoji: (r) {
               bloc.add(ProfileSettingEvent.updateAvatar(r.emoji));
@@ -80,11 +81,12 @@ class _ProfileAvatarState extends State<ProfileAvatar> {
           child: Stack(
             children: [
               AFAvatar(
+                email: profile.email,
                 radius: spacing.m,
                 size: AFAvatarSize.xxl,
                 name: profile.name,
                 url: profile.avatarUrl,
-                cacheManager: CustomImageCacheManager(),
+                cacheManager: CustomAvatarCacheManager(),
                 progressIndicatorBuilder: (context, url, progress) =>
                     Center(child: CircularProgressIndicator.adaptive()),
               ),

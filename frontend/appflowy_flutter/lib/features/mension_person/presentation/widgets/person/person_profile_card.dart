@@ -7,6 +7,7 @@ import 'package:appflowy/features/profile_setting/presentation/widgets/profile_d
 import 'package:appflowy/generated/flowy_svgs.g.dart';
 import 'package:appflowy/generated/locale_keys.g.dart';
 import 'package:appflowy/plugins/document/presentation/editor_plugins/base/string_extension.dart';
+import 'package:appflowy/shared/custom_image_cache_manager.dart';
 import 'package:appflowy_backend/protobuf/flowy-folder/view.pb.dart';
 import 'package:appflowy_editor/appflowy_editor.dart';
 import 'package:appflowy_ui/appflowy_ui.dart';
@@ -389,6 +390,7 @@ extension PersonProfileCardWidgetExtension on BuildContext {
           name: person.name,
           email: person.email,
           size: AFAvatarSize.xl,
+          cacheManager: CustomAvatarCacheManager(),
           backgroundColor:
               (url.isNotEmpty && !isEmojiAvatar) ? Colors.transparent : null,
         ),

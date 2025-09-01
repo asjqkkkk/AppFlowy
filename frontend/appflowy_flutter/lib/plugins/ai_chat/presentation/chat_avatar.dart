@@ -51,10 +51,11 @@ class ChatUserAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     late final Widget child = UserAvatar(
-          iconUrl: iconUrl,
-          name: _userName(name, defaultName),
-          size: AFAvatarSize.m,
-        );
+      email: email,
+      iconUrl: iconUrl,
+      name: _userName(name, defaultName),
+      size: AFAvatarSize.m,
+    );
     return Container(
       width: DesktopAIChatSizes.avatarSize,
       height: DesktopAIChatSizes.avatarSize,
